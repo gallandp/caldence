@@ -29,6 +29,8 @@ function matches(event: CalEvent, team: Team, date: ISODate): boolean {
   switch (rule.type) {
     case 'weekly':
       return weekday(date) === rule.weekday;
+    case 'weekdays':
+      return rule.weekdays.includes(weekday(date));
     case 'every-n-weeks': {
       if (weekday(date) !== rule.weekday || rule.n < 1) return false;
       const weeks = diffDays(mondayOf(date), mondayOf(rule.anchor)) / 7;

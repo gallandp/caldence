@@ -1,7 +1,11 @@
+import { randomId } from './id';
 import { CURRENT_SCHEMA } from './model';
 
-/** Migration `n` upgrades a workspace from schema `n` to `n + 1`. Schema 1 is the first, so none yet. */
-export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {};
+/** Migration `n` upgrades a workspace from schema `n` to `n + 1`. */
+export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
+  // 1 -> 2: every workspace gets a stable id.
+  1: (w) => ({ ...(w as Record<string, unknown>), id: randomId() }),
+};
 
 export type MigrateResult =
   { ok: true; value: unknown } | { ok: false; key: 'error.schema.newer' | 'error.schema.unknown' };

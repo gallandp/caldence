@@ -25,6 +25,8 @@ function occurrencesPerWeek(rule: Rule, team: Team): number {
   switch (rule.type) {
     case 'weekly':
       return 1;
+    case 'weekdays':
+      return rule.weekdays.length;
     case 'every-n-weeks':
       return rule.n >= 1 ? 1 / rule.n : 0;
     case 'monthly-nth-weekday':

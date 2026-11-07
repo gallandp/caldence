@@ -4,6 +4,7 @@ import type { Locale } from '../../i18n';
 
 export const RULE_TYPES = [
   'weekly',
+  'weekdays',
   'every-n-weeks',
   'monthly-nth-weekday',
   'cadence-day',
@@ -16,6 +17,7 @@ export type RuleType = (typeof RULE_TYPES)[number];
 export interface RuleDraft {
   type: RuleType;
   weekday: number;
+  weekdays: number[];
   n: number | null;
   anchor: string;
   nth: number;
@@ -39,6 +41,7 @@ export function ruleDraft(rule: Rule | undefined, team: Team, today: string): Ru
   const draft: RuleDraft = {
     type: 'weekly',
     weekday: 1,
+    weekdays: [1, 2, 3, 4, 5],
     n: 2,
     anchor: mondayOf(today),
     nth: 1,
@@ -53,6 +56,9 @@ export function ruleDraft(rule: Rule | undefined, team: Team, today: string): Ru
   switch (rule.type) {
     case 'weekly':
       draft.weekday = rule.weekday;
+      break;
+    case 'weekdays':
+      draft.weekdays = [...rule.weekdays];
       break;
     case 'every-n-weeks':
       Object.assign(draft, { weekday: rule.weekday, n: rule.n, anchor: rule.anchor });
@@ -84,6 +90,8 @@ export function toRule(d: RuleDraft): Rule {
   switch (d.type) {
     case 'weekly':
       return { type: 'weekly', weekday: d.weekday };
+    case 'weekdays':
+      return { type: 'weekdays', weekdays: [...d.weekdays].sort((a, b) => a - b) };
     case 'every-n-weeks':
       return { type: 'every-n-weeks', weekday: d.weekday, n: num(d.n), anchor: d.anchor };
     case 'monthly-nth-weekday':

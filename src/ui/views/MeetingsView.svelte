@@ -66,6 +66,13 @@
     switch (rule.type) {
       case 'weekly':
         return $t('meet.sum.weekly', { weekday: wd(rule.weekday) });
+      case 'weekdays':
+        return $t('meet.sum.weekdays', {
+          weekdays: [...rule.weekdays]
+            .sort((a, b) => a - b)
+            .map(wd)
+            .join(', '),
+        });
       case 'every-n-weeks':
         return $t('meet.sum.everyN', {
           n: formatNumber(loc, rule.n, 0),
