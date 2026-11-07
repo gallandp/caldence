@@ -234,6 +234,7 @@
   "meet.kind.flow": "flow period",
   "meet.kind.pi": "PI",
   "meet.sum.weekly": "Weekly on {weekday}",
+  "meet.sum.range": "{from} to {to}",
   "meet.sum.weekdays": "On {weekdays}",
   "meet.sum.everyN": "Every {n} weeks on {weekday}",
   "meet.sum.monthly": "{nth} {weekday} of the month",

@@ -8,7 +8,7 @@
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { weekdayName } from '../meetings/rules';
+  import { weekdayName, weekdayRuns } from '../meetings/rules';
   import { fieldErrors } from '../state/form';
   import { activeTeamId, workspace } from '../state/workspace';
 
@@ -68,10 +68,13 @@
         return $t('meet.sum.weekly', { weekday: wd(rule.weekday) });
       case 'weekdays':
         return $t('meet.sum.weekdays', {
-          weekdays: [...rule.weekdays]
-            .sort((a, b) => a - b)
-            .map(wd)
-            .join(', '),
+          weekdays: new Intl.ListFormat(loc, { type: 'conjunction' }).format(
+            weekdayRuns(rule.weekdays).map((r) =>
+              r.from === r.to
+                ? wd(r.from)
+                : $t('meet.sum.range', { from: wd(r.from), to: wd(r.to) }),
+            ),
+          ),
         });
       case 'every-n-weeks':
         return $t('meet.sum.everyN', {

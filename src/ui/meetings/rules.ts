@@ -36,6 +36,22 @@ export function weekdayName(locale: Locale, weekday: number): string {
   return new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(d);
 }
 
+/** Sorted weekdays as runs; runs of 3 or more consecutive days stay one range, shorter ones split. */
+export function weekdayRuns(days: number[]): { from: number; to: number }[] {
+  const sorted = [...new Set(days)].sort((a, b) => a - b);
+  const runs: { from: number; to: number }[] = [];
+  for (const d of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && last.to === d - 1) last.to = d;
+    else runs.push({ from: d, to: d });
+  }
+  return runs.flatMap((r) =>
+    r.to - r.from >= 2
+      ? [r]
+      : Array.from({ length: r.to - r.from + 1 }, (_, i) => ({ from: r.from + i, to: r.from + i })),
+  );
+}
+
 export function ruleDraft(rule: Rule | undefined, team: Team, today: string): RuleDraft {
   const cycle = team.cycles[0];
   const draft: RuleDraft = {
