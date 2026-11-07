@@ -1,0 +1,37 @@
+{
+  "kind": "caldence-template",
+  "schemaVersion": 2,
+  "id": "custom-pair",
+  "name": "Pairing Rhythm",
+  "description": "A weekly pairing session and a retrospective.",
+  "roles": [{ "id": "r-dev", "name": "Developer", "colour": "#1d4ed8" }],
+  "categories": [{ "id": "c-rhythm", "name": "Rhythm", "colour": "#15803d" }],
+  "team": {
+    "name": "Pairing",
+    "cadence": { "kind": "sprint", "lengthWeeks": 1, "start": "2027-01-04" },
+    "assumptions": {},
+    "cycles": [],
+    "events": [
+      {
+        "id": "e-pair",
+        "name": "Pairing Session",
+        "categoryId": "c-rhythm",
+        "rule": { "type": "weekly", "weekday": 3 },
+        "time": "10:00",
+        "duration": 60,
+        "participants": [{ "roleId": "r-dev", "share": 1 }],
+        "preparation": 0
+      },
+      {
+        "id": "e-retro",
+        "name": "Weekly Retro",
+        "categoryId": "c-rhythm",
+        "rule": { "type": "weekly", "weekday": 5 },
+        "time": "15:00",
+        "duration": 45,
+        "participants": [{ "roleId": "r-dev", "share": 1 }],
+        "preparation": 0
+      }
+    ]
+  }
+}
