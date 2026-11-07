@@ -12,6 +12,8 @@
     /* no persistence available */
   }
 
+  document.documentElement.lang = $locale;
+
   $effect(() => {
     document.documentElement.lang = $locale;
   });

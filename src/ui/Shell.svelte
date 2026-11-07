@@ -25,6 +25,7 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const i = views.indexOf(active);
     const last = views.length - 1;
     const target: number | undefined =
@@ -137,7 +138,8 @@
   .tabs {
     display: flex;
     gap: 0.25rem;
-    padding: 0 var(--space);
+    /* vertical padding keeps the focus ring (3px + 2px offset) from being clipped by overflow */
+    padding: 0.5rem var(--space);
     overflow-x: auto;
     border-bottom: 1px solid var(--border);
   }

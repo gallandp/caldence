@@ -48,6 +48,39 @@ for (const locale of locales) {
   }
 }
 
+test('focus ring of a tab is not clipped by the tablist', async ({ page }) => {
+  await page.goto('/');
+  const tab = page.getByRole('tab').nth(1);
+  await tab.focus();
+  const [t, list, outline] = await Promise.all([
+    tab.boundingBox(),
+    page.getByRole('tablist').boundingBox(),
+    tab.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return parseFloat(cs.outlineWidth) + parseFloat(cs.outlineOffset);
+    }),
+  ]);
+  expect(outline).toBeGreaterThanOrEqual(5);
+  expect(t!.y - outline).toBeGreaterThanOrEqual(list!.y);
+  expect(t!.y + t!.height + outline).toBeLessThanOrEqual(list!.y + list!.height);
+});
+
+test('modifier keys do not trigger tab navigation', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab').first().focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  await expect(page.getByRole('tab').first()).toBeFocused();
+});
+
+test('skip link is visible on focus in dark mode', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to content' });
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeInViewport({ ratio: 1 });
+});
+
 test('skip link is the first Tab stop and moves focus to main', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');
