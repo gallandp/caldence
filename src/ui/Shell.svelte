@@ -10,6 +10,7 @@
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import HelpView from './views/HelpView.svelte';
+  import { registerFileInput } from './state/picker';
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
@@ -59,6 +60,8 @@
   }
 
   let bar: WorkspaceBar | undefined;
+  let fileInput: HTMLInputElement | undefined;
+  $effect(() => (fileInput ? registerFileInput(fileInput) : undefined));
 
   /** Blurs the focused control so that a commit-on-blur value is in the workspace before saving. */
   function commitFocused(): HTMLElement | null {
@@ -123,6 +126,15 @@
 </header>
 
 <WorkspaceBar bind:this={bar} />
+
+<input
+  bind:this={fileInput}
+  type="file"
+  accept=".json,application/json"
+  aria-label={$t('file.input')}
+  tabindex="-1"
+  hidden
+/>
 
 <div class="tabs" role="tablist" aria-label={$t('nav.views')}>
   {#each views as id (id)}
