@@ -107,20 +107,27 @@ function acceptString(types: FilePickerType[]): string {
     .join(',');
 }
 
-/** Reads a text file chosen by the user; null when cancelled. Never touches the workspace handle. */
+/**
+ * Reads a text file chosen by the user; null when cancelled. Never touches the workspace handle.
+ * With `decode`, the raw bytes go through it instead of the browser's UTF-8 decoding (for example
+ * `unfoldBytes` for .ics files, which must be unfolded before they are decoded).
+ */
 export async function openTextFile(
   env: FileEnv,
   types: FilePickerType[],
+  decode?: (bytes: Uint8Array) => string,
 ): Promise<{ name: string; text: string } | null> {
+  const read = async (file: File): Promise<string> =>
+    decode ? decode(new Uint8Array(await file.arrayBuffer())) : file.text();
   try {
     if (env.showOpenFilePicker) {
       const [first] = await env.showOpenFilePicker({ types });
       if (!first) return null;
       const file = await first.getFile();
-      return { name: first.name, text: await file.text() };
+      return { name: first.name, text: await read(file) };
     }
     const file = await env.pickFile(acceptString(types));
-    return file ? { name: file.name, text: await file.text() } : null;
+    return file ? { name: file.name, text: await read(file) } : null;
   } catch (error) {
     if (isAbort(error)) return null;
     throw error;

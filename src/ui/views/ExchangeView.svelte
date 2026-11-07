@@ -3,7 +3,7 @@
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
   import { exportIcs } from '../../core/ics';
-  import { parseIcs, reviewImport, type IcsEvent } from '../../core/icsImport';
+  import { parseIcs, reviewImport, unfoldBytes, type IcsEvent } from '../../core/icsImport';
   import { slug } from '../../core/slug';
   import { workspaceIndex, type Filter } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
@@ -148,7 +148,7 @@
   async function chooseFile() {
     let file;
     try {
-      file = await openTextFile(env, types());
+      file = await openTextFile(env, types(), unfoldBytes);
     } catch {
       problem = { key: 'file.error.read' };
       parsed = null;

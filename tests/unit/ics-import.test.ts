@@ -8,6 +8,7 @@ import {
   type IcsEvent,
   type ImportCandidate,
   type ImportReview,
+  unfoldBytes,
 } from '../../src/core/icsImport';
 import { emptyWorkspace, type Rule, type Workspace } from '../../src/core/model';
 import { occurrences } from '../../src/core/recurrence';
@@ -128,6 +129,47 @@ describe('parseIcs: folds, case and BOM', () => {
     });
     expect(ev!.durationMinutes).toBe(30);
     expect(ev!.rrule).toEqual({ FREQ: 'WEEKLY', BYDAY: 'MO' });
+  });
+});
+
+describe('unfoldBytes', () => {
+  const bytes = (...parts: (string | number[])[]): Uint8Array => {
+    const enc = new TextEncoder();
+    const chunks = parts.map((p) => (typeof p === 'string' ? enc.encode(p) : Uint8Array.from(p)));
+    const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+    let i = 0;
+    for (const c of chunks) {
+      out.set(c, i);
+      i += c.length;
+    }
+    return out;
+  };
+  const calendar = (summary: (string | number[])[], eol = '\r\n'): Uint8Array =>
+    bytes(
+      `BEGIN:VCALENDAR${eol}BEGIN:VEVENT${eol}UID:u1${eol}`,
+      ...summary,
+      `${eol}DTSTART;TZID=Europe/Berlin:20270104T090000${eol}DURATION:PT30M${eol}`,
+      `END:VEVENT${eol}END:VCALENDAR${eol}`,
+    );
+
+  it('restores a character folded between its two UTF-8 bytes (CRLF + space)', () => {
+    // "Ä" is C3 84; the producer folded the line between the two octets.
+    const raw = calendar(['SUMMARY:', [0xc3], '\r\n ', [0x84]]);
+    const text = unfoldBytes(raw);
+    expect(text).toContain('SUMMARY:Ä\r\n');
+    expect(ok(parseIcs(text))[0]!.summary).toBe('Ä');
+    // Decoding first, as before, breaks the character.
+    expect(ok(parseIcs(new TextDecoder().decode(raw)))[0]!.summary).not.toBe('Ä');
+  });
+
+  it('unfolds LF + tab and keeps unfolded multi-byte text intact', () => {
+    const raw = calendar(['SUMMARY:Abstimmung f', [0xc3], '\n\t', [0xbc], 'r Übergabe 🎉'], '\n');
+    expect(ok(parseIcs(unfoldBytes(raw)))[0]!.summary).toBe('Abstimmung für Übergabe 🎉');
+  });
+
+  it('keeps line breaks that are not followed by a space or tab', () => {
+    const text = unfoldBytes(bytes('A\r\nB\nC\r\n'));
+    expect(text).toBe('A\r\nB\nC\r\n');
   });
 });
 

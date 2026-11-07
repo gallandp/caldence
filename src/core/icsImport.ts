@@ -230,6 +230,34 @@ function toEvent(draft: Draft): IcsEvent | null {
   return ev;
 }
 
+const CR = 0x0d;
+const LF = 0x0a;
+const isFoldSpace = (b: number | undefined): boolean => b === 0x20 || b === 0x09;
+
+/**
+ * Unfolds the raw bytes of an iCalendar file and decodes them as UTF-8. RFC 5545 §3.1 lets a
+ * producer fold a line inside a multi-octet character, so a line break (CR LF, LF or CR) followed
+ * by a space or tab is removed before decoding; decoding first would turn each half into U+FFFD.
+ * The result can go straight to `parseIcs`.
+ */
+export function unfoldBytes(bytes: Uint8Array): string {
+  const out = new Uint8Array(bytes.length);
+  let n = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i]!;
+    if (b === CR && bytes[i + 1] === LF && isFoldSpace(bytes[i + 2])) {
+      i += 2;
+      continue;
+    }
+    if ((b === LF || b === CR) && isFoldSpace(bytes[i + 1])) {
+      i += 1;
+      continue;
+    }
+    out[n++] = b;
+  }
+  return new TextDecoder('utf-8').decode(out.subarray(0, n));
+}
+
 /**
  * Reads the VEVENTs of an iCalendar file. Lines are unfolded and parameters may be quoted.
  * Errors: `ics.error.notIcs` without BEGIN:VCALENDAR, `ics.error.empty` without any VEVENT.

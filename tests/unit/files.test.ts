@@ -324,6 +324,17 @@ describe('text files', () => {
     expect(await openTextFile({ download: vi.fn(), pickFile: async () => null }, types)).toBeNull();
   });
 
+  it('openTextFile passes the raw bytes through decode when given', async () => {
+    const raw = Uint8Array.from([0x41, 0xc3, 0x0d, 0x0a, 0x20, 0xa4]);
+    const pickFile = vi.fn(async () => new File([raw], 'f.ics'));
+    const decode = vi.fn((b: Uint8Array) => `${b.length}`);
+    expect(await openTextFile({ download: vi.fn(), pickFile }, types, decode)).toEqual({
+      name: 'f.ics',
+      text: '6',
+    });
+    expect(decode).toHaveBeenCalledOnce();
+  });
+
   it('openTextFile returns null on AbortError', async () => {
     const env: FileEnv = {
       showOpenFilePicker: () => Promise.reject(new DOMException('x', 'AbortError')),
