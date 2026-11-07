@@ -106,10 +106,8 @@ describe('removeItem', () => {
 
   it('merges participants and members when replacing a role', () => {
     const ws = rich();
-    const before = structuredClone(ws);
     ws.teams[0]!.members.push({ personId: 'p1', roleId: 'r2' });
     const out = ok(removeItem(ws, 'roles', 'r1', 'r2'));
-    expect(ws).not.toEqual(before);
     const team = out.teams[0]!;
     expect(team.events[1]!.participants).toEqual([{ roleId: 'r2', share: 1 }]);
     expect(team.events[0]!.participants).toEqual([{ roleId: 'r2', share: 1 }]);
@@ -203,7 +201,7 @@ describe('teams', () => {
     const ws = base();
     expect(removeTeam(ws, 'zz')).toEqual(ws);
     expect(removeEvent(ws, 'zz', 'e1')).toEqual(ws);
-    expect(upsertCycle(ws, 'zz', { id: '', name: 'x', milestones: [] })).toEqual(ws);
+    expect(ok(upsertCycle(ws, 'zz', { id: '', name: 'x', milestones: [] }))).toEqual(ws);
   });
 
   it('duplicates deeply with a new id', () => {
@@ -232,10 +230,29 @@ describe('cycles', () => {
     });
   });
 
+  it('refuses to drop a milestone an event still references', () => {
+    const r = upsertCycle(base(), 't1', { id: 'cy1', name: 'Release', milestones: [] });
+    expect(r).toEqual({
+      ok: false,
+      errors: [{ path: 'teams.0.cycles.0.milestones', key: 'error.ref.inuse' }],
+    });
+    const keep = ok(
+      upsertCycle(base(), 't1', {
+        id: 'cy1',
+        name: 'R2',
+        milestones: [
+          { id: 'm1', name: 'Freeze', date: '2026-12-02' },
+          { id: 'm2', name: 'Ship', date: '2026-12-20' },
+        ],
+      }),
+    );
+    valid(keep);
+  });
+
   it('upserts and removes unused cycles', () => {
-    const w = upsertCycle(base(), 't1', { id: '', name: 'Q1', milestones: [] });
+    const w = ok(upsertCycle(base(), 't1', { id: '', name: 'Q1', milestones: [] }));
     expect(w.teams[0]!.cycles.map((c) => c.id)).toEqual(['cy1', 'cy2']);
-    const w2 = upsertCycle(w, 't1', { id: 'cy2', name: 'Q2', milestones: [] });
+    const w2 = ok(upsertCycle(w, 't1', { id: 'cy2', name: 'Q2', milestones: [] }));
     expect(w2.teams[0]!.cycles[1]!.name).toBe('Q2');
     expect(w2.teams[0]!.cycles).toHaveLength(2);
     const out = ok(removeCycle(w2, 't1', 'cy2'));
@@ -300,5 +317,62 @@ describe('validate preparation cap', () => {
       ok: false,
       errors: [{ path: 'teams.0.events.0.preparation', key: 'error.number.invalid' }],
     });
+  });
+});
+
+describe('purity of every edit function', () => {
+  const ev = (): CalEvent => ({
+    id: '',
+    name: 'New',
+    categoryId: 'c1',
+    rule: { type: 'weekly', weekday: 3 },
+    time: '11:00',
+    duration: 30,
+    participants: [{ roleId: 'r1', share: 1 }],
+    preparation: 0,
+  });
+  const cases: [string, (ws: Workspace) => unknown][] = [
+    ['addItem', (ws) => addItem(ws, 'roles', { name: 'N', colour: '#112233' })],
+    ['updateItem', (ws) => updateItem(ws, 'people', 'p1', { name: 'Z' })],
+    ['moveItem', (ws) => moveItem(ws, 'roles', 'r2', -1)],
+    ['removeItem roles', (ws) => removeItem(ws, 'roles', 'r1', 'r2')],
+    ['removeItem categories', (ws) => removeItem(ws, 'categories', 'c1', 'c2')],
+    ['removeItem people', (ws) => removeItem(ws, 'people', 'p2', 'p1')],
+    ['removeItem refused', (ws) => removeItem(ws, 'roles', 'r1')],
+    ['addTeam', (ws) => addTeam(ws, 'N', '2026-11-11')],
+    ['updateTeam', (ws) => updateTeam(ws, 't1', { name: 'Q', assumptions: { stories: 1 } })],
+    ['duplicateTeam', (ws) => duplicateTeam(ws, 't1', 'C')],
+    ['removeTeam', (ws) => removeTeam(ws, 't1')],
+    ['upsertCycle', (ws) => upsertCycle(ws, 't1', { id: '', name: 'Q', milestones: [] })],
+    ['removeCycle refused', (ws) => removeCycle(ws, 't1', 'cy1')],
+    ['upsertEvent', (ws) => upsertEvent(ws, 't1', ev())],
+    ['duplicateEvent', (ws) => duplicateEvent(ws, 't1', 'e1')],
+    ['removeEvent', (ws) => removeEvent(ws, 't1', 'e1')],
+    ['updateSettings', (ws) => updateSettings(ws, { hoursPerWeek: 30 })],
+  ];
+
+  it.each(cases)('%s leaves its input untouched', (_n, fn) => {
+    const ws = rich();
+    const before = structuredClone(ws);
+    fn(ws);
+    expect(ws).toEqual(before);
+  });
+
+  it.each(cases)('%s returns a result that shares nothing with the input', (_n, fn) => {
+    const ws = rich();
+    const before = structuredClone(ws);
+    const raw = fn(ws);
+    const out = (Array.isArray(raw) ? raw[0] : raw) as Workspace | Result<Workspace>;
+    const w = 'ok' in out ? (out.ok ? out.value : undefined) : out;
+    if (!w) return;
+    for (const t of w.teams) {
+      t.name = 'X';
+      t.members.push({ personId: 'p1', roleId: 'r1' });
+      for (const e of t.events) e.participants.push({ roleId: 'r1', share: 0.1 });
+      for (const c of t.cycles) c.milestones.push({ id: 'zz', name: 'z', date: '2026-01-01' });
+    }
+    for (const r of w.roles) r.name = 'X';
+    w.settings.workdays.push(9);
+    expect(ws).toEqual(before);
   });
 });

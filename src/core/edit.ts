@@ -23,8 +23,10 @@ export function newId(prefix: string, taken: Iterable<string>): string {
 const ids = (list: { id: string }[]): string[] => list.map((x) => x.id);
 
 function mapTeam(ws: Workspace, teamId: string, fn: (t: Team) => Team): Workspace {
-  if (!ws.teams.some((t) => t.id === teamId)) return ws;
-  return { ...ws, teams: ws.teams.map((t) => (t.id === teamId ? fn(structuredClone(t)) : t)) };
+  if (!ws.teams.some((t) => t.id === teamId)) return structuredClone(ws);
+  const out = structuredClone(ws);
+  out.teams = out.teams.map((t) => (t.id === teamId ? fn(t) : t));
+  return out;
 }
 
 // ---------- roles, people, categories ----------
@@ -32,14 +34,29 @@ function mapTeam(ws: Workspace, teamId: string, fn: (t: Team) => Team): Workspac
 export function addItem(ws: Workspace, kind: ListKind, data: ItemData): [Workspace, string] {
   const id = newId(PREFIX[kind], ids(ws[kind]));
   const item = { ...structuredClone(data), id } as Item;
-  return [{ ...ws, [kind]: [...structuredClone(ws[kind]), item] }, id];
+  return [{ ...structuredClone(ws), [kind]: [...structuredClone(ws[kind]), item] }, id];
 }
 
+type Patch<T> = Partial<Omit<T, 'id'>>;
+
+export function updateItem(ws: Workspace, kind: 'roles', id: string, patch: Patch<Role>): Workspace;
+export function updateItem(
+  ws: Workspace,
+  kind: 'people',
+  id: string,
+  patch: Patch<Person>,
+): Workspace;
+export function updateItem(
+  ws: Workspace,
+  kind: 'categories',
+  id: string,
+  patch: Patch<Category>,
+): Workspace;
 export function updateItem(
   ws: Workspace,
   kind: ListKind,
   id: string,
-  patch: Partial<Omit<Item, 'id'>> & Record<string, unknown>,
+  patch: Patch<Item>,
 ): Workspace {
   const list = (ws[kind] as Item[]).map((x) =>
     x.id === id
@@ -53,7 +70,7 @@ export function moveItem(ws: Workspace, kind: ListKind, id: string, delta: -1 | 
   const list = ws[kind] as Item[];
   const from = list.findIndex((x) => x.id === id);
   const to = from + delta;
-  if (from < 0 || to < 0 || to >= list.length) return ws;
+  if (from < 0 || to < 0 || to >= list.length) return structuredClone(ws);
   const next = structuredClone(list);
   const [moved] = next.splice(from, 1);
   next.splice(to, 0, moved!);
@@ -175,14 +192,14 @@ export function updateTeam(
 
 export function duplicateTeam(ws: Workspace, teamId: string, name: string): [Workspace, string] {
   const src = ws.teams.find((t) => t.id === teamId);
-  if (!src) return [ws, teamId];
+  if (!src) return [structuredClone(ws), teamId];
   const id = newId('t', ids(ws.teams));
   const copy: Team = { ...structuredClone(src), id, name };
   return [{ ...structuredClone(ws), teams: [...structuredClone(ws.teams), copy] }, id];
 }
 
 export function removeTeam(ws: Workspace, teamId: string): Workspace {
-  if (!ws.teams.some((t) => t.id === teamId)) return ws;
+  if (!ws.teams.some((t) => t.id === teamId)) return structuredClone(ws);
   return {
     ...structuredClone(ws),
     teams: structuredClone(ws.teams.filter((t) => t.id !== teamId)),
@@ -191,15 +208,37 @@ export function removeTeam(ws: Workspace, teamId: string): Workspace {
 
 // ---------- cycles ----------
 
-export function upsertCycle(ws: Workspace, teamId: string, cycle: Cycle): Workspace {
-  return mapTeam(ws, teamId, (t) => {
-    const c = structuredClone(cycle);
-    if (c.id === '') c.id = newId('cy', ids(t.cycles));
-    const i = t.cycles.findIndex((x) => x.id === c.id);
-    if (i >= 0) t.cycles[i] = c;
-    else t.cycles.push(c);
-    return t;
-  });
+/**
+ * Adds or replaces a cycle (an empty id creates one). Refuses with `error.ref.inuse` at
+ * `teams.<ti>.cycles.<ci>.milestones` when an event's cycle-milestone rule still references a
+ * milestone that the new cycle lacks. An unknown team leaves the workspace unchanged.
+ */
+export function upsertCycle(ws: Workspace, teamId: string, cycle: Cycle): Result<Workspace> {
+  const ti = ws.teams.findIndex((t) => t.id === teamId);
+  const team = ws.teams[ti];
+  if (!team) return { ok: true, value: structuredClone(ws) };
+  const ci = team.cycles.findIndex((x) => x.id === cycle.id);
+  if (ci >= 0) {
+    const have = new Set(cycle.milestones.map((m) => m.id));
+    const missing = team.events.some(
+      (e) =>
+        e.rule.type === 'cycle-milestone' &&
+        e.rule.cycleId === cycle.id &&
+        !have.has(e.rule.milestoneId),
+    );
+    if (missing) return fail(`teams.${ti}.cycles.${ci}.milestones`, 'error.ref.inuse');
+  }
+  return {
+    ok: true,
+    value: mapTeam(ws, teamId, (t) => {
+      const c = structuredClone(cycle);
+      if (c.id === '') c.id = newId('cy', ids(t.cycles));
+      const i = t.cycles.findIndex((x) => x.id === c.id);
+      if (i >= 0) t.cycles[i] = c;
+      else t.cycles.push(c);
+      return t;
+    }),
+  };
 }
 
 export function removeCycle(ws: Workspace, teamId: string, cycleId: string): Result<Workspace> {
@@ -238,7 +277,7 @@ export function duplicateEvent(
   eventId: string,
 ): [Workspace, string] {
   const src = ws.teams.find((t) => t.id === teamId)?.events.find((e) => e.id === eventId);
-  if (!src) return [ws, eventId];
+  if (!src) return [structuredClone(ws), eventId];
   return upsertEvent(ws, teamId, { ...structuredClone(src), id: '' });
 }
 
