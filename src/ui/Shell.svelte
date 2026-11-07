@@ -9,6 +9,7 @@
   import LoadView from './views/LoadView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
+  import HelpView from './views/HelpView.svelte';
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
@@ -154,6 +155,8 @@
         {#if active === 'team'}<TeamView />{/if}
       {:else if id === 'settings'}
         {#if active === 'settings'}<SettingsView />{/if}
+      {:else if id === 'help'}
+        {#if active === 'help'}<HelpView />{/if}
       {:else}
         <p>{$t('view.soon')}</p>
       {/if}

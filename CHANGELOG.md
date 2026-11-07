@@ -2,15 +2,30 @@
 
 ## Unreleased
 
-- Teams and team view: team switcher (add, rename, duplicate, delete), role and person filter, and per-team members, cadence, cycles with milestones and assumptions (a used assumption or milestone cannot be removed; renaming an assumption updates scaling rules).
+### Added
+
+- Open, save and autosave workspace files (#10, #14): workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts (Ctrl/Cmd+S, Shift+S, O, Z), IndexedDB autosave with restore after reload, and an example workspace.
+- Editing (#9): core edit operations for roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); workspace store with undo (50 steps), dirty flag and file name; form error mapping.
 - Workspace settings view: language, region, time zone, workdays, hours, horizon, holidays, thresholds, and editable roles (with colour) and people; deleting a role that is in use asks for a replacement.
-- Open, save and autosave workspace files: workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts, IndexedDB autosave with restore after reload, and an example workspace.
-- App state store: workspace store with undo (50 steps), dirty flag and file name, active team and filter stores, form error mapping; the UI language is now a workspace setting.
+- Teams and team view: team switcher (add, rename, duplicate, delete), role and person filter, and per-team members, cadence, cycles with milestones and assumptions.
+- Meetings view (#11): event table (rule summary, time, effective duration, roles), inline event form for all six rule types with scaling, participants and preparation in %, categories with colour and replace-on-delete, and undo.
+- Calendar view (#12): month grid (APG grid keyboard pattern) with holidays, school holidays, cadence starts, milestones, hours and meeting count per day, week view, navigation, inline day details with person-overlap warnings, and empty-state hints.
+- Weeks and load views (#13): weekly table (ISO week, cadence, milestones, holidays, school holidays, hours per role, current week marked) and load tables per category and role, per role and per person with warnings.
 - Core view data: region registry, workspace holiday index, filtered occurrences, day load, week rows, load summary and per-person conflicts.
-- Meetings view: event table (rule summary, time, effective duration, roles), inline event form for all six rule types with scaling, participants and preparation in %, categories with colour and replace-on-delete, and undo; the example team now has a scaled meeting.
-- Core edit operations: add, update, move and remove roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); `preparation` is now capped at 1 (fraction).
-- Calendar view: month grid (APG grid keyboard pattern) with holidays, school holidays, cadence starts, milestones, hours and meeting count per day, week view, previous/today/next navigation, inline day details with person-overlap warnings, and empty-state hints.
-- Weeks and load views: weekly table (ISO week, cadence, milestones, holidays, school holidays, hours per role, current week marked), load tables per category and role, per role and per person with warnings; the person filter now scopes cadence and milestones to the person's teams (shared `scopeTeams`), and `loadSummary` returns a category by role matrix.
+- Help view (#14) in German and English: first steps, where each setting lives (workspace settings or team view), files and autosave, keyboard shortcuts for the platform, and calendar keys; a combined end-to-end test covers the flow from an empty workspace to Save as, reload and Open.
+
+### Changed
+
+- The UI language is now a workspace setting.
+- `preparation` is capped at 1 (a fraction); the UI shows and edits it as a percent.
+- The person filter scopes cadence and milestones to the teams of the person (shared `scopeTeams`), and `loadSummary` returns a category by role matrix.
+- The example team now has a scaled meeting.
+- README status updated to phase 2.
+
+### Fixed
+
+- Deleting a role, category, person, cycle or assumption that is still used asks for a replacement or is refused; a used assumption or milestone cannot be removed, and renaming an assumption updates scaling rules.
+- Localized percent, peak and warning texts in the load view; shared day item list, scoped markers and details focus in the calendar.
 
 ## 0.1.0 – 2026-11-07
 
