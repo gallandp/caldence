@@ -232,7 +232,6 @@
   "meet.sum.everyN": "Alle {n} Wochen am {weekday}",
   "meet.sum.monthly": "{nth} {weekday} im Monat",
   "meet.sum.cadenceDay": "Tag {day} jedes Takts ({kind})",
-  "meet.sum.milestone": "{offset} Tage ab {milestone} ({cycle})",
   "meet.sum.milestoneOn": "Am {milestone} ({cycle})",
   "meet.sum.once": "Einmalig am {date}",
   "meet.scaling.enable": "Dauer mit einer Annahme skalieren",
@@ -252,5 +251,11 @@
   "meet.participants.noroles": "Lege zuerst in den Arbeitsbereich-Einstellungen Rollen an.",
   "meet.categories": "Kategorien",
   "meet.categories.add": "Name der neuen Kategorie",
-  "meet.scaling": "Skalierte Dauer"
+  "meet.scaling": "Skalierte Dauer",
+  "meet.option.none": "keine",
+  "meet.openform": "Schließe zuerst das offene Formular ab oder brich es ab.",
+  "meet.sum.after": "{n} Tage nach {milestone} ({cycle})",
+  "meet.sum.afterOne": "{n} Tag nach {milestone} ({cycle})",
+  "meet.sum.before": "{n} Tage vor {milestone} ({cycle})",
+  "meet.sum.beforeOne": "{n} Tag vor {milestone} ({cycle})"
 }

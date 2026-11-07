@@ -3,11 +3,12 @@
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import type { CalEvent, Rule, Team } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
+  import { validate } from '../../core/validate';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { weekdayName } from '../components/RuleFields.svelte';
+  import { weekdayName } from '../meetings/rules';
   import { fieldErrors } from '../state/form';
   import { activeTeamId, workspace } from '../state/workspace';
 
@@ -22,12 +23,16 @@
   let counter = 0;
   let root: HTMLElement | undefined;
 
-  // The form edits a draft; undo, open, new or another team make it stale, so it is closed.
+  // The form edits a draft; a foreign change to teams, categories or roles (undo, open, new)
+  // makes it stale, so it is closed. Settings-only changes (language, ...) keep it.
   let own = false;
+  let signature = '';
   onMount(() => {
     const stop = [
-      workspace.subscribe(() => {
-        if (!own) editing = null;
+      workspace.subscribe((ws) => {
+        const next = JSON.stringify([ws.teams, ws.categories, ws.roles]);
+        if (!own && next !== signature) editing = null;
+        signature = next;
       }),
       activeTeamId.subscribe(() => (editing = null)),
     ];
@@ -62,7 +67,10 @@
       case 'weekly':
         return $t('meet.sum.weekly', { weekday: wd(rule.weekday) });
       case 'every-n-weeks':
-        return $t('meet.sum.everyN', { n: rule.n, weekday: wd(rule.weekday) });
+        return $t('meet.sum.everyN', {
+          n: formatNumber(loc, rule.n, 0),
+          weekday: wd(rule.weekday),
+        });
       case 'monthly-nth-weekday':
         return $t('meet.sum.monthly', {
           nth: $t(rule.nth === -1 ? 'meet.nth.last' : `meet.nth.${rule.nth}`),
@@ -70,7 +78,7 @@
         });
       case 'cadence-day':
         return $t('meet.sum.cadenceDay', {
-          day: rule.day + 1,
+          day: formatNumber(loc, rule.day + 1, 0),
           kind: $t(`meet.kind.${tm.cadence.kind}`),
         });
       case 'cycle-milestone': {
@@ -80,9 +88,13 @@
           milestone: milestone?.name ?? rule.milestoneId,
           cycle: cycle?.name ?? rule.cycleId,
         };
-        return rule.offsetDays === 0
-          ? $t('meet.sum.milestoneOn', params)
-          : $t('meet.sum.milestone', { ...params, offset: formatNumber(loc, rule.offsetDays, 0) });
+        if (rule.offsetDays === 0) return $t('meet.sum.milestoneOn', params);
+        const days = Math.abs(rule.offsetDays);
+        const key = rule.offsetDays > 0 ? 'after' : 'before';
+        return $t(`meet.sum.${key}${days === 1 ? 'One' : ''}`, {
+          ...params,
+          n: formatNumber(loc, days, 0),
+        });
       }
       case 'once':
         return $t('meet.sum.once', { date: formatDisplayDate(loc, rule.date, 'long') });
@@ -118,15 +130,18 @@
     await focusSoon(selectorFor(opener));
   }
 
-  function save(event: CalEvent): Record<string, string> | null {
+  /** `doCommit` false only validates the event and reports what would be refused. */
+  function save(event: CalEvent, doCommit = true): Record<string, string> | null {
     if (!team) return { '': 'error.type' };
     const ti = $workspace.teams.findIndex((x) => x.id === team.id);
     const ei =
       event.id === '' ? team.events.length : team.events.findIndex((e) => e.id === event.id);
     const teamId = team.id;
-    const result = commit((ws) => upsertEvent(ws, teamId, event));
+    const result = doCommit
+      ? commit((ws) => upsertEvent(ws, teamId, event))
+      : validate(upsertEvent($workspace, teamId, event)[0]);
     if (result.ok) {
-      void close();
+      if (doCommit) void close();
       return null;
     }
     const mapped = fieldErrors(result.errors, `teams.${ti}.events.${ei}`);
@@ -134,6 +149,9 @@
   }
 
   // ---------- table actions ----------
+
+  /** While a form is open, only its own row can start editing again. */
+  const locked = (event: CalEvent) => editing !== null && editing.event.id !== event.id;
 
   function duplicate(event: CalEvent) {
     if (!team) return;
@@ -174,6 +192,7 @@
     {/if}
 
     {#if editing}
+      <p class="empty" id="meet-open-note">{$t('meet.openform')}</p>
       {#key editing.key}
         <EventForm event={editing.event} {team} {categories} {roles} {save} cancel={close} />
       {/key}
@@ -231,11 +250,15 @@
                     <button
                       type="button"
                       data-edit={event.id}
+                      disabled={locked(event)}
+                      aria-describedby={locked(event) ? 'meet-open-note' : undefined}
                       aria-label={$t('meet.edit.named', { name: event.name })}
                       onclick={() => open(event, event.id)}>{$t('meet.edit')}</button
                     >
                     <button
                       type="button"
+                      disabled={locked(event)}
+                      aria-describedby={locked(event) ? 'meet-open-note' : undefined}
                       aria-label={$t('meet.duplicate.named', { name: event.name })}
                       onclick={() => duplicate(event)}>{$t('meet.duplicate')}</button
                     >

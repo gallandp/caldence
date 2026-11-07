@@ -232,7 +232,6 @@
   "meet.sum.everyN": "Every {n} weeks on {weekday}",
   "meet.sum.monthly": "{nth} {weekday} of the month",
   "meet.sum.cadenceDay": "Day {day} of each {kind}",
-  "meet.sum.milestone": "{offset} days from {milestone} ({cycle})",
   "meet.sum.milestoneOn": "On {milestone} ({cycle})",
   "meet.sum.once": "Once on {date}",
   "meet.scaling.enable": "Scale the duration with an assumption",
@@ -252,5 +251,11 @@
   "meet.participants.noroles": "Add roles in Workspace settings first.",
   "meet.categories": "Categories",
   "meet.categories.add": "New category name",
-  "meet.scaling": "Scaled duration"
+  "meet.scaling": "Scaled duration",
+  "meet.option.none": "none",
+  "meet.openform": "Finish or cancel the open form first.",
+  "meet.sum.after": "{n} days after {milestone} ({cycle})",
+  "meet.sum.afterOne": "{n} day after {milestone} ({cycle})",
+  "meet.sum.before": "{n} days before {milestone} ({cycle})",
+  "meet.sum.beforeOne": "{n} day before {milestone} ({cycle})"
 }

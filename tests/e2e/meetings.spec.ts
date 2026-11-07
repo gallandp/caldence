@@ -79,7 +79,7 @@ const rules: {
       await f.getByLabel('Repeats').selectOption('cycle-milestone');
       await f.getByLabel('Offset (days, negative = before)').fill('3');
     },
-    summary: '3 days from Release (Release 1)',
+    summary: '3 days after Release (Release 1)',
   },
   {
     name: 'M once',
@@ -163,11 +163,19 @@ test('a role listed twice is refused inline before saving', async ({ page }) => 
   await expect(roles).toHaveCount(2);
   await roles.nth(1).selectOption({ label: 'Product Owner' });
   await expect(roles.nth(1)).toHaveAttribute('aria-invalid', 'true');
-  await expect(form.getByText('This role is already listed.')).toBeVisible();
+  await expect(roles.nth(0)).toHaveAttribute('aria-invalid', 'true');
+  await expect(form.getByText('This role is already listed.')).toHaveCount(2);
+  // Other fields are still checked, so every problem is shown at once.
+  await form.getByLabel('Time (HH:MM)').fill('25:00');
   await form.getByRole('button', { name: 'Save' }).click();
-  await expect(roles.nth(1)).toBeFocused();
+  await expect(form.getByLabel('Time (HH:MM)')).toBeFocused();
+  await expect(form.getByLabel('Time (HH:MM)')).toHaveAttribute('aria-invalid', 'true');
+  await expect(roles.nth(1)).toHaveAttribute('aria-invalid', 'true');
   await expect(row(page, 'Dup roles')).toHaveCount(0);
+  await form.getByLabel('Time (HH:MM)').fill('09:00');
   await roles.nth(1).selectOption({ label: 'Scrum Master' });
+  await expect(form.getByText('This role is already listed.')).toHaveCount(0);
+  await expect(roles.nth(0)).not.toHaveAttribute('aria-invalid', 'true');
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(row(page, 'Dup roles')).toContainText('Scrum Master (100%)');
 });
@@ -215,6 +223,62 @@ test('preparation of 25 % is stored as 0.25', async ({ page }) => {
   };
   const saved = ws.teams[0]!.events.find((e) => e.name === 'Prep check');
   expect(saved?.preparation).toBe(0.25);
+});
+
+test('a language change keeps the open draft and translates the heading', async ({ page }) => {
+  await openMeetings(page);
+  const form = await startNew(page, 'Keep me');
+  await expect(form).toBeVisible();
+  await page.getByLabel(/Language|Sprache/).selectOption('de');
+  const de = panel(page).getByRole('region', { name: 'Neuer Termin' });
+  await expect(de).toBeVisible();
+  await expect(de.getByLabel('Name', { exact: true })).toHaveValue('Keep me');
+});
+
+test('the milestone options follow the chosen cycle', async ({ page }) => {
+  await openMeetings(page);
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const team = page.getByRole('tabpanel', { name: 'Team' });
+  await team.getByLabel('New cycle name').fill('Q3');
+  await team.getByRole('button', { name: 'Add cycle' }).click();
+  const q3 = team.getByRole('group', { name: 'Milestones of Q3' });
+  await q3.getByLabel('New milestone name').fill('Beta');
+  await q3.getByLabel('New milestone date').fill('2027-09-01');
+  await q3.getByRole('button', { name: 'Add milestone' }).click();
+  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+
+  const form = await startNew(page, 'Cycle check');
+  await form.getByLabel('Repeats').selectOption('cycle-milestone');
+  const milestone = form.getByLabel('Milestone');
+  await expect(milestone.locator('option')).toHaveText(['Release']);
+  await form.getByLabel('Cycle').selectOption({ label: 'Q3' });
+  await expect(milestone.locator('option')).toHaveText(['Beta']);
+  await expect(milestone).toHaveValue(/.+/);
+  await submitByKeyboard(page, form);
+  await expect(row(page, 'Cycle check')).toContainText('On Beta (Q3)');
+});
+
+test('a cadence day is shown 1-based and stored 0-based', async ({ page }) => {
+  await openMeetings(page);
+  const form = await startNew(page, 'Day check');
+  await form.getByLabel('Repeats').selectOption('cadence-day');
+  await form.getByLabel('Day', { exact: true }).fill('3');
+  await submitByKeyboard(page, form);
+  await expect(row(page, 'Day check')).toContainText('Day 3 of each sprint');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save as' }).click();
+  const ws = JSON.parse(readFileSync((await (await download).path())!, 'utf8')) as {
+    teams: { events: { name: string; rule: { day: number } }[] }[];
+  };
+  expect(ws.teams[0]!.events.find((e) => e.name === 'Day check')?.rule.day).toBe(2);
+});
+
+test('other rows cannot start editing while a form is open', async ({ page }) => {
+  await openMeetings(page);
+  await startNew(page, 'Open one');
+  await expect(panel(page).getByText('Finish or cancel the open form first.')).toBeVisible();
+  await expect(panel(page).getByRole('button', { name: 'Edit Weekly Sync' })).toBeDisabled();
+  await expect(panel(page).getByRole('button', { name: 'Duplicate Weekly Sync' })).toBeDisabled();
 });
 
 test('a team without meetings explains what to do', async ({ page }) => {

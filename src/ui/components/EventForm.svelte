@@ -3,7 +3,8 @@
   import type { CalEvent, Category, Role, Team } from '../../core/model';
   import { translate as t } from '../../i18n';
   import { localToday } from '../state/workspace';
-  import RuleFields, { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from './RuleFields.svelte';
+  import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
+  import RuleFields from './RuleFields.svelte';
 
   let {
     event,
@@ -19,7 +20,7 @@
     categories: Category[];
     roles: Role[];
     /** Commits the event. Returns null on success, else error i18n keys by field path ('' = general). */
-    save: (event: CalEvent) => Record<string, string> | null;
+    save: (event: CalEvent, commit: boolean) => Record<string, string> | null;
     cancel: () => void;
   } = $props();
 
@@ -62,8 +63,10 @@
 
   // The form edits a copy; the parent closes it (and so drops the copy) on any foreign change.
   let draft = $state<Draft>(untrack(() => init(event)));
-  const heading = untrack(() =>
-    event.id === '' ? $t('meet.form.new') : $t('meet.form.edit', { name: event.name }),
+  const heading = $derived(
+    untrack(() => event.id) === ''
+      ? $t('meet.form.new')
+      : $t('meet.form.edit', { name: untrack(() => event.name) }),
   );
   let errors = $state<Record<string, string>>({});
   let form: HTMLFormElement | undefined;
@@ -71,10 +74,10 @@
 
   onMount(() => nameInput?.focus());
 
-  const assumptionKeys = $derived(
-    Object.keys(team.assumptions).includes(draft.assumption) || draft.assumption === ''
-      ? Object.keys(team.assumptions)
-      : [...Object.keys(team.assumptions), draft.assumption],
+  const assumptionKeys = $derived(Object.keys(team.assumptions));
+  /** The event scales by an assumption the team no longer has. */
+  const staleAssumption = $derived(
+    draft.assumption !== '' && !assumptionKeys.includes(draft.assumption),
   );
   const roleName = (roleId: string) => roles.find((r) => r.id === roleId)?.name ?? roleId;
 
@@ -92,38 +95,52 @@
     }
   }
 
+  /** Every row whose role is listed more than once. */
+  function dupErrors(): Record<string, string> {
+    const out: Record<string, string> = {};
+    draft.participants.forEach((p, i) => {
+      if (draft.participants.some((o, j) => j !== i && o.roleId === p.roleId))
+        out[`participants.${i}.roleId`] = 'meet.participants.duplicate';
+    });
+    return out;
+  }
+
+  /** Rows were added or removed: indices shifted, so drop the row errors and re-mark duplicates. */
   function clearParticipantErrors() {
-    errors = Object.fromEntries(
-      Object.entries(errors).filter(([k]) => !k.startsWith('participants.')),
-    );
+    errors = {
+      ...Object.fromEntries(Object.entries(errors).filter(([k]) => !k.startsWith('participants.'))),
+      ...dupErrors(),
+    };
   }
 
   function addParticipant() {
     const free = roles.find((r) => !draft.participants.some((p) => p.roleId === r.id));
     if (!free) return;
-    clearParticipantErrors();
     draft.participants.push({ roleId: free.id, share: 1 });
+    clearParticipantErrors();
   }
 
   function removeParticipant(i: number) {
-    clearParticipantErrors();
     draft.participants.splice(i, 1);
+    clearParticipantErrors();
   }
 
   function onChange(e: Event) {
     onEdit(e);
     const m = /^participants\.(\d+)\.roleId$/.exec((e.target as HTMLElement).dataset.field ?? '');
-    if (m) onRole(Number(m[1]));
+    if (m) onRole();
   }
 
-  function onRole(i: number) {
-    const dup = draft.participants.some(
-      (p, j) => j !== i && p.roleId === draft.participants[i]!.roleId,
-    );
-    const rest = Object.fromEntries(
-      Object.entries(errors).filter(([k]) => k !== `participants.${i}.roleId`),
-    );
-    errors = dup ? { ...rest, [`participants.${i}.roleId`]: 'meet.participants.duplicate' } : rest;
+  /** A role changed: duplicate marks on every row are recomputed (both rows clear together). */
+  function onRole() {
+    errors = {
+      ...Object.fromEntries(
+        Object.entries(errors).filter(
+          ([k, v]) => !(k.startsWith('participants.') && v === 'meet.participants.duplicate'),
+        ),
+      ),
+      ...dupErrors(),
+    };
   }
 
   const n = (v: number | null): number => v ?? Number.NaN;
@@ -154,24 +171,19 @@
 
   async function submit(e: Event) {
     e.preventDefault();
-    const found: Record<string, string> = {};
-    draft.participants.forEach((p, i) => {
-      if (draft.participants.findIndex((o) => o.roleId === p.roleId) < i)
-        found[`participants.${i}.roleId`] = 'meet.participants.duplicate';
-    });
-    errors = found;
-    if (Object.keys(found).length === 0) {
-      const result = save(build());
-      if (result === null) return;
-      errors = result;
-    }
+    const found = dupErrors();
+    if (draft.scaled && staleAssumption) found['scaling.assumption'] = 'error.ref.unknown';
+    // A refused field is never committed, but the other fields are still checked.
+    const result = save(build(), Object.keys(found).length === 0);
+    if (result === null && Object.keys(found).length === 0) return;
+    errors = { ...result, ...found };
     await tick();
     const first = form?.querySelector<HTMLElement>('[aria-invalid="true"]');
     (first ?? form?.querySelector<HTMLElement>('[role="alert"]'))?.focus();
   }
 
   function onKeydown(e: KeyboardEvent) {
-    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return;
     e.preventDefault();
     cancel();
   }
@@ -247,7 +259,6 @@
           id={id('time')}
           type="text"
           inputmode="numeric"
-          placeholder="09:00"
           autocomplete="off"
           data-field="time"
           bind:value={draft.time}
@@ -336,7 +347,9 @@
                 assumptionKeys.length === 0 ? `${id('scaling.assumption')}-hint` : undefined,
               )}
             >
-              {#if assumptionKeys.length === 0}<option value="">–</option>{/if}
+              {#if assumptionKeys.length === 0 || staleAssumption}<option value=""
+                  >{$t('meet.option.none')}</option
+                >{/if}
               {#each assumptionKeys as k (k)}
                 <option value={k}>{k}</option>
               {/each}
