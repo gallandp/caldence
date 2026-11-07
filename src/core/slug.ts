@@ -7,7 +7,7 @@ export function slug(text: string): string {
     .replace(/ü/g, 'ue')
     .replace(/ß/g, 'ss')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return out === '' ? 'caldence' : out;

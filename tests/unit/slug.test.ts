@@ -16,3 +16,14 @@ describe('slug', () => {
     expect(slug('日本語 ???')).toBe('caldence');
   });
 });
+
+describe('slug edge cases', () => {
+  it('handles a name made only of umlauts and symbols', () => {
+    expect(slug('Ä')).toBe('ae');
+    expect(slug('---')).toBe('caldence');
+    expect(slug('   ')).toBe('caldence');
+  });
+  it('uses a combining-mark range written as escapes', () => {
+    expect(slug('Zoë Müller')).toBe('zoe-mueller');
+  });
+});

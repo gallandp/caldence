@@ -41,6 +41,7 @@ test('applying Scrum takes two clicks and a confirmed name', async ({ page }) =>
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await expect(panel(page).getByRole('status')).toContainText('Scrum');
+  await expect(panel(page).getByRole('button', { name: 'Open team' })).toBeFocused();
   await panel(page).getByRole('button', { name: 'Open team' }).click();
 
   const team = page.getByRole('tabpanel', { name: 'Team' });
@@ -88,6 +89,7 @@ test('importing a custom template shows a preview and creates a team', async ({ 
   await preview.getByLabel('Team name').fill('Pair Team');
   await preview.getByRole('button', { name: 'Create team' }).click();
   await expect(panel(page).getByRole('status')).toContainText('Pair Team');
+  await expect(panel(page).getByRole('button', { name: 'Open team' })).toBeFocused();
   await panel(page).getByRole('button', { name: 'Open team' }).click();
   await expect(page.locator('.switcher select option:checked')).toHaveText('Pair Team');
 });
@@ -128,6 +130,110 @@ test('export is disabled without teams', async ({ page }) => {
   await openTemplates(page);
   await expect(panel(page).getByRole('button', { name: 'Export template…' })).toBeDisabled();
   await expect(panel(page).getByText(/There is no team to export yet/)).toBeVisible();
+});
+
+const apply = (page: Page, name: string) =>
+  panel(page).getByRole('article', { name }).getByRole('button', { name: 'Apply' });
+
+for (const how of ['Escape', 'Cancel'] as const) {
+  test(`${how} closes the apply dialog, returns focus and changes nothing`, async ({ page }) => {
+    await openTemplates(page);
+    await apply(page, 'Scrum').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    if (how === 'Escape') await page.keyboard.press('Escape');
+    else await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(apply(page, 'Scrum')).toBeFocused();
+    await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
+    await expect(panel(page).getByRole('status')).toHaveText('');
+    await expect(page.locator('.switcher select')).toHaveCount(0);
+  });
+}
+
+test('an empty or blank team name is refused inline in the dialog', async ({ page }) => {
+  await openTemplates(page);
+  await apply(page, 'Scrum').click();
+  const dialog = page.getByRole('dialog');
+  const input = dialog.getByLabel('Team name');
+  for (const value of ['', '   ']) {
+    await input.fill(value);
+    await dialog.getByRole('button', { name: 'Create team' }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('The name must not be empty')).toBeVisible();
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    await expect(input).toHaveAttribute('aria-describedby', /.+/);
+    await expect(input).toBeFocused();
+    await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
+  }
+  await input.fill('Fixed');
+  await expect(dialog.getByText('The name must not be empty')).toBeHidden();
+  await expect(input).not.toHaveAttribute('aria-invalid', /.*/);
+});
+
+test('a blank name is refused in the import form too', async ({ page }) => {
+  await openTemplates(page);
+  await chooseFile(
+    page,
+    () => panel(page).getByRole('button', { name: 'Import template file…' }).click(),
+    'tests/fixtures/templates/custom.caldence-template.json',
+    'custom.caldence-template.json',
+  );
+  const preview = panel(page).getByRole('region', { name: 'Preview' });
+  const input = preview.getByLabel('Team name');
+  await input.fill('  ');
+  await preview.getByRole('button', { name: 'Create team' }).click();
+  await expect(preview.getByText('The name must not be empty')).toBeVisible();
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(input).toHaveAttribute('aria-describedby', /.+/);
+  await expect(input).toBeFocused();
+  await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
+});
+
+test('importing again clears the old error and the old preview', async ({ page }) => {
+  await openTemplates(page);
+  const importButton = () => panel(page).getByRole('button', { name: 'Import template file…' });
+  const good = 'tests/fixtures/templates/custom.caldence-template.json';
+  const preview = panel(page).getByRole('region', { name: 'Preview' });
+  await chooseFile(page, () => importButton().click(), good, 'custom.caldence-template.json');
+  await expect(preview).toBeVisible();
+  // A wrong file removes the preview of the good one.
+  await chooseFile(
+    page,
+    () => importButton().click(),
+    JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8')),
+    'ws.caldence.json',
+  );
+  await expect(panel(page).getByRole('alert')).toContainText('This is not a template file');
+  await expect(preview).toHaveCount(0);
+  // A good file clears the alert.
+  await chooseFile(page, () => importButton().click(), good, 'custom.caldence-template.json');
+  await expect(preview).toBeVisible();
+  await expect(panel(page).getByRole('alert')).toHaveText('');
+});
+
+test('duplicate team names are allowed and do not crash', async ({ page }) => {
+  await openTemplates(page);
+  for (let i = 0; i < 2; i++) {
+    await apply(page, 'Scrum').click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Create team' }).click();
+    await expect(panel(page).getByRole('status')).toContainText('Scrum');
+    await expect(page.getByRole('dialog')).toBeHidden();
+  }
+  await expect(panel(page).getByRole('alert')).toHaveText('');
+  await panel(page).getByRole('button', { name: 'Open team' }).click();
+  await expect(page.locator('.switcher select option')).toHaveText(['Scrum', 'Scrum']);
+});
+
+test('no horizontal page scroll at 375 px', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await openExample(page);
+  await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+  await expect(panel(page).getByRole('button', { name: 'Export template…' })).toBeVisible();
+  const fits = await page.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  );
+  expect(fits).toBe(true);
 });
 
 for (const locale of ['de', 'en'] as const) {

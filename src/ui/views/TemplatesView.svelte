@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { slug } from '../../core/slug';
   import { applyTemplate, loadTemplate, teamToTemplate, type Template } from '../../core/template';
@@ -40,7 +41,11 @@
   let importName = $state('');
   let importError = $state(false);
 
-  function create(template: Template, name: string): boolean {
+  let openButton = $state<HTMLButtonElement | undefined>();
+  let dialogInput: HTMLInputElement | undefined;
+  let dialogProblem = $state<Problem | null>(null);
+
+  function create(template: Template, name: string, inDialog = false): boolean {
     const trimmed = name.trim();
     if (trimmed === '') return false;
     const result = workspace.apply((ws) =>
@@ -48,13 +53,19 @@
     );
     if (!result.ok) {
       const first = result.errors[0];
-      problem = { key: first?.key ?? 'error.type', path: first?.path };
+      const failure = { key: first?.key ?? 'error.type', path: first?.path };
+      if (inDialog) {
+        dialogProblem = failure;
+        void tick().then(() => dialogInput?.focus());
+      } else problem = failure;
       return false;
     }
     problem = null;
     exported = null;
     if (result.id) activeTeamId.set(result.id);
     created = trimmed;
+    // The control that was used is gone or inert now: move focus to the outcome.
+    void tick().then(() => openButton?.focus());
     return true;
   }
 
@@ -62,6 +73,7 @@
     target = builtinTemplate(id, get(locale));
     dialogName = target.name;
     dialogError = false;
+    dialogProblem = null;
     dialog?.showModal();
   }
 
@@ -75,9 +87,10 @@
     if (!target) return;
     if (dialogName.trim() === '') {
       dialogError = true;
+      dialogInput?.focus();
       return;
     }
-    if (create(target, dialogName)) closeDialog();
+    if (create(target, dialogName, true)) closeDialog();
   }
 
   async function importFile() {
@@ -109,6 +122,7 @@
     if (!imported) return;
     if (importName.trim() === '') {
       importError = true;
+      (document.getElementById(`${uid}-import-name`) as HTMLInputElement | null)?.focus();
       return;
     }
     if (create(imported, importName)) imported = null;
@@ -158,7 +172,9 @@
   <div role="status" class="notice">
     {#if created}
       <span>{$t('templates.created', { name: created })}</span>
-      <button type="button" onclick={() => onOpenTeam?.()}>{$t('templates.open')}</button>
+      <button type="button" bind:this={openButton} onclick={() => onOpenTeam?.()}
+        >{$t('templates.open')}</button
+      >
     {:else if exported}
       {$t('templates.exported', { name: exported })}
     {/if}
@@ -286,14 +302,22 @@
       <input
         id="{uid}-dialog-name"
         type="text"
+        bind:this={dialogInput}
         bind:value={dialogName}
-        aria-invalid={dialogError ? 'true' : undefined}
-        aria-describedby={dialogError ? `${uid}-dialog-err` : undefined}
-        oninput={() => (dialogError = false)}
+        aria-invalid={dialogError || dialogProblem ? 'true' : undefined}
+        aria-describedby={dialogError || dialogProblem ? `${uid}-dialog-err` : undefined}
+        oninput={() => {
+          dialogError = false;
+          dialogProblem = null;
+        }}
       />
     </div>
     {#if dialogError}
       <p class="field-error" id="{uid}-dialog-err">{$t('templates.error.name')}</p>
+    {:else if dialogProblem}
+      <p class="field-error" id="{uid}-dialog-err">
+        {$t(dialogProblem.key, { path: dialogProblem.path ?? '' })}
+      </p>
     {/if}
     <div class="actions">
       <button type="submit" class="primary">{$t('templates.create')}</button>
@@ -391,6 +415,7 @@
   }
   input,
   select {
+    max-width: 100%;
     font: inherit;
     color: var(--text);
     background: var(--bg);
