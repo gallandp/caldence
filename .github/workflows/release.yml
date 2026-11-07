@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Skip the version commit created by this workflow (avoids loops).
+    if: ${{ !startsWith(github.event.head_commit.message, 'Version ') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Read release label of the merged PR
+        id: label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          label=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '[.[].labels[].name | select(startswith("release:"))] | first // "none-given"')
+          echo "label=$label" >> "$GITHUB_OUTPUT"
+      - name: Bump version and changelog
+        id: bump
+        if: steps.label.outputs.label != 'release:none'
+        run: node scripts/version-bump.mjs "${{ steps.label.outputs.label }}"
+      - name: Build
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          npm ci
+          npm run build
+          (cd dist && zip -r "../caldence-${{ steps.bump.outputs.version }}.zip" .)
+      - name: Commit, tag and release
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          git commit -m "Version $VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD:main "v$VERSION"
+          gh release create "v$VERSION" "caldence-$VERSION.zip" \
+            --title "Caldence $VERSION" --notes-file release-notes.md
