@@ -10,6 +10,7 @@
 - Meetings view: event table (rule summary, time, effective duration, roles), inline event form for all six rule types with scaling, participants and preparation in %, categories with colour and replace-on-delete, and undo; the example team now has a scaled meeting.
 - Core edit operations: add, update, move and remove roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); `preparation` is now capped at 1 (fraction).
 - Calendar view: month grid (APG grid keyboard pattern) with holidays, school holidays, cadence starts, milestones, hours and meeting count per day, week view, previous/today/next navigation, inline day details with person-overlap warnings, and empty-state hints.
+- Weeks and load views: weekly table (ISO week, cadence, milestones, holidays, school holidays, hours per role, current week marked), load tables per category and role, per role and per person with warnings; the person filter now scopes cadence and milestones to the person's teams (shared `scopeTeams`), and `loadSummary` returns a category by role matrix.
 
 ## 0.1.0 – 2026-11-07
 

@@ -28,9 +28,15 @@ export function workspaceIndex(ws: Workspace): HolidayIndex {
   return holidayIndex(known, horizon.from, horizon.to);
 }
 
-/** Teams in scope: the person filter spans all teams and ignores teamId. */
-function scopedTeams(ws: Workspace, filter: Filter): Team[] {
-  if (filter.personId || !filter.teamId) return ws.teams;
+/**
+ * Teams in scope: with a person filter the teams the person is a member of (teamId is ignored),
+ * otherwise the team filter, otherwise all teams.
+ */
+export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
+  if (filter.personId) {
+    return ws.teams.filter((t) => t.members.some((m) => m.personId === filter.personId));
+  }
+  if (!filter.teamId) return ws.teams;
   return ws.teams.filter((t) => t.id === filter.teamId);
 }
 
@@ -39,7 +45,7 @@ type Attributed = { occ: Occurrence; byRole: Record<string, number> };
 /** Per-occurrence hours by role, restricted by the filter (person wins over role). */
 function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attributed[] {
   const out: Attributed[] = [];
-  for (const team of scopedTeams(ws, filter)) {
+  for (const team of scopeTeams(ws, filter)) {
     const events = new Map(team.events.map((e) => [e.id, e]));
     const personRoles = filter.personId
       ? new Set(team.members.filter((m) => m.personId === filter.personId).map((m) => m.roleId))
@@ -93,7 +99,7 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   const first = mondayOf(ws.settings.horizon.from);
   const last = mondayOf(ws.settings.horizon.to);
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
-  const teams = scopedTeams(ws, { teamId: filter.teamId });
+  const teams = scopeTeams(ws, filter);
   const rows: WeekRow[] = [];
   const perWeek: Record<string, number>[] = Array.from({ length: count }, () => ({}));
   for (const { occ, byRole } of attributed(ws, index, filter)) {
@@ -146,13 +152,16 @@ export function loadSummary(
 ): {
   byCategory: { categoryId: string; hours: number }[];
   byRole: { roleId: string; hours: number; percent: number; fte: number }[];
+  /** Hours per week by category and role (only entries that exist). */
+  matrix: Record<string, Record<string, number>>;
 } {
   const roleHours: Record<string, number> = {};
   const catHours: Record<string, number> = {};
+  const matrix: Record<string, Record<string, number>> = {};
   const seenRoles = new Set<string>();
   const seenCats = new Set<string>();
   const hpw = ws.settings.hoursPerWeek;
-  for (const team of scopedTeams(ws, filter)) {
+  for (const team of scopeTeams(ws, filter)) {
     const personRoles = filter.personId
       ? new Set(team.members.filter((m) => m.personId === filter.personId).map((m) => m.roleId))
       : undefined;
@@ -169,11 +178,15 @@ export function loadSummary(
     }
     for (const [categoryId, roles] of Object.entries(base.byCategory)) {
       for (const [roleId, h] of Object.entries(roles)) {
-        if (wanted(roleId)) catHours[categoryId] = (catHours[categoryId] ?? 0) + h;
+        if (!wanted(roleId)) continue;
+        catHours[categoryId] = (catHours[categoryId] ?? 0) + h;
+        const row = (matrix[categoryId] ??= {});
+        row[roleId] = (row[roleId] ?? 0) + h;
       }
     }
   }
   return {
+    matrix,
     byCategory: ws.categories
       .filter((c) => seenCats.has(c.id) || c.id in catHours)
       .map((c) => ({ categoryId: c.id, hours: catHours[c.id] ?? 0 })),

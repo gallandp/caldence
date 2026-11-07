@@ -7,6 +7,7 @@
     conflicts,
     dayLoad,
     filteredOccurrences,
+    scopeTeams,
     type FilteredOccurrence,
   } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
@@ -91,17 +92,8 @@
 
   // ---------- data ----------
 
-  const scopeTeams = $derived(
-    $filter.personId || !$filter.teamId
-      ? $workspace.teams
-      : $workspace.teams.filter((x) => x.id === $filter.teamId),
-  );
   /** Teams whose cadence and milestones are marked: the person's teams, or the team filter. */
-  const markerTeams = $derived(
-    $filter.personId
-      ? $workspace.teams.filter((x) => x.members.some((m) => m.personId === $filter.personId))
-      : scopeTeams,
-  );
+  const markerTeams = $derived(scopeTeams($workspace, $filter));
   const hasEvents = $derived($workspace.teams.some((x) => x.events.length > 0));
 
   const loads = $derived(dayLoad($workspace, $index, $filter));

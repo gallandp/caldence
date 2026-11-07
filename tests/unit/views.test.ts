@@ -7,6 +7,7 @@ import {
   dayLoad,
   filteredOccurrences,
   loadSummary,
+  scopeTeams,
   weekRows,
   workspaceIndex,
 } from '../../src/core/views';
@@ -175,6 +176,41 @@ describe('weekRows', () => {
     ws.settings.horizon = { from: '2026-11-07', to: '2026-01-01' };
     expect(weekRows(ws, workspaceIndex(ws), {})).toEqual([]);
   });
+  it('scopes cadence and milestones to the teams of the person filter', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:00', 60));
+    ws.people.push({ id: 'p2', name: 'Other', hoursPerWeek: 40 });
+    const [t1, t2] = ws.teams as [Team, Team];
+    t1.members = [{ personId: 'p1', roleId: 'r1' }];
+    t1.cycles = structuredClone(valid.teams[0]!.cycles) as Team['cycles'];
+    t2.members = [{ personId: 'p2', roleId: 'r1' }];
+    t2.cycles = [
+      {
+        id: 'cy2',
+        name: 'C2',
+        milestones: [{ id: 'm2', name: 'Other freeze', date: '2026-12-01' }],
+      },
+    ];
+    const idx = workspaceIndex(ws);
+    const week = (f: Parameters<typeof weekRows>[2]) =>
+      weekRows(ws, idx, f).find((r) => r.monday === '2026-11-09')!;
+    expect(week({}).cadence.map((c) => c.teamId)).toEqual(['t1', 't2']);
+    expect(week({ personId: 'p1' }).cadence.map((c) => c.teamId)).toEqual(['t1']);
+    expect(week({ teamId: 't2' }).cadence.map((c) => c.teamId)).toEqual(['t2']);
+    const dec = (f: Parameters<typeof weekRows>[2]) =>
+      weekRows(ws, idx, f)
+        .find((r) => r.monday === '2026-11-30')!
+        .milestones.map((m) => m.teamId);
+    expect(dec({ personId: 'p1' })).toEqual(['t1']);
+    expect(dec({ personId: 'p2' })).toEqual(['t2']);
+    expect(dec({ personId: 'nobody' })).toEqual([]);
+  });
+  it('scopeTeams: person wins over teamId, otherwise team filter, otherwise all', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:00', 60));
+    ws.teams[1]!.members = [];
+    expect(scopeTeams(ws, {}).map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(scopeTeams(ws, { teamId: 't2' }).map((t) => t.id)).toEqual(['t2']);
+    expect(scopeTeams(ws, { personId: 'p1', teamId: 't2' }).map((t) => t.id)).toEqual(['t1']);
+  });
   it('reports school holidays', () => {
     const ws = base();
     const rows = weekRows(ws, workspaceIndex(ws), {});
@@ -221,6 +257,29 @@ describe('loadSummary', () => {
     const s = loadSummary(ws, {});
     expect(s.byRole).toEqual([{ roleId: 'r1', hours: 20, percent: 50, fte: 0.5 }]);
     expect(s.byCategory).toEqual([{ categoryId: 'c1', hours: 20 }]);
+  });
+  it('has a category by role matrix that sums to the totals', () => {
+    const ws = base();
+    ws.roles.push({ id: 'r2', name: 'PO', colour: '#112233' });
+    ws.categories.push({ id: 'c2', name: 'Other', colour: '#778899' });
+    ws.teams[0]!.events = [
+      {
+        ...ev('w', '09:00', 120),
+        rule: { type: 'weekly', weekday: 1 },
+        participants: [
+          { roleId: 'r1', share: 1 },
+          { roleId: 'r2', share: 0.5 },
+        ],
+      },
+      { ...ev('x', '10:00', 60), categoryId: 'c2', rule: { type: 'weekly', weekday: 2 } },
+    ];
+    const s = loadSummary(ws, {});
+    expect(s.matrix).toEqual({ c1: { r1: 2, r2: 1 }, c2: { r1: 1 } });
+    expect(s.byCategory).toEqual([
+      { categoryId: 'c1', hours: 3 },
+      { categoryId: 'c2', hours: 1 },
+    ]);
+    expect(loadSummary(ws, { roleId: 'r2' }).matrix).toEqual({ c1: { r2: 1 } });
   });
   it('lists zero entries for used roles and categories, in workspace order', () => {
     const ws = base();

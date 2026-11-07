@@ -5,6 +5,8 @@
   import WorkspaceBar from './WorkspaceBar.svelte';
   import CalendarView from './views/CalendarView.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
+  import WeeksView from './views/WeeksView.svelte';
+  import LoadView from './views/LoadView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import { workspace } from './state/workspace';
@@ -130,7 +132,7 @@
       hidden={active !== id}
     >
       <h2>{$t('view.' + id)}</h2>
-      {#if id === 'calendar' && $workspace.teams.length === 0}
+      {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
         <section class="start">
           <h3>{$t('calendar.empty.title')}</h3>
           <p>{$t('calendar.empty.text')}</p>
@@ -142,6 +144,10 @@
         {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
           <CalendarView onOpenMeetings={() => select('meetings', true)} />
         {/key}
+      {:else if id === 'weeks'}
+        {#if active === 'weeks'}<WeeksView onOpenMeetings={() => select('meetings', true)} />{/if}
+      {:else if id === 'load'}
+        {#if active === 'load'}<LoadView />{/if}
       {:else if id === 'meetings'}
         {#if active === 'meetings'}<MeetingsView />{/if}
       {:else if id === 'team'}
