@@ -3,6 +3,7 @@
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import MeetingsView from './views/MeetingsView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import { workspace } from './state/workspace';
@@ -136,6 +137,8 @@
             >{$t('calendar.empty.example')}</button
           >
         </section>
+      {:else if id === 'meetings'}
+        {#if active === 'meetings'}<MeetingsView />{/if}
       {:else if id === 'team'}
         {#if active === 'team'}<TeamView />{/if}
       {:else if id === 'settings'}

@@ -7,6 +7,7 @@
 - Open, save and autosave workspace files: workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts, IndexedDB autosave with restore after reload, and an example workspace.
 - App state store: workspace store with undo (50 steps), dirty flag and file name, active team and filter stores, form error mapping; the UI language is now a workspace setting.
 - Core view data: region registry, workspace holiday index, filtered occurrences, day load, week rows, load summary and per-person conflicts.
+- Meetings view: event table (rule summary, time, effective duration, roles), inline event form for all six rule types with scaling, participants and preparation in %, categories with colour and replace-on-delete, and undo; the example team now has a scaled meeting.
 - Core edit operations: add, update, move and remove roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); `preparation` is now capped at 1 (fraction).
 
 ## 0.1.0 – 2026-11-07
