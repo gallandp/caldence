@@ -9,6 +9,10 @@
 - Calendar import (#17): import meetings from an .ics file (for example from Outlook) after a review that shows what is imported, already present or left out, with a mapping to team, roles and categories.
 - Help sections for templates and for importing the .ics file into Outlook, Google Calendar and Apple Calendar.
 
+### Fixed
+
+- German: the hint to add a category before adding meetings now uses the formal "Sie" like the rest of the app.
+
 ## 0.3.0 – 2026-11-07
 
 ### Added

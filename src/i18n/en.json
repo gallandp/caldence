@@ -48,6 +48,7 @@
   "file.error.more": "{message} (and {count} more)",
   "file.error.write": "The file could not be saved",
   "file.error.read": "The file could not be opened",
+  "file.error.isTemplate": "This is a template. Apply it in the Templates view.",
   "dialog.unsaved.title": "Unsaved changes",
   "dialog.unsaved.message": "The workspace has unsaved changes. Save them first?",
   "dialog.save": "Save",

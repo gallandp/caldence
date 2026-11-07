@@ -245,6 +245,14 @@ describe('loadWorkspace', () => {
     expect(r.ok && r.value.settings.timezone).toBe('Mitteleuropa');
   });
 
+  it('reports a template file with a specific message', () => {
+    const text = readFileSync('src/data/templates/scrum.en.json', 'utf8');
+    expect(loadWorkspace(text)).toEqual({
+      ok: false,
+      errors: [{ path: 'kind', key: 'file.error.isTemplate' }],
+    });
+  });
+
   it('reports invalid JSON', () => {
     expect(loadWorkspace('{nope')).toEqual({
       ok: false,

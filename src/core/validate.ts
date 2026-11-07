@@ -351,6 +351,13 @@ export function loadWorkspace(text: string): Result<Workspace> {
   } catch {
     return { ok: false, errors: [{ path: '', key: 'error.file.json' }] };
   }
+  // A template file (see template.ts) is not a workspace; say where it belongs.
+  if (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    (parsed as Record<string, unknown>).kind === 'caldence-template'
+  )
+    return { ok: false, errors: [{ path: 'kind', key: 'file.error.isTemplate' }] };
   const m = migrate(parsed);
   if (!m.ok) return { ok: false, errors: [{ path: 'schemaVersion', key: m.key }] };
   return validate(m.value);
