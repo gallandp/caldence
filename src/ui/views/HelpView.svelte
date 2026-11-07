@@ -24,6 +24,14 @@
   ] as const;
   const teamFields = ['members', 'cadence', 'cycles', 'assumptions'] as const;
   const shortcuts = ['save', 'saveAs', 'open', 'undo'] as const;
+  const templateParts = ['apply', 'import', 'export', 'people'] as const;
+  const calendarApps = ['outlook', 'newOutlook', 'google', 'apple'] as const;
+  const appSteps: Record<(typeof calendarApps)[number], number> = {
+    outlook: 4,
+    newOutlook: 4,
+    google: 4,
+    apple: 3,
+  };
   const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter'] as const;
 
   const keys = (id: (typeof shortcuts)[number]): string =>
@@ -81,6 +89,27 @@
     <p>{$t('help.files.fallback')}</p>
     <p>{$t('help.files.autosave')}</p>
     <p>{$t('help.files.privacy')}</p>
+  </section>
+
+  <section aria-labelledby="{uid}-templates">
+    <h3 id="{uid}-templates">{$t('help.templates.title')}</h3>
+    {#each templateParts as part (part)}
+      <p>{$t('help.templates.' + part)}</p>
+    {/each}
+  </section>
+
+  <section aria-labelledby="{uid}-ics">
+    <h3 id="{uid}-ics">{$t('help.ics.title')}</h3>
+    <p>{$t('help.ics.intro')}</p>
+    {#each calendarApps as app (app)}
+      <h4>{$t('help.ics.' + app + '.title')}</h4>
+      <ol>
+        {#each Array.from({ length: appSteps[app] }, (_, i) => i + 1) as n (n)}
+          <li>{$t('help.ics.' + app + '.' + n)}</li>
+        {/each}
+      </ol>
+    {/each}
+    <p>{$t('help.ics.note')}</p>
   </section>
 
   <section aria-labelledby="{uid}-keys">

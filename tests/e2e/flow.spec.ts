@@ -203,4 +203,13 @@ test('the help view shows the platform key and the German texts', async ({ page 
   await expect(panel(page, 'Hilfe').getByRole('table', { name: 'Tastenkürzel' })).toContainText(
     /Strg|⌘/,
   );
+  await expect(panel(page, 'Hilfe').getByRole('heading', { name: 'Vorlagen' })).toBeVisible();
+  await expect(
+    panel(page, 'Hilfe').getByRole('heading', { name: 'In den eigenen Kalender importieren' }),
+  ).toBeVisible();
+  await page.getByLabel('Sprache').selectOption('en');
+  await expect(panel(page, 'Help').getByRole('heading', { name: 'Templates' })).toBeVisible();
+  await expect(
+    panel(page, 'Help').getByRole('heading', { name: 'Import into your calendar' }),
+  ).toBeVisible();
 });
