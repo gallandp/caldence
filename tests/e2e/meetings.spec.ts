@@ -318,3 +318,18 @@ for (const lang of ['en', 'de'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('Ctrl+Z on a button inside the open meeting form keeps the draft and does not undo', async ({
+  page,
+}) => {
+  await openMeetings(page);
+  await panel(page).getByRole('button', { name: 'Delete Weekly Sync' }).click();
+  await expect(row(page, 'Weekly Sync')).toHaveCount(0);
+  const form = await startNew(page, 'Draft stays');
+  await form.getByRole('button').last().focus();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(form.getByLabel('Name', { exact: true })).toHaveValue('Draft stays');
+  await expect(panel(page).getByRole('button', { name: 'Undo' })).toBeEnabled();
+  await form.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row(page, 'Weekly Sync')).toHaveCount(0);
+});

@@ -60,19 +60,38 @@
 
   let bar: WorkspaceBar | undefined;
 
+  /** Blurs the focused control so that a commit-on-blur value is in the workspace before saving. */
+  function commitFocused(): HTMLElement | null {
+    const field = document.activeElement;
+    if (!(field instanceof HTMLElement) || field === document.body) return null;
+    field.blur();
+    return field;
+  }
+
   function onShortcut(event: KeyboardEvent) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
     if (event.repeat || document.querySelector('dialog[open]')) return;
     const key = event.key.toLowerCase();
-    if (key === 's') void (event.shiftKey ? bar?.saveAs() : bar?.save());
-    else if (key === 'o' && !event.shiftKey) void bar?.open();
-    else if (key === 'z' && !event.shiftKey) {
+    if (key === 's') {
+      const field = commitFocused();
+      void (event.shiftKey ? bar?.saveAs() : bar?.save());
+      // The save has taken its snapshot by now; give the field its focus back.
+      field?.focus();
+    } else if (key === 'o' && !event.shiftKey) {
+      commitFocused();
+      void bar?.open();
+    } else if (key === 'z' && !event.shiftKey) {
       const target = event.target as HTMLElement | null;
       if (
         target &&
         (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
       )
+        return; // the field's own undo
+      // A form or an open meeting draft would be closed as stale by the undo: do nothing.
+      if (target?.closest('form') || document.querySelector('.eventform')) {
+        event.preventDefault();
         return;
+      }
       workspace.undo();
     } else return;
     event.preventDefault();
