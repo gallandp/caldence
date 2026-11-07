@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { emptyWorkspace } from '../../src/core/model';
+import { migrate } from '../../src/core/migrate';
 import { createAutosave, idbStore, restoreWithTimeout, type KV } from '../../src/ui/state/autosave';
+
+vi.mock('../../src/core/migrate', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../src/core/migrate')>();
+  return { ...original, migrate: vi.fn(original.migrate) };
+});
 
 const ws = emptyWorkspace('2027-01-04');
 
@@ -65,6 +71,19 @@ describe('autosave', () => {
     expect(await createAutosave(kv).restore()).toBeNull();
     kv.data.set('current', { ws: { schemaVersion: 1 }, fileName: null, dirty: true });
     expect(await createAutosave(kv).restore()).toBeNull();
+  });
+
+  it('migrates a stored workspace before validating it', async () => {
+    const kv = memory();
+    kv.data.set('current', {
+      ws: { ...ws, schemaVersion: 0 },
+      fileName: 'old.json',
+      dirty: true,
+    });
+    vi.mocked(migrate).mockReturnValueOnce({ ok: true, value: ws });
+    expect(await createAutosave(kv).restore()).toEqual({ ws, fileName: 'old.json', dirty: true });
+    expect(migrate).toHaveBeenCalled();
+    expect(kv.data.has('current.bak')).toBe(false);
   });
 
   it('flush writes immediately', async () => {

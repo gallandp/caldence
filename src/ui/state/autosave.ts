@@ -1,5 +1,6 @@
 import { writable, type Readable } from 'svelte/store';
 import type { Workspace } from '../../core/model';
+import { migrate } from '../../core/migrate';
 import { validate } from '../../core/validate';
 
 export interface KV {
@@ -100,7 +101,8 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     }
     if (stored === undefined || stored === null) return null;
     const s = stored as Partial<AutosaveState>;
-    const checked = typeof stored === 'object' ? validate(s.ws) : undefined;
+    const migrated = typeof stored === 'object' ? migrate(s.ws) : undefined;
+    const checked = migrated?.ok ? validate(migrated.value) : undefined;
     if (!checked?.ok) {
       // Keep what we could not load before the next write replaces it (best effort).
       try {
