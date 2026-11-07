@@ -9,6 +9,9 @@ import {
 } from '../../src/core/template';
 import { BUILTIN_TEMPLATES, builtinTemplate } from '../../src/data/templates';
 import { exampleWorkspace } from '../../src/data/examples';
+import { occurrences } from '../../src/core/recurrence';
+import { workspaceIndex } from '../../src/core/views';
+import { addDays, weekday } from '../../src/core/date';
 
 const IDS = ['scrum', 'kanban', 'safe'] as const;
 const LOCALES = ['de', 'en'] as const;
@@ -113,9 +116,36 @@ describe('applyTemplate', () => {
     expect(team.cadence.start).toBe('2027-02-15');
     const ms = team.cycles[0]!.milestones.map((m) => m.date);
     expect(ms).toEqual(['2027-04-22', '2027-04-26']);
+    const iterationEnd = new Set(['Iteration Review', 'Iteration Retrospective', 'System Demo']);
     for (const e of team.events)
-      if (e.rule.type === 'every-n-weeks') expect(e.rule.anchor).toBe('2027-02-15');
+      if (e.rule.type === 'every-n-weeks')
+        expect(e.rule.anchor).toBe(iterationEnd.has(e.name) ? '2027-02-22' : '2027-02-15');
   });
+
+  for (const loc of LOCALES)
+    it(`SAFe.${loc}: review, retrospective and demo first fall in the iteration's second week`, () => {
+      const r = applyTemplate(emptyWorkspace('2027-02-10'), BUILTIN_TEMPLATES.safe[loc], {
+        name: 'ART',
+        today: '2027-02-10',
+      });
+      if (!r.ok) throw new Error('apply');
+      const ws = r.value[0];
+      const team = ws.teams[0]!;
+      const start = team.cadence.start;
+      const occ = occurrences(team, ws.settings, workspaceIndex(ws));
+      const ids = ['e-itreview', 'e-itretro', 'e-demo'];
+      for (const id of ids) {
+        const first = occ.find((o) => o.eventId === id)!;
+        expect(first, id).toBeDefined();
+        // Second week of the first 2-week iteration, still on Friday.
+        expect(first.date, id).toBe(addDays(start, 11));
+        expect(weekday(first.date), id).toBe(5);
+        const second = occ.filter((o) => o.eventId === id)[1]!;
+        expect(second.date, id).toBe(addDays(start, 25));
+      }
+      const planning = occ.find((o) => o.eventId === 'e-itplan')!;
+      expect(planning.date).toBe(start);
+    });
 
   it('does not mutate its inputs', () => {
     const ws = emptyWorkspace('2027-02-10');

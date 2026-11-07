@@ -216,7 +216,7 @@
           "type": "every-n-weeks",
           "weekday": 5,
           "n": 2,
-          "anchor": "2027-01-04"
+          "anchor": "2027-01-11"
         },
         "time": "10:00",
         "duration": 60,
@@ -252,7 +252,7 @@
           "type": "every-n-weeks",
           "weekday": 5,
           "n": 2,
-          "anchor": "2027-01-04"
+          "anchor": "2027-01-11"
         },
         "time": "13:00",
         "duration": 60,
@@ -288,7 +288,7 @@
           "type": "every-n-weeks",
           "weekday": 5,
           "n": 2,
-          "anchor": "2027-01-04"
+          "anchor": "2027-01-11"
         },
         "time": "14:00",
         "duration": 60,
