@@ -44,8 +44,6 @@ export function formatNumber(locale: Locale, n: number, digits: number): string 
   }).format(n);
 }
 
-export const LOCALE_STORAGE_KEY = 'caldence.locale';
-
 export const locale = writable<Locale>(detectLocale());
 /** Store of a translate function; import as `translate as t` in components and use `$t(key)`. */
 export const translate = derived(

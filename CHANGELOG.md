@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- App state store: workspace store with undo (50 steps), dirty flag and file name, active team and filter stores, form error mapping; the UI language is now a workspace setting.
 - Core view data: region registry, workspace holiday index, filtered occurrences, day load, week rows, load summary and per-person conflicts.
 - Core edit operations: add, update, move and remove roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); `preparation` is now capped at 1 (fraction).
 

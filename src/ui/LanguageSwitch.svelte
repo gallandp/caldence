@@ -1,15 +1,13 @@
 <script lang="ts">
-  import { translate as t, locale, LOCALE_STORAGE_KEY, type Locale } from '../i18n';
+  import { translate as t, locale, type Locale } from '../i18n';
+  import { updateSettings } from '../core/edit';
+  import { workspace } from './state/workspace';
 
   const options: Locale[] = ['de', 'en'];
 
   function onChange(event: Event) {
-    $locale = (event.currentTarget as HTMLSelectElement).value as Locale;
-    try {
-      localStorage.setItem(LOCALE_STORAGE_KEY, $locale);
-    } catch {
-      /* no persistence available */
-    }
+    const value = (event.currentTarget as HTMLSelectElement).value as Locale;
+    workspace.apply((ws) => updateSettings(ws, { locale: value }));
   }
 </script>
 
