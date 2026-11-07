@@ -122,7 +122,7 @@ Workspace bar (file name, unsaved indicator, team switcher, person/role filter) 
 
 - GitHub Actions: lint, type check, unit tests, build, Playwright with axe on every PR.
 - Versioning Major.Minor.Hotfix, bumped automatically on merge via labels `release:major`, `release:minor`, `release:hotfix`, `release:none`; CHANGELOG with an "Unreleased" section.
-- Each release publishes a ZIP of `dist/` and deploys a demo to GitHub Pages.
+- Each release publishes a ZIP of `dist/`. The official site is **caldence.de** on plain webspace: static files only, no server-side logic (no PHP, database or API).
 - Installable as PWA from the browser; deployment guide for Apache, nginx and IIS.
 - `CONTRIBUTING.md`, code of conduct, issue templates.
 
