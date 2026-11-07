@@ -6,7 +6,7 @@ Date: 2026-11-07 · Status: draft for review
 
 Caldence helps agile roles (Product Owner, Scrum Master, team leads, any role a team defines) plan their **recurring meetings and duties**, see the **weekly time load per person and role**, and transfer the result to **Outlook or any calendar app** via iCalendar (.ics).
 
-It is free and open source (Apache-2.0) and should be as easy to use as draw.io: open it in the browser, install it as an app, or host it on any web server.
+It is free and open source (AGPL-3.0-or-later) and should be as easy to use as draw.io: open it in the browser, install it as an app, or host it on any web server.
 
 ### Success criteria
 
