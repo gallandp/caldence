@@ -322,9 +322,9 @@
   "load.warn.above-average": "{week}: {person} über dem Durchschnitt ({hours} h)",
   "load.warn.above-fte": "{week}: {person} über der FTE-Grenze ({hours} h)",
   "help.first.title": "Erste Schritte",
-  "help.first.1": "Öffnen Sie die Einstellungen. Legen Sie Ihre Rollen (zum Beispiel Product Owner) und Ihre Personen mit ihren Wochenstunden an.",
-  "help.first.2": "Öffnen Sie Team. Legen Sie ein Team an, fügen Sie Mitglieder (eine Person mit einer Rolle) hinzu und stellen Sie den Rhythmus ein.",
-  "help.first.3": "Öffnen Sie Termine. Legen Sie wiederkehrende Termine mit Uhrzeit, Dauer und den beteiligten Rollen an.",
+  "help.first.1": "Wechseln Sie zu den Einstellungen. Legen Sie Ihre Rollen (zum Beispiel Product Owner) und Ihre Personen mit ihren Wochenstunden an.",
+  "help.first.2": "Wechseln Sie zu Team. Legen Sie ein Team an, fügen Sie Mitglieder (eine Person mit einer Rolle) hinzu und stellen Sie den Rhythmus ein.",
+  "help.first.3": "Wechseln Sie zu Termine. Legen Sie wiederkehrende Termine mit Uhrzeit, Dauer und den beteiligten Rollen an.",
   "help.first.4": "Das Ergebnis sehen Sie im Kalender (Tag für Tag), in Wochen (Woche für Woche) und in der Auslastung (Stunden pro Rolle und Person).",
   "help.first.example": "Zum Ausprobieren öffnen Sie das Beispiel in der leeren Kalenderansicht.",
   "help.where.title": "Einstellungen oder Annahmen?",
@@ -372,9 +372,11 @@
   "help.cal.arrows": "Pfeiltasten",
   "help.cal.homeEnd": "Pos1, Ende",
   "help.cal.page": "Bild auf, Bild ab",
-  "help.cal.enter": "Eingabetaste",
-  "help.cal.action.arrows": "Zu einem anderen Tag gehen",
+  "help.cal.enter": "Eingabetaste, Leertaste",
+  "help.cal.action.arrows": "Zu einem anderen Tag gehen: links und rechts um einen Tag, hoch und runter um eine Woche",
   "help.cal.action.homeEnd": "Zum Montag oder zum Sonntag der Woche gehen",
   "help.cal.action.page": "Zum vorherigen oder nächsten Monat gehen",
-  "help.cal.action.enter": "Die Details des Tages anzeigen"
+  "help.cal.action.enter": "Den Tag auswählen und seine Details anzeigen",
+  "help.where.col.field": "Feld",
+  "help.where.col.where": "Bearbeitet in"
 }

@@ -372,9 +372,11 @@
   "help.cal.arrows": "Arrow keys",
   "help.cal.homeEnd": "Home, End",
   "help.cal.page": "Page Up, Page Down",
-  "help.cal.enter": "Enter",
-  "help.cal.action.arrows": "Move to another day",
+  "help.cal.enter": "Enter, Space",
+  "help.cal.action.arrows": "Move to another day: left and right by one day, up and down by one week",
   "help.cal.action.homeEnd": "Go to the Monday or the Sunday of the week",
   "help.cal.action.page": "Go to the previous or next month",
-  "help.cal.action.enter": "Show the details of the day"
+  "help.cal.action.enter": "Select the day and show its details",
+  "help.where.col.field": "Field",
+  "help.where.col.where": "Edited in"
 }

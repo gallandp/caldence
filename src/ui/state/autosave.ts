@@ -5,6 +5,8 @@ import { validate } from '../../core/validate';
 export interface KV {
   get(k: string): Promise<unknown>;
   set(k: string, v: unknown): Promise<void>;
+  /** Starts the write synchronously (for page hide); throws when the store is not ready yet. */
+  setNow?(k: string, v: unknown): void;
 }
 
 export interface AutosaveState {
@@ -19,6 +21,7 @@ export const BACKUP_KEY = 'current.bak';
 /** IndexedDB-backed key-value store. Every call rejects when IndexedDB is unavailable. */
 export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
   let db: Promise<IDBDatabase> | undefined;
+  let opened: IDBDatabase | undefined;
   function open(): Promise<IDBDatabase> {
     db ??= new Promise<IDBDatabase>((resolve, reject) => {
       if (typeof indexedDB === 'undefined') {
@@ -28,14 +31,20 @@ export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
       try {
         const req = indexedDB.open(dbName, 1);
         req.onupgradeneeded = () => req.result.createObjectStore(storeName);
-        req.onsuccess = () => resolve(req.result);
+        req.onsuccess = () => {
+          opened = req.result;
+          resolve(req.result);
+        };
         req.onerror = () => reject(req.error ?? new Error('IndexedDB error'));
         req.onblocked = () => reject(new Error('IndexedDB blocked'));
       } catch (error) {
         reject(error);
       }
     });
-    db.catch(() => (db = undefined));
+    db.catch(() => {
+      db = undefined;
+      opened = undefined;
+    });
     return db;
   }
   async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>) {
@@ -52,6 +61,10 @@ export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
     get: (k) => run('readonly', (s) => s.get(k)),
     set: async (k, v) => {
       await run('readwrite', (s) => s.put(v, k));
+    },
+    setNow: (k, v) => {
+      if (!opened) throw new Error('IndexedDB not open');
+      opened.transaction(storeName, 'readwrite').objectStore(storeName).put(v, k);
     },
   };
 }
@@ -121,17 +134,37 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     }
   }
 
-  function schedule(state: AutosaveState): void {
+  function schedule(state: AutosaveState, opts?: { immediate?: boolean }): void {
     if (blocked) return;
     pending = state;
     clearTimeout(timer);
-    timer = setTimeout(() => void flush(), debounceMs);
+    if (opts?.immediate) void flush();
+    else timer = setTimeout(() => void flush(), debounceMs);
+  }
+
+  /** For page hide: starts the write without awaiting anything first. */
+  function flushNow(): void {
+    clearTimeout(timer);
+    timer = undefined;
+    const state = pending;
+    if (!state) return;
+    if (kv.setNow) {
+      try {
+        kv.setNow(AUTOSAVE_KEY, state);
+        pending = undefined;
+        return;
+      } catch {
+        /* store not open: fall back to the async write */
+      }
+    }
+    void flush();
   }
 
   return {
     restore,
     schedule,
     flush,
+    flushNow,
     disable,
     get available() {
       return available;

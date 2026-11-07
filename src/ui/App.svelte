@@ -13,7 +13,7 @@
     locale.set($workspace.settings.locale);
   });
 
-  const { dirty, fileName } = workspace;
+  const { dirty, fileName, version } = workspace;
   let ready = $state(false);
 
   onMount(async () => {
@@ -26,13 +26,26 @@
   });
 
   // Save every change (debounced) so a reload or crash restores the exact state.
+  // Transitions (file name, saved, replaced workspace) are written at once.
+  let last: { fileName: string | null; dirty: boolean; version: number } | undefined;
   $effect(() => {
-    if (ready) autosave.schedule({ ws: $workspace, fileName: $fileName, dirty: $dirty });
+    const next = { fileName: $fileName, dirty: $dirty, version: $version };
+    if (!ready) return;
+    const immediate =
+      last !== undefined &&
+      (last.fileName !== next.fileName ||
+        (last.dirty && !next.dirty) ||
+        last.version !== next.version);
+    last = next;
+    autosave.schedule(
+      { ws: $workspace, fileName: next.fileName, dirty: next.dirty },
+      { immediate },
+    );
   });
 
   // A pending debounced write must not be lost when the page is hidden or closed.
   function flushNow() {
-    void autosave.flush();
+    autosave.flushNow();
   }
 
   document.documentElement.lang = $locale;
@@ -42,7 +55,7 @@
   });
 </script>
 
-<svelte:window onpagehide={flushNow} />
+<svelte:window onpagehide={flushNow} onbeforeunload={flushNow} />
 <svelte:document onvisibilitychange={() => document.hidden && flushNow()} />
 
 {#if ready}

@@ -7,7 +7,7 @@
   const platform =
     typeof navigator === 'undefined'
       ? ''
-      : ((navigator as NavigatorWithData).userAgentData?.platform ?? navigator.platform ?? '');
+      : (navigator as NavigatorWithData).userAgentData?.platform || navigator.platform || '';
   const platformKind = /mac|iphone|ipad/i.test(platform) ? 'mac' : 'other';
 
   const steps = ['1', '2', '3', '4'] as const;
@@ -49,30 +49,26 @@
     <p>{$t('help.where.intro')}</p>
     <div class="scroll">
       <table>
-        <caption>{$t('help.where.caption')}</caption>
+        <caption class="sr-only">{$t('help.where.caption')}</caption>
         <thead>
           <tr>
-            <th scope="col">{$t('help.where.col.settings')}</th>
-            <th scope="col">{$t('help.where.col.team')}</th>
+            <th scope="col">{$t('help.where.col.field')}</th>
+            <th scope="col">{$t('help.where.col.where')}</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <ul>
-                {#each settingsFields as field (field)}
-                  <li>{$t('help.where.s.' + field)}</li>
-                {/each}
-              </ul>
-            </td>
-            <td>
-              <ul>
-                {#each teamFields as field (field)}
-                  <li>{$t('help.where.t.' + field)}</li>
-                {/each}
-              </ul>
-            </td>
-          </tr>
+          {#each settingsFields as field (field)}
+            <tr>
+              <th scope="row">{$t('help.where.s.' + field)}</th>
+              <td>{$t('help.where.col.settings')}</td>
+            </tr>
+          {/each}
+          {#each teamFields as field (field)}
+            <tr>
+              <th scope="row">{$t('help.where.t.' + field)}</th>
+              <td>{$t('help.where.col.team')}</td>
+            </tr>
+          {/each}
         </tbody>
       </table>
     </div>
@@ -91,7 +87,7 @@
     <h3 id="{uid}-keys">{$t('help.keys.title')}</h3>
     <div class="scroll">
       <table>
-        <caption>{$t('help.keys.caption')}</caption>
+        <caption class="sr-only">{$t('help.keys.caption')}</caption>
         <thead>
           <tr>
             <th scope="col">{$t('help.keys.col.keys')}</th>
@@ -114,7 +110,7 @@
     <h3 id="{uid}-cal">{$t('help.cal.title')}</h3>
     <div class="scroll">
       <table>
-        <caption>{$t('help.cal.caption')}</caption>
+        <caption class="sr-only">{$t('help.cal.caption')}</caption>
         <thead>
           <tr>
             <th scope="col">{$t('help.keys.col.keys')}</th>
@@ -146,11 +142,6 @@
     border-collapse: collapse;
     width: 100%;
   }
-  caption {
-    text-align: left;
-    font-weight: 600;
-    padding-bottom: 0.25rem;
-  }
   th,
   td {
     border: 1px solid var(--border);
@@ -161,9 +152,13 @@
   thead th {
     background: var(--surface);
   }
-  ul {
-    margin: 0;
-    padding-left: 1.25rem;
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   kbd {
     font-family: inherit;

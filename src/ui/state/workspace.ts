@@ -17,6 +17,7 @@ export function createWorkspaceStore(initial: Workspace) {
   const dirty = writable(false);
   const fileName = writable<string | null>(null);
   const history = writable<Workspace[]>([]);
+  const version = writable(0);
 
   function apply(change: Change): Result<Workspace> & { id?: string } {
     const current = get(state);
@@ -53,6 +54,7 @@ export function createWorkspaceStore(initial: Workspace) {
 
   function replace(ws: Workspace, opts: { fileName: string | null; dirty: boolean }): void {
     history.set([]);
+    version.update((n) => n + 1);
     state.set(ws);
     fileName.set(opts.fileName);
     dirty.set(opts.dirty);
@@ -76,6 +78,8 @@ export function createWorkspaceStore(initial: Workspace) {
     canUndo: derived(history, (h) => h.length > 0) as Readable<boolean>,
     dirty: { subscribe: dirty.subscribe } as Readable<boolean>,
     fileName: { subscribe: fileName.subscribe } as Readable<string | null>,
+    /** Increments whenever the whole workspace is replaced (New, Open, example, restore). */
+    version: { subscribe: version.subscribe } as Readable<number>,
     replace,
     markSaved,
   };

@@ -18,6 +18,36 @@ describe('autosave', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it('an immediate schedule writes without advancing timers', () => {
+    const kv = memory();
+    createAutosave(kv, 500).schedule({ ws, fileName: 'x.json', dirty: false }, { immediate: true });
+    expect(kv.data.has('current')).toBe(true);
+  });
+
+  it('flushNow starts the write synchronously with setNow, else falls back to set', async () => {
+    const kv = memory();
+    const now: [string, unknown][] = [];
+    const a = createAutosave({ ...kv, setNow: (k, v) => void now.push([k, v]) }, 500);
+    a.schedule({ ws, fileName: null, dirty: true });
+    a.flushNow();
+    expect(now).toHaveLength(1);
+    expect(now[0]![0]).toBe('current');
+    expect(kv.data.size).toBe(0);
+    const b = createAutosave(
+      {
+        ...kv,
+        setNow: () => {
+          throw new Error('not open');
+        },
+      },
+      500,
+    );
+    b.schedule({ ws, fileName: null, dirty: true });
+    b.flushNow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(kv.data.has('current')).toBe(true);
+  });
+
   it('debounces and restores ws, fileName and dirty', async () => {
     const kv = memory();
     const a = createAutosave(kv, 500);

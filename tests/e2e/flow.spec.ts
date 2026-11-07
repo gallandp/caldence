@@ -50,28 +50,6 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
   );
 }
 
-/** The file name and team count of the autosaved state in IndexedDB (autosave is debounced). */
-async function stored(page: Page): Promise<string> {
-  return page.evaluate(
-    () =>
-      new Promise<string>((resolve) => {
-        const req = indexedDB.open('caldence', 1);
-        req.onerror = () => resolve('error');
-        req.onsuccess = () => {
-          const db = req.result;
-          if (!db.objectStoreNames.contains('autosave')) return resolve('none');
-          const get = db.transaction('autosave').objectStore('autosave').get('current');
-          get.onsuccess = () => {
-            const v = get.result as
-              { ws: { teams: unknown[] }; fileName: string | null; dirty: boolean } | undefined;
-            resolve(v ? `${v.fileName}:${v.ws.teams.length}:${v.dirty}` : 'none');
-          };
-          get.onerror = () => resolve('error');
-        };
-      }),
-  );
-}
-
 async function expectEverything(page: Page) {
   await tab(page, 'Meetings').click();
   for (const team of ['Team A', 'Team B']) {
@@ -81,13 +59,33 @@ async function expectEverything(page: Page) {
     await expect(table).toContainText('Weekly on Wednesday');
     await expect(table).toContainText('10:00');
     await expect(table).toContainText('Product Owner (100%)');
+    await tab(page, 'Team').click();
+    const members = panel(page, 'Team').getByRole('table', { name: `Members of ${team}` });
+    await expect(members.getByRole('row').filter({ hasText: 'Kim' })).toContainText(
+      'Product Owner',
+    );
+    await tab(page, 'Meetings').click();
   }
   await tab(page, 'Workspace settings').click();
   await expect(page.getByLabel('Name of Kim')).toBeVisible();
+  await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
+  await expect(page.getByLabel('Name of Developer')).toBeVisible();
   await expect(page.getByLabel('Hours per week of Kim')).toHaveValue('30');
   await tab(page, 'Team').click();
   const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
   await expect(options).toHaveText(['Team A', 'Team B']);
+
+  await tab(page, 'Load').click();
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
+  await expect(
+    panel(page, 'Load').getByRole('table', { name: 'Per role' }).locator('tr[data-role]').first(),
+  ).toContainText('2.0');
+  await tab(page, 'Calendar').click();
+  const calendar = panel(page, 'Calendar');
+  await calendar.locator(`td[data-date="${MEETING_DAY}"]`).click();
+  await expect(
+    calendar.getByText('Overlap: Sync Team A (Team A) and Sync Team B (Team B)'),
+  ).toBeVisible();
 }
 
 test('from an empty workspace to saved, restored and reopened data', async ({ page }) => {
@@ -153,7 +151,6 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   const path = await file.path();
   await expect(page.getByText('✓ Saved')).toBeVisible();
 
-  await expect.poll(() => stored(page)).toBe('workspace.caldence.json:2:false');
   await page.reload();
   await expect(page.getByText('workspace.caldence.json')).toBeVisible();
   await expectEverything(page);
