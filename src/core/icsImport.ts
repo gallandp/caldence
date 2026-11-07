@@ -1,6 +1,7 @@
 import {
   addDays,
   diffDays,
+  formatDate,
   mondayOf,
   parseDate,
   toMinutes,
@@ -47,7 +48,9 @@ export type NoteKey =
 
 export type ImportCandidate = {
   key: string;
+  /** Empty when the item has no SUMMARY (`untitled`); `importEvents` then uses its fallback. */
   name: string;
+  untitled: boolean;
   rule: Rule;
   time: Time;
   duration: number;
@@ -387,6 +390,104 @@ function lastDate(rr: Record<string, string>, start: ISODate, tz: string): ISODa
 
 const mod = (a: number, n: number): number => ((a % n) + n) % n;
 
+const DAY_NAMES = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+
+/** BYDAY values moved by `delta` days (ordinals kept), for a UTC start that changes date locally. */
+function shiftByday(byday: string, delta: number): string {
+  return byday
+    .split(',')
+    .map((v) => {
+      const m = /^([+-]?\d{1,2})?(MO|TU|WE|TH|FR|SA|SU)$/.exec(v.trim());
+      if (!m) return v;
+      return `${m[1] ?? ''}${DAY_NAMES[mod((DAY_CODES[m[2]!] ?? 1) - 1 + delta, 7)]}`;
+    })
+    .join(',');
+}
+
+/** The date `months` after `start` on the same day of month; null if that day does not exist. */
+function sameDayMonthsLater(start: ISODate, months: number): ISODate | null {
+  const y = Number(start.slice(0, 4));
+  const m = Number(start.slice(5, 7)) - 1 + months;
+  const day = Number(start.slice(8, 10));
+  const ms = Date.UTC(y, m, day);
+  const d = new Date(ms);
+  return d.getUTCDate() === day ? formatDate(ms) : null;
+}
+
+/**
+ * The first occurrence on or after `today` of a series Caldence cannot map, where that is cheap to
+ * work out: plain DAILY/WEEKLY (with optional plain BYDAY) and MONTHLY/YEARLY on the start's day
+ * of month. Returns `start` when it is not in the past, and null when it cannot be estimated.
+ */
+function nextOccurrence(
+  rr: Record<string, string>,
+  start: ISODate,
+  today: ISODate,
+): ISODate | null {
+  if (start >= today) return start;
+  const interval = rr.INTERVAL === undefined ? 1 : Number(rr.INTERVAL);
+  if (!Number.isInteger(interval) || interval < 1) return null;
+  const allowed = ['FREQ', 'INTERVAL', 'UNTIL', 'COUNT', 'WKST', 'BYDAY', 'BYMONTHDAY', 'BYMONTH'];
+  if (Object.keys(rr).some((k) => !allowed.includes(k))) return null;
+  const freq = rr.FREQ;
+  const days = rr.BYDAY === undefined ? null : plainDays(rr.BYDAY);
+  if (
+    rr.BYDAY !== undefined &&
+    (!days || days.length === 0 || (freq !== 'DAILY' && freq !== 'WEEKLY'))
+  )
+    return null;
+  if (rr.BYMONTHDAY !== undefined) {
+    if (
+      (freq !== 'MONTHLY' && freq !== 'YEARLY') ||
+      Number(rr.BYMONTHDAY) !== Number(start.slice(8, 10))
+    )
+      return null;
+  }
+  if (
+    rr.BYMONTH !== undefined &&
+    (freq !== 'YEARLY' || Number(rr.BYMONTH) !== Number(start.slice(5, 7)))
+  )
+    return null;
+  switch (freq) {
+    case 'DAILY': {
+      const k = Math.ceil(diffDays(today, start) / interval);
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(start, (k + i) * interval);
+        if (!days || days.includes(weekday(d))) return d;
+      }
+      return null;
+    }
+    case 'WEEKLY': {
+      const list = days ?? [weekday(start)];
+      const base = mondayOf(start);
+      const w = Math.ceil(diffDays(mondayOf(today), base) / 7 / interval) * interval;
+      for (const week of [w, w + interval]) {
+        for (const d of list) {
+          const date = addDays(base, week * 7 + d - 1);
+          if (date >= today && date >= start) return date;
+        }
+      }
+      return null;
+    }
+    case 'MONTHLY':
+    case 'YEARLY': {
+      const step = freq === 'MONTHLY' ? interval : interval * 12;
+      const months =
+        (Number(today.slice(0, 4)) - Number(start.slice(0, 4))) * 12 +
+        Number(today.slice(5, 7)) -
+        Number(start.slice(5, 7));
+      // 12 steps cover a 29 February (8 years at most) and a 31st in short months.
+      for (let k = Math.max(0, Math.floor(months / step)), n = 0; n < 12; k++, n++) {
+        const d = sameDayMonthsLater(start, k * step);
+        if (d !== null && d >= today) return d;
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 /** A string that is equal for two rules exactly when they give the same dates; null if unknown. */
 function ruleKey(rule: Rule, team: Team | null): string | null {
   switch (rule.type) {
@@ -490,15 +591,25 @@ export function reviewImport(
     let rule: Rule;
     let selected = true;
     if (ev.rrule) {
-      const last = lastDate(ev.rrule, date, tz);
+      // A UTC start that lands on another local date moves its weekdays with it.
+      const rr = { ...ev.rrule };
+      const delta = diffDays(date, ev.start.date);
+      if (delta !== 0 && rr.BYDAY !== undefined) rr.BYDAY = shiftByday(rr.BYDAY, delta);
+      const last = lastDate(rr, date, tz);
       if (last !== null && last < today) {
         skip(ev, 'ended');
         continue;
       }
-      const mapped = mapRule(ev.rrule, date);
+      const mapped = mapRule(rr, date);
       if (mapped) rule = mapped;
       else {
-        rule = { type: 'once', date };
+        // At its next date; a series whose next date cannot be estimated counts as ended.
+        const next = nextOccurrence(rr, date, today);
+        if (next === null || (last !== null && next > last)) {
+          skip(ev, 'ended');
+          continue;
+        }
+        rule = { type: 'once', date: next };
         selected = false;
         notes.push({ key: 'import.note.unmapped', params: {} });
       }
@@ -520,8 +631,10 @@ export function reviewImport(
         byUid.get(base) ??
         (/-\d{4}-\d{2}-\d{2}$/.test(base) ? (byUid.get(base.slice(0, -11)) ?? null) : null);
     }
-    duplicateOf ??=
-      bySignature.get(`${nameKey(ev.summary)}\u0000${time}\u0000${ruleKey(rule, null)}`) ?? null;
+    const untitled = ev.summary === '';
+    if (!untitled)
+      duplicateOf ??=
+        bySignature.get(`${nameKey(ev.summary)}\u0000${time}\u0000${ruleKey(rule, null)}`) ?? null;
     if (duplicateOf !== null) selected = false;
 
     let key = ev.uid || `event-${review.candidates.length + 1}`;
@@ -532,6 +645,7 @@ export function reviewImport(
     review.candidates.push({
       key,
       name: ev.summary,
+      untitled,
       rule,
       time,
       duration: ev.durationMinutes,

@@ -105,6 +105,32 @@ describe('parseIcs', () => {
   });
 });
 
+describe('parseIcs: folds, case and BOM', () => {
+  it('unfolds tab continuations, reads lowercase names and strips a BOM', () => {
+    const text =
+      '\uFEFFbegin:vcalendar\r\n' +
+      'begin:vevent\r\n' +
+      'uid:x1\r\n' +
+      'summary:Long\r\n\t title\r\n' +
+      'dtstart;tzid=Europe/Berlin:20270104T090000\r\n' +
+      'dtend;tzid=Europe/Berlin:20270104T093000\r\n' +
+      'rrule:freq=weekly;byday=mo\r\n' +
+      'end:vevent\r\n' +
+      'end:vcalendar\r\n';
+    const [ev] = ok(parseIcs(text));
+    expect(ev!.uid).toBe('x1');
+    expect(ev!.summary).toBe('Long title');
+    expect(ev!.start).toEqual({
+      date: '2027-01-04',
+      time: '09:00',
+      tzid: 'Europe/Berlin',
+      utc: false,
+    });
+    expect(ev!.durationMinutes).toBe(30);
+    expect(ev!.rrule).toEqual({ FREQ: 'WEEKLY', BYDAY: 'MO' });
+  });
+});
+
 describe('reviewImport: Outlook', () => {
   it('maps the series and the future single event', () => {
     const { ws, teamId } = target();
@@ -145,7 +171,8 @@ describe('reviewImport: Outlook', () => {
     expect(single.selected).toBe(true);
 
     const yearly = byName(review, 'Jahresplanung');
-    expect(yearly.rule).toEqual({ type: 'once', date: '2026-03-15' });
+    // Unmapped with a past start: the next occurrence on or after today.
+    expect(yearly.rule).toEqual({ type: 'once', date: '2027-03-15' });
     expect(yearly.selected).toBe(false);
     expect(noteKeys(yearly)).toContain('import.note.unmapped');
 
@@ -291,6 +318,120 @@ describe('reviewImport: Google and endings', () => {
   });
 });
 
+const calendar = (...events: string[][]): string =>
+  ['BEGIN:VCALENDAR', ...events.flat(), 'END:VCALENDAR'].join('\r\n');
+const vevent = (uid: string, lines: string[]): string[] => [
+  'BEGIN:VEVENT',
+  `UID:${uid}`,
+  `SUMMARY:${uid}`,
+  ...lines,
+  'END:VEVENT',
+];
+
+describe('reviewImport: UTC series across midnight', () => {
+  it('shifts BYDAY by the day change of the local conversion', () => {
+    const { ws, teamId } = target();
+    const text = calendar(
+      vevent('weekly', [
+        'DTSTART:20270105T230000Z',
+        'DTEND:20270105T233000Z',
+        'RRULE:FREQ=WEEKLY;BYDAY=TU',
+      ]),
+      vevent('multi', [
+        'DTSTART:20270104T230000Z',
+        'DTEND:20270104T233000Z',
+        'RRULE:FREQ=WEEKLY;BYDAY=MO,SU',
+      ]),
+      vevent('monthly', [
+        'DTSTART:20270114T233000Z',
+        'DTEND:20270115T000000Z',
+        'RRULE:FREQ=MONTHLY;BYDAY=2TH',
+      ]),
+    );
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    const weekly = byName(review, 'weekly');
+    expect(weekly.rule).toEqual({ type: 'weekly', weekday: 3 });
+    expect(weekly.time).toBe('00:00');
+    expect(byName(review, 'multi').rule).toEqual({ type: 'weekdays', weekdays: [1, 2] });
+    expect(byName(review, 'monthly').rule).toEqual({
+      type: 'monthly-nth-weekday',
+      weekday: 5,
+      nth: 2,
+    });
+    expect(byName(review, 'monthly').time).toBe('00:30');
+  });
+});
+
+describe('reviewImport: unmapped series with a past start', () => {
+  it('rolls forward to the next occurrence, or skips as ended when it cannot', () => {
+    const { ws, teamId } = target();
+    const span = ['DTEND:20250103T100000'];
+    const text = calendar(
+      vevent('daily2', ['DTSTART:20250103T090000', ...span, 'RRULE:FREQ=DAILY;INTERVAL=2']),
+      vevent('weekly2', [
+        'DTSTART:20250103T090000',
+        ...span,
+        'RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,FR',
+      ]),
+      vevent('monthday', [
+        'DTSTART:20250131T090000',
+        'DTEND:20250131T100000',
+        'RRULE:FREQ=MONTHLY;BYMONTHDAY=31',
+      ]),
+      vevent('yearly', ['DTSTART:20200229T090000', 'DTEND:20200229T100000', 'RRULE:FREQ=YEARLY']),
+      vevent('odd', ['DTSTART:20250103T090000', ...span, 'RRULE:FREQ=MONTHLY;BYDAY=MO,FR']),
+      vevent('until', ['DTSTART:20250103T090000', ...span, 'RRULE:FREQ=YEARLY;UNTIL=20261231']),
+    );
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    // 2025-01-03 + 2k days: 2026-11-07 is day 673 (odd), so the next is day 674.
+    expect(byName(review, 'daily2').rule).toEqual({ type: 'once', date: '2026-11-08' });
+    // Fortnightly Mon/Fri from the week of 2024-12-30: weeks of 2026-11-02 and 2026-11-16 …
+    expect(byName(review, 'weekly2').rule).toEqual({ type: 'once', date: '2026-11-16' });
+    expect(byName(review, 'monthday').rule).toEqual({ type: 'once', date: '2026-12-31' });
+    expect(byName(review, 'yearly').rule).toEqual({ type: 'once', date: '2028-02-29' });
+    for (const name of ['daily2', 'weekly2', 'monthday', 'yearly']) {
+      expect(byName(review, name).selected).toBe(false);
+      expect(noteKeys(byName(review, name))).toContain('import.note.unmapped');
+    }
+    expect(review.skipped).toEqual([
+      { summary: 'odd', reason: 'ended' },
+      { summary: 'until', reason: 'ended' },
+    ]);
+  });
+});
+
+describe('reviewImport: untitled items', () => {
+  it('marks an event without SUMMARY as untitled; importEvents names it and validates', () => {
+    const { ws, teamId } = target();
+    const text = calendar(
+      [
+        'BEGIN:VEVENT',
+        'UID:busy@google.com',
+        'DTSTART:20270301T080000Z',
+        'DTEND:20270301T090000Z',
+        'TRANSP:OPAQUE',
+        'END:VEVENT',
+      ],
+      vevent('Planning', ['DTSTART:20270302T080000Z', 'DTEND:20270302T090000Z']),
+    );
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    expect(review.candidates).toHaveLength(2);
+    const busy = review.candidates[0]!;
+    expect(busy).toMatchObject({ name: '', untitled: true, selected: true });
+    expect(byName(review, 'Planning').untitled).toBe(false);
+    const out = ok(
+      importEvents(
+        ws,
+        teamId,
+        review.candidates.map((candidate) => ({ candidate, categoryId: '' })),
+        { roleIds: [], newCategoryName: 'Import', untitledName: 'Untitled' },
+      ),
+    );
+    expect(validate(out).ok).toBe(true);
+    expect(out.teams[0]!.events.map((e) => e.name)).toEqual(['Untitled', 'Planning']);
+  });
+});
+
 describe('reviewImport: duplicates and categories', () => {
   it('flags an event with the same name, rule and time as a duplicate', () => {
     const { ws: base, teamId } = target();
@@ -394,7 +535,11 @@ describe('importEvents', () => {
       .filter((c) => c.selected)
       .map((candidate) => ({ candidate, categoryId: '' }));
     const out = ok(
-      importEvents(ws, teamId, items, { roleIds: [roleId], newCategoryName: 'Import' }),
+      importEvents(ws, teamId, items, {
+        roleIds: [roleId],
+        newCategoryName: 'Import',
+        untitledName: 'Untitled',
+      }),
     );
     expect(validate(out).ok).toBe(true);
     expect(out.categories).toHaveLength(1);
@@ -422,14 +567,24 @@ describe('importEvents', () => {
       today: TODAY,
     });
     const items = review.candidates.map((candidate) => ({ candidate, categoryId: catId }));
-    const out = ok(importEvents(ws, teamId, items, { roleIds: [], newCategoryName: 'Import' }));
+    const out = ok(
+      importEvents(ws, teamId, items, {
+        roleIds: [],
+        newCategoryName: 'Import',
+        untitledName: 'Untitled',
+      }),
+    );
     expect(out.categories).toHaveLength(1);
     expect(out.teams[0]!.events.map((e) => e.categoryId)).toEqual([catId, catId]);
   });
 
   it('refuses an unknown team', () => {
     const { ws } = target();
-    const r = importEvents(ws, 'nope', [], { roleIds: [], newCategoryName: 'Import' });
+    const r = importEvents(ws, 'nope', [], {
+      roleIds: [],
+      newCategoryName: 'Import',
+      untitledName: 'Untitled',
+    });
     expect(r.ok).toBe(false);
   });
 });

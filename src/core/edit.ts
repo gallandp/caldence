@@ -322,27 +322,32 @@ export function removeEvent(ws: Workspace, teamId: string, eventId: string): Wor
 
 /**
  * Adds the chosen import candidates as events of the team, each with the roles at share 1 and no
- * preparation. A workspace without any category first gets one named `newCategoryName`, which all
- * items then use. The result is validated.
+ * preparation; an untitled candidate gets `untitledName`. A workspace without any category first
+ * gets one named `newCategoryName`, which all items then use. One clone, validated once.
  */
 export function importEvents(
   ws: Workspace,
   teamId: string,
   items: { candidate: ImportCandidate; categoryId: string }[],
-  opts: { roleIds: string[]; newCategoryName: string },
+  opts: { roleIds: string[]; newCategoryName: string; untitledName: string },
 ): Result<Workspace> {
-  if (!ws.teams.some((t) => t.id === teamId)) return fail(`teams.${teamId}`, 'error.ref.unknown');
-  let out = structuredClone(ws);
+  const out = structuredClone(ws);
+  const team = out.teams.find((t) => t.id === teamId);
+  if (!team) return fail(`teams.${teamId}`, 'error.ref.unknown');
   let fallback: string | null = null;
-  if (out.categories.length === 0)
-    [out, fallback] = addItem(out, 'categories', {
-      name: opts.newCategoryName,
-      colour: NEW_CATEGORY_COLOUR,
-    });
+  if (out.categories.length === 0) {
+    fallback = newId(PREFIX.categories, []);
+    out.categories.push({ id: fallback, name: opts.newCategoryName, colour: NEW_CATEGORY_COLOUR });
+  }
+  const taken = new Set(ids(team.events));
+  let n = 1;
   for (const { candidate: c, categoryId } of items) {
-    [out] = upsertEvent(out, teamId, {
-      id: '',
-      name: c.name,
+    while (taken.has(`e${n}`)) n++;
+    const id = `e${n}`;
+    taken.add(id);
+    team.events.push({
+      id,
+      name: c.untitled || c.name.trim() === '' ? opts.untitledName : c.name,
       categoryId: fallback ?? categoryId,
       rule: structuredClone(c.rule),
       time: c.time,

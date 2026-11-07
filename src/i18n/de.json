@@ -422,5 +422,6 @@
   "import.skip.cancelled": "Abgesagter Termin; wird nicht übernommen.",
   "import.skip.override": "Geänderter Einzeltermin einer Serie; wird nicht übernommen.",
   "import.skip.noDuration": "Termin ohne Dauer; wird nicht übernommen.",
-  "import.skip.ended": "Die Serie ist bereits beendet; wird nicht übernommen."
+  "import.skip.ended": "Die Serie ist bereits beendet; wird nicht übernommen.",
+  "import.untitled": "Ohne Titel"
 }
