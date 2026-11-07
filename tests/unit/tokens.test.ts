@@ -20,7 +20,7 @@ for (const [name, t] of [
 ] as const) {
   describe(`tokens (${name})`, () => {
     it('text colours reach 4.5:1 on bg and surface', () => {
-      for (const fg of ['text', 'text-muted'])
+      for (const fg of ['text', 'text-muted', 'danger'])
         for (const bg of ['bg', 'surface'])
           expect(contrastRatio(t[fg]!, t[bg]!), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
     });

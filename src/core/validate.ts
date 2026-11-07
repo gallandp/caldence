@@ -56,18 +56,20 @@ class Checker {
       this.err(`${path}.${k}`, 'error.colour.invalid');
   }
 
-  /** Number check; `min` is inclusive unless `exclusive` is set; `int` demands an integer. */
+  /** Number check; `min` is inclusive unless `exclusive` is set, `max` is inclusive; `int` demands an integer. */
   num(
     o: Obj,
     k: string,
     path: string,
-    opts: { min?: number; exclusive?: boolean; int?: boolean },
+    opts: { min?: number; max?: number; exclusive?: boolean; int?: boolean },
   ): void {
     const v = o[k];
     if (v === undefined) return this.err(`${path}.${k}`, 'error.required');
     if (!isNum(v) || (opts.int && !Number.isInteger(v)))
       return this.err(`${path}.${k}`, 'error.number.invalid');
     if (opts.min !== undefined && (opts.exclusive ? v <= opts.min : v < opts.min))
+      this.err(`${path}.${k}`, 'error.number.invalid');
+    else if (opts.max !== undefined && v > opts.max)
       this.err(`${path}.${k}`, 'error.number.invalid');
   }
 
@@ -115,9 +117,10 @@ function checkSettings(c: Checker, v: unknown): void {
   c.str(s, 'region', p);
   c.str(s, 'timezone', p);
   if (s.workdays === undefined) c.err('settings.workdays', 'error.required');
+  else if (Array.isArray(s.workdays) && s.workdays.length === 0)
+    c.err('settings.workdays', 'error.workdays.empty');
   else if (
     !Array.isArray(s.workdays) ||
-    s.workdays.length === 0 ||
     !s.workdays.every((d) => isInt(d) && d >= 1 && d <= 7) ||
     new Set(s.workdays).size !== s.workdays.length
   )
@@ -200,7 +203,7 @@ function checkEvent(
   checkRule(c, e.rule, `${p}.rule`, cycles, cadenceDays);
   c.time(e, 'time', p);
   c.num(e, 'duration', p, { min: 0, exclusive: true, int: true });
-  c.num(e, 'preparation', p, { min: 0 });
+  c.num(e, 'preparation', p, { min: 0, max: 1 });
   if (e.scaling !== undefined) {
     const sc = c.obj(e.scaling, `${p}.scaling`);
     if (sc) {
@@ -243,9 +246,15 @@ function checkTeam(
     c.date(cad, 'start', `${p}.cadence`);
   }
 
+  const pairs = new Set<string>();
   c.each(t.members, `${p}.members`, (m, mp) => {
     c.ref(m, 'personId', mp, personIds);
     c.ref(m, 'roleId', mp, roleIds);
+    if (isStr(m.personId) && isStr(m.roleId)) {
+      const pair = JSON.stringify([m.personId, m.roleId]);
+      if (pairs.has(pair)) c.err(mp, 'error.id.duplicate');
+      pairs.add(pair);
+    }
   });
 
   const a = c.obj(t.assumptions, `${p}.assumptions`);

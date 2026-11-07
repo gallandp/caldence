@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Added
+
+- Open, save and autosave workspace files (#14): workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts (Ctrl/Cmd+S, Shift+S, O, Z), IndexedDB autosave with restore after reload, and an example workspace.
+- Editing (#9, #10, #11, #12): core edit operations for roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); workspace store with undo (50 steps), dirty flag and file name; form error mapping.
+- Workspace settings view (#9, #11): language, region, time zone, workdays, hours, horizon, holidays, thresholds, and editable roles (with colour) and people; deleting a role that is in use asks for a replacement.
+- Teams and team view (#10, #11): team switcher (add, rename, duplicate, delete), role and person filter, and per-team members, cadence, cycles with milestones and assumptions.
+- Meetings view (#12): event table (rule summary, time, effective duration, roles), inline event form for all six rule types with scaling, participants and preparation in %, categories with colour and replace-on-delete, and undo.
+- Calendar view (#13): month grid (APG grid keyboard pattern) with holidays, school holidays, cadence starts, milestones, hours and meeting count per day, week view, navigation, inline day details with person-overlap warnings, and empty-state hints.
+- Weeks and load views (#13): weekly table (ISO week, cadence, milestones, holidays, school holidays, hours per role, current week marked) and load tables per category and role, per role and per person with warnings.
+- Core view data (#10, #13): region registry, workspace holiday index, filtered occurrences, day load, week rows, load summary and per-person conflicts.
+- Help view (#10, #11, #14) in German and English: first steps, where each setting lives (workspace settings or team view), files and autosave, keyboard shortcuts for the platform, and calendar keys; a combined end-to-end test covers the flow from an empty workspace to Save as, reload and Open.
+
+### Changed
+
+- The UI language is now a workspace setting.
+- `preparation` is capped at 1 (a fraction); the UI shows and edits it as a percent.
+- The person filter scopes cadence and milestones to the teams of the person (shared `scopeTeams`), and `loadSummary` returns a category by role matrix.
+- The example team now has a scaled meeting.
+- README status updated to phase 2.
+
+### Fixed
+
+- Deleting a role, category, person, cycle or assumption that is still used asks for a replacement or is refused; a used assumption or milestone cannot be removed, and renaming an assumption updates scaling rules.
+- Keyed lists no longer crash when milestone names, milestone ids or cadence labels repeat; a workspace file with a duplicate team member (person and role) is rejected; each view has an error fallback so one failing view cannot lock the app.
+- After Save in the unsaved-changes dialog, a refused file picker shows a hint instead of a read error; a file dialog that never reports cancel no longer blocks the file buttons.
+- Autosave restore migrates the stored workspace before validating it.
+- Ctrl/Cmd+S and Ctrl/Cmd+O commit the field being edited first; Ctrl/Cmd+Z is ignored inside forms and while a meeting draft is open.
+- Localized percent, peak and warning texts in the load view; shared day item list, scoped markers and details focus in the calendar.
+
 ## 0.1.0 – 2026-11-07
 
 - Project setup: Vite, Svelte 5, TypeScript (strict), Vitest, Playwright, ESLint and Prettier.

@@ -75,6 +75,8 @@ test('modifier keys do not trigger tab navigation', async ({ page }) => {
 test('skip link is visible on focus in dark mode', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
+  // The app shows a loading state until the autosave is restored.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to content' });
   await expect(skip).toBeFocused();
@@ -83,6 +85,8 @@ test('skip link is visible on focus in dark mode', async ({ page }) => {
 
 test('skip link is the first Tab stop and moves focus to main', async ({ page }) => {
   await page.goto('/');
+  // The app shows a loading state until the autosave is restored.
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to content' });
   await expect(skip).toBeFocused();

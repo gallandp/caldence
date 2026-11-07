@@ -2,6 +2,17 @@
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
+  import WorkspaceBar from './WorkspaceBar.svelte';
+  import CalendarView from './views/CalendarView.svelte';
+  import MeetingsView from './views/MeetingsView.svelte';
+  import WeeksView from './views/WeeksView.svelte';
+  import LoadView from './views/LoadView.svelte';
+  import TeamView from './views/TeamView.svelte';
+  import SettingsView from './views/SettingsView.svelte';
+  import HelpView from './views/HelpView.svelte';
+  import { workspace } from './state/workspace';
+
+  const { dirty } = workspace;
 
   const views = [
     'calendar',
@@ -47,12 +58,59 @@
     select(views[target]!, true);
   }
 
+  let bar: WorkspaceBar | undefined;
+
+  /** Blurs the focused control so that a commit-on-blur value is in the workspace before saving. */
+  function commitFocused(): HTMLElement | null {
+    const field = document.activeElement;
+    if (!(field instanceof HTMLElement) || field === document.body) return null;
+    field.blur();
+    return field;
+  }
+
+  function onShortcut(event: KeyboardEvent) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (event.repeat || document.querySelector('dialog[open]')) return;
+    const key = event.key.toLowerCase();
+    if (key === 's') {
+      const field = commitFocused();
+      void (event.shiftKey ? bar?.saveAs() : bar?.save());
+      // The save has taken its snapshot by now; give the field its focus back.
+      field?.focus();
+    } else if (key === 'o' && !event.shiftKey) {
+      commitFocused();
+      void bar?.open();
+    } else if (key === 'z' && !event.shiftKey) {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      )
+        return; // the field's own undo
+      // A form or an open meeting draft would be closed as stale by the undo: do nothing.
+      if (target?.closest('form') || document.querySelector('.eventform')) {
+        event.preventDefault();
+        return;
+      }
+      workspace.undo();
+    } else return;
+    event.preventDefault();
+  }
+
+  function onBeforeUnload(event: BeforeUnloadEvent) {
+    if (!$dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  }
+
   let main: HTMLElement | undefined;
   function skip(event: Event) {
     event.preventDefault();
     main?.focus();
   }
 </script>
+
+<svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} />
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
@@ -63,6 +121,8 @@
   </div>
   <LanguageSwitch />
 </header>
+
+<WorkspaceBar bind:this={bar} />
 
 <div class="tabs" role="tablist" aria-label={$t('nav.views')}>
   {#each views as id (id)}
@@ -92,7 +152,42 @@
       hidden={active !== id}
     >
       <h2>{$t('view.' + id)}</h2>
-      <p>{$t('view.soon')}</p>
+      <svelte:boundary>
+        {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
+          <section class="start">
+            <h3>{$t('calendar.empty.title')}</h3>
+            <p>{$t('calendar.empty.text')}</p>
+            <button type="button" onclick={() => bar?.openExample()}
+              >{$t('calendar.empty.example')}</button
+            >
+          </section>
+        {:else if id === 'calendar'}
+          {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
+            <CalendarView onOpenMeetings={() => select('meetings', true)} />
+          {/key}
+        {:else if id === 'weeks'}
+          {#if active === 'weeks'}<WeeksView onOpenMeetings={() => select('meetings', true)} />{/if}
+        {:else if id === 'load'}
+          {#if active === 'load'}<LoadView />{/if}
+        {:else if id === 'meetings'}
+          {#if active === 'meetings'}<MeetingsView />{/if}
+        {:else if id === 'team'}
+          {#if active === 'team'}<TeamView />{/if}
+        {:else if id === 'settings'}
+          {#if active === 'settings'}<SettingsView />{/if}
+        {:else if id === 'help'}
+          {#if active === 'help'}<HelpView />{/if}
+        {:else}
+          <p>{$t('view.soon')}</p>
+        {/if}
+        <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+        {#snippet failed(_error, reset)}
+          <section class="failed" role="alert">
+            <p>{$t('view.failed')}</p>
+            <button type="button" onclick={reset}>{$t('view.retry')}</button>
+          </section>
+        {/snippet}
+      </svelte:boundary>
     </div>
   {/each}
 </main>
@@ -170,5 +265,15 @@
   }
   h2 {
     margin-top: 0;
+  }
+  .start button {
+    font: inherit;
+    color: var(--bg);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
   }
 </style>

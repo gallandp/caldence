@@ -2,7 +2,11 @@
 
 Open-source calendar tool for planning the recurring meetings of agile roles (Product Owner, Scrum Master, teams) and exporting them to Outlook and other calendar apps.
 
-Status: phase 1 (foundation) – core engine, i18n and accessible app shell; no editor yet.
+Status: phase 2 – usable core app (editing, calendar, weeks, load, files)
+
+## Using Caldence
+
+Open the **Help** view in the app for the first steps, where each setting lives, how files and autosave work, and the keyboard shortcuts. Everything stays in your browser; nothing is sent anywhere.
 
 ## Development
 

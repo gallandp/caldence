@@ -44,7 +44,14 @@ export function formatNumber(locale: Locale, n: number, digits: number): string 
   }).format(n);
 }
 
-export const LOCALE_STORAGE_KEY = 'caldence.locale';
+/** Percent of a fraction (0.5 -> 50%) without decimals, in the locale's notation. */
+export function formatPercent(locale: Locale, fraction: number): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'percent',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(fraction);
+}
 
 export const locale = writable<Locale>(detectLocale());
 /** Store of a translate function; import as `translate as t` in components and use `$t(key)`. */

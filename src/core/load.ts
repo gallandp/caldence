@@ -38,7 +38,7 @@ function occurrencesPerWeek(rule: Rule, team: Team): number {
 }
 
 /** Hours of one occurrence for a participant with the given share. */
-function occurrenceHours(event: CalEvent, minutes: number, share: number): number {
+export function occurrenceHours(event: CalEvent, minutes: number, share: number): number {
   return ((minutes * (1 + event.preparation)) / 60) * share;
 }
 
