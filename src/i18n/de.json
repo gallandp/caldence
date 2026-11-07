@@ -385,5 +385,7 @@
   "help.cal.action.page": "Zum vorherigen oder nächsten Monat gehen",
   "help.cal.action.enter": "Den Tag auswählen und seine Details anzeigen",
   "help.where.col.field": "Feld",
-  "help.where.col.where": "Bearbeitet in"
+  "help.where.col.where": "Bearbeitet in",
+  "template.error.notTemplate": "Das ist keine Vorlagendatei. Eine Arbeitsbereich-Datei öffnest du über „Öffnen“.",
+  "template.error.personal": "Vorlagen dürfen keine Personen oder Mitglieder enthalten."
 }

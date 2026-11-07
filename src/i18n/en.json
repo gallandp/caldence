@@ -385,5 +385,7 @@
   "help.cal.action.page": "Go to the previous or next month",
   "help.cal.action.enter": "Select the day and show its details",
   "help.where.col.field": "Field",
-  "help.where.col.where": "Edited in"
+  "help.where.col.where": "Edited in",
+  "template.error.notTemplate": "This is not a template file. Open workspace files with Open.",
+  "template.error.personal": "Templates must not contain people or members."
 }

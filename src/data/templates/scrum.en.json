@@ -1,0 +1,178 @@
+{
+  "kind": "caldence-template",
+  "schemaVersion": 2,
+  "id": "scrum",
+  "name": "Scrum",
+  "description": "Two-week sprints with the Scrum events.",
+  "roles": [
+    {
+      "id": "r-po",
+      "name": "Product Owner",
+      "colour": "#1d4ed8"
+    },
+    {
+      "id": "r-sm",
+      "name": "Scrum Master",
+      "colour": "#15803d"
+    },
+    {
+      "id": "r-dev",
+      "name": "Developers",
+      "colour": "#b45309"
+    }
+  ],
+  "categories": [
+    {
+      "id": "c-events",
+      "name": "Scrum events",
+      "colour": "#1d4ed8"
+    },
+    {
+      "id": "c-refine",
+      "name": "Refinement",
+      "colour": "#15803d"
+    }
+  ],
+  "team": {
+    "name": "Scrum",
+    "cadence": {
+      "kind": "sprint",
+      "lengthWeeks": 2,
+      "start": "2027-01-04"
+    },
+    "assumptions": {},
+    "cycles": [],
+    "events": [
+      {
+        "id": "e-planning",
+        "name": "Sprint Planning",
+        "categoryId": "c-events",
+        "rule": {
+          "type": "cadence-day",
+          "day": 0
+        },
+        "time": "09:30",
+        "duration": 120,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1
+          },
+          {
+            "roleId": "r-dev",
+            "share": 1
+          }
+        ],
+        "preparation": 0.25
+      },
+      {
+        "id": "e-daily",
+        "name": "Daily Scrum",
+        "categoryId": "c-events",
+        "rule": {
+          "type": "weekdays",
+          "weekdays": [1, 2, 3, 4, 5]
+        },
+        "time": "09:15",
+        "duration": 15,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1
+          },
+          {
+            "roleId": "r-dev",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-refine",
+        "name": "Backlog Refinement",
+        "categoryId": "c-refine",
+        "rule": {
+          "type": "weekly",
+          "weekday": 3
+        },
+        "time": "14:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1
+          },
+          {
+            "roleId": "r-dev",
+            "share": 0.5
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-review",
+        "name": "Sprint Review",
+        "categoryId": "c-events",
+        "rule": {
+          "type": "cadence-day",
+          "day": 11
+        },
+        "time": "10:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1
+          },
+          {
+            "roleId": "r-dev",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-retro",
+        "name": "Sprint Retrospective",
+        "categoryId": "c-events",
+        "rule": {
+          "type": "cadence-day",
+          "day": 11
+        },
+        "time": "13:00",
+        "duration": 90,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1
+          },
+          {
+            "roleId": "r-dev",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      }
+    ]
+  }
+}
