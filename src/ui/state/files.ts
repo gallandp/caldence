@@ -50,8 +50,9 @@ export const PICK_FOCUS_DELAY_MS = 1000;
 
 /**
  * Opens the file dialog of `input` and resolves with the chosen file, or null when the dialog was
- * dismissed. Browsers that never fire `cancel` are covered by the window regaining focus: if no
- * file shows up shortly after, the dialog is taken as dismissed.
+ * dismissed. Browsers that never fire `cancel` are covered by the window regaining focus after the
+ * dialog took it away: if no file shows up shortly after, the dialog is taken as dismissed. A focus
+ * event without an earlier blur says nothing about the dialog and is ignored.
  */
 export function pickWithInput(
   input: HTMLInputElement,
@@ -60,22 +61,29 @@ export function pickWithInput(
 ): Promise<File | null> {
   return new Promise((resolve) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let blurred = false;
     const finish = (file: File | null) => {
       clearTimeout(timer);
       input.removeEventListener('change', onChange);
       input.removeEventListener('cancel', onCancel);
       win.removeEventListener('focus', onFocus);
+      win.removeEventListener('blur', onBlur);
       resolve(file);
     };
     const onChange = () => finish(input.files?.[0] ?? null);
     const onCancel = () => finish(null);
+    const onBlur = () => {
+      blurred = true;
+    };
     const onFocus = () => {
+      if (!blurred) return;
       clearTimeout(timer);
       timer = setTimeout(() => finish(input.files?.[0] ?? null), delay);
     };
     input.addEventListener('change', onChange);
     input.addEventListener('cancel', onCancel);
     win.addEventListener('focus', onFocus);
+    win.addEventListener('blur', onBlur);
     input.value = '';
     input.click();
   });

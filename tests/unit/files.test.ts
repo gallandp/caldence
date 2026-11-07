@@ -198,6 +198,7 @@ describe('pickWithInput', () => {
       const input = fakeInput();
       const win = new EventTarget();
       const promise = pickWithInput(input, win, 500);
+      win.dispatchEvent(new Event('blur'));
       win.dispatchEvent(new Event('focus'));
       await vi.advanceTimersByTimeAsync(500);
       expect(await promise).toBeNull();
@@ -212,10 +213,28 @@ describe('pickWithInput', () => {
       const input = fakeInput();
       const win = new EventTarget();
       const promise = pickWithInput(input, win, 500);
+      win.dispatchEvent(new Event('blur'));
       win.dispatchEvent(new Event('focus'));
       const file = new File(['{}'], 'a.json');
       input.files = [file] as unknown as FileList;
       await vi.advanceTimersByTimeAsync(500);
+      expect(await promise).toBe(file);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores a focus event when the window never lost focus to a dialog', async () => {
+    vi.useFakeTimers();
+    try {
+      const input = fakeInput();
+      const win = new EventTarget();
+      const promise = pickWithInput(input, win, 500);
+      win.dispatchEvent(new Event('focus'));
+      await vi.advanceTimersByTimeAsync(2000);
+      const file = new File(['{}'], 'a.json');
+      input.files = [file] as unknown as FileList;
+      input.dispatchEvent(new Event('change'));
       expect(await promise).toBe(file);
     } finally {
       vi.useRealTimers();
