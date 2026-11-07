@@ -278,7 +278,6 @@
   "cal.cadence.sprint": "Sprint {n}",
   "cal.cadence.pi": "PI {n}",
   "cal.cadence.flow": "Periode {n}",
-  "cal.cadence.team": "{label} ({team})",
   "cal.milestone": "Meilenstein: {name}",
   "cal.hours": "{hours} h",
   "cal.meetings.one": "{n} Termin",
@@ -287,9 +286,10 @@
   "cal.overlap": "Überschneidung: {a} ({teamA}) und {b} ({teamB})",
   "cal.day.close": "Details schließen",
   "cal.day.none": "An diesem Tag gibt es keine Termine.",
-  "cal.day.holiday": "Feiertag: {name}",
-  "cal.item.meta": "{category}, {team}, {hours} h",
-  "cal.item.skipped": "entfällt wegen Feiertag",
+  "cal.item.meta": "{category}, {team}, {hours}",
   "cal.noevents.text": "Es gibt noch keine Termine. Legen Sie wiederkehrende Termine in der Termine-Ansicht an.",
-  "cal.noevents.button": "Zu den Terminen"
+  "cal.noevents.button": "Zu den Terminen",
+  "cal.item.metaSkipped": "{category}, {team}, {hours}, entfällt wegen Feiertag",
+  "cal.list.sep": ", ",
+  "cal.withTeam": "{label} ({team})"
 }

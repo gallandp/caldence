@@ -1,13 +1,4 @@
 <script module lang="ts">
-  export interface DayItem {
-    key: string;
-    start: string;
-    name: string;
-    category: string;
-    team: string;
-    hours: number;
-    skipped: boolean;
-  }
   export interface DayOverlap {
     key: string;
     a: string;
@@ -18,7 +9,8 @@
 </script>
 
 <script lang="ts">
-  import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { formatDisplayDate, locale, translate as t } from '../../i18n';
+  import DayItemList, { type DayItem } from './DayItemList.svelte';
 
   interface Props {
     date: string;
@@ -30,15 +22,29 @@
   let { date, items, overlaps, holiday, onclose }: Props = $props();
 
   const uid = $props.id();
+  let heading: HTMLElement | undefined = $state();
+
+  export function focus() {
+    heading?.focus();
+  }
+
+  function onKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    onclose();
+  }
 </script>
 
-<section class="details" aria-labelledby="{uid}-title">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions (Escape closes the region) -->
+<section class="details" aria-labelledby="{uid}-title" onkeydown={onKeydown}>
   <div class="head">
-    <h3 id="{uid}-title">{formatDisplayDate($locale, date, 'long')}</h3>
+    <h3 id="{uid}-title" tabindex="-1" bind:this={heading}>
+      {formatDisplayDate($locale, date, 'long')}
+    </h3>
     <button type="button" onclick={onclose}>{$t('cal.day.close')}</button>
   </div>
   {#if holiday}
-    <p class="holiday">{$t('cal.day.holiday', { name: holiday })}</p>
+    <p class="holiday">{$t('cal.holiday', { name: holiday })}</p>
   {/if}
   {#each overlaps as o (o.key)}
     <p class="overlap">
@@ -49,21 +55,7 @@
   {#if items.length === 0}
     <p class="none">{$t('cal.day.none')}</p>
   {:else}
-    <ul>
-      {#each items as item (item.key)}
-        <li>
-          <span class="time">{item.start}</span>
-          <strong>{item.name}</strong>
-          <span class="meta"
-            >{$t('cal.item.meta', {
-              category: item.category,
-              team: item.team,
-              hours: formatNumber($locale, item.hours, 1),
-            })}{item.skipped ? ` (${$t('cal.item.skipped')})` : ''}</span
-          >
-        </li>
-      {/each}
-    </ul>
+    <DayItemList {items} />
   {/if}
 </section>
 
@@ -100,21 +92,7 @@
   .none {
     color: var(--text-muted);
   }
-  ul {
-    list-style: none;
-    margin: 0.5rem 0 0;
-    padding: 0;
-  }
-  li {
-    padding: 0.35rem 0;
-    border-top: 1px solid var(--border);
-  }
-  .time {
-    font-variant-numeric: tabular-nums;
-    margin-right: 0.5rem;
-  }
-  .meta {
-    display: block;
-    color: var(--text-muted);
+  h3:focus {
+    outline: none;
   }
 </style>

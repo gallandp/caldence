@@ -10,7 +10,8 @@
     type FilteredOccurrence,
   } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
-  import DayDetails, { type DayItem, type DayOverlap } from '../components/DayDetails.svelte';
+  import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
+  import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -22,16 +23,18 @@
   const horizon = $derived($workspace.settings.horizon);
   const inHorizon = (d: ISODate): boolean => d >= horizon.from && d <= horizon.to;
 
-  function initialDate(): ISODate {
+  /** Today inside the horizon; outside of it the horizon start. */
+  function clampToHorizon(): ISODate {
     const { from, to } = get(workspace).settings.horizon;
     const today = localToday();
     return today >= from && today <= to ? today : from;
   }
 
   let mode = $state<'month' | 'week'>('month');
-  let cursor = $state<ISODate>(initialDate());
+  let cursor = $state<ISODate>(clampToHorizon());
   let selected = $state<ISODate | null>(null);
   let grid: HTMLTableElement | undefined = $state();
+  let details: DayDetails | undefined = $state();
 
   const uid = $props.id();
 
@@ -92,6 +95,12 @@
     $filter.personId || !$filter.teamId
       ? $workspace.teams
       : $workspace.teams.filter((x) => x.id === $filter.teamId),
+  );
+  /** Teams whose cadence and milestones are marked: the person's teams, or the team filter. */
+  const markerTeams = $derived(
+    $filter.personId
+      ? $workspace.teams.filter((x) => x.members.some((m) => m.personId === $filter.personId))
+      : scopeTeams,
   );
   const hasEvents = $derived($workspace.teams.some((x) => x.events.length > 0));
 
@@ -157,18 +166,20 @@
     const cadence: string[] = [];
     const milestones: string[] = [];
     if (inside) {
-      for (const team of scopeTeams) {
+      const several = markerTeams.length > 1;
+      const withTeam = (label: string, team: string) =>
+        several ? $t('cal.withTeam', { label, team }) : label;
+      for (const team of markerTeams) {
         const length = team.cadence.lengthWeeks * 7;
         const diff = diffDays(date, team.cadence.start);
-        const n = cadenceNumber(team, date);
-        if (length > 0 && diff >= 0 && diff % length === 0 && n !== undefined) {
+        if (length > 0 && diff >= 0 && diff % length === 0) {
+          const n = cadenceNumber(team, date) ?? 1;
           const label = $t(`cal.cadence.${team.cadence.kind}`, { n: formatNumber($locale, n, 0) });
-          cadence.push(
-            scopeTeams.length > 1 ? $t('cal.cadence.team', { label, team: team.name }) : label,
-          );
+          cadence.push(withTeam(label, team.name));
         }
         for (const cycle of team.cycles)
-          for (const m of cycle.milestones) if (m.date === date) milestones.push(m.name);
+          for (const m of cycle.milestones)
+            if (m.date === date) milestones.push(withTeam(m.name, team.name));
       }
     }
     const occs = inside ? (byDate[date] ?? []) : [];
@@ -198,16 +209,25 @@
       meetings,
       overlap,
       nonWork,
-      label: parts.join(', '),
+      label: parts.join($t('cal.list.sep')),
     };
   }
 
   // ---------- navigation ----------
 
-  async function moveTo(date: ISODate, focus = true) {
+  /** Moves the cursor; details of a day in another month are closed. */
+  function setCursor(date: ISODate) {
+    if (selected !== null && selected.slice(0, 7) !== date.slice(0, 7)) selected = null;
     cursor = date;
-    if (!focus) return;
+  }
+
+  async function moveTo(date: ISODate) {
+    setCursor(date);
     await tick();
+    focusCell(date);
+  }
+
+  function focusCell(date: ISODate) {
     grid?.querySelector<HTMLElement>(`td[data-date="${date}"]`)?.focus();
   }
 
@@ -219,12 +239,21 @@
     cursor = date;
   }
 
-  async function closeDetails() {
-    const date = selected;
-    selected = null;
-    if (date === null) return;
+  async function selectByKey(date: ISODate) {
+    select(date);
     await tick();
-    grid?.querySelector<HTMLElement>(`td[data-date="${date}"]`)?.focus();
+    details?.focus();
+  }
+
+  async function closeDetails() {
+    selected = null;
+    await tick();
+    focusCell(cursor);
+  }
+
+  function setMode(next: 'month' | 'week') {
+    mode = next;
+    selected = null;
   }
 
   function onGridKeydown(event: KeyboardEvent, date: ISODate) {
@@ -258,7 +287,7 @@
       case 'Enter':
       case ' ':
         event.preventDefault();
-        select(date);
+        void selectByKey(date);
         return;
       default:
         return;
@@ -278,19 +307,19 @@
 
   <div class="toolbar">
     <div class="group" role="group" aria-label={$t('cal.nav')}>
-      <button type="button" onclick={() => (cursor = step(-1))}>
+      <button type="button" onclick={() => setCursor(step(-1))}>
         {$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
       </button>
-      <button type="button" onclick={() => (cursor = localToday())}>{$t('cal.today')}</button>
-      <button type="button" onclick={() => (cursor = step(1))}>
+      <button type="button" onclick={() => setCursor(clampToHorizon())}>{$t('cal.today')}</button>
+      <button type="button" onclick={() => setCursor(step(1))}>
         {$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
       </button>
     </div>
     <div class="group" role="group" aria-label={$t('cal.mode')}>
-      <button type="button" aria-pressed={mode === 'month'} onclick={() => (mode = 'month')}>
+      <button type="button" aria-pressed={mode === 'month'} onclick={() => setMode('month')}>
         {$t('cal.mode.month')}
       </button>
-      <button type="button" aria-pressed={mode === 'week'} onclick={() => (mode = 'week')}>
+      <button type="button" aria-pressed={mode === 'week'} onclick={() => setMode('week')}>
         {$t('cal.mode.week')}
       </button>
     </div>
@@ -355,6 +384,7 @@
     </div>
     {#if selected !== null}
       <DayDetails
+        bind:this={details}
         date={selected}
         items={itemsOf(selected)}
         overlaps={overlapsOf(selected)}
@@ -367,26 +397,20 @@
       {@const items = inHorizon(date) ? itemsOf(date) : []}
       <section class="weekday">
         <h3>{formatDisplayDate($locale, date, 'long')}</h3>
+        {#if inHorizon(date)}
+          {#if $index.holidays.get(date)}
+            <p class="note">{$t('cal.holiday', { name: $index.holidays.get(date)![$locale] })}</p>
+          {/if}
+          {#if !$workspace.settings.workdays.includes(weekday(date))}
+            <p class="note">{$t('cal.nonwork')}</p>
+          {/if}
+        {/if}
         {#if !inHorizon(date)}
           <p class="muted-text">{$t('cal.outside')}</p>
         {:else if items.length === 0}
           <p class="muted-text">{$t('cal.day.none')}</p>
         {:else}
-          <ul>
-            {#each items as item (item.key)}
-              <li>
-                <span class="time">{item.start}</span>
-                <strong>{item.name}</strong>
-                <span class="meta"
-                  >{$t('cal.item.meta', {
-                    category: item.category,
-                    team: item.team,
-                    hours: formatNumber($locale, item.hours, 1),
-                  })}{item.skipped ? ` (${$t('cal.item.skipped')})` : ''}</span
-                >
-              </li>
-            {/each}
-          </ul>
+          <DayItemList {items} />
         {/if}
       </section>
     {/each}
@@ -520,21 +544,8 @@
     margin: 0;
     color: var(--text-muted);
   }
-  ul {
-    list-style: none;
+  .note {
     margin: 0;
-    padding: 0;
-  }
-  li {
-    padding: 0.35rem 0;
-    border-top: 1px solid var(--border);
-  }
-  .time {
-    font-variant-numeric: tabular-nums;
-    margin-right: 0.5rem;
-  }
-  .meta {
-    display: block;
-    color: var(--text-muted);
+    font-weight: 600;
   }
 </style>

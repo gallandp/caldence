@@ -45,17 +45,27 @@ test('Christmas shows the holiday name in the UI language with 0 h', async ({ pa
 test('a skipped holiday meeting counts 0 h but is explained in the details', async ({ page }) => {
   // Ascension Day 2027-05-06 is a Thursday: Team Beta's weekly Replenishment is skipped.
   await openCalendar(page, '2027-05-10');
+  await page
+    .getByRole('combobox', { name: 'Team', exact: true })
+    .selectOption({ label: 'Team Beta' });
   const day = cellOf(page, '2027-05-06');
   await expect(day).toContainText('Ascension Day');
   await expect(day).toContainText('0.0 h');
   await day.click();
-  await expect(panel(page).getByRole('heading', { level: 3, name: /May 6, 2027/ })).toBeVisible();
+  const details = panel(page).getByRole('region', { name: /May 6, 2027/ });
+  await expect(details.getByText('Holiday: Ascension Day')).toBeVisible();
+  await expect(details).toContainText('Replenishment');
+  await expect(details).toContainText('skipped because of a holiday');
 });
 
 test('day hours equal dayLoad of the example (constants checked by a unit test)', async ({
   page,
 }) => {
   await openCalendar(page, '2027-03-15');
+  // The constants are dayLoad for exactly this filter.
+  await page
+    .getByRole('combobox', { name: 'Team', exact: true })
+    .selectOption({ label: 'Team Alpha' });
   for (const [d, h] of Object.entries(DAY_HOURS))
     await expect(cellOf(page, d)).toContainText(`${fmt('en', h)} h`);
   await expect(cellOf(page, '2027-03-02')).toContainText('1 meeting');
@@ -67,7 +77,7 @@ test('cadence start and milestones are shown as text', async ({ page }) => {
   await expect(cellOf(page, '2027-01-07')).toContainText('Sprint 1');
   await expect(cellOf(page, '2027-01-21')).toContainText('Sprint 2');
   await expect(cellOf(page, '2027-01-01')).toContainText('Christmas break');
-  await panel(page).getByRole('button', { name: 'Next month' }).click({ clickCount: 5 });
+  for (let i = 0; i < 5; i++) await panel(page).getByRole('button', { name: 'Next month' }).click();
   await expect(cellOf(page, '2027-06-30')).toContainText('Milestone: Release');
 });
 
@@ -79,11 +89,32 @@ test('the person filter shows the overlap in the day details and the cell', asyn
   await day.click();
   const details = panel(page).getByRole('region', { name: /\d{4}/ });
   await expect(details.getByText(/Overlap: .+ \(Team .+\) and .+ \(Team .+\)/)).toBeVisible();
-  await expect(details.locator('[aria-hidden="true"]')).not.toHaveCount(0);
+  await expect(details.locator('span[aria-hidden="true"]')).toHaveText('⚠');
+  await expect(
+    panel(page).getByRole('gridcell', { name: /Thursday, January 7, 2027.*Has overlap/ }),
+  ).toBeVisible();
   await expect(day).toHaveAttribute('aria-selected', 'true');
   // Without a person filter the marker is gone.
   await page.getByLabel('Person').selectOption({ label: 'All' });
   await expect(day.getByRole('img', { name: 'Has overlap' })).toHaveCount(0);
+});
+
+test('the person filter marks cadence starts only of the teams of the person', async ({ page }) => {
+  await openCalendar(page, '2027-01-15');
+  await page.getByLabel('Person').selectOption({ label: 'Alex' });
+  await expect(cellOf(page, '2027-01-07')).toContainText('Sprint 1 (Team Alpha)');
+  await expect(cellOf(page, '2027-01-04')).toContainText('Period 1 (Team Beta)');
+  await page.getByLabel('Person').selectOption({ label: 'All' });
+  await expect(cellOf(page, '2027-01-04')).not.toContainText('Period 1');
+});
+
+test('Today is clamped to the horizon', async ({ page }) => {
+  await openCalendar(page, '2026-11-07');
+  const label = panel(page).locator('[aria-live="polite"]');
+  await expect(label).toHaveText('January 2027');
+  await panel(page).getByRole('button', { name: 'Next month' }).click();
+  await panel(page).getByRole('button', { name: 'Today' }).click();
+  await expect(label).toHaveText('January 2027');
 });
 
 test('arrow keys, Home, End, PageUp and PageDown move the focus in the grid', async ({ page }) => {
@@ -119,6 +150,19 @@ test('arrow keys, Home, End, PageUp and PageDown move the focus in the grid', as
   await expect(
     panel(page).getByRole('heading', { level: 3, name: 'Sunday, April 11, 2027' }),
   ).toBeVisible();
+  // The details take the focus; Escape closes them and returns it to the cell.
+  await expect(
+    panel(page).getByRole('heading', { level: 3, name: /April 11, 2027/ }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(panel(page).getByRole('region', { name: /April 11, 2027/ })).toHaveCount(0);
+  await expect(cellOf(page, '2027-04-11')).toBeFocused();
+  // Navigating to another month closes the details of a day.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Shift+Tab');
+  await cellOf(page, '2027-04-11').focus();
+  await page.keyboard.press('PageDown');
+  await expect(panel(page).getByRole('region', { name: /April 11, 2027/ })).toHaveCount(0);
   // Only one cell is in the tab order (roving tabindex).
   await expect(panel(page).locator('td[tabindex="0"]')).toHaveCount(1);
 });
@@ -191,18 +235,17 @@ test('no horizontal page scroll at 375 px', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await openCalendar(page, '2027-03-10');
   await expect(panel(page).getByRole('grid')).toBeVisible();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  const fits = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    );
+  expect(await fits()).toBe(true);
   // The table scrolls inside its own labelled region.
   const region = panel(page).getByRole('region', { name: 'Month grid' });
   await expect(region).toHaveAttribute('tabindex', '0');
   await panel(page).getByRole('button', { name: 'Week', exact: true }).click();
-  const weekOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(weekOverflow).toBeLessThanOrEqual(0);
+  await expect(panel(page).getByRole('heading', { level: 3 })).toHaveCount(7);
+  expect(await fits()).toBe(true);
 });
 
 for (const lang of ['de', 'en'] as const) {

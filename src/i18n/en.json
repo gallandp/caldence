@@ -278,7 +278,6 @@
   "cal.cadence.sprint": "Sprint {n}",
   "cal.cadence.pi": "PI {n}",
   "cal.cadence.flow": "Period {n}",
-  "cal.cadence.team": "{label} ({team})",
   "cal.milestone": "Milestone: {name}",
   "cal.hours": "{hours} h",
   "cal.meetings.one": "{n} meeting",
@@ -287,9 +286,10 @@
   "cal.overlap": "Overlap: {a} ({teamA}) and {b} ({teamB})",
   "cal.day.close": "Close details",
   "cal.day.none": "No meetings on this day.",
-  "cal.day.holiday": "Holiday: {name}",
-  "cal.item.meta": "{category}, {team}, {hours} h",
-  "cal.item.skipped": "skipped because of a holiday",
+  "cal.item.meta": "{category}, {team}, {hours}",
   "cal.noevents.text": "There are no meetings yet. Add recurring meetings in the Meetings view.",
-  "cal.noevents.button": "Go to Meetings"
+  "cal.noevents.button": "Go to Meetings",
+  "cal.item.metaSkipped": "{category}, {team}, {hours}, skipped because of a holiday",
+  "cal.list.sep": ", ",
+  "cal.withTeam": "{label} ({team})"
 }
