@@ -12,7 +12,8 @@ if (!region.ok) throw new Error('de-sn invalid');
 // 2027-02-01 is a Monday; Feb 1 – Mar 14 2027 contains no Saxon public holidays.
 const START = '2027-02-01';
 const workspaceJson = JSON.stringify({
-  schemaVersion: 1,
+  schemaVersion: 2,
+  id: 'ws-test',
   settings: {
     locale: 'en',
     region: 'de-sn',

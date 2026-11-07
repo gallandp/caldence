@@ -24,6 +24,7 @@ describe('rule drafts', () => {
   it('round-trips every rule type', () => {
     const rules: Rule[] = [
       { type: 'weekly', weekday: 3 },
+      { type: 'weekdays', weekdays: [1, 4] },
       { type: 'every-n-weeks', weekday: 2, n: 3, anchor: '2027-01-12' },
       { type: 'monthly-nth-weekday', weekday: 5, nth: -1 },
       { type: 'cadence-day', day: 13 },
@@ -43,6 +44,12 @@ describe('rule drafts', () => {
     const d = ruleDraft({ type: 'every-n-weeks', weekday: 1, n: 2, anchor: today }, team, today);
     d.n = null;
     expect(toRule(d)).toMatchObject({ n: Number.NaN });
+  });
+});
+
+describe('weekdays draft', () => {
+  it('defaults to Monday to Friday', () => {
+    expect(ruleDraft(undefined, team, today).weekdays).toEqual([1, 2, 3, 4, 5]);
   });
 });
 

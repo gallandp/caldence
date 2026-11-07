@@ -105,6 +105,48 @@ test('one meeting of each rule type is created by keyboard and summarised', asyn
   await expect(row(page, 'M weekly')).toContainText('60 min');
 });
 
+test('selected weekdays show on those days only, and none selected is refused inline', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2027-03-15T12:00:00'));
+  await openMeetings(page);
+  const form = await startNew(page, 'M days');
+  await form.getByLabel('Repeats').selectOption('weekdays');
+  const group = form.getByRole('group', { name: 'Weekdays' });
+  for (const d of ['Tuesday', 'Wednesday', 'Friday']) await group.getByLabel(d).uncheck();
+  await group.getByLabel('Thursday').check();
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toBeHidden();
+  await expect(row(page, 'M days')).toContainText('On Monday, Thursday');
+
+  // March 2027: Monday the 15th and Thursday the 18th have the meeting, Tuesday the 16th not.
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  const cal = page.getByRole('tabpanel', { name: 'Calendar' });
+  for (const [date, has] of [
+    ['2027-03-15', true],
+    ['2027-03-16', false],
+    ['2027-03-18', true],
+  ] as const) {
+    await cal.locator(`td[data-date="${date}"]`).click();
+    const details = cal.getByRole('region', { name: /March \d+, 2027/ });
+    if (has) await expect(details).toContainText('M days');
+    else await expect(details).not.toContainText('M days');
+  }
+
+  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await row(page, 'M days').getByRole('button', { name: 'Edit M days' }).click();
+  const again = panel(page).getByRole('region', { name: /M days/ });
+  const g2 = again.getByRole('group', { name: 'Weekdays' });
+  await g2.getByLabel('Monday').uncheck();
+  await g2.getByLabel('Thursday').uncheck();
+  for (const d of ['Thursday', 'Monday']) await expect(g2.getByLabel(d)).not.toBeChecked();
+  await again.getByRole('button', { name: 'Save' }).click();
+  await expect(g2.getByText('Required field missing: Weekdays')).toBeVisible();
+  await expect(g2).toHaveAttribute('aria-describedby', /.+/);
+  await expect(g2).not.toHaveAttribute('aria-invalid', /.*/);
+  await expect(again).toBeVisible();
+});
+
 test('the scaled example event shows its effective duration as scaled', async ({ page }) => {
   await openMeetings(page);
   await expect(row(page, 'Stakeholder Update')).toContainText('60 min (scaled)');
