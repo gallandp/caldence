@@ -4,6 +4,8 @@
   import { emptyWorkspace, type Workspace } from '../core/model';
   import { exampleWorkspace } from '../data/examples';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
+  import FilterBar from './FilterBar.svelte';
+  import TeamSwitcher from './TeamSwitcher.svelte';
   import { autosave } from './state/autosave';
   import { browserFileEnv, createFileService } from './state/files';
   import { workspace } from './state/workspace';
@@ -166,6 +168,11 @@
   </div>
 </div>
 
+<div class="bar context">
+  <TeamSwitcher />
+  <FilterBar />
+</div>
+
 <input
   bind:this={input}
   type="file"
@@ -193,6 +200,9 @@
     padding: 0.5rem var(--space);
     border-bottom: 1px solid var(--border);
     background: var(--surface);
+  }
+  .context {
+    gap: 0.75rem 2rem;
   }
   .buttons {
     display: flex;

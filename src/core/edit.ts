@@ -206,6 +206,39 @@ export function removeTeam(ws: Workspace, teamId: string): Workspace {
   };
 }
 
+/**
+ * Renames an assumption key, keeping its value and position, and points the team's scaling rules
+ * at the new key. Refuses an existing target key with `error.id.duplicate`.
+ */
+export function renameAssumption(
+  ws: Workspace,
+  teamId: string,
+  from: string,
+  to: string,
+): Result<Workspace> {
+  const ti = ws.teams.findIndex((t) => t.id === teamId);
+  const team = ws.teams[ti];
+  if (!team) return fail(`teams.${teamId}`, 'error.ref.unknown');
+  const key = to.trim();
+  if (!(from in team.assumptions))
+    return fail(`teams.${ti}.assumptions.${from}`, 'error.ref.unknown');
+  if (key === '') return fail(`teams.${ti}.assumptions.${from}`, 'error.required');
+  if (key === from) return { ok: true, value: structuredClone(ws) };
+  if (key in team.assumptions) return fail(`teams.${ti}.assumptions.${key}`, 'error.id.duplicate');
+  return {
+    ok: true,
+    value: mapTeam(ws, teamId, (t) => ({
+      ...t,
+      assumptions: Object.fromEntries(
+        Object.entries(t.assumptions).map(([k, v]) => [k === from ? key : k, v]),
+      ),
+      events: t.events.map((e) =>
+        e.scaling?.assumption === from ? { ...e, scaling: { ...e.scaling, assumption: key } } : e,
+      ),
+    })),
+  };
+}
+
 // ---------- cycles ----------
 
 /**

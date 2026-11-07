@@ -13,6 +13,7 @@ import {
   removeEvent,
   removeItem,
   removeTeam,
+  renameAssumption,
   updateItem,
   updateSettings,
   updateTeam,
@@ -222,6 +223,47 @@ describe('teams', () => {
   });
 });
 
+describe('renameAssumption', () => {
+  it('renames the key, keeps its value and order, and updates scaling rules', () => {
+    const ws = base();
+    ws.teams[0]!.assumptions = { first: 1, stories: 8, last: 2 };
+    const out = ok(renameAssumption(ws, 't1', 'stories', 'tickets'));
+    const team = out.teams[0]!;
+    expect(Object.entries(team.assumptions)).toEqual([
+      ['first', 1],
+      ['tickets', 8],
+      ['last', 2],
+    ]);
+    expect(team.events.flatMap((e) => (e.scaling ? [e.scaling.assumption] : []))).toEqual([
+      'tickets',
+    ]);
+    valid(out);
+  });
+
+  it('refuses a target key that exists', () => {
+    const ws = base();
+    ws.teams[0]!.assumptions = { stories: 8, other: 1 };
+    expect(renameAssumption(ws, 't1', 'stories', 'other')).toEqual({
+      ok: false,
+      errors: [{ path: 'teams.0.assumptions.other', key: 'error.id.duplicate' }],
+    });
+  });
+
+  it('refuses an empty target and an unknown source', () => {
+    const ws = base();
+    expect(renameAssumption(ws, 't1', 'stories', '  ').ok).toBe(false);
+    expect(renameAssumption(ws, 't1', 'nope', 'x')).toEqual({
+      ok: false,
+      errors: [{ path: 'teams.0.assumptions.nope', key: 'error.ref.unknown' }],
+    });
+  });
+
+  it('is a no-op for the same key', () => {
+    const ws = base();
+    expect(ok(renameAssumption(ws, 't1', 'stories', 'stories'))).toEqual(ws);
+  });
+});
+
 describe('cycles', () => {
   it('refuses to remove a cycle used by an event', () => {
     expect(removeCycle(base(), 't1', 'cy1')).toEqual({
@@ -341,6 +383,7 @@ describe('purity of every edit function', () => {
     ['removeItem refused', (ws) => removeItem(ws, 'roles', 'r1')],
     ['addTeam', (ws) => addTeam(ws, 'N', '2026-11-11')],
     ['updateTeam', (ws) => updateTeam(ws, 't1', { name: 'Q', assumptions: { stories: 1 } })],
+    ['renameAssumption', (ws) => renameAssumption(ws, 't1', 'stories', 'tickets')],
     ['duplicateTeam', (ws) => duplicateTeam(ws, 't1', 'C')],
     ['removeTeam', (ws) => removeTeam(ws, 't1')],
     ['upsertCycle', (ws) => upsertCycle(ws, 't1', { id: '', name: 'Q', milestones: [] })],
