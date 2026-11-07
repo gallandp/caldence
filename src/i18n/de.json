@@ -167,5 +167,6 @@
   "team.assumption.new": "Neuer Schlüssel",
   "team.assumption.newValue": "Neuer Wert",
   "team.assumption.add": "Annahme hinzufügen",
-  "team.assumption.error.empty": "Der Schlüssel darf nicht leer sein"
+  "team.assumption.error.empty": "Der Schlüssel darf nicht leer sein",
+  "team.cadence.dayBeyond": "Termin „{name}“ liegt an Tag {day} und passt nicht in {weeks} Wochen."
 }

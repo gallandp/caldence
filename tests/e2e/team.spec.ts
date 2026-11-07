@@ -295,3 +295,50 @@ for (const locale of ['de', 'en'] as const) {
     expect((await axe()).violations).toEqual([]);
   });
 }
+
+test('shrinking the cadence below a meeting day explains why', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const length = panel(page).getByLabel('Length (weeks)');
+  await length.fill('1');
+  await length.blur();
+  await expect(
+    panel(page).getByText('Meeting “Sprint Review” is on day 14 and does not fit into 1 weeks.'),
+  ).toBeVisible();
+  await expect(length).toHaveAttribute('aria-invalid', 'true');
+  await expect(length).toHaveAttribute('aria-describedby', /.+/);
+  await expect(length).toHaveValue('1');
+});
+
+test('a refused removal keeps focus and links its error to the button', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const button = panel(page).getByRole('button', { name: 'Delete milestone Release' });
+  await button.focus();
+  await page.keyboard.press('Enter');
+  await expect(panel(page).getByText('Still in use: Release')).toBeVisible();
+  await expect(button).toBeFocused();
+  await expect(button).toHaveAttribute('aria-describedby', /.+/);
+});
+
+test('the filter follows the active team', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await expect(page.getByText('All teams')).toHaveCount(0);
+  await expect(page.locator('.context').getByLabel('Person')).toHaveValue('');
+  await page.locator('.context').getByLabel('Person').selectOption({ label: 'Sam' });
+  await expect(page.getByText('All teams')).toBeVisible();
+  await teamSelect(page).selectOption({ label: 'Team Alpha' });
+  await expect(page.getByText('All teams')).toBeVisible();
+});
+
+test('a duplicated team is named in the UI language', async ({ page }) => {
+  await openExample(page);
+  await page
+    .locator('header')
+    .getByLabel(/Language|Sprache/)
+    .selectOption('de');
+  await page.getByRole('button', { name: 'Team duplizieren' }).click();
+  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (Kopie)');
+});

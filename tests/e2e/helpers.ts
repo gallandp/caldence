@@ -35,6 +35,6 @@ export async function openFixture(page: Page) {
 }
 
 export async function openTeamView(page: Page) {
-  await page.getByRole('tab', { name: /^(Team|Team)$/, exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }

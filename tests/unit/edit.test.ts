@@ -240,6 +240,25 @@ describe('renameAssumption', () => {
     valid(out);
   });
 
+  it('changes only the target team, even when another team has the same key', () => {
+    const ws = base();
+    const t1 = ws.teams[0]!;
+    t1.assumptions = { stories: 8 };
+    const second = (id: string): CalEvent => ({ ...structuredClone(t1.events[0]!), id });
+    t1.events.push(second('e-x'), second('e-y'));
+    for (const e of t1.events.slice(1))
+      e.scaling = { base: 1, perUnit: 1, assumption: 'stories', grid: 5 };
+    const other = structuredClone(t1);
+    other.id = 't9';
+    ws.teams.push(other);
+    const out = ok(renameAssumption(ws, 't1', 'stories', 'tickets'));
+    expect(out.teams[1]).toEqual(ws.teams[1]);
+    expect(Object.keys(out.teams[0]!.assumptions)).toEqual(['tickets']);
+    const used = out.teams[0]!.events.flatMap((e) => (e.scaling ? [e.scaling.assumption] : []));
+    expect(used.length).toBeGreaterThan(2);
+    expect(used.every((a) => a === 'tickets')).toBe(true);
+  });
+
   it('refuses a target key that exists', () => {
     const ws = base();
     ws.teams[0]!.assumptions = { stories: 8, other: 1 };

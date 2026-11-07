@@ -13,7 +13,7 @@
   );
   const roleName = $derived((id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id);
 
-  type Problem = { key: string; path: string };
+  type Problem = { key: string; path: string; params?: Record<string, string | number> };
   let errors = $state<Record<string, Problem>>({});
   /** Bumped when drafts must be dropped (a foreign workspace change or another team). */
   let epoch = $state(0);
@@ -55,8 +55,8 @@
     return false;
   }
 
-  function fail(id: string, key: string, label: string) {
-    errors = { ...errors, [id]: { key, path: label } };
+  function fail(id: string, key: string, label: string, params?: Problem['params']) {
+    errors = { ...errors, [id]: { key, path: label, params } };
   }
 
   function clearError(id: string) {
@@ -100,10 +100,10 @@
     if (!team) return;
     const { id, members } = team;
     clearError('member-add');
-    commit('member-remove', '', (ws) =>
+    const done = commit('member-remove', '', (ws) =>
       updateTeam(ws, id, { members: members.filter((_, i) => i !== index) }),
     );
-    void focusSoon('[data-member-add]');
+    if (done) void focusSoon('[data-member-add]');
   }
 
   // ---------- cadence ----------
@@ -122,6 +122,13 @@
     const label = $t('team.cadence.length');
     if (input.value.trim() === '' || !Number.isFinite(n))
       return fail('cadence-lengthWeeks', 'error.number.invalid', label);
+    const beyond = team?.events.find((e) => e.rule.type === 'cadence-day' && e.rule.day >= n * 7);
+    if (beyond && beyond.rule.type === 'cadence-day')
+      return fail('cadence-lengthWeeks', 'team.cadence.dayBeyond', label, {
+        name: beyond.name,
+        day: beyond.rule.day + 1,
+        weeks: n,
+      });
     setCadence('lengthWeeks', label, { lengthWeeks: n });
   }
 
@@ -159,8 +166,8 @@
   function deleteCycle(cycle: Cycle) {
     if (!team) return;
     const teamId = team.id;
-    commit(`cycle-${cycle.id}`, cycle.name, (ws) => removeCycle(ws, teamId, cycle.id));
-    void focusSoon('[data-cycle-add]');
+    const done = commit(`cycle-${cycle.id}`, cycle.name, (ws) => removeCycle(ws, teamId, cycle.id));
+    if (done) void focusSoon('[data-cycle-add]');
   }
 
   type Draft = { name: string; date: string };
@@ -208,8 +215,8 @@
     const current = cycle.milestones.find((m) => m.id === id);
     if (!current) return;
     const milestones = cycle.milestones.filter((m) => m.id !== id);
-    saveCycle(`ms-list-${cycle.id}`, current.name, { ...cycle, milestones });
-    void focusSoon(`[data-ms-add="${cycle.id}"]`);
+    const done = saveCycle(`ms-list-${cycle.id}`, current.name, { ...cycle, milestones });
+    if (done) void focusSoon(`[data-ms-add="${cycle.id}"]`);
   }
 
   // ---------- assumptions ----------
@@ -228,7 +235,8 @@
     const { id, assumptions } = team;
     const key = newKey.trim();
     if (key === '') return fail('as-add', 'team.assumption.error.empty', $t('team.assumption.new'));
-    if (key in assumptions) return fail('as-add', 'error.id.duplicate', $t('team.assumption.new'));
+    if (Object.hasOwn(assumptions, key))
+      return fail('as-add', 'error.id.duplicate', $t('team.assumption.new'));
     const value = parseValue(newValue);
     if (value === null)
       return fail('as-add', 'error.number.invalid', $t('team.assumption.newValue'));
@@ -273,8 +281,8 @@
     const { id, assumptions } = team;
     const rest = { ...assumptions };
     delete rest[key];
-    commit(`as-${key}`, key, (ws) => updateTeam(ws, id, { assumptions: rest }));
-    void focusSoon('[data-as-add]');
+    const done = commit(`as-${key}`, key, (ws) => updateTeam(ws, id, { assumptions: rest }));
+    if (done) void focusSoon('[data-as-add]');
   }
 
   const cadenceKinds = ['sprint', 'flow', 'pi'] as const;
@@ -282,7 +290,9 @@
 
 {#snippet err(id: string)}
   {#if errors[id]}
-    <p class="field-error" id="{dom(id)}-err">{$t(errors[id].key, { path: errors[id].path })}</p>
+    <p class="field-error" id="{dom(id)}-err">
+      {$t(errors[id].key, { path: errors[id].path, ...errors[id].params })}
+    </p>
   {/if}
 {/snippet}
 
@@ -316,6 +326,7 @@
                     <td>
                       <button
                         type="button"
+                        aria-describedby={describe('member-remove')}
                         onclick={() => removeMember(i)}
                         aria-label={$t('team.members.remove', {
                           person: personName(member.personId),
@@ -450,6 +461,7 @@
                   <button
                     type="button"
                     aria-label={$t('team.cycle.delete', { name: cycle.name })}
+                    aria-describedby={describe(`cycle-${cycle.id}`)}
                     onclick={() => deleteCycle(cycle)}><span aria-hidden="true">✕</span></button
                   >
                 </div>
@@ -490,6 +502,7 @@
                       <button
                         type="button"
                         aria-label={$t('team.milestone.delete', { name: ms.name })}
+                        aria-describedby={describe(`ms-list-${cycle.id}`)}
                         onclick={() => removeMilestone(cycle, ms.id)}
                         ><span aria-hidden="true">✕</span></button
                       >
@@ -594,6 +607,7 @@
                   <button
                     type="button"
                     aria-label={$t('team.assumption.delete', { key })}
+                    aria-describedby={describe(`as-${key}`)}
                     onclick={() => removeAssumption(key)}><span aria-hidden="true">✕</span></button
                   >
                 </div>

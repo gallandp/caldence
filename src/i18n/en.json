@@ -167,5 +167,6 @@
   "team.assumption.new": "New key",
   "team.assumption.newValue": "New value",
   "team.assumption.add": "Add assumption",
-  "team.assumption.error.empty": "The key must not be empty"
+  "team.assumption.error.empty": "The key must not be empty",
+  "team.cadence.dayBeyond": "Meeting “{name}” is on day {day} and does not fit into {weeks} weeks."
 }

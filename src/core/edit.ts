@@ -220,11 +220,12 @@ export function renameAssumption(
   const team = ws.teams[ti];
   if (!team) return fail(`teams.${teamId}`, 'error.ref.unknown');
   const key = to.trim();
-  if (!(from in team.assumptions))
+  if (!Object.hasOwn(team.assumptions, from))
     return fail(`teams.${ti}.assumptions.${from}`, 'error.ref.unknown');
   if (key === '') return fail(`teams.${ti}.assumptions.${from}`, 'error.required');
   if (key === from) return { ok: true, value: structuredClone(ws) };
-  if (key in team.assumptions) return fail(`teams.${ti}.assumptions.${key}`, 'error.id.duplicate');
+  if (Object.hasOwn(team.assumptions, key))
+    return fail(`teams.${ti}.assumptions.${key}`, 'error.id.duplicate');
   return {
     ok: true,
     value: mapTeam(ws, teamId, (t) => ({

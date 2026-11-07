@@ -3,7 +3,7 @@
   import { addTeam, duplicateTeam, removeTeam, updateTeam } from '../core/edit';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
-  import { activeTeamId, workspace } from './state/workspace';
+  import { activeTeamId, localToday, workspace } from './state/workspace';
 
   const uid = $props.id();
 
@@ -33,9 +33,7 @@
       return;
     }
     if (mode === 'add') {
-      const result = workspace.apply((ws) =>
-        addTeam(ws, value, new Date().toLocaleDateString('sv-SE')),
-      );
+      const result = workspace.apply((ws) => addTeam(ws, value, localToday()));
       if (!result.ok) {
         error = result.errors[0]?.key ?? 'error.type';
         return;
