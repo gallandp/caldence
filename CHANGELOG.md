@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Core edit operations: add, update, move and remove roles, people, categories, teams, cycles and events with reference checks (`error.ref.inuse`); `preparation` is now capped at 1 (fraction).
+
 ## 0.1.0 – 2026-11-07
 
 - Project setup: Vite, Svelte 5, TypeScript (strict), Vitest, Playwright, ESLint and Prettier.

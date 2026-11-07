@@ -56,18 +56,20 @@ class Checker {
       this.err(`${path}.${k}`, 'error.colour.invalid');
   }
 
-  /** Number check; `min` is inclusive unless `exclusive` is set; `int` demands an integer. */
+  /** Number check; `min` is inclusive unless `exclusive` is set, `max` is inclusive; `int` demands an integer. */
   num(
     o: Obj,
     k: string,
     path: string,
-    opts: { min?: number; exclusive?: boolean; int?: boolean },
+    opts: { min?: number; max?: number; exclusive?: boolean; int?: boolean },
   ): void {
     const v = o[k];
     if (v === undefined) return this.err(`${path}.${k}`, 'error.required');
     if (!isNum(v) || (opts.int && !Number.isInteger(v)))
       return this.err(`${path}.${k}`, 'error.number.invalid');
     if (opts.min !== undefined && (opts.exclusive ? v <= opts.min : v < opts.min))
+      this.err(`${path}.${k}`, 'error.number.invalid');
+    else if (opts.max !== undefined && v > opts.max)
       this.err(`${path}.${k}`, 'error.number.invalid');
   }
 
@@ -200,7 +202,7 @@ function checkEvent(
   checkRule(c, e.rule, `${p}.rule`, cycles, cadenceDays);
   c.time(e, 'time', p);
   c.num(e, 'duration', p, { min: 0, exclusive: true, int: true });
-  c.num(e, 'preparation', p, { min: 0 });
+  c.num(e, 'preparation', p, { min: 0, max: 1 });
   if (e.scaling !== undefined) {
     const sc = c.obj(e.scaling, `${p}.scaling`);
     if (sc) {

@@ -13,6 +13,7 @@
   "error.horizon.order": "The end of the planning horizon at {path} is before its start",
   "error.id.duplicate": "Duplicate ID at {path}",
   "error.ref.unknown": "Unknown reference at {path}",
+  "error.ref.inuse": "Still in use: {path}",
   "error.schema.newer": "The file comes from a newer version of Caldence and cannot be opened",
   "error.schema.unknown": "Unknown or missing schema version",
   "error.file.json": "The file does not contain valid JSON",

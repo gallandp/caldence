@@ -42,7 +42,7 @@
           "duration": 60,
           "scaling": { "base": 30, "perUnit": 5, "assumption": "stories", "grid": 15 },
           "participants": [{ "roleId": "r1", "share": 1 }],
-          "preparation": 15
+          "preparation": 0.25
         }
       ]
     }
