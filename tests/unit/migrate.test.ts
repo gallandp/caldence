@@ -12,6 +12,22 @@ describe('migrate', () => {
     expect(migrate(w)).toEqual({ ok: true, value: w });
   });
 
+  it('migrates schema 1 to 2 by adding only a UUID v4 id', () => {
+    const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 1 };
+    delete old.id;
+    const r = migrate(old);
+    expect(r.ok).toBe(true);
+    const value = (r as { value: Record<string, unknown> }).value;
+    expect(value.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(value).toEqual({ ...old, schemaVersion: 2, id: value.id });
+  });
+
+  it('rejects a schema 3 file as newer', () => {
+    expect(migrate({ schemaVersion: 3 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  });
+
   it('rejects newer schemas without touching the input', () => {
     const w = { ...emptyWorkspace('2026-11-07'), schemaVersion: CURRENT_SCHEMA + 1 };
     const copy = structuredClone(w);

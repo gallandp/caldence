@@ -61,6 +61,13 @@ function at<T>(list: T[], i: number): T {
 }
 
 describe('weeklyBaseLoad', () => {
+  it('weekdays 15 min on five days is 1.25 h/week', () => {
+    const load = weeklyBaseLoad(
+      team([event({ type: 'weekdays', weekdays: [1, 2, 3, 4, 5] }, { duration: 15 })]),
+    );
+    expect(load.byRole.r1).toBeCloseTo(1.25);
+  });
+
   it('weekly 60 min with preparation 0.5 is 1.5 h/week', () => {
     const load = weeklyBaseLoad(
       team([event({ type: 'weekly', weekday: 1 }, { preparation: 0.5 })]),

@@ -54,6 +54,20 @@ describe('autosave', () => {
     expect(kv.data.has('current')).toBe(true);
   });
 
+  it('flushNow rewrites a state whose async write has not finished yet', () => {
+    const now: [string, unknown][] = [];
+    const kv: KV = {
+      get: async () => undefined,
+      set: () => new Promise(() => {}), // never settles, like a write cut off by a reload
+      setNow: (k, v) => void now.push([k, v]),
+    };
+    const a = createAutosave(kv, 500);
+    const state = { ws, fileName: 'x.json', dirty: false };
+    a.schedule(state, { immediate: true });
+    a.flushNow();
+    expect(now).toEqual([['current', state]]);
+  });
+
   it('debounces and restores ws, fileName and dirty', async () => {
     const kv = memory();
     const a = createAutosave(kv, 500);
@@ -84,6 +98,16 @@ describe('autosave', () => {
     expect(await createAutosave(kv).restore()).toEqual({ ws, fileName: 'old.json', dirty: true });
     expect(migrate).toHaveBeenCalled();
     expect(kv.data.has('current.bak')).toBe(false);
+  });
+
+  it('migrates a real schema 1 autosave to schema 2 with an id', async () => {
+    const kv = memory();
+    const old: Record<string, unknown> = { ...ws, schemaVersion: 1 };
+    delete old.id;
+    kv.data.set('current', { ws: old, fileName: 'old.json', dirty: true });
+    const restored = await createAutosave(kv).restore();
+    expect(restored?.ws.schemaVersion).toBe(2);
+    expect(restored?.ws.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('flush writes immediately', async () => {

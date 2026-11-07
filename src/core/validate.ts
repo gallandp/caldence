@@ -156,6 +156,18 @@ function checkRule(
     case 'weekly':
       c.weekday(r, 'weekday', path);
       break;
+    case 'weekdays': {
+      const days = r.weekdays;
+      if (days === undefined) c.err(`${path}.weekdays`, 'error.required');
+      else if (!Array.isArray(days)) c.err(`${path}.weekdays`, 'error.type');
+      else if (days.length === 0) c.err(`${path}.weekdays`, 'error.required');
+      else if (
+        !days.every((d) => isInt(d) && d >= 1 && d <= 7) ||
+        new Set(days).size !== days.length
+      )
+        c.err(`${path}.weekdays`, 'error.enum.invalid');
+      break;
+    }
     case 'every-n-weeks':
       c.weekday(r, 'weekday', path);
       c.num(r, 'n', path, { min: 1, int: true });
@@ -295,6 +307,9 @@ export function validate(input: unknown): Result<Workspace> {
       typeof v === 'number' && v > CURRENT_SCHEMA ? 'error.schema.newer' : 'error.schema.unknown',
     );
   }
+
+  if (w.id === undefined) c.err('id', 'error.required');
+  else if (!isStr(w.id)) c.err('id', 'error.type');
 
   checkSettings(c, w.settings);
 

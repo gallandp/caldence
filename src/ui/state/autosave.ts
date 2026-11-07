@@ -123,10 +123,11 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     clearTimeout(timer);
     timer = undefined;
     const state = pending;
-    pending = undefined;
     if (!state) return;
     try {
       await kv.set(AUTOSAVE_KEY, state);
+      // Kept pending until stored, so a page hide during the write can still repeat it.
+      if (pending === state) pending = undefined;
       if (!available) {
         available = true;
         status.set(true);

@@ -45,6 +45,36 @@ describe('validate', () => {
     });
   });
 
+  it('requires a non-empty workspace id', () => {
+    const w: Record<string, unknown> = { ...fixture() };
+    delete w.id;
+    expect(errorsOf(w)).toContainEqual({ path: 'id', key: 'error.required' });
+    expect(errorsOf({ ...w, id: '' })).toContainEqual({ path: 'id', key: 'error.type' });
+  });
+
+  describe('weekdays rule', () => {
+    const withDays = (weekdays: unknown): Workspace => {
+      const w = fixture();
+      w.teams[0]!.events[0]!.rule = { type: 'weekdays', weekdays } as never;
+      return w;
+    };
+    const path = 'teams.0.events.0.rule.weekdays';
+
+    it('accepts a unique list in 1-7', () => {
+      expect(validate(withDays([1, 4])).ok).toBe(true);
+    });
+    it('rejects an empty list as required', () => {
+      expect(errorsOf(withDays([]))).toContainEqual({ path, key: 'error.required' });
+    });
+    it.each([[[1, 1]], [[0, 2]], [[8]], [[1.5]]])('rejects %j as invalid', (days) => {
+      expect(errorsOf(withDays(days))).toContainEqual({ path, key: 'error.enum.invalid' });
+    });
+    it('rejects a missing or non-array list', () => {
+      expect(errorsOf(withDays(undefined))).toContainEqual({ path, key: 'error.required' });
+      expect(errorsOf(withDays('1'))).toContainEqual({ path, key: 'error.type' });
+    });
+  });
+
   describe('cadence-day rule', () => {
     const withDay = (day: number): Workspace => {
       const w = fixture();

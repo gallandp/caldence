@@ -57,6 +57,16 @@ describe('occurrences', () => {
     expect(d).toEqual(['2027-01-07', '2027-01-21', '2027-02-04', '2027-02-18']);
   });
 
+  it('weekdays [1..5] occurs Monday to Friday', () => {
+    const d = dates(
+      team([event({ type: 'weekdays', weekdays: [1, 2, 3, 4, 5] })], {
+        cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' },
+      }),
+      settings('2027-01-04', '2027-01-10'),
+    );
+    expect(d).toEqual(['2027-01-04', '2027-01-05', '2027-01-06', '2027-01-07', '2027-01-08']);
+  });
+
   it('cadence-day 13 first occurs on 2027-01-20', () => {
     const d = dates(
       team([event({ type: 'cadence-day', day: 13 })]),

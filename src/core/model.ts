@@ -1,6 +1,7 @@
+import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
 
-export const CURRENT_SCHEMA = 1;
+export const CURRENT_SCHEMA = 2;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -47,6 +48,8 @@ export type Weekday = number;
 
 export type Rule =
   | { type: 'weekly'; weekday: Weekday }
+  /** Non-empty, unique, 1-7. */
+  | { type: 'weekdays'; weekdays: Weekday[] }
   | { type: 'every-n-weeks'; weekday: Weekday; n: number; anchor: ISODate }
   | { type: 'monthly-nth-weekday'; weekday: Weekday; nth: 1 | 2 | 3 | 4 | 5 | -1 }
   /** day: 0-based day within the cadence period (0 = start day) */
@@ -78,6 +81,8 @@ export interface Team {
 }
 
 export interface Workspace {
+  /** UUID v4, stable for the life of the workspace. */
+  id: string;
   schemaVersion: number;
   settings: Settings;
   roles: Role[];
@@ -89,6 +94,7 @@ export interface Workspace {
 export function emptyWorkspace(today: ISODate): Workspace {
   return {
     schemaVersion: CURRENT_SCHEMA,
+    id: randomId(),
     settings: {
       locale: 'en',
       region: 'de-sn',

@@ -60,6 +60,29 @@
 <div class="rule">
   {#if draft.type === 'weekly'}
     {@render weekdayField()}
+  {:else if draft.type === 'weekdays'}
+    <fieldset
+      class="days"
+      id={id('weekdays')}
+      data-field="rule.weekdays"
+      aria-describedby={describe('weekdays')}
+    >
+      <legend>{$t('meet.rule.weekdays')}</legend>
+      <div class="checks">
+        {#each weekdays as w (w)}
+          <label class="check">
+            <input
+              type="checkbox"
+              value={w}
+              data-field="rule.weekdays"
+              bind:group={draft.weekdays}
+            />
+            {weekdayName($locale, w)}
+          </label>
+        {/each}
+      </div>
+      {@render err('weekdays', $t('meet.rule.weekdays'))}
+    </fieldset>
   {:else if draft.type === 'every-n-weeks'}
     {@render weekdayField()}
     <div class="field">
@@ -199,6 +222,22 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+  .days {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.5rem;
+    min-width: 0;
+  }
+  .checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
   }
   .hint {
     margin: 0;

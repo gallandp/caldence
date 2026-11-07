@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rule, Team } from '../../src/core/model';
-import { ruleDraft, toRule, weekdayName } from '../../src/ui/meetings/rules';
+import { ruleDraft, toRule, weekdayName, weekdayRuns } from '../../src/ui/meetings/rules';
 
 const team: Team = {
   id: 't1',
@@ -24,6 +24,7 @@ describe('rule drafts', () => {
   it('round-trips every rule type', () => {
     const rules: Rule[] = [
       { type: 'weekly', weekday: 3 },
+      { type: 'weekdays', weekdays: [1, 4] },
       { type: 'every-n-weeks', weekday: 2, n: 3, anchor: '2027-01-12' },
       { type: 'monthly-nth-weekday', weekday: 5, nth: -1 },
       { type: 'cadence-day', day: 13 },
@@ -43,6 +44,25 @@ describe('rule drafts', () => {
     const d = ruleDraft({ type: 'every-n-weeks', weekday: 1, n: 2, anchor: today }, team, today);
     d.n = null;
     expect(toRule(d)).toMatchObject({ n: Number.NaN });
+  });
+});
+
+describe('weekdays draft', () => {
+  it('defaults to Monday to Friday', () => {
+    expect(ruleDraft(undefined, team, today).weekdays).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('weekdayRuns', () => {
+  it('collapses 3 or more consecutive days', () => {
+    expect(weekdayRuns([5, 1, 2, 3, 4])).toEqual([{ from: 1, to: 5 }]);
+  });
+  it('keeps pairs and gaps as single days', () => {
+    expect(weekdayRuns([1, 2, 4])).toEqual([
+      { from: 1, to: 1 },
+      { from: 2, to: 2 },
+      { from: 4, to: 4 },
+    ]);
   });
 });
 
