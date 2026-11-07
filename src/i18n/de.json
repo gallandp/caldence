@@ -467,6 +467,7 @@
   "exchange.scope.pick.person": "Gewählte Person",
   "exchange.export.from": "Von",
   "exchange.export.to": "Bis",
+  "exchange.export.dateRequired": "Geben Sie ein Datum ein.",
   "exchange.export.range": "Das Startdatum darf nicht nach dem Enddatum liegen.",
   "exchange.export.reminder": "Erinnerung",
   "exchange.reminder.none": "Keine",

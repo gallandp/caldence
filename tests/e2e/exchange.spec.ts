@@ -49,7 +49,7 @@ test('exporting the example team downloads a file that matches the status', asyn
   expect(status).toContain('caldence-team-alpha.ics');
 });
 
-test('an inverted period shows an error and a scope without events disables export', async ({
+test('an inverted period shows an error and an empty period says so on export', async ({
   page,
 }) => {
   await openExchange(page);
@@ -64,8 +64,50 @@ test('an inverted period shows an error and a scope without events disables expo
   await expect(button).toBeEnabled();
   await panel(page).getByLabel('From', { exact: true }).fill('1999-01-01');
   await panel(page).getByLabel('To', { exact: true }).fill('1999-01-02');
+  // Whether the period holds meetings is only known once the file is built.
+  await button.click();
+  await expect(panel(page).getByRole('status')).toHaveText(
+    'There is nothing to export for this scope and period.',
+  );
+  // Changing the form clears the message.
+  await panel(page).getByRole('radio', { name: 'Role' }).check();
+  await expect(panel(page).getByRole('status')).toHaveText('');
+});
+
+test('an empty date shows "Enter a date" on that field only', async ({ page }) => {
+  await openExchange(page);
+  const from = panel(page).getByLabel('From', { exact: true });
+  const to = panel(page).getByLabel('To', { exact: true });
+  const button = panel(page).getByRole('button', { name: 'Export .ics…' });
+  await to.fill('');
+  await expect(to).toHaveAttribute('aria-invalid', 'true');
+  await expect(to).toHaveAccessibleDescription('Enter a date.');
+  await expect(from).not.toHaveAttribute('aria-invalid');
+  await expect(panel(page).getByText('The start date must not be after the end date.')).toHaveCount(
+    0,
+  );
   await expect(button).toBeDisabled();
-  await expect(panel(page).getByText('There is nothing to export for this scope')).toBeVisible();
+  await from.fill('');
+  await expect(from).toHaveAccessibleDescription('Enter a date.');
+  await from.fill('2027-02-01');
+  await to.fill('2027-03-01');
+  await expect(from).not.toHaveAttribute('aria-invalid');
+  await expect(to).not.toHaveAttribute('aria-invalid');
+  await expect(button).toBeEnabled();
+});
+
+test('DTSTAMP is the export time and a form change clears the export status', async ({ page }) => {
+  await openExchange(page);
+  await panel(page).getByLabel('Reminder').selectOption({ index: 1 });
+  await page.clock.setFixedTime(new Date('2027-01-04T15:30:00Z'));
+  const { text } = await exportText(page);
+  expect(text).toContain('DTSTAMP:20270104T153000Z');
+  await expect(panel(page).getByRole('status')).toContainText('caldence-team-alpha.ics');
+  await panel(page)
+    .getByRole('checkbox', { name: /holidays/i })
+    .first()
+    .check();
+  await expect(panel(page).getByRole('status')).toHaveText('');
 });
 
 test('the Outlook sample lists six rows and the left-out items', async ({ page }) => {

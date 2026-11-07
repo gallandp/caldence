@@ -156,10 +156,35 @@ function eventsInScope(team: Team, scope: Filter): CalEvent[] {
 }
 
 /**
+ * True when the scope has at least one meeting at all, whatever the period. A cheap check for
+ * enabling an export button; the exported file may still be empty for a given period.
+ */
+export function scopeHasEvents(ws: Workspace, scope: Filter): boolean {
+  return scopeTeams(ws, scope).some((team) => eventsInScope(team, scope).length > 0);
+}
+
+/** An exported file and how many of its VEVENTs are recurring series and single entries. */
+export type IcsExport = { text: string; series: number; single: number };
+
+/**
  * The scoped events of the workspace in from..to as an iCalendar file (CRLF, folded).
  * `index` must cover from..to.
  */
 export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOptions): string {
+  return exportIcsWithCounts(ws, index, opts).text;
+}
+
+/**
+ * Like `exportIcs`, with the number of recurring series (VEVENTs with an RRULE) and of single
+ * entries (every other VEVENT, all-day items included), counted while the file is built.
+ */
+export function exportIcsWithCounts(
+  ws: Workspace,
+  index: HolidayIndex,
+  opts: IcsExportOptions,
+): IcsExport {
+  let series = 0;
+  let single = 0;
   const tz = ws.settings.timezone;
   const dtstamp = `DTSTAMP:${utcStamp(opts.now)}`;
   const settings = { ...ws.settings, horizon: { from: opts.from, to: opts.to } };
@@ -218,6 +243,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
         // Single entries: a skipped one is simply not written.
         for (const occ of occs) {
           if (occ.skippedHoliday) continue;
+          single++;
           lines.push(
             'BEGIN:VEVENT',
             `UID:${uid}-${occ.date}@caldence`,
@@ -231,6 +257,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
         }
         continue;
       }
+      series++;
       lines.push(
         'BEGIN:VEVENT',
         `UID:${uid}@caldence`,
@@ -255,6 +282,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
     summary: string,
     desc?: string,
   ) => {
+    single++;
     lines.push(
       'BEGIN:VEVENT',
       `UID:${uid}.${ws.id}@caldence`,
@@ -313,5 +341,5 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
   }
 
   lines.push('END:VCALENDAR');
-  return lines.map((l) => `${foldLine(l)}\r\n`).join('');
+  return { text: lines.map((l) => `${foldLine(l)}\r\n`).join(''), series, single };
 }

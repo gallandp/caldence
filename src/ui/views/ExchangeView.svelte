@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
-  import { exportIcs } from '../../core/ics';
+  import { exportIcsWithCounts, scopeHasEvents } from '../../core/ics';
   import {
     parseIcs,
     reviewImport,
@@ -40,6 +40,23 @@
   let problem = $state<{ key: string; path?: string } | null>(null);
   let exported = $state<{ name: string; series: number; single: number } | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
+  let exportEmpty = $state(false);
+
+  /** Drops the outcome of an earlier export or import: the form changed or an error came up. */
+  function clearStatus() {
+    exported = null;
+    imported = null;
+    exportEmpty = false;
+  }
+  function fail(key: string, path?: string) {
+    clearStatus();
+    problem = { key, path };
+  }
+  /** Any change to the export form makes earlier messages stale. */
+  function touched() {
+    clearStatus();
+    problem = null;
+  }
 
   // ---------- export ----------
 
@@ -77,13 +94,31 @@
   );
   const from = $derived(fromDraft ?? ws.settings.horizon.from);
   const to = $derived(toDraft ?? ws.settings.horizon.to);
-  const rangeInvalid = $derived(from === '' || to === '' || from > to);
+  const fromEmpty = $derived(from === '');
+  const toEmpty = $derived(to === '');
+  const inverted = $derived(!fromEmpty && !toEmpty && from > to);
+  const rangeInvalid = $derived(fromEmpty || toEmpty || inverted);
+  const dateError = (empty: boolean, id: string) =>
+    empty ? `${uid}-${id}-err` : inverted ? `${uid}-range-err` : undefined;
 
-  /** The file for the current form, or null while the form is invalid. Recomputed when it changes. */
-  const built = $derived.by(() => {
-    if (!chosen || rangeInvalid || !zoneKnown) return null;
+  // Cheap: the file itself is only built when Export is pressed, so DTSTAMP is the save time.
+  const canExport = $derived(
+    !!chosen &&
+      !rangeInvalid &&
+      zoneKnown &&
+      (scopeHasEvents(ws, scope) || holidays || schoolHolidays || milestones),
+  );
+
+  // The scope has no meetings at all and no all-day items are asked for.
+  const noMeetings = $derived(
+    !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
+  );
+
+  async function exportFile(event: SubmitEvent) {
+    event.preventDefault();
+    if (!canExport || !chosen) return;
     const range = { ...ws.settings, horizon: { from, to } };
-    const text = exportIcs(ws, workspaceIndex({ ...ws, settings: range }), {
+    const built = exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
       scope,
       from,
       to,
@@ -92,26 +127,12 @@
       now: new Date(),
       locale: $locale,
     });
-    let series = 0;
-    let single = 0;
-    // Folded continuation lines start with a space, so a line starting with RRULE: is a rule.
-    for (const block of text.split('BEGIN:VEVENT\r\n').slice(1)) {
-      if (
-        block
-          .split('END:VEVENT')[0]!
-          .split('\r\n')
-          .some((l) => l.startsWith('RRULE:'))
-      )
-        series++;
-      else single++;
+    if (built.series + built.single === 0) {
+      clearStatus();
+      problem = null;
+      exportEmpty = true;
+      return;
     }
-    return { text, series, single };
-  });
-  const nothing = $derived(built !== null && built.series + built.single === 0);
-
-  async function exportFile(event: SubmitEvent) {
-    event.preventDefault();
-    if (!built || !chosen || built.series + built.single === 0) return;
     try {
       const saved = await exportTextFile(
         env,
@@ -120,11 +141,11 @@
         types(),
       );
       if (saved === null) return;
+      clearStatus();
       problem = null;
-      imported = null;
       exported = { name: saved, series: built.series, single: built.single };
     } catch {
-      problem = { key: 'file.error.write' };
+      fail('file.error.write');
     }
   }
 
@@ -159,19 +180,19 @@
     try {
       file = await openTextFile(env, types(), unfoldBytes);
     } catch {
-      problem = { key: 'file.error.read' };
+      fail('file.error.read');
       parsed = null;
       return;
     }
     if (!file) return;
     const result = parseIcs(file.text);
     if (!result.ok) {
-      problem = { key: result.errors[0]?.key ?? 'ics.error.notIcs' };
+      fail(result.errors[0]?.key ?? 'ics.error.notIcs');
       parsed = null;
       return;
     }
     problem = null;
-    imported = null;
+    clearStatus();
     fileName = file.name;
     selection = {};
     categoryChoice = {};
@@ -194,11 +215,11 @@
     );
     if (!result.ok) {
       const first = result.errors[0];
-      problem = { key: first?.key ?? 'error.type', path: first?.path };
+      fail(first?.key ?? 'error.type', first?.path);
       return;
     }
     problem = null;
-    exported = null;
+    clearStatus();
     imported = { n: items.length, team: team.name };
     parsed = null;
     // The form that was used is gone: move focus to the outcome.
@@ -235,6 +256,8 @@
         series: exported.series,
         single: exported.single,
       })}
+    {:else if exportEmpty}
+      {$t('exchange.export.empty')}
     {/if}
   </div>
   <div role="alert" class="error">
@@ -252,7 +275,7 @@
     {#if teams.length === 0}
       <p class="empty">{$t('exchange.export.none')}</p>
     {/if}
-    <form onsubmit={exportFile}>
+    <form onsubmit={exportFile} oninput={touched} onchange={touched}>
       <div class="row">
         <fieldset>
           <legend>{$t('exchange.export.scope')}</legend>
@@ -293,10 +316,13 @@
             id="{uid}-from"
             type="date"
             value={from}
-            aria-invalid={rangeInvalid ? 'true' : undefined}
-            aria-describedby={rangeInvalid ? `${uid}-range-err` : undefined}
+            aria-invalid={fromEmpty || inverted ? 'true' : undefined}
+            aria-describedby={dateError(fromEmpty, 'from')}
             oninput={(e) => (fromDraft = e.currentTarget.value)}
           />
+          {#if fromEmpty}
+            <p class="field-error" id="{uid}-from-err">{$t('exchange.export.dateRequired')}</p>
+          {/if}
         </div>
         <div class="field">
           <label for="{uid}-to">{$t('exchange.export.to')}</label>
@@ -304,10 +330,13 @@
             id="{uid}-to"
             type="date"
             value={to}
-            aria-invalid={rangeInvalid ? 'true' : undefined}
-            aria-describedby={rangeInvalid ? `${uid}-range-err` : undefined}
+            aria-invalid={toEmpty || inverted ? 'true' : undefined}
+            aria-describedby={dateError(toEmpty, 'to')}
             oninput={(e) => (toDraft = e.currentTarget.value)}
           />
+          {#if toEmpty}
+            <p class="field-error" id="{uid}-to-err">{$t('exchange.export.dateRequired')}</p>
+          {/if}
         </div>
         <div class="field">
           <label for="{uid}-reminder">{$t('exchange.export.reminder')}</label>
@@ -319,7 +348,7 @@
           </select>
         </div>
       </div>
-      {#if rangeInvalid}
+      {#if inverted}
         <p class="field-error" id="{uid}-range-err">{$t('exchange.export.range')}</p>
       {/if}
       <fieldset>
@@ -342,13 +371,16 @@
       <div class="row">
         <button
           type="submit"
-          disabled={built === null || nothing}
-          aria-describedby={zoneKnown ? undefined : `${uid}-zone-hint`}
-          >{$t('exchange.export.button')}</button
+          disabled={!canExport}
+          aria-describedby={!zoneKnown
+            ? `${uid}-zone-hint`
+            : noMeetings
+              ? `${uid}-empty-hint`
+              : undefined}>{$t('exchange.export.button')}</button
         >
       </div>
-      {#if nothing}
-        <p class="empty">{$t('exchange.export.empty')}</p>
+      {#if noMeetings}
+        <p class="empty" id="{uid}-empty-hint">{$t('exchange.export.empty')}</p>
       {/if}
     </form>
   </section>

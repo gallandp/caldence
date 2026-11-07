@@ -4,7 +4,9 @@ import valid from '../../src/data/examples/example.caldence.json';
 import {
   escapeText,
   exportIcs,
+  exportIcsWithCounts,
   foldLine,
+  scopeHasEvents,
   vtimezone,
   type IcsExportOptions,
 } from '../../src/core/ics';
@@ -494,5 +496,48 @@ describe('exportIcs fix round 1', () => {
       'BEGIN:DAYLIGHT\nDTSTART:20271003T020000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:+11:00\nEND:DAYLIGHT',
     );
     expect(text.match(/BEGIN:(STANDARD|DAYLIGHT)/g)).toHaveLength(2);
+  });
+});
+
+describe('exportIcsWithCounts', () => {
+  const withRange = (ws: Workspace, o: IcsExportOptions) =>
+    workspaceIndex({ ...ws, settings: { ...ws.settings, horizon: { from: o.from, to: o.to } } });
+
+  for (const allDay of [
+    { holidays: false, schoolHolidays: false, milestones: false },
+    { holidays: true, schoolHolidays: true, milestones: true },
+  ])
+    it(`counts the series and single VEVENTs it writes (all-day ${allDay.holidays})`, () => {
+      const ws = example();
+      const o = opts({ allDay });
+      const r = exportIcsWithCounts(ws, withRange(ws, o), o);
+      expect(r.text).toBe(run(ws, o));
+      const vevents = blocks(r.text, 'VEVENT');
+      const series = vevents.filter((b) => prop(b, 'RRULE') !== undefined).length;
+      expect(series).toBeGreaterThan(0);
+      expect(r.series).toBe(series);
+      expect(r.single).toBe(vevents.length - series);
+      if (allDay.holidays) expect(r.single).toBeGreaterThan(0);
+    });
+
+  it('gives zero counts for a period without meetings', () => {
+    const ws = example();
+    const o = opts({ from: '1999-01-01', to: '1999-01-02' });
+    const r = exportIcsWithCounts(ws, withRange(ws, o), o);
+    expect([r.series, r.single]).toEqual([0, 0]);
+  });
+});
+
+describe('scopeHasEvents', () => {
+  it('is true for a team with meetings and false for an unknown or unused scope', () => {
+    const ws = example();
+    const team = ws.teams.find((t) => t.events.length > 0)!;
+    expect(scopeHasEvents(ws, { teamId: team.id })).toBe(true);
+    expect(scopeHasEvents(ws, { teamId: 'nope' })).toBe(false);
+    expect(scopeHasEvents(ws, { personId: 'nobody' })).toBe(false);
+    const role = ws.roles.find((r) =>
+      ws.teams.some((t) => t.events.some((e) => e.participants.some((p) => p.roleId === r.id))),
+    )!;
+    expect(scopeHasEvents(ws, { roleId: role.id })).toBe(true);
   });
 });
