@@ -3,6 +3,7 @@
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import CalendarView from './views/CalendarView.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
@@ -137,6 +138,10 @@
             >{$t('calendar.empty.example')}</button
           >
         </section>
+      {:else if id === 'calendar'}
+        {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
+          <CalendarView onOpenMeetings={() => select('meetings', true)} />
+        {/key}
       {:else if id === 'meetings'}
         {#if active === 'meetings'}<MeetingsView />{/if}
       {:else if id === 'team'}
