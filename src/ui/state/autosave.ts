@@ -14,6 +14,7 @@ export interface AutosaveState {
 }
 
 export const AUTOSAVE_KEY = 'current';
+export const BACKUP_KEY = 'current.bak';
 
 /** IndexedDB-backed key-value store. Every call rejects when IndexedDB is unavailable. */
 export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
@@ -58,6 +59,8 @@ export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
 export function createAutosave(kv: KV, debounceMs = 500) {
   const status = writable(true);
   let available = true;
+  // Set when the stored data could not be read: writing then could destroy it.
+  let blocked = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AutosaveState | undefined;
 
@@ -66,18 +69,34 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     status.set(false);
   }
 
+  /** Turns autosave off for good (e.g. restore timed out). */
+  function disable() {
+    blocked = true;
+    clearTimeout(timer);
+    pending = undefined;
+    fail();
+  }
+
   async function restore(): Promise<AutosaveState | null> {
     let stored: unknown;
     try {
       stored = await kv.get(AUTOSAVE_KEY);
     } catch {
-      fail();
+      disable();
       return null;
     }
-    if (typeof stored !== 'object' || stored === null) return null;
+    if (stored === undefined || stored === null) return null;
     const s = stored as Partial<AutosaveState>;
-    const checked = validate(s.ws);
-    if (!checked.ok) return null;
+    const checked = typeof stored === 'object' ? validate(s.ws) : undefined;
+    if (!checked?.ok) {
+      // Keep what we could not load before the next write replaces it (best effort).
+      try {
+        await kv.set(BACKUP_KEY, stored);
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
     return {
       ws: checked.value,
       fileName: typeof s.fileName === 'string' ? s.fileName : null,
@@ -93,12 +112,17 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     if (!state) return;
     try {
       await kv.set(AUTOSAVE_KEY, state);
+      if (!available) {
+        available = true;
+        status.set(true);
+      }
     } catch {
       fail();
     }
   }
 
   function schedule(state: AutosaveState): void {
+    if (blocked) return;
     pending = state;
     clearTimeout(timer);
     timer = setTimeout(() => void flush(), debounceMs);
@@ -108,6 +132,7 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     restore,
     schedule,
     flush,
+    disable,
     get available() {
       return available;
     },

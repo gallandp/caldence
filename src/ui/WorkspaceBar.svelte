@@ -13,9 +13,11 @@
 
   let input: HTMLInputElement | undefined;
   let pendingFile: ((file: File | null) => void) | undefined;
-  let error = $state<string | null>(null);
+  type Problem = { key: string; params?: Record<string, string | number>; more: number };
+  let error = $state<Problem | null>(null);
   let askOpen = $state(false);
   let askResolve: ((choice: Choice) => void) | undefined;
+  let busy = false;
 
   const files = createFileService(
     browserFileEnv(
@@ -49,71 +51,92 @@
     askResolve = undefined;
   }
 
+  /** Runs one file action at a time; a second call while one is in flight is ignored. */
+  async function exclusive<T>(run: () => Promise<T>, fallback: T): Promise<T> {
+    if (busy) return fallback;
+    busy = true;
+    try {
+      return await run();
+    } finally {
+      busy = false;
+    }
+  }
+
   /** True when it is fine to replace the workspace: clean, saved or discarded. */
   async function proceed(): Promise<boolean> {
     if (!get(dirty)) return true;
     const choice = await ask();
     if (choice === 'cancel') return false;
-    if (choice === 'save') return save();
+    if (choice === 'save') return doSave(false);
     return true;
   }
 
-  /** Saves to the current file; true only when a file was written. */
-  export async function save(): Promise<boolean> {
-    return write(() => files.save(get(workspace), get(fileName)));
-  }
-
-  export async function saveAs(): Promise<boolean> {
-    return write(() => files.saveAs(get(workspace), get(fileName)));
-  }
-
-  async function write(run: () => Promise<string | null>): Promise<boolean> {
+  async function doSave(as: boolean): Promise<boolean> {
+    const snapshot = get(workspace);
     try {
-      const name = await run();
+      const name = await (as
+        ? files.saveAs(snapshot, get(fileName))
+        : files.save(snapshot, get(fileName)));
       if (name === null) return false;
-      workspace.markSaved(name);
+      // Edits made while the picker was open are not in the file: stay dirty then.
+      if (get(workspace) === snapshot) workspace.markSaved(name);
+      else workspace.setFileName(name);
       error = null;
       return true;
     } catch {
-      error = $t('file.error.write');
+      error = { key: 'file.error.write', more: 0 };
       return false;
     }
   }
 
-  export async function open(): Promise<void> {
-    if (!(await proceed())) return;
-    let result;
-    try {
-      result = await files.open();
-    } catch {
-      error = $t('file.error.read');
-      return;
-    }
-    if (result === null) return;
-    if (!result.ok) {
-      const [first, ...rest] = result.errors;
-      const message = $t(first!.key, { path: first!.path });
-      error = rest.length > 0 ? $t('file.error.more', { message, count: rest.length }) : message;
-      return;
-    }
-    error = null;
-    workspace.replace(result.value.ws, { fileName: result.value.name, dirty: false });
+  /** Saves to the current file; true only when a file was written. */
+  export function save(): Promise<boolean> {
+    return exclusive(() => doSave(false), false);
   }
 
-  async function replaceWith(ws: Workspace) {
+  export function saveAs(): Promise<boolean> {
+    return exclusive(() => doSave(true), false);
+  }
+
+  export function open(): Promise<void> {
+    return exclusive(async () => {
+      if (!(await proceed())) return;
+      let result;
+      try {
+        result = await files.open();
+      } catch {
+        error = { key: 'file.error.read', more: 0 };
+        return;
+      }
+      if (result === null) return;
+      if (!result.ok) {
+        const [first, ...rest] = result.errors;
+        error = { key: first!.key, params: { path: first!.path }, more: rest.length };
+        return;
+      }
+      error = null;
+      workspace.replace(result.value.ws, { fileName: result.value.name, dirty: false });
+    }, undefined);
+  }
+
+  async function replaceWith(make: () => Workspace) {
     if (!(await proceed())) return;
     error = null;
+    files.forget();
+    const ws = make();
+    ws.settings.locale = get(workspace).settings.locale;
     workspace.replace(ws, { fileName: null, dirty: false });
   }
 
-  export async function newWorkspace(): Promise<void> {
-    const ws = emptyWorkspace(new Date().toLocaleDateString('sv-SE'));
-    ws.settings.locale = get(workspace).settings.locale;
-    await replaceWith(ws);
+  export function newWorkspace(): Promise<void> {
+    return exclusive(
+      () => replaceWith(() => emptyWorkspace(new Date().toLocaleDateString('sv-SE'))),
+      undefined,
+    );
   }
 
-  export async function openExample(): Promise<void> {
-    await replaceWith(exampleWorkspace());
+  export function openExample(): Promise<void> {
+    return exclusive(() => replaceWith(exampleWorkspace), undefined);
   }
 </script>
 
@@ -126,13 +149,20 @@
   </div>
   <p class="status">
     <span class="name">{$fileName ?? $t('file.untitled')}</span>
-    <span class="marker">{$dirty ? $t('file.unsaved') : $t('file.saved')}</span>
+    {#if $dirty}
+      <span class="marker">{$t('file.unsaved')}</span>
+    {:else if $fileName !== null}
+      <span class="marker">{$t('file.saved')}</span>
+    {/if}
   </p>
-  {#if !$autosaveOn}
-    <p class="notice">{$t('file.autosaveOff')}</p>
-  {/if}
+  <div role="status" class="notice">
+    {#if !$autosaveOn}{$t('file.autosaveOff')}{/if}
+  </div>
   <div role="alert" class="error">
-    {#if error}{error}{/if}
+    {#if error}
+      {@const message = $t(error.key, error.params)}
+      {error.more > 0 ? $t('file.error.more', { message, count: error.more }) : message}
+    {/if}
   </div>
 </div>
 

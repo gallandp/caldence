@@ -100,6 +100,26 @@ describe('file service with pickers', () => {
   });
 });
 
+describe('forget', () => {
+  it('makes the next save ask for a location again', async () => {
+    const first = fakeHandle('a.json');
+    const second = fakeHandle('b.json');
+    const showSaveFilePicker = vi.fn(async () => second.handle);
+    const svc = createFileService({
+      showOpenFilePicker: async () => [first.handle],
+      showSaveFilePicker,
+      download: vi.fn(),
+      pickFile: async () => null,
+    });
+    await svc.open();
+    svc.forget();
+    await svc.save(ws, null);
+    expect(showSaveFilePicker).toHaveBeenCalledTimes(1);
+    expect(first.writes).toEqual([]);
+    expect(second.writes).toHaveLength(1);
+  });
+});
+
 describe('file service without pickers', () => {
   it('saveAs downloads with the given name, default otherwise', async () => {
     const download = vi.fn();

@@ -64,7 +64,7 @@ export function createFileService(env: FileEnv) {
     }
     const loaded = loadWorkspace(text);
     if (!loaded.ok) return loaded;
-    handle = picked;
+    handle = picked; // replaces any earlier handle (null in the fallback path)
     return { ok: true, value: { ws: loaded.value, name } };
   }
 
@@ -97,7 +97,12 @@ export function createFileService(env: FileEnv) {
     return saveAs(ws, name);
   }
 
-  return { open, save, saveAs };
+  /** Drops the remembered handle, e.g. when the workspace was replaced by another one. */
+  function forget(): void {
+    handle = null;
+  }
+
+  return { open, save, saveAs, forget };
 }
 
 /** Real browser environment: picker APIs where present, otherwise a download link and a file input. */
@@ -115,7 +120,7 @@ export function browserFileEnv(pickFile: () => Promise<File | null>): FileEnv {
       document.body.append(a);
       a.click();
       a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
     },
   };
 }

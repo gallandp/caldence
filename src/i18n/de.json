@@ -41,7 +41,7 @@
   "file.unsaved": "● Ungespeicherte Änderungen",
   "file.saved": "✓ Gespeichert",
   "file.input": "Arbeitsbereich-Datei auswählen",
-  "file.autosaveOff": "Autosave ist aus: Dieser Browser erlaubt keinen lokalen Speicher. Speichern Sie Ihre Datei von Hand.",
+  "file.autosaveOff": "Automatisches Speichern ist aus: Änderungen werden nicht im Browser gespeichert",
   "file.error.more": "{message} (und {count} weitere)",
   "file.error.write": "Die Datei konnte nicht gespeichert werden",
   "file.error.read": "Die Datei konnte nicht geöffnet werden",

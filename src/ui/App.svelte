@@ -17,9 +17,22 @@
   let ready = $state(false);
 
   onMount(async () => {
-    const restored = await autosave.restore();
-    if (restored) workspace.replace(restored.ws, restored);
-    ready = true;
+    let timedOut = false;
+    try {
+      const timeout = new Promise<null>((resolve) =>
+        setTimeout(() => {
+          timedOut = true;
+          autosave.disable();
+          resolve(null);
+        }, 3000),
+      );
+      const restored = await Promise.race([autosave.restore(), timeout]);
+      if (restored && !timedOut) workspace.replace(restored.ws, restored);
+    } catch {
+      autosave.disable();
+    } finally {
+      ready = true;
+    }
   });
 
   // Save every change (debounced) so a reload or crash restores the exact state.

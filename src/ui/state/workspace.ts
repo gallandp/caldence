@@ -63,8 +63,14 @@ export function createWorkspaceStore(initial: Workspace) {
     dirty.set(false);
   }
 
+  /** Records a new file name but leaves the dirty flag alone. */
+  function setFileName(name: string): void {
+    fileName.set(name);
+  }
+
   return {
     subscribe: state.subscribe,
+    setFileName,
     apply,
     undo,
     canUndo: derived(history, (h) => h.length > 0) as Readable<boolean>,

@@ -17,11 +17,15 @@ test.beforeEach(async ({ page }) => {
 async function openExample(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open example' }).click();
-  await expect(page.getByText('Unbenannt')).toBeVisible();
+  // The example adopts the current UI language, so the UI stays English.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByText('Untitled')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
 }
 
-/** Changes the workspace through the language switch (a workspace setting). */
+/** Two edits through the language switch (a workspace setting): de, then back to en. */
 async function makeChange(page: Page) {
+  await page.getByLabel(/Language|Sprache/).selectOption('de');
   await page.getByLabel(/Language|Sprache/).selectOption('en');
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
 }
@@ -46,13 +50,15 @@ async function storedTeams(page: Page): Promise<number> {
   );
 }
 
-test('autosave restores data and the unsaved marker after reload', async ({ page }) => {
+test('autosave restores the changed data and the unsaved marker after reload', async ({ page }) => {
   await openExample(page);
-  await makeChange(page);
+  await page.getByLabel('Language').selectOption('de');
   await expect.poll(() => storedTeams(page)).toBe(2);
   await page.reload();
-  await expect(page.getByText('● Unsaved changes')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
+  // The changed value (language de) survived, and so did the dirty flag and the example.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Beispiel öffnen' })).toHaveCount(0);
 });
 
 test('save as downloads workspace.caldence.json and clears the marker', async ({ page }) => {
@@ -83,6 +89,11 @@ test('opening an invalid file shows an error and keeps the workspace', async ({ 
   await expect(page.getByRole('alert')).toHaveText('The file does not contain valid JSON');
   await expect(page.getByText('workspace.caldence.json')).toBeVisible();
   await expect(page.getByText('✓ Saved')).toBeVisible();
+  // The example is still loaded and the earlier edits are still undoable.
+  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+  await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
 });
 
 test('New while dirty asks first; cancel keeps the data; axe passes with the dialog open', async ({
@@ -99,10 +110,12 @@ test('New while dirty asks first; cancel keeps the data; axe passes with the dia
   expect(results.violations).toEqual([]);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'New', exact: true })).toBeFocused();
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'New', exact: true })).toBeFocused();
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await dialog.getByRole('button', { name: 'Discard' }).click();

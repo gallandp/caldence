@@ -66,6 +66,56 @@ describe('autosave', () => {
     expect(a.available).toBe(false);
   });
 
+  it('copies unreadable stored data to current.bak before overwriting it', async () => {
+    const kv = memory();
+    const newer = { ws: { ...ws, schemaVersion: 99 }, fileName: null, dirty: true };
+    kv.data.set('current', newer);
+    const a = createAutosave(kv, 500);
+    expect(await a.restore()).toBeNull();
+    expect(kv.data.get('current.bak')).toBe(newer);
+    a.schedule({ ws, fileName: null, dirty: true });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(kv.data.get('current.bak')).toBe(newer);
+    expect(kv.data.get('current')).not.toBe(newer);
+  });
+
+  it('never writes after the stored data could not be read', async () => {
+    const set = vi.fn(async () => {});
+    const a = createAutosave({ get: () => Promise.reject(new Error('no')), set });
+    await a.restore();
+    a.schedule({ ws, fileName: null, dirty: true });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('retries after a failed write and becomes available again on success', async () => {
+    let fail = true;
+    const a = createAutosave({
+      get: async () => undefined,
+      set: async () => {
+        if (fail) throw new Error('quota');
+      },
+    });
+    a.schedule({ ws, fileName: null, dirty: true });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(get(a.status)).toBe(false);
+    fail = false;
+    a.schedule({ ws, fileName: null, dirty: true });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(get(a.status)).toBe(true);
+    expect(a.available).toBe(true);
+  });
+
+  it('disable stops writes and reports unavailable', async () => {
+    const set = vi.fn(async () => {});
+    const a = createAutosave({ get: async () => undefined, set });
+    a.disable();
+    a.schedule({ ws, fileName: null, dirty: true });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(set).not.toHaveBeenCalled();
+    expect(get(a.status)).toBe(false);
+  });
+
   it('idbStore rejects without IndexedDB', async () => {
     const store = idbStore();
     await expect(store.get('current')).rejects.toThrow();

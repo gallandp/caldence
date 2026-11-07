@@ -104,6 +104,16 @@ describe('workspace store', () => {
   });
 });
 
+describe('setFileName', () => {
+  it('keeps the dirty flag', () => {
+    const s = fresh();
+    s.apply(bump(30));
+    s.setFileName('c.json');
+    expect(get(s.fileName)).toBe('c.json');
+    expect(get(s.dirty)).toBe(true);
+  });
+});
+
 describe('activeTeamId', () => {
   it('falls back to first team, then null', () => {
     const s = fresh();

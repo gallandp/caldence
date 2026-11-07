@@ -55,13 +55,17 @@
 
   function onShortcut(event: KeyboardEvent) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    if (document.querySelector('dialog[open]')) return;
+    if (event.repeat || document.querySelector('dialog[open]')) return;
     const key = event.key.toLowerCase();
     if (key === 's') void (event.shiftKey ? bar?.saveAs() : bar?.save());
     else if (key === 'o' && !event.shiftKey) void bar?.open();
     else if (key === 'z' && !event.shiftKey) {
       const target = event.target as HTMLElement | null;
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (
+        target &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      )
+        return;
       workspace.undo();
     } else return;
     event.preventDefault();

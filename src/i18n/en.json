@@ -41,7 +41,7 @@
   "file.unsaved": "● Unsaved changes",
   "file.saved": "✓ Saved",
   "file.input": "Choose a workspace file",
-  "file.autosaveOff": "Autosave is off: this browser does not allow local storage. Save your file manually.",
+  "file.autosaveOff": "Autosave is off: changes are not stored in this browser",
   "file.error.more": "{message} (and {count} more)",
   "file.error.write": "The file could not be saved",
   "file.error.read": "The file could not be opened",
