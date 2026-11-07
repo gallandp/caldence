@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { emptyWorkspace } from '../../src/core/model';
-import { createAutosave, idbStore, type KV } from '../../src/ui/state/autosave';
+import { createAutosave, idbStore, restoreWithTimeout, type KV } from '../../src/ui/state/autosave';
 
 const ws = emptyWorkspace('2027-01-04');
 
@@ -120,5 +120,35 @@ describe('autosave', () => {
     const store = idbStore();
     await expect(store.get('current')).rejects.toThrow();
     await expect(store.set('current', 1)).rejects.toThrow();
+  });
+});
+
+describe('restoreWithTimeout', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('keeps autosave enabled after a fast restore, even once the timeout has passed', async () => {
+    vi.useFakeTimers();
+    const service = { restore: vi.fn(async () => null), disable: vi.fn() };
+    await expect(restoreWithTimeout(service, 3000)).resolves.toBeNull();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(service.disable).not.toHaveBeenCalled();
+  });
+
+  it('disables autosave when restore hangs', async () => {
+    vi.useFakeTimers();
+    const service = { restore: vi.fn(() => new Promise<never>(() => {})), disable: vi.fn() };
+    const pending = restoreWithTimeout(service, 3000);
+    await vi.advanceTimersByTimeAsync(3000);
+    await expect(pending).resolves.toBeNull();
+    expect(service.disable).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables autosave when restore throws', async () => {
+    const service = {
+      restore: vi.fn(async () => Promise.reject(new Error('x'))),
+      disable: vi.fn(),
+    };
+    await expect(restoreWithTimeout(service, 3000)).resolves.toBeNull();
+    expect(service.disable).toHaveBeenCalledTimes(1);
   });
 });

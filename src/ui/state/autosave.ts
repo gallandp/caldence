@@ -141,3 +141,30 @@ export function createAutosave(kv: KV, debounceMs = 500) {
 }
 
 export const autosave = createAutosave(idbStore());
+
+/**
+ * Restore, but give up after `ms` so the app never hangs on "Loading…".
+ * Only a lost race (or an exception) disables autosave; the timer is always cleared.
+ */
+export async function restoreWithTimeout(
+  service: Pick<ReturnType<typeof createAutosave>, 'restore' | 'disable'>,
+  ms = 3000,
+): Promise<AutosaveState | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), ms);
+  });
+  try {
+    const result = await Promise.race([service.restore(), timeout]);
+    if (result === 'timeout') {
+      service.disable();
+      return null;
+    }
+    return result;
+  } catch {
+    service.disable();
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}

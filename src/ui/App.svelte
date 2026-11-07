@@ -2,7 +2,7 @@
   import { locale } from '../i18n';
   import { onMount } from 'svelte';
   import { translate as t } from '../i18n';
-  import { autosave } from './state/autosave';
+  import { autosave, restoreWithTimeout } from './state/autosave';
   import { workspace } from './state/workspace';
   import Shell from './Shell.svelte';
   import './tokens.css';
@@ -17,19 +17,9 @@
   let ready = $state(false);
 
   onMount(async () => {
-    let timedOut = false;
     try {
-      const timeout = new Promise<null>((resolve) =>
-        setTimeout(() => {
-          timedOut = true;
-          autosave.disable();
-          resolve(null);
-        }, 3000),
-      );
-      const restored = await Promise.race([autosave.restore(), timeout]);
-      if (restored && !timedOut) workspace.replace(restored.ws, restored);
-    } catch {
-      autosave.disable();
+      const restored = await restoreWithTimeout(autosave);
+      if (restored) workspace.replace(restored.ws, restored);
     } finally {
       ready = true;
     }
