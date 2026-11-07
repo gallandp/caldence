@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0 – 2026-11-07
+
 - Project setup: Vite, Svelte 5, TypeScript (strict), Vitest, Playwright, ESLint and Prettier.
 - Minimal app shell showing the app name and version.
 - Core date helpers (UTC-only): parsing, weekday, ISO week, nth weekday of month, Easter, time conversion.
