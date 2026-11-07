@@ -44,14 +44,38 @@ describe('workspace store', () => {
     expect(get(s.canUndo)).toBe(false);
   });
 
+  it('returns the new id when the change returns a tuple', () => {
+    const s = fresh();
+    const r = s.apply((ws) => addTeam(ws, 'A', '2026-01-05'));
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.id).toBe(get(s).teams[0]!.id);
+    const plain = s.apply(bump(30));
+    expect(plain.ok && plain.id).toBeUndefined();
+  });
+
   it('undo restores the exact previous workspace', () => {
     const s = fresh();
     const before = get(s);
     s.apply(bump(30));
     expect(s.undo()).toBe(true);
-    expect(get(s)).toEqual(before);
+    expect(get(s)).toStrictEqual(before);
     expect(get(s.canUndo)).toBe(false);
     expect(s.undo()).toBe(false);
+  });
+
+  it('undo still restores the original when a change mutates its input in place', () => {
+    const s = fresh();
+    const before = get(s);
+    const snapshot = structuredClone(before);
+    const r = s.apply((ws) => {
+      ws.settings.hoursPerWeek = 12;
+      return ws;
+    });
+    expect(r.ok).toBe(true);
+    expect(get(s).settings.hoursPerWeek).toBe(12);
+    expect(before).toStrictEqual(snapshot);
+    expect(s.undo()).toBe(true);
+    expect(get(s)).toStrictEqual(snapshot);
   });
 
   it('keeps at most 50 undo steps', () => {

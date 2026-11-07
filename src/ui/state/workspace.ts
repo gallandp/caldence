@@ -18,10 +18,12 @@ export function createWorkspaceStore(initial: Workspace) {
   const fileName = writable<string | null>(null);
   const history = writable<Workspace[]>([]);
 
-  function apply(change: Change): Result<Workspace> {
+  function apply(change: Change): Result<Workspace> & { id?: string } {
     const current = get(state);
-    const raw = change(current);
+    // The change works on a copy, so in-place mutation can neither corrupt the live state nor history.
+    const raw = change(structuredClone(current));
     const out = Array.isArray(raw) ? raw[0] : raw;
+    const id = Array.isArray(raw) ? raw[1] : undefined;
     let next: Workspace;
     if (isResult(out)) {
       if (!out.ok) return out;
@@ -32,11 +34,11 @@ export function createWorkspaceStore(initial: Workspace) {
     const checked = validate(next);
     if (!checked.ok) return checked;
     if (JSON.stringify(checked.value) === JSON.stringify(current))
-      return { ok: true, value: current };
-    history.update((h) => [...h, current].slice(-MAX_HISTORY));
+      return id === undefined ? { ok: true, value: current } : { ok: true, value: current, id };
+    history.update((h) => [...h, structuredClone(current)].slice(-MAX_HISTORY));
     state.set(checked.value);
     dirty.set(true);
-    return checked;
+    return id === undefined ? checked : { ...checked, id };
   }
 
   function undo(): boolean {

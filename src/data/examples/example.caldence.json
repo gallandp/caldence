@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "settings": {
+    "locale": "de",
+    "region": "de-sn",
+    "timezone": "Europe/Berlin",
+    "workdays": [1, 2, 3, 4, 5],
+    "hoursPerWeek": 40,
+    "horizon": { "from": "2027-01-01", "to": "2027-12-31" },
+    "skipHolidays": true,
+    "thresholds": { "warnFactor": 1.5, "maxFte": 0.6 }
+  },
+  "roles": [
+    { "id": "role-po", "name": "Product Owner", "colour": "#1d4ed8" },
+    { "id": "role-sm", "name": "Scrum Master", "colour": "#15803d" },
+    { "id": "role-dev", "name": "Developer", "colour": "#b45309" }
+  ],
+  "people": [
+    { "id": "person-alex", "name": "Alex", "hoursPerWeek": 32 },
+    { "id": "person-sam", "name": "Sam", "hoursPerWeek": 40 }
+  ],
+  "categories": [
+    { "id": "cat-events", "name": "Scrum events", "colour": "#1d4ed8" },
+    { "id": "cat-align", "name": "Alignment", "colour": "#7e22ce" },
+    { "id": "cat-stake", "name": "Stakeholders", "colour": "#be123c" }
+  ],
+  "teams": [
+    {
+      "id": "team-alpha",
+      "name": "Team Alpha",
+      "cadence": { "kind": "sprint", "lengthWeeks": 2, "start": "2027-01-07" },
+      "members": [
+        { "personId": "person-alex", "roleId": "role-po" },
+        { "personId": "person-sam", "roleId": "role-sm" }
+      ],
+      "assumptions": {},
+      "cycles": [
+        {
+          "id": "cycle-release",
+          "name": "Release 1",
+          "milestones": [{ "id": "ms-release", "name": "Release", "date": "2027-06-30" }]
+        }
+      ],
+      "events": [
+        {
+          "id": "ev-planning",
+          "name": "Sprint Planning",
+          "categoryId": "cat-events",
+          "rule": { "type": "cadence-day", "day": 0 },
+          "time": "10:00",
+          "duration": 120,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 1 }
+          ],
+          "preparation": 0.25
+        },
+        {
+          "id": "ev-sync",
+          "name": "Weekly Sync",
+          "categoryId": "cat-events",
+          "rule": { "type": "weekly", "weekday": 2 },
+          "time": "09:30",
+          "duration": 15,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 1 }
+          ],
+          "preparation": 0
+        },
+        {
+          "id": "ev-refinement",
+          "name": "Backlog Refinement",
+          "categoryId": "cat-align",
+          "rule": { "type": "every-n-weeks", "weekday": 3, "n": 2, "anchor": "2027-01-13" },
+          "time": "14:00",
+          "duration": 60,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 0.5 }
+          ],
+          "preparation": 0.1
+        },
+        {
+          "id": "ev-review",
+          "name": "Sprint Review",
+          "categoryId": "cat-stake",
+          "rule": { "type": "cadence-day", "day": 13 },
+          "time": "14:00",
+          "duration": 60,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 1 }
+          ],
+          "preparation": 0.5
+        },
+        {
+          "id": "ev-stakeholders",
+          "name": "Stakeholder Update",
+          "categoryId": "cat-stake",
+          "rule": { "type": "monthly-nth-weekday", "weekday": 4, "nth": 1 },
+          "time": "15:00",
+          "duration": 60,
+          "participants": [{ "roleId": "role-po", "share": 1 }],
+          "preparation": 0.25
+        },
+        {
+          "id": "ev-readiness",
+          "name": "Release Readiness Review",
+          "categoryId": "cat-stake",
+          "rule": {
+            "type": "cycle-milestone",
+            "cycleId": "cycle-release",
+            "milestoneId": "ms-release",
+            "offsetDays": -7
+          },
+          "time": "13:00",
+          "duration": 90,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 1 }
+          ],
+          "preparation": 0.25
+        },
+        {
+          "id": "ev-kickoff",
+          "name": "Kick-off Workshop",
+          "categoryId": "cat-align",
+          "rule": { "type": "once", "date": "2027-01-11" },
+          "time": "10:00",
+          "duration": 180,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-sm", "share": 1 }
+          ],
+          "preparation": 0
+        }
+      ]
+    },
+    {
+      "id": "team-beta",
+      "name": "Team Beta",
+      "cadence": { "kind": "flow", "lengthWeeks": 1, "start": "2027-01-04" },
+      "members": [
+        { "personId": "person-alex", "roleId": "role-po" },
+        { "personId": "person-sam", "roleId": "role-dev" }
+      ],
+      "assumptions": {},
+      "cycles": [],
+      "events": [
+        {
+          "id": "ev-replenishment",
+          "name": "Replenishment",
+          "categoryId": "cat-align",
+          "rule": { "type": "weekly", "weekday": 4 },
+          "time": "11:00",
+          "duration": 60,
+          "participants": [
+            { "roleId": "role-po", "share": 1 },
+            { "roleId": "role-dev", "share": 1 }
+          ],
+          "preparation": 0.1
+        },
+        {
+          "id": "ev-flow-review",
+          "name": "Flow Review",
+          "categoryId": "cat-events",
+          "rule": { "type": "weekly", "weekday": 5 },
+          "time": "13:30",
+          "duration": 30,
+          "participants": [
+            { "roleId": "role-po", "share": 0.5 },
+            { "roleId": "role-dev", "share": 1 }
+          ],
+          "preparation": 0
+        }
+      ]
+    }
+  ]
+}

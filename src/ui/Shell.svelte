@@ -2,6 +2,10 @@
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
+  import WorkspaceBar from './WorkspaceBar.svelte';
+  import { workspace } from './state/workspace';
+
+  const { dirty } = workspace;
 
   const views = [
     'calendar',
@@ -47,12 +51,36 @@
     select(views[target]!, true);
   }
 
+  let bar: WorkspaceBar | undefined;
+
+  function onShortcut(event: KeyboardEvent) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (document.querySelector('dialog[open]')) return;
+    const key = event.key.toLowerCase();
+    if (key === 's') void (event.shiftKey ? bar?.saveAs() : bar?.save());
+    else if (key === 'o' && !event.shiftKey) void bar?.open();
+    else if (key === 'z' && !event.shiftKey) {
+      const target = event.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      workspace.undo();
+    } else return;
+    event.preventDefault();
+  }
+
+  function onBeforeUnload(event: BeforeUnloadEvent) {
+    if (!$dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  }
+
   let main: HTMLElement | undefined;
   function skip(event: Event) {
     event.preventDefault();
     main?.focus();
   }
 </script>
+
+<svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} />
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
@@ -63,6 +91,8 @@
   </div>
   <LanguageSwitch />
 </header>
+
+<WorkspaceBar bind:this={bar} />
 
 <div class="tabs" role="tablist" aria-label={$t('nav.views')}>
   {#each views as id (id)}
@@ -92,7 +122,17 @@
       hidden={active !== id}
     >
       <h2>{$t('view.' + id)}</h2>
-      <p>{$t('view.soon')}</p>
+      {#if id === 'calendar' && $workspace.teams.length === 0}
+        <section class="start">
+          <h3>{$t('calendar.empty.title')}</h3>
+          <p>{$t('calendar.empty.text')}</p>
+          <button type="button" onclick={() => bar?.openExample()}
+            >{$t('calendar.empty.example')}</button
+          >
+        </section>
+      {:else}
+        <p>{$t('view.soon')}</p>
+      {/if}
     </div>
   {/each}
 </main>
@@ -170,5 +210,15 @@
   }
   h2 {
     margin-top: 0;
+  }
+  .start button {
+    font: inherit;
+    color: var(--bg);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    cursor: pointer;
   }
 </style>
