@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { updateSettings } from '../../core/edit';
   import type { Settings } from '../../core/model';
   import { REGIONS, regionIds } from '../../data/regions';
@@ -12,9 +13,22 @@
 
   let errors = $state<Record<string, string>>({});
 
+  // Errors and drafts belong to this view's own refused commits; undo, open or new make them stale.
+  let own = false;
+  onMount(() =>
+    workspace.subscribe((ws) => {
+      if (own) return;
+      errors = {};
+      from = ws.settings.horizon.from;
+      to = ws.settings.horizon.to;
+    }),
+  );
+
   /** Commits a settings patch; `keys` are the field paths (under `settings`) the patch touches. */
   function commit(keys: string[], patch: Partial<Settings>): boolean {
+    own = true;
     const result = workspace.apply((ws) => updateSettings(ws, patch));
+    own = false;
     const next = { ...errors };
     for (const k of keys) delete next[k];
     errors = result.ok ? next : { ...next, ...fieldErrors(result.errors, 'settings') };
@@ -61,9 +75,9 @@
     ),
   );
 
-  function toggleDay(day: number, on: boolean) {
+  function toggleDay(day: number, on: boolean): boolean {
     const rest = settings.workdays.filter((d) => d !== day);
-    commit(['workdays'], { workdays: (on ? [...rest, day] : rest).sort((a, b) => a - b) });
+    return commit(['workdays'], { workdays: (on ? [...rest, day] : rest).sort((a, b) => a - b) });
   }
 
   // ---------- selects ----------
@@ -205,7 +219,11 @@
             <input
               type="checkbox"
               checked={settings.workdays.includes(day)}
-              onchange={(e) => toggleDay(day, e.currentTarget.checked)}
+              onchange={(e) => {
+                // A refused commit leaves the stored state, so show that.
+                if (!toggleDay(day, e.currentTarget.checked))
+                  e.currentTarget.checked = settings.workdays.includes(day);
+              }}
             />
             <span>{weekdayName(day)}</span>
           </label>
@@ -313,23 +331,27 @@
     confirmRemove={confirmPerson}
   >
     {#snippet extra(person, ctx)}
-      <div class="hours">
-        <input
-          type="number"
-          min="0"
-          step="0.5"
-          value={person.hoursPerWeek}
-          aria-label={$t('settings.people.hours', { name: person.name })}
-          aria-invalid={ctx.errors.hoursPerWeek ? 'true' : undefined}
-          aria-describedby={ctx.errors.hoursPerWeek ? `err-hours-${person.id}` : undefined}
-          onchange={(e) => {
-            const n = Number(e.currentTarget.value);
-            if (e.currentTarget.value.trim() === '' || !Number.isFinite(n)) return;
-            ctx.update({ hoursPerWeek: n });
-          }}
-        />
-        <span>{$t('settings.people.unit')}</span>
-      </div>
+      <label class="hours">
+        <span class="hours-label">{$t('settings.people.hoursLabel')}</span>
+        <span class="hours-row">
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={person.hoursPerWeek}
+            aria-label={$t('settings.people.hours', { name: person.name })}
+            aria-invalid={ctx.errors.hoursPerWeek ? 'true' : undefined}
+            aria-describedby={ctx.errors.hoursPerWeek ? `err-hours-${person.id}` : undefined}
+            onchange={(e) => {
+              const n = Number(e.currentTarget.value);
+              if (e.currentTarget.value.trim() === '' || !Number.isFinite(n))
+                return ctx.fail('hoursPerWeek', 'error.number.invalid');
+              ctx.update({ hoursPerWeek: n });
+            }}
+          />
+          <span>{$t('settings.people.unit')}</span>
+        </span>
+      </label>
       {#if ctx.errors.hoursPerWeek}
         <p class="field-error" id="err-hours-{person.id}">
           {$t(ctx.errors.hoursPerWeek, { path: person.name })}
@@ -391,8 +413,15 @@
   }
   .hours {
     display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--text-muted);
+  }
+  .hours-row {
+    display: flex;
     align-items: center;
     gap: 0.4rem;
+    color: var(--text);
   }
   .hours input {
     width: 5.5rem;

@@ -99,5 +99,8 @@
   "colour.name.orange": "Orange",
   "colour.name.teal": "Teal",
   "colour.name.pink": "Pink",
-  "colour.name.grey": "Grey"
+  "colour.name.grey": "Grey",
+  "error.workdays.empty": "At least one workday is required.",
+  "list.name": "Name",
+  "settings.people.hoursLabel": "Hours per week"
 }

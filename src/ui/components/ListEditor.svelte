@@ -8,11 +8,13 @@
     errors: Record<string, string>;
     /** Commits a patch to this row; false (and an inline error) when the workspace refuses it. */
     update: (patch: Record<string, unknown>) => boolean;
+    /** Shows an inline error (an i18n key) on a field of this row without committing. */
+    fail: (field: string, key: string) => void;
   }
 </script>
 
 <script lang="ts" generics="T extends Row">
-  import { tick, type Snippet } from 'svelte';
+  import { onMount, tick, type Snippet } from 'svelte';
   import { moveItem, removeItem, updateItem, addItem, type ListKind } from '../../core/edit';
   import type { Workspace } from '../../core/model';
   import { translate as t } from '../../i18n';
@@ -49,6 +51,25 @@
   let addError = $state('');
   let rowErrors = $state<Record<string, Record<string, string>>>({});
 
+  // Errors belong to a failed commit of this editor; any other workspace change (undo, open, new)
+  // makes them stale.
+  let own = false;
+  function run<R>(fn: () => R): R {
+    own = true;
+    try {
+      return fn();
+    } finally {
+      own = false;
+    }
+  }
+  onMount(() =>
+    workspace.subscribe(() => {
+      if (own) return;
+      rowErrors = {};
+      addError = '';
+    }),
+  );
+
   type Mutable = (
     ws: Workspace,
     kind: ListKind,
@@ -58,13 +79,21 @@
 
   function update(id: string, patch: Record<string, unknown>): boolean {
     const index = items.findIndex((i) => i.id === id);
-    const result = workspace.apply((ws) => (updateItem as Mutable)(ws, kind, id, patch));
+    const result = run(() => workspace.apply((ws) => (updateItem as Mutable)(ws, kind, id, patch)));
     if (result.ok) {
       rowErrors[id] = {};
       return true;
     }
     rowErrors[id] = fieldErrors(result.errors, `${kind}.${index}`);
     return false;
+  }
+
+  function contextFor(item: T, errors: Record<string, string>): RowContext {
+    return {
+      errors,
+      update: (patch) => update(item.id, patch),
+      fail: (field, key) => (rowErrors[item.id] = { ...rowErrors[item.id], [field]: key }),
+    };
   }
 
   function rename(item: T, event: Event) {
@@ -92,7 +121,7 @@
       addError = 'list.error.empty';
       return;
     }
-    const result = workspace.apply((ws) => addItem(ws, kind, create(name) as never));
+    const result = run(() => workspace.apply((ws) => addItem(ws, kind, create(name) as never)));
     if (!result.ok) {
       addError = result.errors[0]?.key ?? 'error.type';
       return;
@@ -102,7 +131,7 @@
   }
 
   function move(item: T, delta: -1 | 1) {
-    workspace.apply((ws) => moveItem(ws, kind, item.id, delta));
+    run(() => workspace.apply((ws) => moveItem(ws, kind, item.id, delta)));
     const same = delta < 0 ? 'up' : 'down';
     const other = delta < 0 ? 'down' : 'up';
     void focusSoon(`[data-move="${item.id}:${same}"]`, `[data-move="${item.id}:${other}"]`);
@@ -122,7 +151,7 @@
   function tryRemove(item: T, replacementId?: string) {
     const index = items.findIndex((i) => i.id === item.id);
     const neighbour = items[index + 1] ?? items[index - 1];
-    const result = workspace.apply((ws) => removeItem(ws, kind, item.id, replacementId));
+    const result = run(() => workspace.apply((ws) => removeItem(ws, kind, item.id, replacementId)));
     if (result.ok) {
       replacing = null;
       void focusSoon(
@@ -159,15 +188,19 @@
         <li>
           <div class="fields">
             <div class="name">
-              <input
-                type="text"
-                data-name={item.id}
-                value={item.name}
-                aria-label={$t('list.rename', { name: item.name })}
-                aria-invalid={errors.name ? 'true' : undefined}
-                aria-describedby={errors.name ? `${uid}-${item.id}-err` : undefined}
-                onchange={(e) => rename(item, e)}
-              />
+              <label class="named">
+                <span>{$t('list.name')}</span>
+                <input
+                  type="text"
+                  data-name={item.id}
+                  value={item.name}
+                  aria-label={$t('list.rename', { name: item.name })}
+                  aria-invalid={errors.name ? 'true' : undefined}
+                  aria-describedby={errors.name ? `${uid}-${item.id}-err` : undefined}
+                  oninput={() => errors.name && (rowErrors[item.id] = {})}
+                  onchange={(e) => rename(item, e)}
+                />
+              </label>
               {#if errors.name}
                 <p class="field-error" id="{uid}-{item.id}-err">
                   {$t(errors.name, { path: item.name })}
@@ -175,7 +208,7 @@
               {/if}
             </div>
             {#if extra}
-              {@render extra(item, { errors, update: (patch) => update(item.id, patch) })}
+              {@render extra(item, contextFor(item, errors))}
             {/if}
           </div>
           <div class="buttons">
@@ -281,7 +314,14 @@
     gap: 0.25rem;
     flex: 1 1 12rem;
   }
+  .named {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--text-muted);
+  }
   .buttons {
+    align-self: flex-end;
     display: flex;
     gap: 0.25rem;
   }

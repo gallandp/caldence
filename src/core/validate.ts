@@ -117,9 +117,10 @@ function checkSettings(c: Checker, v: unknown): void {
   c.str(s, 'region', p);
   c.str(s, 'timezone', p);
   if (s.workdays === undefined) c.err('settings.workdays', 'error.required');
+  else if (Array.isArray(s.workdays) && s.workdays.length === 0)
+    c.err('settings.workdays', 'error.workdays.empty');
   else if (
     !Array.isArray(s.workdays) ||
-    s.workdays.length === 0 ||
     !s.workdays.every((d) => isInt(d) && d >= 1 && d <= 7) ||
     new Set(s.workdays).size !== s.workdays.length
   )

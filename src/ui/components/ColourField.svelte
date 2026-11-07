@@ -49,12 +49,7 @@
     {/each}
     <label class="custom">
       <span>{$t('colour.custom')}</span>
-      <input
-        type="color"
-        {value}
-        aria-describedby={warn ? warnId : undefined}
-        onchange={(e) => pick(e.currentTarget.value)}
-      />
+      <input type="color" {value} onchange={(e) => pick(e.currentTarget.value)} />
     </label>
   </div>
   {#if warn}

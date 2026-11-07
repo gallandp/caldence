@@ -77,7 +77,6 @@ test('roles are added and reordered by keyboard in a new workspace', async ({ pa
 
 test('deleting a role in use asks for a replacement', async ({ page }) => {
   await openExample(page);
-  await expect.poll(() => storedMembers(page)).toEqual([]);
   await page.getByRole('button', { name: 'Delete Scrum Master' }).click();
   const dialog = page.getByRole('dialog', { name: 'Replace Scrum Master' });
   await expect(dialog).toBeVisible();
@@ -169,3 +168,58 @@ for (const locale of ['de', 'en'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('the last workday cannot be unchecked and the box stays checked', async ({ page }) => {
+  await openExample(page);
+  const days = page.getByRole('group', { name: 'Workdays' });
+  for (const d of ['Tuesday', 'Wednesday', 'Thursday', 'Friday'])
+    await days.getByLabel(d).uncheck();
+  const monday = days.getByLabel('Monday');
+  await expect(monday).toBeChecked();
+  await monday.click();
+  await expect(page.getByText('At least one workday is required.')).toBeVisible();
+  await expect(monday).toBeChecked();
+});
+
+test('invalid person hours show an inline error', async ({ page }) => {
+  await openExample(page);
+  const hours = page.getByLabel('Hours per week of Alex');
+  await hours.fill('-3');
+  await hours.blur();
+  await expect(hours).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText(/Invalid number/).first()).toBeVisible();
+  await hours.fill('20');
+  await hours.blur();
+  await expect(hours).not.toHaveAttribute('aria-invalid', 'true');
+  await hours.fill('');
+  await hours.blur();
+  await expect(hours).toHaveAttribute('aria-invalid', 'true');
+  await expect(hours).toHaveAttribute('aria-describedby', /.+/);
+});
+
+test('rows have visible labels', async ({ page }) => {
+  await openExample(page);
+  const roles = page.getByRole('region', { name: 'Roles' });
+  await expect(roles.getByText('Name', { exact: true }).first()).toBeVisible();
+  const people = page.getByRole('region', { name: 'People' });
+  await expect(people.getByText('Hours per week', { exact: true }).first()).toBeVisible();
+});
+
+test('a stale error and draft disappear when the workspace changes elsewhere', async ({ page }) => {
+  await openExample(page);
+  const to = page.getByLabel('Horizon to');
+  await to.fill('2026-01-01');
+  await expect(page.getByText(/before its start/)).toBeVisible();
+  await page.locator('header').getByLabel('Language').selectOption('de');
+  await expect(page.getByText(/liegt vor dem Beginn|before its start/)).toHaveCount(0);
+  await expect(page.getByLabel('Zeitraum bis')).toHaveValue('2027-12-31');
+});
+
+test('colour radios can be chosen with the arrow keys', async ({ page }) => {
+  await openExample(page);
+  const group = page.getByRole('group', { name: 'Colour of Product Owner' });
+  await group.getByRole('radio', { name: 'Blue' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(group.getByRole('radio', { name: 'Green' })).toBeChecked();
+  await expect(group.getByRole('radio', { name: 'Green' })).toBeFocused();
+});

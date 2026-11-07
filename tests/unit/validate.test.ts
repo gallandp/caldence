@@ -145,6 +145,12 @@ describe('validate', () => {
     expect(errs).toContainEqual({ path: 'teams.0.events.0.time', key: 'error.time.invalid' });
   });
 
+  it('reports an empty workdays list with its own key', () => {
+    const w = emptyWorkspace('2026-11-07');
+    w.settings.workdays = [];
+    expect(errorsOf(w)).toContainEqual({ path: 'settings.workdays', key: 'error.workdays.empty' });
+  });
+
   it('rejects newer and unknown schema versions', () => {
     const w = emptyWorkspace('2026-11-07');
     expect(errorsOf({ ...w, schemaVersion: CURRENT_SCHEMA + 1 })).toContainEqual({
