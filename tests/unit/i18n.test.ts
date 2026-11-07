@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import de from '../../src/i18n/de.json';
 import en from '../../src/i18n/en.json';
-import { detectLocale, formatDisplayDate, formatNumber, t } from '../../src/i18n';
+import { detectLocale, formatDisplayDate, formatNumber, formatPercent, t } from '../../src/i18n';
 
 function walk(dir: string, ext: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -57,6 +57,9 @@ describe('formatting', () => {
   it('formats numbers', () => {
     expect(formatNumber('de', 12.06, 2)).toBe('12,06');
     expect(formatNumber('en', 12.06, 2)).toBe('12.06');
+    expect(formatPercent('en', 0.5)).toBe('50%');
+    expect(formatPercent('de', 0.5)).toBe('50\u00a0%');
+    expect(formatPercent('en', 0.1109)).toBe('11%');
   });
 });
 

@@ -2,7 +2,7 @@
   import { isoWeek } from '../../core/date';
   import { fte, loadPerWeek, warnings } from '../../core/load';
   import { loadSummary } from '../../core/views';
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
   import { filter, index, workspace } from '../state/workspace';
 
   const summary = $derived(loadSummary($workspace, $filter));
@@ -30,7 +30,7 @@
       let peak: { monday: string; hours: number } | undefined;
       for (const w of weeks) {
         const h = w.byPerson[person.id] ?? 0;
-        if (peak === undefined || h > peak.hours) peak = { monday: w.monday, hours: h };
+        if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
       return { person, average, fte: fte(average, person.hoursPerWeek), peak };
     }),
@@ -61,7 +61,7 @@
   {#snippet region(id: string, title: string, body: import('svelte').Snippet)}
     <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
     <div class="scroll" role="region" aria-labelledby="{uid}-{id}" tabindex="0">
-      <table aria-labelledby="{uid}-{id}">
+      <table>
         <caption id="{uid}-{id}">{title}</caption>
         {@render body()}
       </table>
@@ -107,7 +107,7 @@
         <tr data-role={r.roleId}>
           <th scope="row">{roleName(r.roleId)}</th>
           <td class="num">{hours(r.hours)}</td>
-          <td class="num">{formatNumber($locale, r.percent, 0)} %</td>
+          <td class="num">{formatPercent($locale, r.percent / 100)}</td>
           <td class="num">{formatNumber($locale, r.fte, 2)}</td>
         </tr>
       {/each}
@@ -154,7 +154,7 @@
     {:else}
       <ul class="warnings">
         {#each warningItems as w (w.key)}
-          <li><span class="icon" aria-hidden="true">⚠</span> {w.text}</li>
+          <li class="warning">{w.text}</li>
         {/each}
       </ul>
     {/if}
@@ -216,7 +216,8 @@
   .warnings li {
     padding: 0.2rem 0;
   }
-  .icon {
+  .warning::before {
+    content: '⚠ ';
     color: var(--danger);
     font-weight: 700;
   }

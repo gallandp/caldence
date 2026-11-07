@@ -306,7 +306,6 @@
   "load.table.base": "Grundlast pro Woche",
   "load.table.role": "Pro Rolle",
   "load.table.person": "Pro Person",
-  "load.region": "Tabelle: {name}",
   "load.col.category": "Kategorie",
   "load.col.role": "Rolle",
   "load.col.person": "Person",

@@ -53,6 +53,12 @@ describe('constants of the weeks and load e2e tests', () => {
     expect(Object.keys(alex.byRole)).toEqual(Object.keys(ALEX_START_WEEK.byRole));
   });
 
+  it('match loadSummary with the person filter', () => {
+    const s = loadSummary(ws, { personId: 'person-alex' });
+    expect(s.byRole.map((r) => r.roleId)).toEqual(['role-po']);
+    expect(s.byRole[0]!.hours).toBeCloseTo(ALEX.roleHours, 9);
+  });
+
   it('match the person Alex (filter personId person-alex)', () => {
     const weeks = loadPerWeek(ws, index);
     const hours = weeks.map((w) => w.byPerson['person-alex']!);

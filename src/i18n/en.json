@@ -306,7 +306,6 @@
   "load.table.base": "Base load per week",
   "load.table.role": "Per role",
   "load.table.person": "Per person",
-  "load.region": "Table: {name}",
   "load.col.category": "Category",
   "load.col.role": "Role",
   "load.col.person": "Person",

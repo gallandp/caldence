@@ -91,7 +91,7 @@
               {/each}
             </td>
             <td>
-              {#each row.milestones as m (m.teamId + m.date + m.name)}
+              {#each row.milestones as m (m.teamId + m.id)}
                 <span class="item">{withTeam(m.name, m.teamId)}</span>
               {/each}
             </td>

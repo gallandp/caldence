@@ -32,6 +32,8 @@ export const ALEX_START_WEEK = { byRole: { 'role-po': 5.1 }, total: 5.1 };
 
 /** Alex (32 h/week, only role Product Owner) with the person filter. */
 export const ALEX = {
+  /** Base load of Alex's Product Owner role (`loadSummary` with the person filter). */
+  roleHours: 4.438461538461539,
   average: 4.343867924528298,
   fte: 4.343867924528298 / 32,
   peakWeek: 25,

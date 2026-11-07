@@ -13,7 +13,7 @@ export type WeekRow = {
   monday: ISODate;
   week: number;
   cadence: { teamId: string; number: number }[];
-  milestones: { teamId: string; name: string; date: ISODate }[];
+  milestones: { teamId: string; id: string; name: string; date: ISODate }[];
   holidays: { date: ISODate; name: HolidayName }[];
   schoolHoliday?: HolidayName;
   byRole: Record<string, number>;
@@ -130,7 +130,7 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
       for (const cycle of team.cycles) {
         for (const m of cycle.milestones) {
           if (m.date >= monday && m.date <= days[6]!) {
-            row.milestones.push({ teamId: team.id, name: m.name, date: m.date });
+            row.milestones.push({ teamId: team.id, id: m.id, name: m.name, date: m.date });
           }
         }
       }
