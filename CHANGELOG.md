@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Workspace settings view: language, region, time zone, workdays, hours, horizon, holidays, thresholds, and editable roles (with colour) and people; deleting a role that is in use asks for a replacement.
 - Open, save and autosave workspace files: workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts, IndexedDB autosave with restore after reload, and an example workspace.
 - App state store: workspace store with undo (50 steps), dirty flag and file name, active team and filter stores, form error mapping; the UI language is now a workspace setting.
 - Core view data: region registry, workspace holiday index, filtered occurrences, day load, week rows, load summary and per-person conflicts.

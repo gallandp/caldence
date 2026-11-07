@@ -3,6 +3,7 @@
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import SettingsView from './views/SettingsView.svelte';
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
@@ -134,6 +135,8 @@
             >{$t('calendar.empty.example')}</button
           >
         </section>
+      {:else if id === 'settings'}
+        {#if active === 'settings'}<SettingsView />{/if}
       {:else}
         <p>{$t('view.soon')}</p>
       {/if}

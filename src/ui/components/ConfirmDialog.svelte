@@ -10,8 +10,20 @@
     title,
     message,
     onchoose,
-  }: { open: boolean; title: string; message: string; onchoose: (choice: Choice) => void } =
-    $props();
+    confirmLabel,
+    discard = true,
+  }: {
+    open: boolean;
+    title: string;
+    message: string;
+    onchoose: (choice: Choice) => void;
+    /** Replaces the label of the primary ("save") button. */
+    confirmLabel?: string;
+    /** Set to false to hide the Discard button (a plain confirm/cancel prompt). */
+    discard?: boolean;
+  } = $props();
+
+  const uid = $props.id();
 
   let dialog: HTMLDialogElement | undefined;
 
@@ -28,14 +40,16 @@
   }
 </script>
 
-<dialog bind:this={dialog} oncancel={onCancel} aria-labelledby="confirm-title">
-  <h2 id="confirm-title">{title}</h2>
+<dialog bind:this={dialog} oncancel={onCancel} aria-labelledby="{uid}-title">
+  <h2 id="{uid}-title">{title}</h2>
   <p>{message}</p>
   <div class="actions">
     <button type="button" class="primary" onclick={() => onchoose('save')}
-      >{$t('dialog.save')}</button
+      >{confirmLabel ?? $t('dialog.save')}</button
     >
-    <button type="button" onclick={() => onchoose('discard')}>{$t('dialog.discard')}</button>
+    {#if discard}
+      <button type="button" onclick={() => onchoose('discard')}>{$t('dialog.discard')}</button>
+    {/if}
     <button type="button" onclick={() => onchoose('cancel')}>{$t('dialog.cancel')}</button>
   </div>
 </dialog>
