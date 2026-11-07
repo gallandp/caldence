@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 – 2026-11-07
+
 ### Added
 
 - Open, save and autosave workspace files (#14): workspace bar (New, Open, Save, Save as), File System Access API with download/upload fallback, unsaved-changes dialog, keyboard shortcuts (Ctrl/Cmd+S, Shift+S, O, Z), IndexedDB autosave with restore after reload, and an example workspace.
