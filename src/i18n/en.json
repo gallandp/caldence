@@ -411,5 +411,16 @@
   "templates.export.none": "There is no team to export yet. Create a team or apply a template first.",
   "templates.export.hint": "The template contains the team's meetings, roles and categories, but no people.",
   "templates.exported": "Template saved as {name}.",
-  "templates.error.name": "The name must not be empty"
+  "templates.error.name": "The name must not be empty",
+  "ics.error.notIcs": "The file is not an iCalendar file (.ics).",
+  "ics.error.empty": "The file contains no events.",
+  "import.note.unmapped": "Caldence has no matching repeat rule; imported as a single date.",
+  "import.note.ends": "The series ends on {date}; Caldence repeats it until the end of the planning horizon.",
+  "import.note.exceptions": "Exceptions of the series ({count}) are not imported.",
+  "import.note.zone": "Time zone {zone} is taken as local time.",
+  "import.skip.allDay": "All-day item; not imported.",
+  "import.skip.cancelled": "Cancelled event; not imported.",
+  "import.skip.override": "Changed single instance of a series; not imported.",
+  "import.skip.noDuration": "Event without a duration; not imported.",
+  "import.skip.ended": "The series has already ended; not imported."
 }

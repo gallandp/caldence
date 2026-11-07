@@ -1,5 +1,6 @@
 import { mondayOf, type ISODate } from './date';
 import type { CalEvent, Category, Cycle, Person, Role, Settings, Team, Workspace } from './model';
+import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
 import { validate, type Result, type ValidationError } from './validate';
 
 export type ListKind = 'roles' | 'people' | 'categories';
@@ -317,6 +318,40 @@ export function duplicateEvent(
 
 export function removeEvent(ws: Workspace, teamId: string, eventId: string): Workspace {
   return mapTeam(ws, teamId, (t) => ({ ...t, events: t.events.filter((e) => e.id !== eventId) }));
+}
+
+/**
+ * Adds the chosen import candidates as events of the team, each with the roles at share 1 and no
+ * preparation. A workspace without any category first gets one named `newCategoryName`, which all
+ * items then use. The result is validated.
+ */
+export function importEvents(
+  ws: Workspace,
+  teamId: string,
+  items: { candidate: ImportCandidate; categoryId: string }[],
+  opts: { roleIds: string[]; newCategoryName: string },
+): Result<Workspace> {
+  if (!ws.teams.some((t) => t.id === teamId)) return fail(`teams.${teamId}`, 'error.ref.unknown');
+  let out = structuredClone(ws);
+  let fallback: string | null = null;
+  if (out.categories.length === 0)
+    [out, fallback] = addItem(out, 'categories', {
+      name: opts.newCategoryName,
+      colour: NEW_CATEGORY_COLOUR,
+    });
+  for (const { candidate: c, categoryId } of items) {
+    [out] = upsertEvent(out, teamId, {
+      id: '',
+      name: c.name,
+      categoryId: fallback ?? categoryId,
+      rule: structuredClone(c.rule),
+      time: c.time,
+      duration: c.duration,
+      participants: opts.roleIds.map((roleId) => ({ roleId, share: 1 })),
+      preparation: 0,
+    });
+  }
+  return validate(out);
 }
 
 // ---------- settings ----------

@@ -411,5 +411,16 @@
   "templates.export.none": "Es gibt noch kein Team zum Exportieren. Lege zuerst ein Team an oder wende eine Vorlage an.",
   "templates.export.hint": "Die Vorlage enthält Termine, Rollen und Kategorien des Teams, aber keine Personen.",
   "templates.exported": "Vorlage gespeichert als {name}.",
-  "templates.error.name": "Der Name darf nicht leer sein"
+  "templates.error.name": "Der Name darf nicht leer sein",
+  "ics.error.notIcs": "Die Datei ist keine iCalendar-Datei (.ics).",
+  "ics.error.empty": "Die Datei enthält keine Termine.",
+  "import.note.unmapped": "Diese Wiederholung kennt Caldence nicht; wird als einzelner Termin übernommen.",
+  "import.note.ends": "Die Serie endet am {date}; Caldence wiederholt sie bis zum Ende des Planungszeitraums.",
+  "import.note.exceptions": "Ausnahmen der Serie ({count}) werden nicht übernommen.",
+  "import.note.zone": "Zeitzone {zone} wird als Ortszeit übernommen.",
+  "import.skip.allDay": "Ganztägiger Eintrag; wird nicht übernommen.",
+  "import.skip.cancelled": "Abgesagter Termin; wird nicht übernommen.",
+  "import.skip.override": "Geänderter Einzeltermin einer Serie; wird nicht übernommen.",
+  "import.skip.noDuration": "Termin ohne Dauer; wird nicht übernommen.",
+  "import.skip.ended": "Die Serie ist bereits beendet; wird nicht übernommen."
 }
