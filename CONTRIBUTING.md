@@ -37,4 +37,4 @@ For the first e2e run, install the browser with `npx playwright install chromium
 
 ## Conduct
 
-By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Contributions are licensed under the [Apache License 2.0](LICENSE).
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Contributions are licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).
