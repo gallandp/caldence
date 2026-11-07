@@ -1,14 +1,14 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import type { CalEvent, Rule, Team } from '../../core/model';
+  import type { CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
-  import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, locale, translate as t } from '../../i18n';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { weekdayName, weekdayRuns } from '../meetings/rules';
+  import { ruleSummary } from '../meetings/rules';
   import { fieldErrors } from '../state/form';
   import { activeTeamId, workspace } from '../state/workspace';
 
@@ -57,59 +57,6 @@
 
   const selectorFor = (opener: string) =>
     opener === 'add' ? '[data-add]' : `[data-edit="${CSS.escape(opener)}"]`;
-
-  // ---------- summaries ----------
-
-  function summary(rule: Rule, tm: Team): string {
-    const loc = $locale;
-    const wd = (d: number) => weekdayName(loc, d);
-    switch (rule.type) {
-      case 'weekly':
-        return $t('meet.sum.weekly', { weekday: wd(rule.weekday) });
-      case 'weekdays':
-        return $t('meet.sum.weekdays', {
-          weekdays: new Intl.ListFormat(loc, { type: 'conjunction' }).format(
-            weekdayRuns(rule.weekdays).map((r) =>
-              r.from === r.to
-                ? wd(r.from)
-                : $t('meet.sum.range', { from: wd(r.from), to: wd(r.to) }),
-            ),
-          ),
-        });
-      case 'every-n-weeks':
-        return $t('meet.sum.everyN', {
-          n: formatNumber(loc, rule.n, 0),
-          weekday: wd(rule.weekday),
-        });
-      case 'monthly-nth-weekday':
-        return $t('meet.sum.monthly', {
-          nth: $t(rule.nth === -1 ? 'meet.nth.last' : `meet.nth.${rule.nth}`),
-          weekday: wd(rule.weekday),
-        });
-      case 'cadence-day':
-        return $t('meet.sum.cadenceDay', {
-          day: formatNumber(loc, rule.day + 1, 0),
-          kind: $t(`meet.kind.${tm.cadence.kind}`),
-        });
-      case 'cycle-milestone': {
-        const cycle = tm.cycles.find((c) => c.id === rule.cycleId);
-        const milestone = cycle?.milestones.find((m) => m.id === rule.milestoneId);
-        const params = {
-          milestone: milestone?.name ?? rule.milestoneId,
-          cycle: cycle?.name ?? rule.cycleId,
-        };
-        if (rule.offsetDays === 0) return $t('meet.sum.milestoneOn', params);
-        const days = Math.abs(rule.offsetDays);
-        const key = rule.offsetDays > 0 ? 'after' : 'before';
-        return $t(`meet.sum.${key}${days === 1 ? 'One' : ''}`, {
-          ...params,
-          n: formatNumber(loc, days, 0),
-        });
-      }
-      case 'once':
-        return $t('meet.sum.once', { date: formatDisplayDate(loc, rule.date, 'long') });
-    }
-  }
 
   const categoryOf = (id: string) => categories.find((c) => c.id === id);
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? id;
@@ -238,7 +185,7 @@
                     {category?.name ?? event.categoryId}
                   </span>
                 </td>
-                <td>{summary(event.rule, team)}</td>
+                <td>{ruleSummary(event.rule, team, $t, $locale)}</td>
                 <td>{event.time}</td>
                 <td>
                   {$t(event.scaling ? 'meet.duration.scaled' : 'meet.duration.fixed', {

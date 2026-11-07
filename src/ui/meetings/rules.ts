@@ -1,6 +1,6 @@
 import { mondayOf } from '../../core/date';
 import type { Rule, Team } from '../../core/model';
-import type { Locale } from '../../i18n';
+import { formatDisplayDate, formatNumber, type Locale } from '../../i18n';
 
 export const RULE_TYPES = [
   'weekly',
@@ -127,5 +127,59 @@ export function toRule(d: RuleDraft): Rule {
       };
     case 'once':
       return { type: 'once', date: d.date };
+  }
+}
+
+/** The "Repeats" text of a rule; `t` is the translate function of the active locale. */
+export function ruleSummary(
+  rule: Rule,
+  tm: Team,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  loc: Locale,
+): string {
+  const wd = (d: number) => weekdayName(loc, d);
+  switch (rule.type) {
+    case 'weekly':
+      return t('meet.sum.weekly', { weekday: wd(rule.weekday) });
+    case 'weekdays':
+      return t('meet.sum.weekdays', {
+        weekdays: new Intl.ListFormat(loc, { type: 'conjunction' }).format(
+          weekdayRuns(rule.weekdays).map((r) =>
+            r.from === r.to ? wd(r.from) : t('meet.sum.range', { from: wd(r.from), to: wd(r.to) }),
+          ),
+        ),
+      });
+    case 'every-n-weeks':
+      return t('meet.sum.everyN', {
+        n: formatNumber(loc, rule.n, 0),
+        weekday: wd(rule.weekday),
+      });
+    case 'monthly-nth-weekday':
+      return t('meet.sum.monthly', {
+        nth: t(rule.nth === -1 ? 'meet.nth.last' : `meet.nth.${rule.nth}`),
+        weekday: wd(rule.weekday),
+      });
+    case 'cadence-day':
+      return t('meet.sum.cadenceDay', {
+        day: formatNumber(loc, rule.day + 1, 0),
+        kind: t(`meet.kind.${tm.cadence.kind}`),
+      });
+    case 'cycle-milestone': {
+      const cycle = tm.cycles.find((c) => c.id === rule.cycleId);
+      const milestone = cycle?.milestones.find((m) => m.id === rule.milestoneId);
+      const params = {
+        milestone: milestone?.name ?? rule.milestoneId,
+        cycle: cycle?.name ?? rule.cycleId,
+      };
+      if (rule.offsetDays === 0) return t('meet.sum.milestoneOn', params);
+      const days = Math.abs(rule.offsetDays);
+      const key = rule.offsetDays > 0 ? 'after' : 'before';
+      return t(`meet.sum.${key}${days === 1 ? 'One' : ''}`, {
+        ...params,
+        n: formatNumber(loc, days, 0),
+      });
+    }
+    case 'once':
+      return t('meet.sum.once', { date: formatDisplayDate(loc, rule.date, 'long') });
   }
 }

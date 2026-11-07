@@ -10,6 +10,7 @@
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import TemplatesView from './views/TemplatesView.svelte';
+  import ExchangeView from './views/ExchangeView.svelte';
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
   import { workspace } from './state/workspace';
@@ -190,6 +191,10 @@
           {#if active === 'settings'}<SettingsView />{/if}
         {:else if id === 'templates'}
           {#if active === 'templates'}<TemplatesView onOpenTeam={() => select('team', true)} />{/if}
+        {:else if id === 'exchange'}
+          {#if active === 'exchange'}<ExchangeView
+              onOpenMeetings={() => select('meetings', true)}
+            />{/if}
         {:else if id === 'help'}
           {#if active === 'help'}<HelpView />{/if}
         {:else}
