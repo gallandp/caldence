@@ -117,7 +117,7 @@ test('selected weekdays show on those days only, and none selected is refused in
   await group.getByLabel('Thursday').check();
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(form).toBeHidden();
-  await expect(row(page, 'M days')).toContainText('On Monday, Thursday');
+  await expect(row(page, 'M days')).toContainText('On Monday and Thursday');
 
   // March 2027: Monday the 15th and Thursday the 18th have the meeting, Tuesday the 16th not.
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
@@ -143,8 +143,20 @@ test('selected weekdays show on those days only, and none selected is refused in
   await again.getByRole('button', { name: 'Save' }).click();
   await expect(g2.getByText('Required field missing: Weekdays')).toBeVisible();
   await expect(g2).toHaveAttribute('aria-describedby', /.+/);
+  await expect(g2.getByLabel('Monday')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(g2.getByText('Required field missing: Weekdays')).toBeHidden();
+  await expect(g2).not.toHaveAttribute('aria-describedby', /.+/);
   await expect(g2).not.toHaveAttribute('aria-invalid', /.*/);
   await expect(again).toBeVisible();
+});
+
+test('the default weekdays summary is a range', async ({ page }) => {
+  await openMeetings(page);
+  const form = await startNew(page, 'M range');
+  await form.getByLabel('Repeats').selectOption('weekdays');
+  await submitByKeyboard(page, form);
+  await expect(row(page, 'M range')).toContainText('On Monday to Friday');
 });
 
 test('the scaled example event shows its effective duration as scaled', async ({ page }) => {

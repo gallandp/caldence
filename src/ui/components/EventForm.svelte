@@ -178,7 +178,10 @@
     if (result === null && Object.keys(found).length === 0) return;
     errors = { ...result, ...found };
     await tick();
-    const first = form?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    // A weekday group has no aria-invalid (it is a fieldset), so its first checkbox takes the focus.
+    const first = form?.querySelector<HTMLElement>(
+      '[aria-invalid="true"], fieldset[aria-describedby] input',
+    );
     (first ?? form?.querySelector<HTMLElement>('[role="alert"]'))?.focus();
   }
 

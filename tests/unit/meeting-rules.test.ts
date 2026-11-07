@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Rule, Team } from '../../src/core/model';
-import { ruleDraft, toRule, weekdayName } from '../../src/ui/meetings/rules';
+import { ruleDraft, toRule, weekdayName, weekdayRuns } from '../../src/ui/meetings/rules';
 
 const team: Team = {
   id: 't1',
@@ -50,6 +50,19 @@ describe('rule drafts', () => {
 describe('weekdays draft', () => {
   it('defaults to Monday to Friday', () => {
     expect(ruleDraft(undefined, team, today).weekdays).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('weekdayRuns', () => {
+  it('collapses 3 or more consecutive days', () => {
+    expect(weekdayRuns([5, 1, 2, 3, 4])).toEqual([{ from: 1, to: 5 }]);
+  });
+  it('keeps pairs and gaps as single days', () => {
+    expect(weekdayRuns([1, 2, 4])).toEqual([
+      { from: 1, to: 1 },
+      { from: 2, to: 2 },
+      { from: 4, to: 4 },
+    ]);
   });
 });
 

@@ -71,7 +71,12 @@
       <div class="checks">
         {#each weekdays as w (w)}
           <label class="check">
-            <input type="checkbox" value={w} bind:group={draft.weekdays} />
+            <input
+              type="checkbox"
+              value={w}
+              data-field="rule.weekdays"
+              bind:group={draft.weekdays}
+            />
             {weekdayName($locale, w)}
           </label>
         {/each}
