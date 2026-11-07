@@ -41,6 +41,7 @@
   "file.untitled": "Unbenannt",
   "file.name": "Datei:",
   "file.unsaved": "● Ungespeicherte Änderungen",
+  "file.savedOpenAgain": "Gespeichert. Drücken Sie erneut auf Öffnen, um eine Datei zu wählen.",
   "file.saved": "✓ Gespeichert",
   "file.input": "Arbeitsbereich-Datei auswählen",
   "file.autosaveOff": "Automatisches Speichern ist aus: Änderungen werden nicht im Browser gespeichert",

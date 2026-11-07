@@ -37,6 +37,50 @@ function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+/** The picker was refused because the user activation was used up or has expired. */
+export function isActivationError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'SecurityError' || error.name === 'NotAllowedError')
+  );
+}
+
+/** How long after the window regains focus a file input may still report its file. */
+export const PICK_FOCUS_DELAY_MS = 1000;
+
+/**
+ * Opens the file dialog of `input` and resolves with the chosen file, or null when the dialog was
+ * dismissed. Browsers that never fire `cancel` are covered by the window regaining focus: if no
+ * file shows up shortly after, the dialog is taken as dismissed.
+ */
+export function pickWithInput(
+  input: HTMLInputElement,
+  win: EventTarget,
+  delay = PICK_FOCUS_DELAY_MS,
+): Promise<File | null> {
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (file: File | null) => {
+      clearTimeout(timer);
+      input.removeEventListener('change', onChange);
+      input.removeEventListener('cancel', onCancel);
+      win.removeEventListener('focus', onFocus);
+      resolve(file);
+    };
+    const onChange = () => finish(input.files?.[0] ?? null);
+    const onCancel = () => finish(null);
+    const onFocus = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => finish(input.files?.[0] ?? null), delay);
+    };
+    input.addEventListener('change', onChange);
+    input.addEventListener('cancel', onCancel);
+    win.addEventListener('focus', onFocus);
+    input.value = '';
+    input.click();
+  });
+}
+
 export function createFileService(env: FileEnv) {
   let handle: FileHandleLike | null = null;
 

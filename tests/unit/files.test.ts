@@ -8,6 +8,8 @@ import { exampleWorkspace } from '../../src/data/examples';
 import {
   DEFAULT_FILE_NAME,
   createFileService,
+  isActivationError,
+  pickWithInput,
   serialize,
   type FileEnv,
   type FileHandleLike,
@@ -158,5 +160,74 @@ describe('example workspace', () => {
     const example = exampleWorkspace();
     const alex = example.people.find((p) => p.name === 'Alex')!;
     expect(conflicts(example, workspaceIndex(example), alex.id).length).toBeGreaterThan(0);
+  });
+});
+
+function fakeInput() {
+  const target = new EventTarget();
+  const input = Object.assign(target, {
+    files: [] as File[],
+    value: 'x',
+    click: vi.fn(),
+  });
+  return input as unknown as HTMLInputElement & { files: File[]; click: ReturnType<typeof vi.fn> };
+}
+
+describe('pickWithInput', () => {
+  it('resolves with the chosen file on change', async () => {
+    const input = fakeInput();
+    const win = new EventTarget();
+    const promise = pickWithInput(input, win);
+    expect(input.click).toHaveBeenCalled();
+    const file = new File(['{}'], 'a.json');
+    input.files = [file];
+    input.dispatchEvent(new Event('change'));
+    expect(await promise).toBe(file);
+  });
+
+  it('resolves null on cancel', async () => {
+    const input = fakeInput();
+    const promise = pickWithInput(input, new EventTarget());
+    input.dispatchEvent(new Event('cancel'));
+    expect(await promise).toBeNull();
+  });
+
+  it('resolves null shortly after the window regains focus when no event fires', async () => {
+    vi.useFakeTimers();
+    try {
+      const input = fakeInput();
+      const win = new EventTarget();
+      const promise = pickWithInput(input, win, 500);
+      win.dispatchEvent(new Event('focus'));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await promise).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still returns a file that arrives right after the focus event', async () => {
+    vi.useFakeTimers();
+    try {
+      const input = fakeInput();
+      const win = new EventTarget();
+      const promise = pickWithInput(input, win, 500);
+      win.dispatchEvent(new Event('focus'));
+      const file = new File(['{}'], 'a.json');
+      input.files = [file];
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await promise).toBe(file);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('isActivationError', () => {
+  it('matches SecurityError and NotAllowedError only', () => {
+    expect(isActivationError(new DOMException('x', 'SecurityError'))).toBe(true);
+    expect(isActivationError(new DOMException('x', 'NotAllowedError'))).toBe(true);
+    expect(isActivationError(new DOMException('x', 'AbortError'))).toBe(false);
+    expect(isActivationError(new Error('x'))).toBe(false);
   });
 });

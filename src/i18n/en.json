@@ -41,6 +41,7 @@
   "file.untitled": "Untitled",
   "file.name": "File:",
   "file.unsaved": "● Unsaved changes",
+  "file.savedOpenAgain": "Saved. Press Open again to choose a file.",
   "file.saved": "✓ Saved",
   "file.input": "Choose a workspace file",
   "file.autosaveOff": "Autosave is off: changes are not stored in this browser",

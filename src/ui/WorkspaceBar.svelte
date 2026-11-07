@@ -7,39 +7,28 @@
   import FilterBar from './FilterBar.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import { autosave } from './state/autosave';
-  import { browserFileEnv, createFileService } from './state/files';
+  import {
+    browserFileEnv,
+    createFileService,
+    isActivationError,
+    pickWithInput,
+  } from './state/files';
   import { workspace } from './state/workspace';
 
   const { dirty, fileName } = workspace;
   const autosaveOn = autosave.status;
 
   let input: HTMLInputElement | undefined;
-  let pendingFile: ((file: File | null) => void) | undefined;
   type Problem = { key: string; params?: Record<string, string | number>; more: number };
   let error = $state<Problem | null>(null);
   let askOpen = $state(false);
   let askResolve: ((choice: Choice) => void) | undefined;
+  let hint = $state<string | null>(null);
   let busy = false;
 
   const files = createFileService(
-    browserFileEnv(
-      () =>
-        new Promise((resolve) => {
-          pendingFile = resolve;
-          if (input) input.value = '';
-          input?.click();
-        }),
-    ),
+    browserFileEnv(() => (input ? pickWithInput(input, window) : Promise.resolve(null))),
   );
-
-  function onFileChange() {
-    pendingFile?.(input?.files?.[0] ?? null);
-    pendingFile = undefined;
-  }
-  function onFileCancel() {
-    pendingFile?.(null);
-    pendingFile = undefined;
-  }
 
   function ask(): Promise<Choice> {
     askOpen = true;
@@ -57,6 +46,7 @@
   async function exclusive<T>(run: () => Promise<T>, fallback: T): Promise<T> {
     if (busy) return fallback;
     busy = true;
+    hint = null;
     try {
       return await run();
     } finally {
@@ -64,12 +54,18 @@
     }
   }
 
+  /** Set when the unsaved-changes dialog led to a save, which may have used up the user activation. */
+  let savedInDialog = false;
+
   /** True when it is fine to replace the workspace: clean, saved or discarded. */
   async function proceed(): Promise<boolean> {
     if (!get(dirty)) return true;
     const choice = await ask();
     if (choice === 'cancel') return false;
-    if (choice === 'save') return doSave(false);
+    if (choice === 'save') {
+      savedInDialog = await doSave(false);
+      return savedInDialog;
+    }
     return true;
   }
 
@@ -102,12 +98,15 @@
 
   export function open(): Promise<void> {
     return exclusive(async () => {
+      hint = null;
+      savedInDialog = false;
       if (!(await proceed())) return;
       let result;
       try {
         result = await files.open();
-      } catch {
-        error = { key: 'file.error.read', more: 0 };
+      } catch (e) {
+        if (savedInDialog && isActivationError(e)) hint = 'file.savedOpenAgain';
+        else error = { key: 'file.error.read', more: 0 };
         return;
       }
       if (result === null) return;
@@ -158,7 +157,7 @@
     {/if}
   </p>
   <div role="status" class="notice">
-    {#if !$autosaveOn}{$t('file.autosaveOff')}{/if}
+    {#if hint}{$t(hint)}{:else if !$autosaveOn}{$t('file.autosaveOff')}{/if}
   </div>
   <div role="alert" class="error">
     {#if error}
@@ -180,8 +179,6 @@
   aria-label={$t('file.input')}
   tabindex="-1"
   hidden
-  onchange={onFileChange}
-  oncancel={onFileCancel}
 />
 
 <ConfirmDialog

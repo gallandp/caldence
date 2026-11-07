@@ -130,3 +130,31 @@ test('Ctrl+S saves via the shortcut', async ({ page }) => {
   await download;
   await expect(page.getByText('✓ Saved')).toBeVisible();
 });
+
+test('Open while dirty: after Save in the dialog a refused open picker shows a hint, not a read error', async ({
+  page,
+}) => {
+  // Picker APIs where the save works but the open picker has lost the user activation.
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    w.showSaveFilePicker = async () => ({
+      name: 'saved.caldence.json',
+      getFile: async () => new File([''], 'saved.caldence.json'),
+      createWritable: async () => ({ write: async () => {}, close: async () => {} }),
+    });
+    w.showOpenFilePicker = async () => {
+      throw new DOMException('Must be handling a user gesture', 'SecurityError');
+    };
+  });
+  await openExample(page);
+  await makeChange(page);
+  await page.getByRole('button', { name: 'Open', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Unsaved changes' })
+    .getByRole('button', { name: 'Save' })
+    .click();
+  await expect(page.getByText('Saved. Press Open again to choose a file.')).toBeVisible();
+  await expect(page.getByRole('alert')).toBeEmpty();
+  await expect(page.getByText('saved.caldence.json')).toBeVisible();
+  await expect(page.getByText('✓ Saved')).toBeVisible();
+});

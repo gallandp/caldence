@@ -149,7 +149,13 @@ describe('weekRows', () => {
     expect(rows.every((r, i) => i === 0 || r.monday > rows[i - 1]!.monday)).toBe(true);
     const w = rows.find((r) => r.monday === '2026-11-30')!;
     expect(w.milestones).toEqual([
-      { teamId: 't1', id: expect.any(String), name: 'Freeze', date: '2026-12-01' },
+      {
+        teamId: 't1',
+        cycleId: expect.any(String),
+        id: expect.any(String),
+        name: 'Freeze',
+        date: '2026-12-01',
+      },
     ]);
     expect(w.byRole).toEqual({ r1: 1 });
     expect(w.total).toBe(1);
