@@ -54,6 +54,20 @@ describe('autosave', () => {
     expect(kv.data.has('current')).toBe(true);
   });
 
+  it('flushNow rewrites a state whose async write has not finished yet', () => {
+    const now: [string, unknown][] = [];
+    const kv: KV = {
+      get: async () => undefined,
+      set: () => new Promise(() => {}), // never settles, like a write cut off by a reload
+      setNow: (k, v) => void now.push([k, v]),
+    };
+    const a = createAutosave(kv, 500);
+    const state = { ws, fileName: 'x.json', dirty: false };
+    a.schedule(state, { immediate: true });
+    a.flushNow();
+    expect(now).toEqual([['current', state]]);
+  });
+
   it('debounces and restores ws, fileName and dirty', async () => {
     const kv = memory();
     const a = createAutosave(kv, 500);

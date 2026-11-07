@@ -7,6 +7,10 @@
 - Meetings on selected weekdays, for example a Daily Scrum Monday to Friday: new repeat rule "Selected weekdays" with a summary such as "On Monday to Friday" (#15).
 - Every workspace has its own id (schema 2), so later calendar exports get stable, collision-free event ids. Older files are upgraded on open.
 
+### Fixed
+
+- Autosave no longer loses the last change when the page is reloaded or closed while that change is still being written.
+
 ## 0.2.0 – 2026-11-07
 
 ### Added
