@@ -45,7 +45,7 @@ export function isActivationError(error: unknown): boolean {
   );
 }
 
-/** How long after the window regains focus a file input may still report its file. */
+/** How long after a cancel event, or the window regaining focus, a file input may still report its file. */
 export const PICK_FOCUS_DELAY_MS = 1000;
 
 /**
@@ -71,7 +71,12 @@ export function pickWithInput(
       resolve(file);
     };
     const onChange = () => finish(input.files?.[0] ?? null);
-    const onCancel = () => finish(null);
+    // Firefox can report `cancel` before the chosen file arrives, so a cancel is only final when
+    // no file follows shortly after.
+    const onCancel = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => finish(input.files?.[0] ?? null), delay);
+    };
     const onBlur = () => {
       blurred = true;
     };

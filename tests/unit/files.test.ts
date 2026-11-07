@@ -185,11 +185,33 @@ describe('pickWithInput', () => {
     expect(await promise).toBe(file);
   });
 
-  it('resolves null on cancel', async () => {
-    const input = fakeInput();
-    const promise = pickWithInput(input, new EventTarget());
-    input.dispatchEvent(new Event('cancel'));
-    expect(await promise).toBeNull();
+  it('resolves null shortly after cancel', async () => {
+    vi.useFakeTimers();
+    try {
+      const input = fakeInput();
+      const promise = pickWithInput(input, new EventTarget(), 500);
+      input.dispatchEvent(new Event('cancel'));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await promise).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still returns a file whose change event follows a cancel event', async () => {
+    vi.useFakeTimers();
+    try {
+      const input = fakeInput();
+      const promise = pickWithInput(input, new EventTarget(), 500);
+      input.dispatchEvent(new Event('cancel'));
+      await vi.advanceTimersByTimeAsync(100);
+      const file = new File(['{}'], 'a.json');
+      input.files = [file] as unknown as FileList;
+      input.dispatchEvent(new Event('change'));
+      expect(await promise).toBe(file);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('resolves null shortly after the window regains focus when no event fires', async () => {
