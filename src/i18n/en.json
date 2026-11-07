@@ -1,0 +1,19 @@
+{
+  "app.name": "Caldence",
+  "app.version": "Version {version}",
+  "error.required": "Required field missing: {path}",
+  "error.type": "Wrong data type at {path}",
+  "error.date.invalid": "Invalid date at {path} (expected: YYYY-MM-DD)",
+  "error.time.invalid": "Invalid time at {path} (expected: HH:MM)",
+  "error.colour.invalid": "Invalid colour at {path} (expected: #RRGGBB)",
+  "error.number.invalid": "Invalid number at {path}",
+  "error.share.range": "The share at {path} must be between 0 and 1",
+  "error.weekday.range": "Invalid weekday at {path} (allowed: 1 to 7)",
+  "error.enum.invalid": "Invalid value at {path}",
+  "error.horizon.order": "The end of the planning horizon at {path} is before its start",
+  "error.id.duplicate": "Duplicate ID at {path}",
+  "error.ref.unknown": "Unknown reference at {path}",
+  "error.schema.newer": "The file comes from a newer version of Caldence and cannot be opened",
+  "error.schema.unknown": "Unknown or missing schema version",
+  "error.file.json": "The file does not contain valid JSON"
+}
