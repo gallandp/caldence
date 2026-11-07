@@ -27,7 +27,7 @@ All phase 1 and phase 2 constraints still apply (see `docs/superpowers/plans/202
 New for phase 3:
 - **Wall-clock times.** A meeting at 09:00 stays at 09:00 local time in every export and import, on both sides of a DST change.
 - **Privacy.** Template files never contain people, members or settings. Imported and exported files are read and written only on the device.
-- **Stable UIDs.** A recurring series exports as `UID:<eventId>.<teamId>.<workspaceId>@caldence`. All-day entries use `UID:<kind>-<date>.<workspaceId>@caldence` with kind `holiday`, `school` or `milestone-<cycleId>-<milestoneId>`.
+- **Stable UIDs.** A recurring series exports as `UID:<eventId>.<teamId>.<workspaceId>@caldence`. A single event (`once`, `cycle-milestone`) exports as `UID:<eventId>.<teamId>.<workspaceId>-<date>@caldence`. All-day entries use `UID:<kind>-<date>.<workspaceId>@caldence` with kind `holiday`, `school` or `milestone-<teamId>-<cycleId>-<milestoneId>`.
 - **iCalendar output.** Lines end in CRLF and are folded at 75 octets without splitting a UTF-8 character. Text values escape `\`, `;`, `,` and newlines. `PRODID:-//Caldence//Caldence <APP_VERSION>//EN`, `VERSION:2.0`, `CALSCALE:GREGORIAN`, `METHOD:PUBLISH`.
 - **File names.**
   - Templates: `<slug>.caldence-template.json`.
@@ -394,7 +394,7 @@ New for phase 3:
       - series whose last date is before `today`. With COUNT, the last date is estimated as start + (COUNT − 1) × interval periods.
     - **Past single events.** They are not listed and not reported one by one. They are only counted in `hiddenPast` (Review Focus 1).
     - **Duplicates.** `duplicateOf` is set to an existing event id when either:
-      - the UID matches `<eventId>.<teamId>.<ws.id>@caldence`, with or without a `-<date>` suffix; or
+      - the UID matches `<eventId>.<teamId>.<ws.id>@caldence` or, for a single event, `<eventId>.<teamId>.<ws.id>-<date>@caldence`; or
       - the trimmed name (ignoring case), the rule and the time all match an event of the team.
 
       Duplicates start with `selected: false`.

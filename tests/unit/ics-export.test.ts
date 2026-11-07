@@ -10,6 +10,8 @@ import {
 } from '../../src/core/ics';
 import type { CalEvent, Rule, Workspace } from '../../src/core/model';
 import { occurrences } from '../../src/core/recurrence';
+import { applyTemplate } from '../../src/core/template';
+import { builtinTemplate } from '../../src/data/templates';
 import { workspaceIndex } from '../../src/core/views';
 import type { Filter } from '../../src/core/views';
 
@@ -235,9 +237,10 @@ describe('exportIcs rules (independent parse with ical.js)', () => {
           .filter((o) => o.eventId === event.id && !o.skippedHoliday)
           .map((o) => `${o.date} ${o.start}`);
         expect(expected.length).toBeGreaterThan(0);
-        const uid = `${event.id}.${team.id}.${ws.id}@caldence`;
+        const uid = `${event.id}.${team.id}.${ws.id}`;
+        const single = new RegExp(`^${uid.replace(/[.]/g, '\\.')}-\\d{4}-\\d{2}-\\d{2}@caldence$`);
         const got = [...expanded.entries()]
-          .filter(([k]) => k === uid || k.startsWith(`${uid}-`))
+          .filter(([k]) => k === `${uid}@caldence` || single.test(k))
           .flatMap(([, v]) => v.local)
           .sort();
         expect(got).toEqual(expected);
@@ -262,7 +265,7 @@ describe('exportIcs rules (independent parse with ical.js)', () => {
       prop(b, 'UID')!.startsWith('UID:ev-kickoff.'),
     )!;
     expect(prop(kickoff, 'RRULE')).toBeUndefined();
-    expect(prop(kickoff, 'UID')).toBe(`UID:ev-kickoff.team-alpha.${ws.id}@caldence-2027-01-11`);
+    expect(prop(kickoff, 'UID')).toBe(`UID:ev-kickoff.team-alpha.${ws.id}-2027-01-11@caldence`);
   });
 
   it('keeps 09:00 local across the DST change (Review Focus 2)', () => {
@@ -395,5 +398,101 @@ describe('exportIcs UIDs, scope and reminder', () => {
       if (timed) expect(b).toContain('ACTION:DISPLAY');
     }
     expect(run(example())).not.toContain('VALARM');
+  });
+});
+
+describe('exportIcs fix round 1', () => {
+  it('gives milestones of two teams from the same template distinct UIDs', () => {
+    const tpl = builtinTemplate('safe', 'en');
+    let ws = example();
+    for (const name of ['Train A', 'Train B']) {
+      const r = applyTemplate(ws, tpl, { name, today: '2027-01-04' });
+      if (!r.ok) throw new Error('template failed');
+      ws = r.value[0];
+    }
+    const text = run(
+      ws,
+      opts({ allDay: { holidays: false, schoolHolidays: false, milestones: true } }),
+    );
+    const ms = unfold(text).filter((l) => l.startsWith('UID:milestone-'));
+    const added = ws.teams.slice(-2);
+    const dates = added.map((t) => t.cycles[0]!.milestones[0]!.date);
+    expect(dates[0]).toBe(dates[1]);
+    for (const t of added) {
+      const c = t.cycles[0]!;
+      const m = c.milestones[0]!;
+      expect(ms).toContain(`UID:milestone-${t.id}-${c.id}-${m.id}-${m.date}.${ws.id}@caldence`);
+    }
+    expect(new Set(ms).size).toBe(ms.length);
+    const all = unfold(text).filter((l) => l.startsWith('UID:'));
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('leaves out a series whose occurrences in range are all skipped', () => {
+    const w = example();
+    w.teams = [w.teams[0]!];
+    w.teams[0]!.events = [
+      ev('ev-friday', { type: 'weekly', weekday: 5 }, '10:00'),
+      ev('ev-monday', { type: 'weekly', weekday: 1 }, '10:00'),
+    ];
+    // 2027-03-26 Good Friday .. 2027-03-29 Easter Monday: every occurrence is a holiday.
+    const text = run(w, opts({ from: '2027-03-26', to: '2027-03-29' }));
+    expect(text).not.toContain('BEGIN:VEVENT');
+    w.settings.skipHolidays = false;
+    expect(blocks(run(w, opts({ from: '2027-03-26', to: '2027-03-29' })), 'VEVENT')).toHaveLength(
+      2,
+    );
+  });
+
+  it('maps monthly nth 5 and expands only months with a fifth weekday', () => {
+    const w = example();
+    w.teams[0]!.events = [
+      ev('ev-fifth', { type: 'monthly-nth-weekday', weekday: 5, nth: 5 }, '12:00'),
+    ];
+    const text = run(w);
+    const b = blocks(text, 'VEVENT')[0]!;
+    // Fridays: 2027 months with five Fridays are Jan, Apr, Jul, Oct, Dec.
+    expect(prop(b, 'RRULE')).toBe('RRULE:FREQ=MONTHLY;BYDAY=5FR;WKST=MO;COUNT=5');
+    const team = w.teams[0]!;
+    const expected = occurrences(team, w.settings, workspaceIndex(w))
+      .filter((o) => !o.skippedHoliday)
+      .map((o) => `${o.date} ${o.start}`);
+    expect([...expand(text).values()][0]!.local).toEqual(expected);
+    expect(expected.map((e) => e.slice(5, 7))).toEqual(['01', '04', '07', '10', '12']);
+  });
+
+  it('writes DTEND across midnight', () => {
+    const w = example();
+    w.teams[0]!.events = [
+      { ...ev('ev-late', { type: 'weekly', weekday: 5 }, '23:30'), duration: 120 },
+    ];
+    const b = blocks(run(w, opts({ from: '2027-01-04', to: '2027-01-31' })), 'VEVENT')[0]!;
+    expect(prop(b, 'DTSTART')).toBe('DTSTART;TZID=Europe/Berlin:20270108T233000');
+    expect(prop(b, 'DTEND')).toBe('DTEND;TZID=Europe/Berlin:20270109T013000');
+  });
+
+  it('folds 4-byte emoji without splitting them', () => {
+    const line = `SUMMARY:${'😀'.repeat(40)}`;
+    const folded = foldLine(line);
+    const enc = new TextEncoder();
+    const dec = new TextDecoder('utf-8', { fatal: true });
+    for (const l of folded.split('\r\n')) {
+      const bytes = enc.encode(l);
+      expect(bytes.length).toBeLessThanOrEqual(75);
+      expect(() => dec.decode(bytes)).not.toThrow();
+      expect(l).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+    }
+    expect(folded.replace(/\r\n /g, '')).toBe(line);
+  });
+
+  it('writes the southern-hemisphere VTIMEZONE for Australia/Sydney', () => {
+    const text = vtimezone('Australia/Sydney', 2027, 2027).join('\n');
+    expect(text).toContain(
+      'BEGIN:STANDARD\nDTSTART:20270404T030000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:+10:00\nEND:STANDARD',
+    );
+    expect(text).toContain(
+      'BEGIN:DAYLIGHT\nDTSTART:20271003T020000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:+11:00\nEND:DAYLIGHT',
+    );
+    expect(text.match(/BEGIN:(STANDARD|DAYLIGHT)/g)).toHaveLength(2);
   });
 });

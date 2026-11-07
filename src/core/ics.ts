@@ -200,7 +200,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
       const occs = byEvent.get(event.id);
       const first = occs?.[0];
       if (!occs || !first) continue;
-      const uid = `${event.id}.${team.id}.${ws.id}@caldence`;
+      const uid = `${event.id}.${team.id}.${ws.id}`;
       const roles = event.participants
         .map((p) => roleNames.get(p.roleId))
         .filter((n): n is string => n !== undefined);
@@ -211,6 +211,8 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
         `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}`)}`,
         'TRANSP:OPAQUE',
       ];
+      // A series whose every occurrence in range is skipped is not written.
+      if (occs.every((o) => o.skippedHoliday)) continue;
       const rule = rrule(event.rule, team, first.date, occs.length);
       if (rule === null) {
         // Single entries: a skipped one is simply not written.
@@ -218,7 +220,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
           if (occ.skippedHoliday) continue;
           lines.push(
             'BEGIN:VEVENT',
-            `UID:${uid}-${occ.date}`,
+            `UID:${uid}-${occ.date}@caldence`,
             dtstamp,
             `DTSTART;TZID=${tz}:${localStamp(occ.date, occ.start)}`,
             `DTEND;TZID=${tz}:${plusMinutes(occ.date, occ.start, occ.duration)}`,
@@ -231,7 +233,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
       }
       lines.push(
         'BEGIN:VEVENT',
-        `UID:${uid}`,
+        `UID:${uid}@caldence`,
         dtstamp,
         `DTSTART;TZID=${tz}:${localStamp(first.date, first.start)}`,
         `DTEND;TZID=${tz}:${plusMinutes(first.date, first.start, first.duration)}`,
@@ -299,7 +301,7 @@ export function exportIcs(ws: Workspace, index: HolidayIndex, opts: IcsExportOpt
         for (const m of cycle.milestones) {
           if (!inRange(m.date)) continue;
           allDay(
-            `milestone-${cycle.id}-${m.id}-${m.date}`,
+            `milestone-${team.id}-${cycle.id}-${m.id}-${m.date}`,
             m.date,
             addDays(m.date, 1),
             m.name,

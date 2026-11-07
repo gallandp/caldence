@@ -108,6 +108,16 @@ class Checker {
   }
 }
 
+/** True when Intl knows the IANA zone name. */
+function isKnownZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function checkSettings(c: Checker, v: unknown): void {
   const s = c.obj(v, 'settings');
   if (!s) return;
@@ -116,6 +126,8 @@ function checkSettings(c: Checker, v: unknown): void {
   else if (s.locale !== 'de' && s.locale !== 'en') c.err('settings.locale', 'error.enum.invalid');
   c.str(s, 'region', p);
   c.str(s, 'timezone', p);
+  if (typeof s.timezone === 'string' && s.timezone.trim() !== '' && !isKnownZone(s.timezone))
+    c.err('settings.timezone', 'error.enum.invalid');
   if (s.workdays === undefined) c.err('settings.workdays', 'error.required');
   else if (Array.isArray(s.workdays) && s.workdays.length === 0)
     c.err('settings.workdays', 'error.workdays.empty');

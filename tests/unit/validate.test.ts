@@ -52,6 +52,17 @@ describe('validate', () => {
     expect(errorsOf({ ...w, id: '' })).toContainEqual({ path: 'id', key: 'error.type' });
   });
 
+  it('rejects an unknown timezone and accepts known ones', () => {
+    const w = fixture();
+    w.settings.timezone = 'Foo/Bar';
+    expect(errorsOf(w)).toContainEqual({ path: 'settings.timezone', key: 'error.enum.invalid' });
+    for (const tz of ['Europe/Berlin', 'Australia/Sydney', 'UTC']) {
+      expect(validate({ ...fixture(), settings: { ...fixture().settings, timezone: tz } }).ok).toBe(
+        true,
+      );
+    }
+  });
+
   describe('weekdays rule', () => {
     const withDays = (weekdays: unknown): Workspace => {
       const w = fixture();
