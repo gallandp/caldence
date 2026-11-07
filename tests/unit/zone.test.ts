@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { offsetMinutes, transitions, utcToLocal } from '../../src/core/zone';
+import { isKnownZone, offsetMinutes, transitions, utcToLocal } from '../../src/core/zone';
+
+describe('isKnownZone', () => {
+  it('knows IANA zones and UTC, not free text', () => {
+    for (const tz of ['Europe/Berlin', 'Australia/Sydney', 'UTC'])
+      expect(isKnownZone(tz), tz).toBe(true);
+    for (const tz of ['Mitteleuropa', 'Foo/Bar', '', ' ']) expect(isKnownZone(tz), tz).toBe(false);
+  });
+});
 
 describe('offsetMinutes', () => {
   it('gives the Berlin offset in winter and summer', () => {

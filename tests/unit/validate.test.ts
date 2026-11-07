@@ -52,15 +52,15 @@ describe('validate', () => {
     expect(errorsOf({ ...w, id: '' })).toContainEqual({ path: 'id', key: 'error.type' });
   });
 
-  it('rejects an unknown timezone and accepts known ones', () => {
-    const w = fixture();
-    w.settings.timezone = 'Foo/Bar';
-    expect(errorsOf(w)).toContainEqual({ path: 'settings.timezone', key: 'error.enum.invalid' });
-    for (const tz of ['Europe/Berlin', 'Australia/Sydney', 'UTC']) {
+  it('accepts any non-empty timezone name, known to this browser or not', () => {
+    for (const tz of ['Europe/Berlin', 'Australia/Sydney', 'UTC', 'Foo/Bar', 'Mitteleuropa']) {
       expect(validate({ ...fixture(), settings: { ...fixture().settings, timezone: tz } }).ok).toBe(
         true,
       );
     }
+    const empty = fixture();
+    empty.settings.timezone = '  ';
+    expect(errorsOf(empty)).toContainEqual({ path: 'settings.timezone', key: 'error.type' });
   });
 
   describe('weekdays rule', () => {
@@ -235,6 +235,14 @@ describe('validate', () => {
 describe('loadWorkspace', () => {
   it('loads valid JSON text', () => {
     expect(loadWorkspace(JSON.stringify(fixture())).ok).toBe(true);
+  });
+
+  it('loads a 0.3.0-style workspace whose timezone this browser does not know', () => {
+    const w = fixture();
+    w.settings.timezone = 'Mitteleuropa';
+    const r = loadWorkspace(JSON.stringify(w));
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.value.settings.timezone).toBe('Mitteleuropa');
   });
 
   it('reports invalid JSON', () => {

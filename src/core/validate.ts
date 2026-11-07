@@ -108,16 +108,6 @@ class Checker {
   }
 }
 
-/** True when Intl knows the IANA zone name. */
-function isKnownZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function checkSettings(c: Checker, v: unknown): void {
   const s = c.obj(v, 'settings');
   if (!s) return;
@@ -125,9 +115,9 @@ function checkSettings(c: Checker, v: unknown): void {
   if (s.locale === undefined) c.err('settings.locale', 'error.required');
   else if (s.locale !== 'de' && s.locale !== 'en') c.err('settings.locale', 'error.enum.invalid');
   c.str(s, 'region', p);
+  // Any non-empty name loads: a zone this browser does not know is reported where it is used
+  // (settings, calendar exchange), so a file or autosave from another browser never fails to load.
   c.str(s, 'timezone', p);
-  if (typeof s.timezone === 'string' && s.timezone.trim() !== '' && !isKnownZone(s.timezone))
-    c.err('settings.timezone', 'error.enum.invalid');
   if (s.workdays === undefined) c.err('settings.workdays', 'error.required');
   else if (Array.isArray(s.workdays) && s.workdays.length === 0)
     c.err('settings.workdays', 'error.workdays.empty');

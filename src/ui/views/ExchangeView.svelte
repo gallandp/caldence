@@ -6,6 +6,7 @@
   import { parseIcs, reviewImport, unfoldBytes, type IcsEvent } from '../../core/icsImport';
   import { slug } from '../../core/slug';
   import { workspaceIndex, type Filter } from '../../core/views';
+  import { isKnownZone } from '../../core/zone';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
   import {
@@ -27,6 +28,8 @@
 
   const ws = $derived($workspace);
   const teams = $derived(ws.teams);
+  // Export and import convert times with the workspace zone; one this browser does not know blocks both.
+  const zoneKnown = $derived(isKnownZone(ws.settings.timezone));
 
   let problem = $state<{ key: string; path?: string } | null>(null);
   let exported = $state<{ name: string; series: number; single: number } | null>(null);
@@ -72,7 +75,7 @@
 
   /** The file for the current form, or null while the form is invalid. Recomputed when it changes. */
   const built = $derived.by(() => {
-    if (!chosen || rangeInvalid) return null;
+    if (!chosen || rangeInvalid || !zoneKnown) return null;
     const range = { ...ws.settings, horizon: { from, to } };
     const text = exportIcs(ws, workspaceIndex({ ...ws, settings: range }), {
       scope,
@@ -132,7 +135,7 @@
 
   const importTeam = $derived(teams.find((x) => x.id === (teamDraft ?? $activeTeamId)) ?? teams[0]);
   const review = $derived(
-    parsed && importTeam
+    parsed && importTeam && zoneKnown
       ? reviewImport(parsed, { ws, teamId: importTeam.id, today: localToday() })
       : null,
   );
@@ -228,6 +231,12 @@
     {#if problem}{$t(problem.key, { path: problem.path ?? '' })}{/if}
   </div>
 
+  {#if !zoneKnown}
+    <p class="field-error" id="{uid}-zone-hint">
+      {$t('exchange.zone.unknown', { zone: ws.settings.timezone })}
+    </p>
+  {/if}
+
   <section aria-labelledby="{uid}-export-h">
     <h3 id="{uid}-export-h">{$t('exchange.export')}</h3>
     {#if teams.length === 0}
@@ -321,7 +330,10 @@
         </div>
       </fieldset>
       <div class="row">
-        <button type="submit" disabled={built === null || nothing}
+        <button
+          type="submit"
+          disabled={built === null || nothing}
+          aria-describedby={zoneKnown ? undefined : `${uid}-zone-hint`}
           >{$t('exchange.export.button')}</button
         >
       </div>
@@ -336,8 +348,11 @@
     {#if teams.length === 0}
       <p class="empty">{$t('exchange.import.none')}</p>
     {/if}
-    <button type="button" disabled={teams.length === 0} onclick={chooseFile}
-      >{$t('exchange.import.button')}</button
+    <button
+      type="button"
+      disabled={teams.length === 0 || !zoneKnown}
+      aria-describedby={zoneKnown ? undefined : `${uid}-zone-hint`}
+      onclick={chooseFile}>{$t('exchange.import.button')}</button
     >
 
     {#if review && importTeam}

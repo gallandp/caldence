@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, useFileFallback } from './helpers';
+import { openExample, openWorkspaceFile, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -137,6 +137,35 @@ test('no horizontal page scroll at 375 px with the table filled', async ({ page 
   expect(fits).toBe(true);
   const wrap = panel(page).locator('.table-wrap');
   expect(await wrap.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+});
+
+test('a time zone this browser does not know still loads, is flagged and blocks export', async ({
+  page,
+}) => {
+  const ws = JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.settings.timezone = 'Mitteleuropa';
+  await page.goto('/');
+  await openWorkspaceFile(page, ws, 'old.caldence.json');
+  await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Workspace settings' }).click();
+  const zone = page.getByLabel('Time zone');
+  await expect(zone).toHaveAttribute('aria-invalid', 'true');
+  await expect(zone).toHaveAccessibleDescription(/does not know the time zone Mitteleuropa/);
+  await expect(page.getByLabel('Region')).not.toHaveAttribute('aria-invalid');
+
+  await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
+  const button = panel(page).getByRole('button', { name: 'Export .ics…' });
+  await expect(button).toBeDisabled();
+  await expect(button).toHaveAccessibleDescription(/workspace time zone Mitteleuropa/);
+  await expect(panel(page).getByRole('button', { name: /Choose .ics file…/ })).toBeDisabled();
+
+  await page.getByRole('tab', { name: 'Workspace settings' }).click();
+  await zone.selectOption('Europe/Berlin');
+  await expect(zone).not.toHaveAttribute('aria-invalid');
+  await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
+  await expect(button).toBeEnabled();
 });
 
 for (const locale of ['de', 'en'] as const) {

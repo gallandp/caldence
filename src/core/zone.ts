@@ -23,6 +23,17 @@ function formatter(tz: string): Intl.DateTimeFormat {
   return f;
 }
 
+/** True when this browser's Intl knows the zone name (an IANA name such as Europe/Berlin, or UTC). */
+export function isKnownZone(tz: string): boolean {
+  if (tz.trim() === '') return false;
+  try {
+    formatter(tz);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** UTC offset of the zone at the given instant, in whole minutes (east of UTC is positive). */
 export function offsetMinutes(tz: string, utcMs: number): number {
   const at = Math.floor(utcMs / 1000) * 1000;
