@@ -79,9 +79,9 @@ describe('regions', () => {
     if (!bad.ok) {
       const keys = bad.errors.map((e) => `${e.path}:${e.key}`);
       expect(keys).toContain('name.en:error.required');
-      expect(keys).toContain('holidays[0].day:error.number.invalid');
-      expect(keys).toContain('holidays[1].type:error.enum.invalid');
-      expect(keys).toContain('schoolHolidays[0].to:error.date.invalid');
+      expect(keys).toContain('holidays.0.day:error.number.invalid');
+      expect(keys).toContain('holidays.1.type:error.enum.invalid');
+      expect(keys).toContain('schoolHolidays.0.to:error.date.invalid');
       expect(keys).toContain('schoolHolidaysKnownUntil:error.date.invalid');
     }
   });

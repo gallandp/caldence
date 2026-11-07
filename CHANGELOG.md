@@ -14,3 +14,7 @@
 - Load calculation: weekly base load per role and category, load per week and person, FTE and threshold warnings.
 - Internationalisation: German and English catalogues, `t`, locale detection, date and number formatting, Svelte locale store; app shell text moved to catalogues.
 - Accessible app shell: skip link, nine view tabs (WAI-ARIA), language switch, light/dark tokens, reduced-motion support, WCAG contrast helpers, axe checks in e2e, accessibility checklist.
+- Fixed: cadence-day validation is 0-based (day 0 is the cadence start) and rejects days beyond the cadence length.
+- Fixed: region validation error paths use dot style (`holidays.0.name`).
+- Fixed: release workflow has `pull-requests: read` and no longer releases a hotfix for commits without a PR.
+- First released version will be 0.1.0 (package version starts at 0.0.0).

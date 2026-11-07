@@ -113,7 +113,7 @@ export function validateRegion(input: unknown): Result<Region> {
   date(input, 'schoolHolidaysKnownUntil', '');
 
   list(input, 'holidays').forEach((h, i) => {
-    const p = `holidays[${i}]`;
+    const p = `holidays.${i}`;
     if (!isObj(h)) return err(p, 'error.type');
     name(h, p);
     if (h.type === 'fixed') {
@@ -132,7 +132,7 @@ export function validateRegion(input: unknown): Result<Region> {
   });
 
   list(input, 'schoolHolidays').forEach((s, i) => {
-    const p = `schoolHolidays[${i}]`;
+    const p = `schoolHolidays.${i}`;
     if (!isObj(s)) return err(p, 'error.type');
     name(s, p);
     date(s, 'from', p);

@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: release
@@ -27,8 +28,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # No associated PR (e.g. a direct push): release nothing instead of a hotfix.
+          # A PR without a release label keeps the default ("none-given" = hotfix).
           label=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
-            --jq '[.[].labels[].name | select(startswith("release:"))] | first // "none-given"')
+            --jq 'if length == 0 then "release:none" else ([.[].labels[].name | select(startswith("release:"))] | first // "none-given") end')
           echo "label=$label" >> "$GITHUB_OUTPUT"
       - name: Bump version and changelog
         id: bump

@@ -45,6 +45,30 @@ describe('validate', () => {
     });
   });
 
+  describe('cadence-day rule', () => {
+    const withDay = (day: number): Workspace => {
+      const w = fixture();
+      const t = w.teams[0]!;
+      t.cadence.lengthWeeks = 2;
+      t.events[0]!.rule = { type: 'cadence-day', day };
+      return w;
+    };
+    const path = 'teams.0.events.0.rule.day';
+
+    it('accepts day 0 (the cadence start)', () => {
+      expect(validate(withDay(0)).ok).toBe(true);
+    });
+
+    it('rejects day 14 in a 2-week cadence', () => {
+      expect(validate(withDay(13)).ok).toBe(true);
+      expect(errorsOf(withDay(14))).toContainEqual({ path, key: 'error.number.invalid' });
+    });
+
+    it('rejects day -1', () => {
+      expect(errorsOf(withDay(-1))).toContainEqual({ path, key: 'error.number.invalid' });
+    });
+  });
+
   it('rejects horizon.to before horizon.from', () => {
     const w = emptyWorkspace('2026-11-07');
     w.settings.horizon.to = '2026-11-06';

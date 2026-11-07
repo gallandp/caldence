@@ -140,7 +140,13 @@ function checkSettings(c: Checker, v: unknown): void {
   }
 }
 
-function checkRule(c: Checker, v: unknown, path: string, cycles: Map<string, Set<string>>): void {
+function checkRule(
+  c: Checker,
+  v: unknown,
+  path: string,
+  cycles: Map<string, Set<string>>,
+  cadenceDays: number | undefined,
+): void {
   const r = c.obj(v, path);
   if (!r) return;
   switch (r.type) {
@@ -159,7 +165,9 @@ function checkRule(c: Checker, v: unknown, path: string, cycles: Map<string, Set
         c.err(`${path}.nth`, 'error.enum.invalid');
       break;
     case 'cadence-day':
-      c.num(r, 'day', path, { min: 1, int: true });
+      c.num(r, 'day', path, { min: 0, int: true });
+      if (cadenceDays !== undefined && isNum(r.day) && r.day >= cadenceDays)
+        c.err(`${path}.day`, 'error.number.invalid');
       break;
     case 'cycle-milestone': {
       c.num(r, 'offsetDays', path, { int: true });
@@ -185,10 +193,11 @@ function checkEvent(
   categoryIds: Set<string>,
   roleIds: Set<string>,
   cycles: Map<string, Set<string>>,
+  cadenceDays: number | undefined,
 ): void {
   c.str(e, 'name', p);
   c.ref(e, 'categoryId', p, categoryIds);
-  checkRule(c, e.rule, `${p}.rule`, cycles);
+  checkRule(c, e.rule, `${p}.rule`, cycles, cadenceDays);
   c.time(e, 'time', p);
   c.num(e, 'duration', p, { min: 0, exclusive: true, int: true });
   c.num(e, 'preparation', p, { min: 0 });
@@ -223,7 +232,10 @@ function checkTeam(
     c.err(`${p}.templateId`, 'error.type');
 
   const cad = c.obj(t.cadence, `${p}.cadence`);
+  let cadenceDays: number | undefined;
   if (cad) {
+    if (isNum(cad.lengthWeeks) && Number.isInteger(cad.lengthWeeks) && cad.lengthWeeks >= 1)
+      cadenceDays = cad.lengthWeeks * 7;
     if (cad.kind === undefined) c.err(`${p}.cadence.kind`, 'error.required');
     else if (!['sprint', 'flow', 'pi'].includes(cad.kind as string))
       c.err(`${p}.cadence.kind`, 'error.enum.invalid');
@@ -257,7 +269,9 @@ function checkTeam(
 
   const events = c.arr(t.events, `${p}.events`) ?? [];
   c.ids(events, `${p}.events`);
-  c.each(events, `${p}.events`, (e, ep) => checkEvent(c, e, ep, categoryIds, roleIds, cycles));
+  c.each(events, `${p}.events`, (e, ep) =>
+    checkEvent(c, e, ep, categoryIds, roleIds, cycles, cadenceDays),
+  );
 }
 
 export function validate(input: unknown): Result<Workspace> {

@@ -49,6 +49,7 @@ export type Rule =
   | { type: 'weekly'; weekday: Weekday }
   | { type: 'every-n-weeks'; weekday: Weekday; n: number; anchor: ISODate }
   | { type: 'monthly-nth-weekday'; weekday: Weekday; nth: 1 | 2 | 3 | 4 | 5 | -1 }
+  /** day: 0-based day within the cadence period (0 = start day) */
   | { type: 'cadence-day'; day: number }
   | { type: 'cycle-milestone'; cycleId: string; milestoneId: string; offsetDays: number }
   | { type: 'once'; date: ISODate };
