@@ -166,11 +166,11 @@ describe('example workspace', () => {
 function fakeInput() {
   const target = new EventTarget();
   const input = Object.assign(target, {
-    files: [] as File[],
+    files: [] as unknown as FileList,
     value: 'x',
     click: vi.fn(),
   });
-  return input as unknown as HTMLInputElement & { files: File[]; click: ReturnType<typeof vi.fn> };
+  return input as unknown as HTMLInputElement & { click: ReturnType<typeof vi.fn> };
 }
 
 describe('pickWithInput', () => {
@@ -180,7 +180,7 @@ describe('pickWithInput', () => {
     const promise = pickWithInput(input, win);
     expect(input.click).toHaveBeenCalled();
     const file = new File(['{}'], 'a.json');
-    input.files = [file];
+    input.files = [file] as unknown as FileList;
     input.dispatchEvent(new Event('change'));
     expect(await promise).toBe(file);
   });
@@ -214,7 +214,7 @@ describe('pickWithInput', () => {
       const promise = pickWithInput(input, win, 500);
       win.dispatchEvent(new Event('focus'));
       const file = new File(['{}'], 'a.json');
-      input.files = [file];
+      input.files = [file] as unknown as FileList;
       await vi.advanceTimersByTimeAsync(500);
       expect(await promise).toBe(file);
     } finally {

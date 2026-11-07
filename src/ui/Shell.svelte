@@ -180,7 +180,8 @@
         {:else}
           <p>{$t('view.soon')}</p>
         {/if}
-        {#snippet failed(error, reset)}
+        <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+        {#snippet failed(_error, reset)}
           <section class="failed" role="alert">
             <p>{$t('view.failed')}</p>
             <button type="button" onclick={reset}>{$t('view.retry')}</button>
