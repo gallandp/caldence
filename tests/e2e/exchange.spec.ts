@@ -150,6 +150,8 @@ test('importing a file Caldence just exported marks every row as present', async
   const { text } = await exportText(page);
   await chooseIcs(page, Buffer.from(text), 'caldence-team-alpha.ics');
   const rows = rowsOf(page);
+  // Reading the file is asynchronous: wait for the review before counting its rows.
+  await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(0);
   for (const row of await rows.all()) {
     await expect(row).toContainText('Already in Caldence');
