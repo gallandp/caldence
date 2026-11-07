@@ -15,5 +15,20 @@
   "error.ref.unknown": "Unbekannter Verweis bei {path}",
   "error.schema.newer": "Die Datei stammt aus einer neueren Version von Caldence und kann nicht geöffnet werden",
   "error.schema.unknown": "Unbekannte oder fehlende Schemaversion",
-  "error.file.json": "Die Datei enthält kein gültiges JSON"
+  "error.file.json": "Die Datei enthält kein gültiges JSON",
+  "skip.link": "Zum Inhalt springen",
+  "lang.label": "Sprache",
+  "lang.name.de": "Deutsch",
+  "lang.name.en": "English",
+  "nav.views": "Ansichten",
+  "view.soon": "Diese Ansicht folgt in einer späteren Version.",
+  "view.calendar": "Kalender",
+  "view.weeks": "Wochen",
+  "view.load": "Auslastung",
+  "view.meetings": "Termine",
+  "view.team": "Team",
+  "view.settings": "Einstellungen",
+  "view.templates": "Vorlagen",
+  "view.exchange": "Import / Export",
+  "view.help": "Hilfe"
 }

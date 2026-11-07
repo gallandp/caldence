@@ -13,3 +13,4 @@
 - Project license changed to AGPL-3.0-or-later.
 - Load calculation: weekly base load per role and category, load per week and person, FTE and threshold warnings.
 - Internationalisation: German and English catalogues, `t`, locale detection, date and number formatting, Svelte locale store; app shell text moved to catalogues.
+- Accessible app shell: skip link, nine view tabs (WAI-ARIA), language switch, light/dark tokens, reduced-motion support, WCAG contrast helpers, axe checks in e2e, accessibility checklist.

@@ -91,4 +91,20 @@ describe('svelte markup', () => {
       expect(texts, f).toEqual([]);
     }
   });
+
+  // User-visible attributes must be {expression}s (translated), never literal words.
+  it('has no literal text in title, alt, aria-label or placeholder attributes', () => {
+    for (const f of walk('src', '.svelte')) {
+      const markup = readFileSync(f, 'utf8')
+        .replace(/<script[\s\S]*?<\/script>/g, '')
+        .replace(/<style[\s\S]*?<\/style>/g, '')
+        .replace(/<!--[\s\S]*?-->/g, '');
+      const literals = [
+        ...markup.matchAll(/\s(?:title|alt|aria-label|placeholder)\s*=\s*(?:"([^"]*)"|'([^']*)')/g),
+      ]
+        .map((m) => m[1] ?? m[2] ?? '')
+        .filter((v) => /\p{L}/u.test(v));
+      expect(literals, f).toEqual([]);
+    }
+  });
 });
