@@ -37,7 +37,10 @@ export interface IcsEvent {
   cancelled: boolean;
 }
 
-export type SkipReason = 'allDay' | 'cancelled' | 'override' | 'noDuration' | 'ended';
+export type SkipReason = 'allDay' | 'cancelled' | 'override' | 'noDuration' | 'multiDay' | 'ended';
+
+/** A left-out item. Changed instances (`override`) are one entry per series, with their `count`. */
+export type SkippedItem = { summary: string; reason: SkipReason; count?: number };
 
 /** A note on a candidate: an i18n key and its placeholder values. */
 export type NoteKey =
@@ -62,7 +65,7 @@ export type ImportCandidate = {
 
 export type ImportReview = {
   candidates: ImportCandidate[];
-  skipped: { summary: string; reason: SkipReason }[];
+  skipped: SkippedItem[];
   hiddenPast: number;
 };
 
@@ -167,6 +170,7 @@ function toEvent(draft: Draft): IcsEvent | null {
   let start: DateTime | null = null;
   let end: DateTime | null = null;
   let duration: number | null = null;
+  let msAllDay = false;
   const ev: IcsEvent = {
     uid: '',
     summary: '',
@@ -217,11 +221,15 @@ function toEvent(draft: Draft): IcsEvent | null {
       case 'STATUS':
         ev.cancelled = p.value.trim().toUpperCase() === 'CANCELLED';
         break;
+      // Outlook may write an all-day item with midnight-to-midnight times and this flag.
+      case 'X-MICROSOFT-CDO-ALLDAYEVENT':
+        msAllDay = p.value.trim().toUpperCase() === 'TRUE';
+        break;
     }
   }
   if (!start) return null;
   ev.start = start;
-  ev.allDay = start.time === null;
+  ev.allDay = start.time === null || msAllDay;
   if (duration !== null) ev.durationMinutes = Math.round(duration);
   else if (end) {
     // Same zone (or both UTC/floating): wall-clock difference. Otherwise the best estimate.
@@ -587,10 +595,25 @@ export function reviewImport(
   const keys = new Set<string>();
   const skip = (ev: IcsEvent, reason: SkipReason) =>
     review.skipped.push({ summary: ev.summary, reason });
+  // A long Outlook export holds years of moved instances: one entry per series, named after it.
+  const seriesName = new Map<string, string>();
+  for (const ev of events)
+    if (!ev.recurrenceId && ev.rrule && !seriesName.has(ev.uid)) seriesName.set(ev.uid, ev.summary);
+  const overrideEntry = new Map<string, SkippedItem>();
 
   for (const ev of events) {
     if (ev.recurrenceId) {
-      skip(ev, 'override');
+      const entry = overrideEntry.get(ev.uid);
+      if (entry) entry.count = (entry.count ?? 1) + 1;
+      else {
+        const item: SkippedItem = {
+          summary: seriesName.get(ev.uid) ?? ev.summary,
+          reason: 'override',
+          count: 1,
+        };
+        overrideEntry.set(ev.uid, item);
+        review.skipped.push(item);
+      }
       continue;
     }
     // Wall-clock start: a UTC time is converted into the workspace zone, others are kept.
@@ -612,6 +635,11 @@ export function reviewImport(
     }
     if (ev.durationMinutes === null || ev.durationMinutes <= 0) {
       skip(ev, 'noDuration');
+      continue;
+    }
+    // A conference over several days is not a meeting; importing it would fill whole weeks.
+    if (ev.durationMinutes > 24 * 60) {
+      skip(ev, 'multiDay');
       continue;
     }
 

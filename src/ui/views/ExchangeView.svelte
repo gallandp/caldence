@@ -3,7 +3,13 @@
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
   import { exportIcs } from '../../core/ics';
-  import { parseIcs, reviewImport, unfoldBytes, type IcsEvent } from '../../core/icsImport';
+  import {
+    parseIcs,
+    reviewImport,
+    unfoldBytes,
+    type IcsEvent,
+    type SkippedItem,
+  } from '../../core/icsImport';
   import { slug } from '../../core/slug';
   import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
@@ -206,6 +212,10 @@
         ? { date: formatDisplayDate($locale, n.params.date as string, 'long') }
         : (n.params as Record<string, string | number>),
     );
+  const skipReason = (item: SkippedItem): string =>
+    item.reason === 'override' && (item.count ?? 1) > 1
+      ? $t('import.skip.overrides', { count: item.count ?? 1 })
+      : $t('import.skip.' + item.reason);
   const nameOf = (c: { name: string; untitled: boolean }) =>
     c.untitled || c.name.trim() === '' ? $t('import.untitled') : c.name;
 </script>
@@ -466,7 +476,7 @@
                   {$t('exchange.skipped.item', {
                     summary:
                       item.summary.trim() === '' ? $t('exchange.skipped.untitled') : item.summary,
-                    reason: $t('import.skip.' + item.reason),
+                    reason: skipReason(item),
                   })}
                 </li>
               {/each}

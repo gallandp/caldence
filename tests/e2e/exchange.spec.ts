@@ -81,7 +81,7 @@ test('the Outlook sample lists six rows and the left-out items', async ({ page }
   const details = panel(page).locator('details');
   await expect(details).toContainText('Betriebsausflug: All-day item');
   await expect(details).toContainText('Abgesagt: Lieferantentermin: Cancelled event');
-  await expect(details).toContainText('Architektur-Runde (verschoben): Changed single instance');
+  await expect(details).toContainText('Architektur-Runde: Changed single instance');
 });
 
 test('importing the selected rows is one undo step', async ({ page }) => {

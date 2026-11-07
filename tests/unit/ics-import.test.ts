@@ -230,7 +230,7 @@ describe('reviewImport: Outlook', () => {
     const review = reviewImport(events, { ws, teamId, today: TODAY });
     expect(performance.now() - t0).toBeLessThan(500);
     expect(review.skipped).toEqual([
-      { summary: 'Architektur-Runde (verschoben)', reason: 'override' },
+      { summary: 'Architektur-Runde', reason: 'override', count: 1 },
       { summary: 'Betriebsausflug', reason: 'allDay' },
       { summary: 'Abgesagt: Lieferantentermin', reason: 'cancelled' },
     ]);
@@ -438,6 +438,58 @@ describe('reviewImport: unmapped series with a past start', () => {
     expect(review.skipped).toEqual([
       { summary: 'odd', reason: 'ended' },
       { summary: 'until', reason: 'ended' },
+    ]);
+  });
+});
+
+describe('reviewImport: long items and many changed instances', () => {
+  it('skips items flagged all-day by Outlook and timed items longer than 24 hours', () => {
+    const { ws, teamId } = target();
+    const text = calendar(
+      vevent('ms-allday', [
+        'DTSTART;TZID=W. Europe Standard Time:20270115T000000',
+        'DTEND;TZID=W. Europe Standard Time:20270116T000000',
+        'X-MICROSOFT-CDO-ALLDAYEVENT:TRUE',
+      ]),
+      vevent('conference', ['DTSTART:20270201T090000', 'DTEND:20270203T170000']),
+      vevent('exactly-a-day', ['DTSTART:20270210T090000', 'DURATION:PT24H']),
+      vevent('ms-not-allday', [
+        'DTSTART:20270211T090000',
+        'DTEND:20270211T100000',
+        'X-MICROSOFT-CDO-ALLDAYEVENT:FALSE',
+      ]),
+    );
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    expect(review.skipped).toEqual([
+      { summary: 'ms-allday', reason: 'allDay' },
+      { summary: 'conference', reason: 'multiDay' },
+    ]);
+    expect(review.candidates.map((c) => c.name)).toEqual(['exactly-a-day', 'ms-not-allday']);
+  });
+
+  it('lists changed instances once per series, named after the series, with a count', () => {
+    const { ws, teamId } = target();
+    const moved = (uid: string, day: number, summary = `${uid} (moved)`): string[] => [
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `SUMMARY:${summary}`,
+      `RECURRENCE-ID:202501${String(day).padStart(2, '0')}T090000`,
+      `DTSTART:202501${String(day).padStart(2, '0')}T100000`,
+      'DTEND:20250101T110000',
+      'END:VEVENT',
+    ];
+    const overrides = Array.from({ length: 300 }, (_, i) => moved('standup', (i % 28) + 1));
+    const text = calendar(
+      ...overrides.slice(0, 150),
+      vevent('standup', ['DTSTART:20250101T090000', 'DTEND:20250101T091500', 'RRULE:FREQ=DAILY']),
+      ...overrides.slice(150),
+      moved('orphan', 3, 'Lonely move'),
+      moved('orphan', 4, 'Lonely move'),
+    );
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    expect(review.skipped).toEqual([
+      { summary: 'standup', reason: 'override', count: 300 },
+      { summary: 'Lonely move', reason: 'override', count: 2 },
     ]);
   });
 });
