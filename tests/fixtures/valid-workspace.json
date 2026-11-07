@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "settings": {
+    "locale": "de",
+    "region": "de-sn",
+    "timezone": "Europe/Berlin",
+    "workdays": [1, 2, 3, 4, 5],
+    "hoursPerWeek": 40,
+    "horizon": { "from": "2026-11-07", "to": "2027-11-07" },
+    "skipHolidays": true,
+    "thresholds": { "warnFactor": 1.5, "maxFte": 0.6 }
+  },
+  "roles": [{ "id": "r1", "name": "Developer", "colour": "#3366cc" }],
+  "people": [{ "id": "p1", "name": "Alex", "hoursPerWeek": 32 }],
+  "categories": [{ "id": "c1", "name": "Planning", "colour": "#cc6633" }],
+  "teams": [
+    {
+      "id": "t1",
+      "name": "Team A",
+      "cadence": { "kind": "sprint", "lengthWeeks": 2, "start": "2026-11-09" },
+      "members": [{ "personId": "p1", "roleId": "r1" }],
+      "assumptions": { "stories": 8 },
+      "cycles": [
+        {
+          "id": "cy1",
+          "name": "Release",
+          "milestones": [{ "id": "m1", "name": "Freeze", "date": "2026-12-01" }]
+        }
+      ],
+      "events": [
+        {
+          "id": "e1",
+          "name": "Planning",
+          "categoryId": "c1",
+          "rule": {
+            "type": "cycle-milestone",
+            "cycleId": "cy1",
+            "milestoneId": "m1",
+            "offsetDays": -2
+          },
+          "time": "09:00",
+          "duration": 60,
+          "scaling": { "base": 30, "perUnit": 5, "assumption": "stories", "grid": 15 },
+          "participants": [{ "roleId": "r1", "share": 1 }],
+          "preparation": 15
+        }
+      ]
+    }
+  ]
+}

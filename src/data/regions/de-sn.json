@@ -1,0 +1,108 @@
+{
+  "id": "de-sn",
+  "name": { "de": "Sachsen", "en": "Saxony" },
+  "holidays": [
+    { "type": "fixed", "month": 1, "day": 1, "name": { "de": "Neujahr", "en": "New Year's Day" } },
+    { "type": "easter", "offset": -2, "name": { "de": "Karfreitag", "en": "Good Friday" } },
+    { "type": "easter", "offset": 1, "name": { "de": "Ostermontag", "en": "Easter Monday" } },
+    {
+      "type": "fixed",
+      "month": 5,
+      "day": 1,
+      "name": { "de": "Tag der Arbeit", "en": "Labour Day" }
+    },
+    {
+      "type": "easter",
+      "offset": 39,
+      "name": { "de": "Christi Himmelfahrt", "en": "Ascension Day" }
+    },
+    { "type": "easter", "offset": 50, "name": { "de": "Pfingstmontag", "en": "Whit Monday" } },
+    {
+      "type": "fixed",
+      "month": 10,
+      "day": 3,
+      "name": { "de": "Tag der Deutschen Einheit", "en": "German Unity Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 10,
+      "day": 31,
+      "name": { "de": "Reformationstag", "en": "Reformation Day" }
+    },
+    {
+      "type": "special",
+      "id": "repentance-day",
+      "name": { "de": "Buß- und Bettag", "en": "Day of Repentance and Prayer" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 25,
+      "name": { "de": "1. Weihnachtstag", "en": "Christmas Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 26,
+      "name": { "de": "2. Weihnachtstag", "en": "Boxing Day" }
+    }
+  ],
+  "schoolHolidays": [
+    {
+      "name": { "de": "Herbstferien", "en": "Autumn break" },
+      "from": "2026-10-12",
+      "to": "2026-10-24"
+    },
+    {
+      "name": { "de": "Weihnachtsferien", "en": "Christmas break" },
+      "from": "2026-12-23",
+      "to": "2027-01-02"
+    },
+    {
+      "name": { "de": "Winterferien", "en": "Winter break" },
+      "from": "2027-02-08",
+      "to": "2027-02-19"
+    },
+    {
+      "name": { "de": "Osterferien", "en": "Easter break" },
+      "from": "2027-03-26",
+      "to": "2027-04-02"
+    },
+    {
+      "name": { "de": "Pfingstferien", "en": "Whitsun break" },
+      "from": "2027-05-14",
+      "to": "2027-05-14"
+    },
+    {
+      "name": { "de": "Sommerferien", "en": "Summer break" },
+      "from": "2027-07-10",
+      "to": "2027-08-20"
+    },
+    {
+      "name": { "de": "Herbstferien", "en": "Autumn break" },
+      "from": "2027-10-11",
+      "to": "2027-10-23"
+    },
+    {
+      "name": { "de": "Weihnachtsferien", "en": "Christmas break" },
+      "from": "2027-12-23",
+      "to": "2028-01-01"
+    },
+    {
+      "name": { "de": "Winterferien", "en": "Winter break" },
+      "from": "2028-02-14",
+      "to": "2028-02-26"
+    },
+    {
+      "name": { "de": "Osterferien", "en": "Easter break" },
+      "from": "2028-04-13",
+      "to": "2028-04-21"
+    },
+    {
+      "name": { "de": "Sommerferien", "en": "Summer break" },
+      "from": "2028-07-22",
+      "to": "2028-09-01"
+    }
+  ],
+  "schoolHolidaysKnownUntil": "2028-09-01"
+}
