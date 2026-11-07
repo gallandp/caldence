@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 – 2026-11-07
+
 ### Added
 
 - Meetings on selected weekdays, for example a Daily Scrum Monday to Friday: new repeat rule "Selected weekdays" with a summary such as "On Monday to Friday" (#15).
