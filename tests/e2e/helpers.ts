@@ -38,3 +38,17 @@ export async function openTeamView(page: Page) {
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }
+
+/** Opens `ws` through the file input (fallback path) and waits for its name in the bar. */
+export async function openWorkspaceFile(page: Page, ws: unknown, name = 'test.caldence.json') {
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open', exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name,
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(ws)),
+  });
+  await expect(page.getByText(name)).toBeVisible();
+}

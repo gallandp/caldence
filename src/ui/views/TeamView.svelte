@@ -319,7 +319,7 @@
                 </tr>
               </thead>
               <tbody>
-                {#each team.members as member, i (member.personId + '/' + member.roleId)}
+                {#each team.members as member, i (JSON.stringify([member.personId, member.roleId]))}
                   <tr>
                     <td>{personName(member.personId)}</td>
                     <td>{roleName(member.roleId)}</td>

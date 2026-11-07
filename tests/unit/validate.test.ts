@@ -128,6 +128,17 @@ describe('validate', () => {
     expect(errorsOf(w)).toContainEqual({ path: 'roles.1.id', key: 'error.id.duplicate' });
   });
 
+  it('rejects a duplicate team member (person, role) pair', () => {
+    const w = fixture();
+    const member = w.teams[0]!.members[0]!;
+    w.teams[0]!.members.push({ ...member });
+    const last = w.teams[0]!.members.length - 1;
+    expect(errorsOf(w)).toContainEqual({
+      path: `teams.0.members.${last}`,
+      key: 'error.id.duplicate',
+    });
+  });
+
   it('rejects bad colours, weekdays, durations and times', () => {
     const w = fixture();
     w.roles[0]!.colour = 'blue';

@@ -133,33 +133,41 @@
       hidden={active !== id}
     >
       <h2>{$t('view.' + id)}</h2>
-      {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
-        <section class="start">
-          <h3>{$t('calendar.empty.title')}</h3>
-          <p>{$t('calendar.empty.text')}</p>
-          <button type="button" onclick={() => bar?.openExample()}
-            >{$t('calendar.empty.example')}</button
-          >
-        </section>
-      {:else if id === 'calendar'}
-        {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
-          <CalendarView onOpenMeetings={() => select('meetings', true)} />
-        {/key}
-      {:else if id === 'weeks'}
-        {#if active === 'weeks'}<WeeksView onOpenMeetings={() => select('meetings', true)} />{/if}
-      {:else if id === 'load'}
-        {#if active === 'load'}<LoadView />{/if}
-      {:else if id === 'meetings'}
-        {#if active === 'meetings'}<MeetingsView />{/if}
-      {:else if id === 'team'}
-        {#if active === 'team'}<TeamView />{/if}
-      {:else if id === 'settings'}
-        {#if active === 'settings'}<SettingsView />{/if}
-      {:else if id === 'help'}
-        {#if active === 'help'}<HelpView />{/if}
-      {:else}
-        <p>{$t('view.soon')}</p>
-      {/if}
+      <svelte:boundary>
+        {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
+          <section class="start">
+            <h3>{$t('calendar.empty.title')}</h3>
+            <p>{$t('calendar.empty.text')}</p>
+            <button type="button" onclick={() => bar?.openExample()}
+              >{$t('calendar.empty.example')}</button
+            >
+          </section>
+        {:else if id === 'calendar'}
+          {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
+            <CalendarView onOpenMeetings={() => select('meetings', true)} />
+          {/key}
+        {:else if id === 'weeks'}
+          {#if active === 'weeks'}<WeeksView onOpenMeetings={() => select('meetings', true)} />{/if}
+        {:else if id === 'load'}
+          {#if active === 'load'}<LoadView />{/if}
+        {:else if id === 'meetings'}
+          {#if active === 'meetings'}<MeetingsView />{/if}
+        {:else if id === 'team'}
+          {#if active === 'team'}<TeamView />{/if}
+        {:else if id === 'settings'}
+          {#if active === 'settings'}<SettingsView />{/if}
+        {:else if id === 'help'}
+          {#if active === 'help'}<HelpView />{/if}
+        {:else}
+          <p>{$t('view.soon')}</p>
+        {/if}
+        {#snippet failed(error, reset)}
+          <section class="failed" role="alert">
+            <p>{$t('view.failed')}</p>
+            <button type="button" onclick={reset}>{$t('view.retry')}</button>
+          </section>
+        {/snippet}
+      </svelte:boundary>
     </div>
   {/each}
 </main>

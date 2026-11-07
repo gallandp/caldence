@@ -91,7 +91,7 @@
               {/each}
             </td>
             <td>
-              {#each row.milestones as m (m.teamId + m.id)}
+              {#each row.milestones as m (JSON.stringify([m.teamId, m.cycleId, m.id]))}
                 <span class="item">{withTeam(m.name, m.teamId)}</span>
               {/each}
             </td>

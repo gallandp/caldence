@@ -22,6 +22,8 @@
   "lang.name.de": "Deutsch",
   "lang.name.en": "English",
   "nav.views": "Ansichten",
+  "view.failed": "Diese Ansicht konnte nicht angezeigt werden. Ihre Daten sind unverändert. Wechseln Sie die Ansicht oder versuchen Sie es erneut.",
+  "view.retry": "Erneut versuchen",
   "view.soon": "Diese Ansicht folgt in einer späteren Version.",
   "view.calendar": "Kalender",
   "view.weeks": "Wochen",

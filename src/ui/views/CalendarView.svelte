@@ -360,8 +360,8 @@
                   <span class="visual" aria-hidden="true">
                     {#if c.holiday}<span class="holiday">{c.holiday}</span>{/if}
                     {#if c.school}<span class="school">{c.school}</span>{/if}
-                    {#each c.cadence as label (label)}<span class="cadence">{label}</span>{/each}
-                    {#each c.milestones as name (name)}<span class="milestone">{name}</span>{/each}
+                    {#each c.cadence as label, i (i)}<span class="cadence">{label}</span>{/each}
+                    {#each c.milestones as name, i (i)}<span class="milestone">{name}</span>{/each}
                     {#if c.showLoad}
                       <span class="load">{c.hours}</span>
                       <span class="count">{c.meetings}</span>

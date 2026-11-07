@@ -246,9 +246,15 @@ function checkTeam(
     c.date(cad, 'start', `${p}.cadence`);
   }
 
+  const pairs = new Set<string>();
   c.each(t.members, `${p}.members`, (m, mp) => {
     c.ref(m, 'personId', mp, personIds);
     c.ref(m, 'roleId', mp, roleIds);
+    if (isStr(m.personId) && isStr(m.roleId)) {
+      const pair = JSON.stringify([m.personId, m.roleId]);
+      if (pairs.has(pair)) c.err(mp, 'error.id.duplicate');
+      pairs.add(pair);
+    }
   });
 
   const a = c.obj(t.assumptions, `${p}.assumptions`);
