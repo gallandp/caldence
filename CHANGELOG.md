@@ -11,3 +11,4 @@
 - Region files with Saxony public and school holidays (core module, JSON data, format docs).
 - Recurrence engine: occurrences of events within the horizon (weekly, every n weeks, monthly nth weekday, cadence day, cycle milestone, once), holiday flagging and scaled durations.
 - Project license changed to AGPL-3.0-or-later.
+- Load calculation: weekly base load per role and category, load per week and person, FTE and threshold warnings.
