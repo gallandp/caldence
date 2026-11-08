@@ -282,3 +282,9 @@ test('meetings appear as chips in their category colour and today is marked', as
   await expect(cellOf(page, '2027-01-15')).toHaveClass(/\btoday\b/);
   await expect(cellOf(page, '2027-01-14')).not.toHaveClass(/\btoday\b/);
 });
+
+test('today is exposed as the current date, not only by its colour', async ({ page }) => {
+  await openCalendar(page, '2027-03-17');
+  await expect(cellOf(page, '2027-03-17')).toHaveAttribute('aria-current', 'date');
+  await expect(panel(page).locator('td[aria-current]')).toHaveCount(1);
+});

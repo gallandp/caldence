@@ -361,6 +361,7 @@
                   class:school={c.school !== undefined}
                   tabindex={date === cursor ? 0 : -1}
                   aria-selected={selected === date}
+                  aria-current={c.today ? 'date' : undefined}
                   onclick={() => select(date)}
                   onkeydown={(e) => onGridKeydown(e, date)}
                 >
