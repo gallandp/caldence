@@ -197,6 +197,16 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
 
 for (const locale of ['de', 'en'] as const) {
   for (const scheme of ['light', 'dark'] as const) {
+    test(`example workspace: axe passes in every view (${locale}, ${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await loadExample(page, locale);
+      for (const name of views[locale]) {
+        await showView(page, name);
+        const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+        expect.soft(results.violations, `${locale} ${scheme} ${name}`).toEqual([]);
+      }
+    });
+
     test(`forced colours: axe passes in every view (${locale}, ${scheme})`, async ({ page }) => {
       await page.emulateMedia({ forcedColors: 'active', colorScheme: scheme });
       await loadExample(page, locale);
