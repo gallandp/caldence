@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.0 – 2026-11-08
+
 ### Changed
 
 - New look: a dark sidebar with icons for the views, a top bar with Save as the main button, cards for every view, and a refreshed colour scheme in light and dark mode. On narrow screens the sidebar becomes a header.
