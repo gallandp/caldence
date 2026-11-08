@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.1 – 2026-11-08
+
 ### Changed
 
 - German interface: one term each for FTE (instead of "VZÄ" in the settings) and for the cadence ("Takt" instead of "Taktung").
