@@ -1,178 +1,35 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
-
-  const uid = $props.id();
-
-  type NavigatorWithData = Navigator & { userAgentData?: { platform?: string } };
-  const platform =
-    typeof navigator === 'undefined'
-      ? ''
-      : (navigator as NavigatorWithData).userAgentData?.platform || navigator.platform || '';
-  const platformKind = /mac|iphone|ipad/i.test(platform) ? 'mac' : 'other';
-
-  const steps = ['1', '2', '3', '4'] as const;
-  const settingsFields = [
-    'language',
-    'region',
-    'workdays',
-    'hours',
-    'horizon',
-    'holidays',
-    'thresholds',
-    'roles',
-    'people',
-  ] as const;
-  const teamFields = ['members', 'cadence', 'cycles', 'assumptions'] as const;
-  const shortcuts = ['save', 'saveAs', 'open', 'undo'] as const;
-  const regionParts = ['import', 'remove', 'warn'] as const;
-  const installParts = ['install', 'update'] as const;
-  const templateParts = ['apply', 'import', 'export', 'people'] as const;
-  const calendarApps = ['outlook', 'newOutlook', 'google', 'apple'] as const;
-  const appSteps: Record<(typeof calendarApps)[number], number> = {
-    outlook: 4,
-    newOutlook: 4,
-    google: 4,
-    apple: 3,
-  };
-  const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter'] as const;
-
-  const keys = (id: (typeof shortcuts)[number]): string =>
-    $t('help.keys.' + id, {
-      mod: $t('help.key.mod.' + platformKind),
-      shift: $t('help.key.shift.' + platformKind),
-    });
+  import Accessibility from '../help/Accessibility.svelte';
+  import CalendarImport from '../help/CalendarImport.svelte';
+  import Files from '../help/Files.svelte';
+  import FirstSteps from '../help/FirstSteps.svelte';
+  import Keyboard from '../help/Keyboard.svelte';
+  import LoadCalc from '../help/LoadCalc.svelte';
+  import { SECTIONS } from '../help/sections';
+  import Templates from '../help/Templates.svelte';
+  import Views from '../help/Views.svelte';
+  import Where from '../help/Where.svelte';
 </script>
 
 <div class="help">
-  <section aria-labelledby="{uid}-first">
-    <h3 id="{uid}-first">{$t('help.first.title')}</h3>
+  <nav aria-label={$t('help.toc')}>
     <ol>
-      {#each steps as step (step)}
-        <li>{$t('help.first.' + step)}</li>
+      {#each SECTIONS as section (section.id)}
+        <li><a href="#{section.id}">{$t(section.title)}</a></li>
       {/each}
     </ol>
-    <p>{$t('help.first.example')}</p>
-  </section>
+  </nav>
 
-  <section aria-labelledby="{uid}-where">
-    <h3 id="{uid}-where">{$t('help.where.title')}</h3>
-    <p>{$t('help.where.intro')}</p>
-    <div class="scroll">
-      <table>
-        <caption class="sr-only">{$t('help.where.caption')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{$t('help.where.col.field')}</th>
-            <th scope="col">{$t('help.where.col.where')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each settingsFields as field (field)}
-            <tr>
-              <th scope="row">{$t('help.where.s.' + field)}</th>
-              <td>{$t('help.where.col.settings')}</td>
-            </tr>
-          {/each}
-          {#each teamFields as field (field)}
-            <tr>
-              <th scope="row">{$t('help.where.t.' + field)}</th>
-              <td>{$t('help.where.col.team')}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section aria-labelledby="{uid}-files">
-    <h3 id="{uid}-files">{$t('help.files.title')}</h3>
-    <p>{$t('help.files.format')}</p>
-    <p>{$t('help.files.buttons')}</p>
-    <p>{$t('help.files.fallback')}</p>
-    <p>{$t('help.files.autosave')}</p>
-    <p>{$t('help.files.privacy')}</p>
-  </section>
-
-  <section aria-labelledby="{uid}-templates">
-    <h3 id="{uid}-templates">{$t('help.templates.title')}</h3>
-    {#each templateParts as part (part)}
-      <p>{$t('help.templates.' + part)}</p>
-    {/each}
-  </section>
-
-  <section aria-labelledby="{uid}-region">
-    <h3 id="{uid}-region">{$t('help.region.title')}</h3>
-    {#each regionParts as part (part)}
-      <p>{$t('help.region.' + part)}</p>
-    {/each}
-  </section>
-
-  <section aria-labelledby="{uid}-install">
-    <h3 id="{uid}-install">{$t('help.install.title')}</h3>
-    {#each installParts as part (part)}
-      <p>{$t('help.install.' + part)}</p>
-    {/each}
-  </section>
-
-  <section aria-labelledby="{uid}-ics">
-    <h3 id="{uid}-ics">{$t('help.ics.title')}</h3>
-    <p>{$t('help.ics.intro')}</p>
-    {#each calendarApps as app (app)}
-      <h4>{$t('help.ics.' + app + '.title')}</h4>
-      <ol>
-        {#each Array.from({ length: appSteps[app] }, (_, i) => i + 1) as n (n)}
-          <li>{$t('help.ics.' + app + '.' + n)}</li>
-        {/each}
-      </ol>
-    {/each}
-    <p>{$t('help.ics.note')}</p>
-  </section>
-
-  <section aria-labelledby="{uid}-keys">
-    <h3 id="{uid}-keys">{$t('help.keys.title')}</h3>
-    <div class="scroll">
-      <table>
-        <caption class="sr-only">{$t('help.keys.caption')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{$t('help.keys.col.keys')}</th>
-            <th scope="col">{$t('help.keys.col.action')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each shortcuts as id (id)}
-            <tr>
-              <td><kbd>{keys(id)}</kbd></td>
-              <td>{$t('help.keys.action.' + id)}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section aria-labelledby="{uid}-cal">
-    <h3 id="{uid}-cal">{$t('help.cal.title')}</h3>
-    <div class="scroll">
-      <table>
-        <caption class="sr-only">{$t('help.cal.caption')}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{$t('help.keys.col.keys')}</th>
-            <th scope="col">{$t('help.keys.col.action')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each calendarKeys as id (id)}
-            <tr>
-              <td><kbd>{$t('help.cal.' + id)}</kbd></td>
-              <td>{$t('help.cal.action.' + id)}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <FirstSteps />
+  <Views />
+  <LoadCalc />
+  <Where />
+  <Templates />
+  <Files />
+  <CalendarImport />
+  <Keyboard />
+  <Accessibility />
 </div>
 
 <style>
@@ -180,32 +37,48 @@
     max-width: 48rem;
     min-width: 0;
   }
-  .scroll {
+  nav {
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  nav ol {
+    margin: 0;
+    padding-left: 1.25rem;
+    columns: 2 14rem;
+  }
+  nav li {
+    break-inside: avoid;
+    padding: 0.15rem 0;
+  }
+  .help :global(a) {
+    color: var(--accent-text);
+  }
+  .help :global(section) {
+    scroll-margin-top: 1rem;
+  }
+  .help :global(h3) {
+    scroll-margin-top: 1rem;
+  }
+  .help :global(.scroll) {
     overflow-x: auto;
   }
-  table {
+  .help :global(table) {
     border-collapse: collapse;
     width: 100%;
   }
-  th,
-  td {
+  .help :global(th),
+  .help :global(td) {
     border: 1px solid var(--border);
     padding: 0.4rem 0.6rem;
     text-align: left;
     vertical-align: top;
   }
-  thead th {
+  .help :global(thead th) {
     background: var(--surface);
   }
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  kbd {
+  .help :global(kbd) {
     font-family: inherit;
     font-weight: 600;
     padding: 0.1rem 0.4rem;
