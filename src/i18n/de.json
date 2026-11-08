@@ -66,6 +66,7 @@
   "settings.general": "Allgemein",
   "settings.region": "Region (Feiertage)",
   "settings.region.import": "Regionsdatei importieren…",
+  "settings.region.imported": "Region {name} wurde importiert und ausgewählt.",
   "settings.region.custom": " (importiert)",
   "settings.region.file.type": "Caldence-Regionsdatei",
   "settings.region.remove": "Importierte Region {name} entfernen",

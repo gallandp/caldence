@@ -172,10 +172,17 @@ test('an imported region file is added to the select and selected', async ({ pag
     'Bavaria (sample) (imported)',
   );
   await expect(regionSelect(page)).not.toHaveAttribute('aria-invalid', 'true');
+  // Screen readers hear the result: focus stays on the import button.
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Region Bavaria (sample) was imported and selected.' }),
+  ).toBeVisible();
 
   // Switching away offers to remove the imported region.
   await regionSelect(page).selectOption('de-sn');
   const remove = page.getByRole('button', { name: 'Remove imported region Bavaria (sample)' });
+  await expect(page.getByText('was imported and selected')).toHaveCount(0);
   await remove.click();
   await expect(regionSelect(page).locator('option')).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Import region file…' })).toBeFocused();
@@ -194,7 +201,9 @@ test('one undo removes the imported region and restores the previous one', async
 test('a region file with a built-in id shows an inline error', async ({ page }) => {
   await openExample(page);
   await importRegion(page, 'de-sn.json', readFileSync('src/data/regions/de-sn.json', 'utf8'));
-  await expect(page.getByText(/A built-in region already uses the id/)).toBeVisible();
+  await expect(
+    page.getByRole('alert').filter({ hasText: /A built-in region already uses the id/ }),
+  ).toBeVisible();
   await expect(regionSelect(page)).toHaveAttribute('aria-invalid', 'true');
   await expect(regionSelect(page)).toHaveAccessibleDescription(/built-in region/);
   await expect(regionSelect(page).locator('option')).toHaveCount(1);
@@ -203,7 +212,9 @@ test('a region file with a built-in id shows an inline error', async ({ page }) 
 test('a file that is not JSON shows an error and changes nothing', async ({ page }) => {
   await openExample(page);
   await importRegion(page, 'broken.json', 'not json');
-  await expect(page.getByText('The file does not contain valid JSON')).toBeVisible();
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'The file does not contain valid JSON' }),
+  ).toBeVisible();
   await expect(regionSelect(page)).toHaveValue('de-sn');
   await expect(regionSelect(page).locator('option')).toHaveCount(1);
   // Nothing was applied, so there is nothing to undo: the example stays unmodified.

@@ -26,6 +26,7 @@
       if (own) return;
       errors = {};
       regionProblem = null;
+      importedRegion = null;
       from = ws.settings.horizon.from;
       to = ws.settings.horizon.to;
     }),
@@ -111,6 +112,13 @@
   let importButton: HTMLButtonElement | undefined = $state();
   /** The refused region file or removal; `path` is a field inside the file, if any. */
   let regionProblem = $state<{ key: string; path?: string } | null>(null);
+  /** The id of the region file just imported and selected, announced as a status message. */
+  let importedRegion = $state<string | null>(null);
+  const importedName = $derived.by(() => {
+    const id = importedRegion;
+    const region = id ? $workspace.customRegions.find((r) => r.id === id) : undefined;
+    return region ? region.name[$locale] : null;
+  });
 
   const problemOf = (list: ValidationError[]) => {
     const first = list[0];
@@ -118,6 +126,7 @@
   };
 
   async function importRegion() {
+    importedRegion = null;
     let file;
     try {
       file = await openTextFile(env, [
@@ -150,6 +159,7 @@
     own = false;
     regionProblem = result.ok ? null : problemOf(result.errors);
     if (result.ok) {
+      importedRegion = region.id;
       const next = { ...errors };
       delete next.region;
       errors = next;
@@ -157,6 +167,7 @@
   }
 
   async function removeRegion(id: string) {
+    importedRegion = null;
     own = true;
     const result = workspace.apply((ws) => removeCustomRegion(ws, id));
     own = false;
@@ -264,6 +275,7 @@
             .join(' ') || undefined}
           onchange={(e) => {
             regionProblem = null;
+            importedRegion = null;
             commit(['region'], { region: e.currentTarget.value });
           }}
         >
@@ -271,14 +283,22 @@
             <option value={id}>{regionName(id)}</option>
           {/each}
         </select>
-        {#if regionError}
-          <p class="field-error" id="err-region">{regionError}</p>
-        {/if}
+        <!-- Always present, so screen readers announce what appears in them. -->
+        <div role="alert">
+          {#if regionError}
+            <p class="field-error" id="err-region">{regionError}</p>
+          {/if}
+        </div>
         {#if unknownRegion}
           <p class="help" id="note-region">
             {$t('region.unknown', { region: settings.region })}
           </p>
         {/if}
+        <div role="status">
+          {#if importedName}
+            <p class="help">{$t('settings.region.imported', { name: importedName })}</p>
+          {/if}
+        </div>
         <div class="region-actions">
           <button type="button" bind:this={importButton} onclick={importRegion}>
             {$t('settings.region.import')}
