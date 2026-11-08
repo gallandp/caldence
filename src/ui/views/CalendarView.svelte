@@ -483,8 +483,10 @@
     background: transparent !important;
     box-shadow: none !important;
   }
+  /* The pressed mode has an accent border: the lighter pill alone is too faint (WCAG 1.4.11). */
   .group:nth-child(2) button[aria-pressed='true'] {
     background: var(--surface) !important;
+    border-color: var(--accent) !important;
     color: var(--accent-text) !important;
     box-shadow: 0 1px 3px rgb(15 20 38 / 0.15) !important;
   }

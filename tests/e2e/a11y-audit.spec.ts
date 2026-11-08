@@ -99,6 +99,38 @@ const focusVisible = (locator: Locator) =>
     );
   });
 
+/**
+ * Visible non-colour marks of an element: borders, underlines and, unless forced colours drop
+ * them, shadows and background images. Pseudo-elements count too.
+ */
+const marks = (locator: Locator, forced: boolean) =>
+  locator.evaluate((el, forced) => {
+    const out: string[] = [];
+    const clear = (c: string) => c === 'transparent' || /rgba\(.*,\s*0\)$/.test(c);
+    for (const target of [null, '::before', '::after'] as const) {
+      const cs = getComputedStyle(el, target);
+      if (target && (cs.content === 'none' || cs.display === 'none')) continue;
+      const p = target ?? '';
+      for (const side of ['top', 'right', 'bottom', 'left'])
+        if (
+          cs.getPropertyValue(`border-${side}-style`) !== 'none' &&
+          parseFloat(cs.getPropertyValue(`border-${side}-width`)) > 0 &&
+          !clear(cs.getPropertyValue(`border-${side}-color`))
+        )
+          out.push(`${p}border-${side}`);
+      if (cs.textDecorationLine.includes('underline')) out.push(`${p}underline`);
+      if (!forced && cs.boxShadow !== 'none') out.push(`${p}box-shadow`);
+      if (!forced && cs.backgroundImage !== 'none') out.push(`${p}background-image`);
+    }
+    return out;
+  }, forced);
+
+/** The marks `a` has and `b` lacks. */
+async function extraMarks(a: Locator, b: Locator, forced: boolean) {
+  const other = await marks(b, forced);
+  return (await marks(a, forced)).filter((m) => !other.includes(m));
+}
+
 /** Presses Tab (or Shift+Tab) until `target` has the focus. */
 async function tabTo(page: Page, target: Locator, key = 'Tab', max = 60) {
   for (let i = 0; i < max; i++) {
@@ -196,30 +228,37 @@ for (const width of [1280, 320]) {
     expect(await focusVisible(button), 'focused button').toBe(true);
 
     // The selected tab must differ from the others by more than colour: a border or an underline.
-    const marks = (tab: Locator) =>
-      tab.evaluate((el) => {
-        const out: string[] = [];
-        const sides = ['Top', 'Right', 'Bottom', 'Left'] as const;
-        for (const target of [null, '::before', '::after'] as const) {
-          const cs = getComputedStyle(el, target);
-          if (target && (cs.content === 'none' || cs.display === 'none')) continue;
-          for (const s of sides)
-            if (
-              cs.getPropertyValue(`border-${s.toLowerCase()}-style`) !== 'none' &&
-              parseFloat(cs.getPropertyValue(`border-${s.toLowerCase()}-width`)) > 0
-            )
-              out.push(`${target ?? ''}border-${s}`);
-          if (cs.textDecorationLine.includes('underline')) out.push(`${target ?? ''}underline`);
-        }
-        return out;
-      });
     const other = page.getByRole('tab', { name: 'Weeks', exact: true });
-    const selectedMarks = await marks(selected);
-    const otherMarks = await marks(other);
-    expect(
-      selectedMarks.filter((m) => !otherMarks.includes(m)),
-      'selected tab marks',
-    ).not.toEqual([]);
+    expect(await extraMarks(selected, other, true), 'selected tab marks').not.toEqual([]);
+  });
+}
+
+for (const forced of [false, true]) {
+  test(`${forced ? 'forced colours' : 'default colours'}: pressed view mode, selected day and today differ by more than colour`, async ({
+    page,
+  }) => {
+    if (forced) await page.emulateMedia({ forcedColors: 'active' });
+    await loadExample(page, 'en');
+    const panel = page.getByRole('tabpanel', { name: 'Calendar' });
+    const month = panel.getByRole('button', { name: 'Month', exact: true });
+    const week = panel.getByRole('button', { name: 'Week', exact: true });
+    await expect(month).toHaveAttribute('aria-pressed', 'true');
+    // A faint shadow on a near-white pill is not enough here: a border or an underline.
+    const outlined = (await extraMarks(month, week, forced)).filter((m) => !m.includes('shadow'));
+    expect.soft(outlined, 'pressed view mode').not.toEqual([]);
+
+    const day = (date: string) => panel.locator(`td[data-date="${date}"]`);
+    await day('2027-03-18').click();
+    await expect(day('2027-03-18')).toHaveAttribute('aria-selected', 'true');
+    expect
+      .soft(await extraMarks(day('2027-03-18'), day('2027-03-19'), forced), 'selected day')
+      .not.toEqual([]);
+    expect
+      .soft(
+        await extraMarks(day(TODAY).locator('.day'), day('2027-03-19').locator('.day'), forced),
+        'today',
+      )
+      .not.toEqual([]);
   });
 }
 
