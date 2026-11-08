@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/valid-workspace.json';
 import type { CalEvent, Workspace } from '../../src/core/model';
 import { validate, type Result } from '../../src/core/validate';
+import sampleJson from '../fixtures/regions/de-by-sample.json';
+import type { Region } from '../../src/core/regions';
 import {
+  addCustomRegion,
   addItem,
   addTeam,
   duplicateEvent,
   duplicateTeam,
   moveItem,
   newId,
+  removeCustomRegion,
   removeCycle,
   removeEvent,
   removeItem,
@@ -366,6 +370,45 @@ describe('settings', () => {
     expect(w.settings.hoursPerWeek).toBe(35);
     expect(ws.settings.hoursPerWeek).toBe(40);
     valid(w);
+  });
+});
+
+describe('imported regions', () => {
+  const sample = (): Region => structuredClone(sampleJson) as Region;
+
+  it('adds a region without touching the input', () => {
+    const ws = base();
+    const w = ok(addCustomRegion(ws, sample()));
+    expect(w.customRegions.map((r) => r.id)).toEqual(['de-by-sample']);
+    expect(ws.customRegions).toEqual([]);
+    valid(updateSettings(w, { region: 'de-by-sample' }));
+  });
+
+  it('rejects a built-in id', () => {
+    expect(addCustomRegion(base(), { ...sample(), id: 'de-sn' })).toEqual({
+      ok: false,
+      errors: [{ path: 'customRegions.0.id', key: 'error.region.builtin' }],
+    });
+  });
+
+  it('rejects a duplicate id', () => {
+    const w = ok(addCustomRegion(base(), sample()));
+    expect(addCustomRegion(w, sample())).toEqual({
+      ok: false,
+      errors: [{ path: 'customRegions.1.id', key: 'error.region.duplicate' }],
+    });
+  });
+
+  it('removes an unused region and refuses one in use', () => {
+    const w = ok(addCustomRegion(base(), sample()));
+    const inUse = updateSettings(w, { region: 'de-by-sample' });
+    expect(removeCustomRegion(inUse, 'de-by-sample')).toEqual({
+      ok: false,
+      errors: [{ path: 'customRegions.0', key: 'error.region.inUse' }],
+    });
+    expect(ok(removeCustomRegion(w, 'de-by-sample')).customRegions).toEqual([]);
+    expect(w.customRegions).toHaveLength(1);
+    expect(removeCustomRegion(w, 'zz').ok).toBe(false);
   });
 });
 

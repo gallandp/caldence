@@ -1,4 +1,5 @@
-import { validateRegion, type Region } from '../../core/regions';
+import { validateRegion } from '../../core/regionFile';
+import type { Region } from '../../core/regions';
 import deSnJson from './de-sn.json';
 
 function load(id: string, json: unknown): Region {

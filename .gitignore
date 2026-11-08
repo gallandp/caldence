@@ -6,3 +6,6 @@ playwright-report
 release-notes.md
 *.orig
 *.rej
+
+srv
+caldence-*.zip

@@ -5,6 +5,8 @@ import { CURRENT_SCHEMA } from './model';
 export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   // 1 -> 2: every workspace gets a stable id.
   1: (w) => ({ ...(w as Record<string, unknown>), id: randomId() }),
+  // 2 -> 3: imported region files are stored in the workspace.
+  2: (w) => ({ ...(w as Record<string, unknown>), customRegions: [] }),
 };
 
 export type MigrateResult =

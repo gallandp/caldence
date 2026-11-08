@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.6.0 – 2026-11-08
+
+### Added
+
+- Installable app (#18): Caldence can be installed from the browser and works offline after the first visit; a prompt offers the new version when an update is available.
+- Deployment (#18): the release ZIP includes ready-made server configurations, and a deployment guide (`docs/deployment.md`) explains how to host Caldence yourself.
+- Region file import (#6): import a region file with holidays in the workspace settings; it is stored in the workspace file and can be removed again.
+- Warning when school holidays are not known for the planning horizon, and a hint when a workspace uses an unknown region (#6).
+- Documentation of the workspace file format, with examples that are checked by the tests, and a feature list and quick start in the README.
+
+### Changed
+
+- Workspace files use schema 3 (adds `customRegions`); older files are upgraded when opened.
+- The Help view now covers installing the app and importing region files.
+
 ## 0.5.0 – 2026-11-08
 
 ### Changed

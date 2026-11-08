@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MIGRATIONS, migrate } from '../../src/core/migrate';
 import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
+import { loadWorkspace } from '../../src/core/validate';
 
 describe('migrate', () => {
   afterEach(() => {
@@ -12,20 +13,43 @@ describe('migrate', () => {
     expect(migrate(w)).toEqual({ ok: true, value: w });
   });
 
-  it('migrates schema 1 to 2 by adding only a UUID v4 id', () => {
+  it('migration 1 adds only a UUID v4 id', () => {
     const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 1 };
     delete old.id;
-    const r = migrate(old);
-    expect(r.ok).toBe(true);
-    const value = (r as { value: Record<string, unknown> }).value;
+    delete old.customRegions;
+    const value = MIGRATIONS[1]!(old) as Record<string, unknown>;
     expect(value.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
-    expect(value).toEqual({ ...old, schemaVersion: 2, id: value.id });
+    expect(value).toEqual({ ...old, schemaVersion: 1, id: value.id });
   });
 
-  it('rejects a schema 3 file as newer', () => {
-    expect(migrate({ schemaVersion: 3 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  it('migrates schema 2 to 3 by adding only an empty customRegions list', () => {
+    const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 2 };
+    delete old.customRegions;
+    const r = migrate(old);
+    expect(r).toEqual({ ok: true, value: { ...old, schemaVersion: 3, customRegions: [] } });
+  });
+
+  it('migrates schema 1 all the way to 3', () => {
+    const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 1 };
+    delete old.id;
+    delete old.customRegions;
+    const r = migrate(old);
+    const value = (r as { value: Record<string, unknown> }).value;
+    expect(value).toEqual({ ...old, schemaVersion: 3, id: value.id, customRegions: [] });
+  });
+
+  it('loads a schema 2 file', () => {
+    const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 2 };
+    delete old.customRegions;
+    const r = loadWorkspace(JSON.stringify(old));
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 3, customRegions: [] });
+  });
+
+  it('rejects a schema 4 file as newer', () => {
+    expect(migrate({ schemaVersion: 4 })).toEqual({ ok: false, key: 'error.schema.newer' });
   });
 
   it('rejects newer schemas without touching the input', () => {

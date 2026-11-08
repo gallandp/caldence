@@ -5,3 +5,5 @@ test-results
 playwright-report
 .superpowers
 docs
+srv
+caldence-*.zip

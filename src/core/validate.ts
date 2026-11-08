@@ -1,6 +1,8 @@
 import { isValidDate, isValidTime } from './date';
 import { migrate } from './migrate';
 import { CURRENT_SCHEMA, type Workspace } from './model';
+import { validateRegion } from './regionFile';
+import { isBuiltinRegion } from './regions';
 
 export type ValidationError = { path: string; key: string };
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ValidationError[] };
@@ -297,6 +299,23 @@ function checkTeam(
   );
 }
 
+/** Checks imported regions: valid shape, no built-in id, no duplicate id. */
+function checkCustomRegions(c: Checker, v: unknown): void {
+  const ids = new Set<string>();
+  (c.arr(v, 'customRegions') ?? []).forEach((r, i) => {
+    const p = `customRegions.${i}`;
+    const result = validateRegion(r);
+    if (!result.ok) {
+      for (const e of result.errors) c.err(e.path ? `${p}.${e.path}` : p, e.key);
+      return;
+    }
+    const id = result.value.id;
+    if (isBuiltinRegion(id)) c.err(`${p}.id`, 'error.region.builtin');
+    else if (ids.has(id)) c.err(`${p}.id`, 'error.region.duplicate');
+    else ids.add(id);
+  });
+}
+
 export function validate(input: unknown): Result<Workspace> {
   const c = new Checker();
   const w = c.obj(input, '');
@@ -339,6 +358,9 @@ export function validate(input: unknown): Result<Workspace> {
   const teams = c.arr(w.teams, 'teams') ?? [];
   c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
+
+  // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
+  checkCustomRegions(c, w.customRegions);
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
   return { ok: true, value: input as Workspace };

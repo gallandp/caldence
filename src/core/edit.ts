@@ -1,6 +1,7 @@
 import { mondayOf, type ISODate } from './date';
 import type { CalEvent, Category, Cycle, Person, Role, Settings, Team, Workspace } from './model';
 import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
+import { isBuiltinRegion, type Region } from './regions';
 import { validate, type Result, type ValidationError } from './validate';
 
 export type ListKind = 'roles' | 'people' | 'categories';
@@ -366,4 +367,26 @@ export function updateSettings(ws: Workspace, patch: Partial<Settings>): Workspa
     ...structuredClone(ws),
     settings: { ...structuredClone(ws.settings), ...structuredClone(patch) },
   };
+}
+
+// ---------- imported regions ----------
+
+/** Adds an imported region; its id must differ from every built-in and imported region. */
+export function addCustomRegion(ws: Workspace, region: Region): Result<Workspace> {
+  const path = `customRegions.${ws.customRegions.length}.id`;
+  if (isBuiltinRegion(region.id)) return fail(path, 'error.region.builtin');
+  if (ws.customRegions.some((r) => r.id === region.id)) return fail(path, 'error.region.duplicate');
+  const out = structuredClone(ws);
+  out.customRegions.push(structuredClone(region));
+  return { ok: true, value: out };
+}
+
+/** Removes an imported region that is not the workspace's region. */
+export function removeCustomRegion(ws: Workspace, id: string): Result<Workspace> {
+  const index = ws.customRegions.findIndex((r) => r.id === id);
+  if (index < 0) return fail(`customRegions.${id}`, 'error.ref.unknown');
+  if (ws.settings.region === id) return fail(`customRegions.${index}`, 'error.region.inUse');
+  const out = structuredClone(ws);
+  out.customRegions.splice(index, 1);
+  return { ok: true, value: out };
 }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { mondayOf } from '../../core/date';
-  import { scopeTeams, weekRows } from '../../core/views';
+  import { schoolHolidayGap, scopeTeams, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
@@ -27,6 +27,16 @@
     several ? $t('cal.withTeam', { label, team: teamName(id) }) : label;
   const hours = (n: number): string => formatNumber($locale, n, 1);
 
+  /** The selected region's school holidays end before the planning horizon does. */
+  const coverage = $derived.by(() => {
+    const region = schoolHolidayGap($workspace, $index);
+    if (!region) return null;
+    return $t('region.beyondKnown', {
+      region: region.name[$locale],
+      date: formatDisplayDate($locale, region.schoolHolidaysKnownUntil, 'short'),
+    });
+  });
+
   let table: HTMLTableElement | undefined = $state();
   onMount(() => {
     // Moves the scroll position only; focus stays where it is.
@@ -35,6 +45,9 @@
 </script>
 
 <div class="weeks">
+  {#if coverage}
+    <p class="hint">{coverage}</p>
+  {/if}
   {#if !hasEvents}
     <p class="hint">
       {$t('cal.noevents.text')}

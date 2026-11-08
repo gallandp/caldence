@@ -24,6 +24,8 @@
   ] as const;
   const teamFields = ['members', 'cadence', 'cycles', 'assumptions'] as const;
   const shortcuts = ['save', 'saveAs', 'open', 'undo'] as const;
+  const regionParts = ['import', 'remove', 'warn'] as const;
+  const installParts = ['install', 'update'] as const;
   const templateParts = ['apply', 'import', 'export', 'people'] as const;
   const calendarApps = ['outlook', 'newOutlook', 'google', 'apple'] as const;
   const appSteps: Record<(typeof calendarApps)[number], number> = {
@@ -95,6 +97,20 @@
     <h3 id="{uid}-templates">{$t('help.templates.title')}</h3>
     {#each templateParts as part (part)}
       <p>{$t('help.templates.' + part)}</p>
+    {/each}
+  </section>
+
+  <section aria-labelledby="{uid}-region">
+    <h3 id="{uid}-region">{$t('help.region.title')}</h3>
+    {#each regionParts as part (part)}
+      <p>{$t('help.region.' + part)}</p>
+    {/each}
+  </section>
+
+  <section aria-labelledby="{uid}-install">
+    <h3 id="{uid}-install">{$t('help.install.title')}</h3>
+    {#each installParts as part (part)}
+      <p>{$t('help.install.' + part)}</p>
     {/each}
   </section>
 

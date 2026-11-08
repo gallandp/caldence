@@ -1,0 +1,20 @@
+# Caldence is a static site: no rewrite rules are needed.
+# Needs AllowOverride FileInfo and the modules mod_mime and mod_headers
+# (or put these lines in the vhost).
+
+AddType application/manifest+json .webmanifest
+AddType text/javascript .js .mjs
+
+<IfModule mod_headers.c>
+  # Always revalidate the entry points so updates reach users.
+  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  # Files with a content hash in the name never change.
+  <FilesMatch "^workbox-.*\.js$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <If "%{REQUEST_URI} =~ m#/assets/[^/]+$#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+</IfModule>
