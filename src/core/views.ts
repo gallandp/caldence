@@ -1,9 +1,8 @@
-import { REGIONS } from '../data/regions';
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
 import { fte, occurrenceHours, weeklyBaseLoad } from './load';
 import type { Team, Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
-import { holidayIndex, type HolidayIndex, type HolidayName } from './regions';
+import { holidayIndex, resolveRegion, type HolidayIndex, type HolidayName } from './regions';
 
 export type Filter = { teamId?: string; roleId?: string; personId?: string };
 
@@ -23,7 +22,7 @@ export type WeekRow = {
 /** Holiday index for the settings horizon; an unknown region gives empty maps. */
 export function workspaceIndex(ws: Workspace): HolidayIndex {
   const { region, horizon } = ws.settings;
-  const known = REGIONS[region];
+  const known = resolveRegion(ws, region);
   if (!known) return { holidays: new Map(), schoolHolidays: new Map(), beyondKnown: true };
   return holidayIndex(known, horizon.from, horizon.to);
 }

@@ -25,6 +25,23 @@ A region file is a JSON document describing public holidays and school holidays 
 
 Validation errors use the keys `error.required`, `error.type`, `error.date.invalid`, `error.enum.invalid` and `error.number.invalid`.
 
+## Importing a region file
+
+In **Workspace settings**, next to the region select, **Import region file…** opens a `.json` region file. The file is read on this device only; nothing is uploaded or fetched.
+
+- A valid file is added to the workspace and selected in one step, so one undo (Ctrl+Z) removes it again and restores the previous region.
+- The imported region is stored in the workspace file itself (`customRegions`, schema 3). Whoever opens the workspace file gets the region with it; nothing else needs to be shared.
+- Imported regions show the suffix "(imported)" in the select. An imported region that is not selected can be removed with **Remove imported region …**; the selected region cannot be removed (`error.region.inUse`).
+- An imported region must not use the id of a built-in region (`error.region.builtin`), and two imported regions must not share an id (`error.region.duplicate`). Built-in regions always win when ids are looked up (`resolveRegion` in `regions.ts`).
+- A file that is not JSON shows `error.file.json`; a file that is not a valid region shows the first validation error. In both cases the workspace is unchanged.
+- `settings.region` must name a built-in or imported region; otherwise the workspace does not validate (`error.ref.unknown`).
+
+Templates never contain regions: a template with `customRegions` is refused.
+
+## Coverage warning
+
+When the planning horizon ends after `schoolHolidaysKnownUntil` of the selected region, Settings (below the horizon) and the Weeks view say that school holidays are known only until that date. Public holidays are computed from rules and need no such warning.
+
 ## Saxony (`de-sn`) sources
 
 Public holidays follow the Saxon holiday law (Sächsisches Feiertagsgesetz).

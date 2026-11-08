@@ -1,6 +1,8 @@
 import { isValidDate, isValidTime } from './date';
 import { migrate } from './migrate';
 import { CURRENT_SCHEMA, type Workspace } from './model';
+import { validateRegion } from './regionFile';
+import { isBuiltinRegion } from './regions';
 
 export type ValidationError = { path: string; key: string };
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ValidationError[] };
@@ -297,6 +299,24 @@ function checkTeam(
   );
 }
 
+/** Checks imported regions; returns the ids of the valid ones. */
+function checkCustomRegions(c: Checker, v: unknown): Set<string> {
+  const ids = new Set<string>();
+  (c.arr(v, 'customRegions') ?? []).forEach((r, i) => {
+    const p = `customRegions.${i}`;
+    const result = validateRegion(r);
+    if (!result.ok) {
+      for (const e of result.errors) c.err(e.path ? `${p}.${e.path}` : p, e.key);
+      return;
+    }
+    const id = result.value.id;
+    if (isBuiltinRegion(id)) c.err(`${p}.id`, 'error.region.builtin');
+    else if (ids.has(id)) c.err(`${p}.id`, 'error.region.duplicate');
+    else ids.add(id);
+  });
+  return ids;
+}
+
 export function validate(input: unknown): Result<Workspace> {
   const c = new Checker();
   const w = c.obj(input, '');
@@ -339,6 +359,11 @@ export function validate(input: unknown): Result<Workspace> {
   const teams = c.arr(w.teams, 'teams') ?? [];
   c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
+
+  const customIds = checkCustomRegions(c, w.customRegions);
+  const region = isObj(w.settings) ? w.settings.region : undefined;
+  if (isStr(region) && !isBuiltinRegion(region) && !customIds.has(region))
+    c.err('settings.region', 'error.ref.unknown');
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
   return { ok: true, value: input as Workspace };

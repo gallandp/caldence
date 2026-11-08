@@ -1,7 +1,8 @@
 import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
+import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 2;
+export const CURRENT_SCHEMA = 3;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -89,6 +90,8 @@ export interface Workspace {
   people: Person[];
   categories: Category[];
   teams: Team[];
+  /** Region files imported into this workspace; ids never equal a built-in region id. */
+  customRegions: Region[];
 }
 
 export function emptyWorkspace(today: ISODate): Workspace {
@@ -109,5 +112,6 @@ export function emptyWorkspace(today: ISODate): Workspace {
     people: [],
     categories: [],
     teams: [],
+    customRegions: [],
   };
 }

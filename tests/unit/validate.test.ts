@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA, emptyWorkspace, type Workspace } from '../../src/core/model';
+import type { Region } from '../../src/core/regions';
 import { loadWorkspace, validate } from '../../src/core/validate';
 
 const fixture = (): Workspace =>
   JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8')) as Workspace;
+
+const sample = (): Region =>
+  JSON.parse(readFileSync('tests/fixtures/regions/de-by-sample.json', 'utf8')) as Region;
 
 function errorsOf(w: unknown): { path: string; key: string }[] {
   const r = validate(w);
@@ -50,6 +54,34 @@ describe('validate', () => {
     delete w.id;
     expect(errorsOf(w)).toContainEqual({ path: 'id', key: 'error.required' });
     expect(errorsOf({ ...w, id: '' })).toContainEqual({ path: 'id', key: 'error.type' });
+  });
+
+  it('rejects a settings.region that resolves nowhere', () => {
+    const w = fixture();
+    w.settings.region = 'xx-nowhere';
+    expect(errorsOf(w)).toContainEqual({ path: 'settings.region', key: 'error.ref.unknown' });
+  });
+
+  it('accepts a settings.region that names an imported region', () => {
+    const w = fixture();
+    w.customRegions = [sample()];
+    w.settings.region = 'de-by-sample';
+    expect(validate(w).ok).toBe(true);
+  });
+
+  it('rejects imported regions with a built-in or duplicate id, or a bad shape', () => {
+    const w = fixture();
+    w.customRegions = [sample(), { ...sample(), id: 'de-sn' }, sample(), { id: 'x' } as never];
+    const errors = errorsOf(w);
+    expect(errors).toContainEqual({ path: 'customRegions.1.id', key: 'error.region.builtin' });
+    expect(errors).toContainEqual({ path: 'customRegions.2.id', key: 'error.region.duplicate' });
+    expect(errors).toContainEqual({ path: 'customRegions.3.name', key: 'error.required' });
+  });
+
+  it('requires customRegions', () => {
+    const w: Record<string, unknown> = { ...fixture() };
+    delete w.customRegions;
+    expect(errorsOf(w)).toContainEqual({ path: 'customRegions', key: 'error.required' });
   });
 
   it('accepts any non-empty timezone name, known to this browser or not', () => {
