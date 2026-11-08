@@ -5,9 +5,10 @@
   const { needRefresh, offlineReady } = update;
 </script>
 
-<!-- The live region always exists, so screen readers announce text added to it. It floats over
-     the page instead of pushing content down, so nothing moves under the pointer when it appears. -->
-<div class="notice-region" role="status">
+<!-- The live region always exists, so screen readers announce text added to it.
+     "Works offline" is only announced: showing it would push the page down or cover controls
+     on every first visit. A new version is rare and needs a choice, so it is shown. -->
+<div role="status">
   {#if $needRefresh}
     <div class="notice">
       <span>{$t('update.available')}</span>
@@ -15,35 +16,19 @@
       <button type="button" onclick={() => update.dismiss()}>{$t('update.later')}</button>
     </div>
   {:else if $offlineReady}
-    <div class="notice">
-      <span>{$t('update.offline')}</span>
-      <button type="button" onclick={() => update.dismiss()}>{$t('update.ok')}</button>
-    </div>
+    <span class="sr-only">{$t('update.offline')}</span>
   {/if}
 </div>
 
 <style>
-  .notice-region {
-    position: fixed;
-    inset-inline: var(--space);
-    bottom: var(--space);
-    z-index: 10;
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-  }
   .notice {
-    pointer-events: auto;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: calc(var(--space) / 2);
-    max-width: 40rem;
     padding: calc(var(--space) / 2) var(--space);
     background: var(--surface);
     color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+    border-bottom: 1px solid var(--border);
   }
 </style>

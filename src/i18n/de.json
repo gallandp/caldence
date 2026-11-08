@@ -517,6 +517,5 @@
   "update.available": "Eine neue Version von Caldence ist verfügbar.",
   "update.reload": "Neu laden",
   "update.later": "Später",
-  "update.offline": "Caldence funktioniert jetzt auch offline.",
-  "update.ok": "OK"
+  "update.offline": "Caldence funktioniert jetzt auch offline."
 }
