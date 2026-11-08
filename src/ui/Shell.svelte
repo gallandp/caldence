@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import WeeksView from './views/WeeksView.svelte';
@@ -122,6 +124,17 @@
     event.returnValue = '';
   }
 
+  /**
+   * Runs a file action from an empty state. When it loaded a workspace, the empty state with the
+   * focused button is gone: the focus moves to the current tab instead of the page (WCAG 2.4.3).
+   */
+  async function fromEmptyState(action: Promise<void> | undefined) {
+    await action;
+    if ($workspace.teams.length === 0) return;
+    await tick();
+    select(active, true);
+  }
+
   let main: HTMLElement | undefined;
   function skip(event: Event) {
     event.preventDefault();
@@ -201,12 +214,20 @@
         >
           <h2>{$t('view.' + id)}</h2>
           <svelte:boundary>
-            {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
+            {#if id === 'calendar' && $workspace.teams.length === 0}
+              <StartView
+                onOpenFile={() => fromEmptyState(bar?.open())}
+                onOpenExample={() => fromEmptyState(bar?.openExample())}
+                onEmpty={() => select('team', true)}
+                onManual={() => select('help', true)}
+                onCreated={() => void tick().then(() => select('calendar', true))}
+              />
+            {:else if (id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
-                <button type="button" onclick={() => bar?.openExample()}
-                  >{$t('calendar.empty.example')}</button
+                <button type="button" onclick={() => fromEmptyState(bar?.openExample())}
+                  >{$t('start.example')}</button
                 >
               </section>
             {:else if id === 'calendar'}
@@ -384,6 +405,15 @@
   [role='tab']:focus-visible {
     outline-color: #b9b0ff;
   }
+  /* Forced colours drop the gradient and the shadow: mark the selected view with a border and an underline. */
+  @media (forced-colors: active) {
+    [role='tab'][aria-selected='true'] {
+      border: 2px solid Highlight;
+      padding: calc(0.6rem - 2px) calc(0.75rem - 2px);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+  }
   .side-foot {
     margin-top: auto;
     padding: 0 0.5rem;
@@ -458,6 +488,13 @@
     }
     [role='tab'][aria-selected='true']::before {
       display: none;
+    }
+    /* Without the bar beside it, the selected tab keeps a mark that is not only colour (WCAG 1.4.11). */
+    [role='tab'][aria-selected='true'] {
+      text-decoration: underline;
+      text-decoration-color: #b9b0ff;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 0.3em;
     }
     .side-foot {
       margin-top: 0;

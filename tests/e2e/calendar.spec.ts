@@ -202,7 +202,7 @@ test('days outside the planning horizon show no data', async ({ page }) => {
 
 test('a workspace without teams shows the start screen', async ({ page }) => {
   await page.goto('/');
-  await expect(panel(page).getByRole('button', { name: 'Open example' })).toBeVisible();
+  await expect(panel(page).getByRole('button', { name: 'Open the example' })).toBeVisible();
   await expect(panel(page).getByRole('grid')).toHaveCount(0);
 });
 
@@ -281,4 +281,10 @@ test('meetings appear as chips in their category colour and today is marked', as
   expect(await chip.evaluate((el) => el.style.getPropertyValue('--c'))).toBe(colour);
   await expect(cellOf(page, '2027-01-15')).toHaveClass(/\btoday\b/);
   await expect(cellOf(page, '2027-01-14')).not.toHaveClass(/\btoday\b/);
+});
+
+test('today is exposed as the current date, not only by its colour', async ({ page }) => {
+  await openCalendar(page, '2027-03-17');
+  await expect(cellOf(page, '2027-03-17')).toHaveAttribute('aria-current', 'date');
+  await expect(panel(page).locator('td[aria-current]')).toHaveCount(1);
 });

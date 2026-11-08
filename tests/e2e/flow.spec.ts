@@ -91,7 +91,7 @@ async function expectEverything(page: Page) {
 test('from an empty workspace to saved, restored and reopened data', async ({ page }) => {
   await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Open example' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open the example' }).first()).toBeVisible();
 
   // Roles and a person in the workspace settings.
   await tab(page, 'Workspace settings').click();
@@ -184,6 +184,7 @@ for (const locale of ['de', 'en'] as const) {
         .getByRole('tab', { name: locale === 'de' ? 'Hilfe' : 'Help', exact: true })
         .click();
       await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
+      // Where each value is edited, keyboard shortcuts and calendar keys.
       await expect(page.getByRole('table')).toHaveCount(3);
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -203,13 +204,30 @@ test('the help view shows the platform key and the German texts', async ({ page 
   await expect(panel(page, 'Hilfe').getByRole('table', { name: 'Tastenkürzel' })).toContainText(
     /Strg|⌘/,
   );
-  await expect(panel(page, 'Hilfe').getByRole('heading', { name: 'Vorlagen' })).toBeVisible();
+  // "Vorlagen" is both a manual section (h3) and a subsection of "Die Ansichten" (h4).
   await expect(
-    panel(page, 'Hilfe').getByRole('heading', { name: 'In den eigenen Kalender importieren' }),
+    panel(page, 'Hilfe').getByRole('heading', { level: 3, name: 'Vorlagen' }),
+  ).toBeVisible();
+  await expect(
+    panel(page, 'Hilfe').getByRole('heading', {
+      level: 3,
+      name: 'In den eigenen Kalender importieren',
+    }),
+  ).toBeVisible();
+  await expect(
+    panel(page, 'Hilfe').getByRole('heading', {
+      level: 3,
+      name: 'So wird die Auslastung berechnet',
+    }),
   ).toBeVisible();
   await page.getByLabel('Sprache').selectOption('en');
-  await expect(panel(page, 'Help').getByRole('heading', { name: 'Templates' })).toBeVisible();
   await expect(
-    panel(page, 'Help').getByRole('heading', { name: 'Import into your calendar' }),
+    panel(page, 'Help').getByRole('heading', { level: 3, name: 'Templates' }),
+  ).toBeVisible();
+  await expect(
+    panel(page, 'Help').getByRole('heading', { level: 3, name: 'Import into your calendar' }),
+  ).toBeVisible();
+  await expect(
+    panel(page, 'Help').getByRole('heading', { level: 3, name: 'How the load is calculated' }),
   ).toBeVisible();
 });

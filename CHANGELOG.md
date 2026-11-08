@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+
+- Start screen (#19): a workspace without teams shows a welcome page on the Calendar view with the built-in templates, Open a file, the example and links to an empty workspace and the manual.
+- Built-in manual (#19): the Help view has a table of contents, guided first steps from the start screen to an .ics export that name the real button and tab labels, a chapter on every view, how the load is calculated, and a section on accessibility. All help texts were brought up to date with the current views.
+- Screenshots (#19): `npm run screenshots` generates the README images in English and German (and the calendar in dark mode) from the built app; CI runs it so the script stays working.
+- Accessibility audit (#20): an automated audit checks every view at 320 and 640 px width, in forced colours (Windows contrast themes) and with reduced motion, and walks from the start screen to an .ics export with the keyboard only. The results are in `docs/accessibility/audit-2026.md`, and the accessibility statement (`docs/accessibility.md`) describes the target (WCAG 2.2 AA), the tests, known limitations and how to report a problem.
+
+### Fixed
+
+- Accessibility (#20): after opening the example or a file from the start screen, the focus moves to the Calendar tab instead of the page; wide tables (meetings, team members, import review and the manual) can be scrolled with the keyboard; the pressed Month or Week button has a border; today is announced as the current date in the month grid; in forced colours the selected view, the selected day, today and the view mode stay visible; on narrow screens the selected view is underlined.
+- Calendar: all seven days of the month stay visible beside the day details on a laptop screen.
+- The empty Weeks and Load views use the same label for opening the example as the start screen.
+
 ## 0.6.0 – 2026-11-08
 
 ### Added

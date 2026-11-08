@@ -143,7 +143,7 @@ test('empty workspace explains how to start in both views', async ({ page }) => 
     await page.getByRole('tab', { name, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name });
     await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
-    await expect(panel.getByRole('button', { name: 'Open example' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Open the example' })).toBeVisible();
     await expect(panel.getByRole('table')).toHaveCount(0);
   }
 });

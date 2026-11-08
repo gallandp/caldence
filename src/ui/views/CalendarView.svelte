@@ -361,6 +361,7 @@
                   class:school={c.school !== undefined}
                   tabindex={date === cursor ? 0 : -1}
                   aria-selected={selected === date}
+                  aria-current={c.today ? 'date' : undefined}
                   onclick={() => select(date)}
                   onkeydown={(e) => onGridKeydown(e, date)}
                 >
@@ -439,6 +440,10 @@
   .calendar:has(> :global(.details)) {
     grid-template-columns: minmax(0, 1fr) 17rem;
   }
+  /* Beside the day details the grid may be narrower, so all seven days stay visible on a laptop screen. */
+  .calendar:has(> :global(.details)) table {
+    min-width: 36rem;
+  }
   .calendar > :not(.scroll):not(:global(.details)) {
     grid-column: 1 / -1;
   }
@@ -461,6 +466,7 @@
   }
   .group {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.35rem;
   }
   .group:first-child {
@@ -479,8 +485,10 @@
     background: transparent !important;
     box-shadow: none !important;
   }
+  /* The pressed mode has an accent border: the lighter pill alone is too faint (WCAG 1.4.11). */
   .group:nth-child(2) button[aria-pressed='true'] {
     background: var(--surface) !important;
+    border-color: var(--accent) !important;
     color: var(--accent-text) !important;
     box-shadow: 0 1px 3px rgb(15 20 38 / 0.15) !important;
   }
@@ -596,6 +604,23 @@
     color: #fff;
     background: linear-gradient(135deg, #7b6bff, #5340e6);
     box-shadow: 0 4px 10px -2px rgb(83 64 230 / 0.55);
+  }
+  /* Forced colours drop shadows and gradients: draw the states with borders and an underline. */
+  @media (forced-colors: active) {
+    .group:nth-child(2) button[aria-pressed='true'] {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+    td.selected::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 2px solid Highlight;
+      pointer-events: none;
+    }
+    td.today .day {
+      border: 2px solid CanvasText;
+    }
   }
   .warn {
     padding: 0 0.4rem;

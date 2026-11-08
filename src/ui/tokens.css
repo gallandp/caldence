@@ -55,6 +55,14 @@
   }
 }
 
+/* Forced colours: text on the accent uses the system button text. Chromium keeps the authored colour
+   in -webkit-text-fill-color, which made contrast checkers read dark text on a black canvas. */
+@media (forced-colors: active) {
+  :root {
+    --on-accent: ButtonText;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

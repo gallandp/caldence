@@ -206,7 +206,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Add team' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByLabel('Team name')).toBeFocused();
+  await expect(page.getByRole('dialog').getByLabel('Team name')).toBeFocused();
   await page.keyboard.type('Keys');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toHaveCount(0);

@@ -13,7 +13,7 @@ export async function useFileFallback(page: Page) {
 
 export async function openExample(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open example' }).click();
+  await page.getByRole('button', { name: 'Open the example' }).click();
   await expect(page.getByText('Untitled')).toBeVisible();
 }
 

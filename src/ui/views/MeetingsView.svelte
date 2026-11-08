@@ -18,6 +18,7 @@
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
 
+  const uid = $props.id();
   /** `opener` is what gets the focus back: `add` or the id of the event whose Edit opened the form. */
   let editing = $state<{ key: number; event: CalEvent; opener: string } | null>(null);
   let counter = 0;
@@ -158,9 +159,10 @@
     {#if team.events.length === 0}
       <p class="empty">{$t('meet.empty')}</p>
     {:else}
-      <div class="table-wrap">
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+      <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
         <table>
-          <caption>{$t('meet.table.caption', { team: team.name })}</caption>
+          <caption id="{uid}-caption">{$t('meet.table.caption', { team: team.name })}</caption>
           <thead>
             <tr>
               <th scope="col">{$t('meet.col.name')}</th>
