@@ -36,6 +36,9 @@ for (const base of urls) {
       expect(manifest.headers()['content-type']).toContain('application/manifest+json');
       expect(manifest.headers()['cache-control']).toContain('no-cache');
 
+      // The folder URL is what people open; the server answers it with index.html.
+      const folder = await request.get(base);
+      expect(folder.headers()['cache-control']).toContain('no-cache');
       const html = await request.get(base + 'index.html');
       expect(html.headers()['cache-control']).toContain('no-cache');
       const sw = await request.get(base + 'sw.js');
