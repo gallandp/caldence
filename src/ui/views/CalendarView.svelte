@@ -439,6 +439,10 @@
   .calendar:has(> :global(.details)) {
     grid-template-columns: minmax(0, 1fr) 17rem;
   }
+  /* Beside the day details the grid may be narrower, so all seven days stay visible on a laptop screen. */
+  .calendar:has(> :global(.details)) table {
+    min-width: 36rem;
+  }
   .calendar > :not(.scroll):not(:global(.details)) {
     grid-column: 1 / -1;
   }
