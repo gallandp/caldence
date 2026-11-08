@@ -24,6 +24,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run e2e
+      - run: npm run screenshots -- --out "$RUNNER_TEMP/shots"
 
   deploy-smoke:
     runs-on: ubuntu-latest
