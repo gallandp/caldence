@@ -466,7 +466,7 @@
   "help.cal.escape": "Escape",
   "help.cal.action.escape": "In the day details: close them",
   "help.a11y.title": "Accessibility",
-  "help.a11y.text": "Caldence is built to meet WCAG 2.2 level AA in German and English, in light and dark mode. Every view works with the keyboard and with a screen reader. The accessibility statement describes how this was tested and lists known limitations.",
+  "help.a11y.text": "Caldence is built to meet WCAG 2.2 level AA in German and English, in light and dark mode. Every view works with the keyboard and is built for screen readers. The accessibility statement describes how this was tested and lists known limitations.",
   "help.a11y.link": "Accessibility statement (GitHub)",
   "template.error.notTemplate": "This is not a template file. Open workspace files with Open.",
   "template.error.personal": "Templates must not contain people or members.",

@@ -466,7 +466,7 @@
   "help.cal.escape": "Esc",
   "help.cal.action.escape": "In den Tagesdetails: sie schließen",
   "help.a11y.title": "Barrierefreiheit",
-  "help.a11y.text": "Caldence ist auf WCAG 2.2, Stufe AA, ausgelegt, auf Deutsch und Englisch, im hellen und im dunklen Modus. Jede Ansicht lässt sich mit der Tastatur und mit einem Screenreader bedienen. Die Erklärung zur Barrierefreiheit beschreibt, wie das geprüft wurde, und nennt bekannte Einschränkungen.",
+  "help.a11y.text": "Caldence ist auf WCAG 2.2, Stufe AA, ausgelegt, auf Deutsch und Englisch, im hellen und im dunklen Modus. Jede Ansicht lässt sich mit der Tastatur bedienen und ist für Screenreader ausgelegt. Die Erklärung zur Barrierefreiheit beschreibt, wie das geprüft wurde, und nennt bekannte Einschränkungen.",
   "help.a11y.link": "Erklärung zur Barrierefreiheit (GitHub)",
   "template.error.notTemplate": "Das ist keine Vorlagendatei. Eine Arbeitsbereich-Datei öffnen Sie über „Öffnen“.",
   "template.error.personal": "Vorlagen dürfen keine Personen oder Mitglieder enthalten.",
