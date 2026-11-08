@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- German interface: one term each for FTE (instead of "VZÄ" in the settings) and for the cadence ("Takt" instead of "Taktung").
+
 ## 1.0.0 – 2026-11-08
 
 ### Added
@@ -16,10 +20,6 @@
 - Accessibility (#20): after opening the example or a file from the start screen, the focus moves to the Calendar tab instead of the page; wide tables (meetings, team members, import review and the manual) can be scrolled with the keyboard; the pressed Month or Week button has a border; today is announced as the current date in the month grid; in forced colours the selected view, the selected day, today and the view mode stay visible; on narrow screens the selected view is underlined.
 - Calendar: all seven days of the month stay visible beside the day details on a laptop screen.
 - The empty Weeks and Load views use the same label for opening the example as the start screen.
-
-### Changed
-
-- German interface: one term each for FTE (instead of "VZÄ" in the settings) and for the cadence ("Takt" instead of "Taktung").
 
 ## 0.6.0 – 2026-11-08
 
