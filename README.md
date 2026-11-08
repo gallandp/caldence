@@ -2,7 +2,7 @@
 
 Open-source calendar tool for planning the recurring meetings of agile roles (Product Owner, Scrum Master, teams) and exporting them to Outlook and other calendar apps.
 
-Status: phase 4 – release preparation (installable app, deployment)
+Status: 1.0
 
 ![Caldence month view for January 2027 with the details of one day open](docs/screenshots/calendar-en.png)
 
@@ -20,7 +20,7 @@ Status: phase 4 – release preparation (installable app, deployment)
 - Region files: import your own holiday data.
 - Installable app that works offline and asks before updating.
 - German and English interface.
-- Accessible: keyboard operation, screen reader support, light and dark mode.
+- Accessible: keyboard operation, screen reader support, light and dark mode, targeting WCAG 2.2 AA (see the [accessibility statement](docs/accessibility.md)).
 
 ## Screenshots
 

@@ -2,13 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- Start screen (#19): a workspace without teams shows a welcome page on the Calendar view with the built-in templates, Open a file, the example and links to an empty workspace and the manual.
+- Built-in manual (#19): the Help view has a table of contents, guided first steps from the start screen to an .ics export that name the real button and tab labels, a chapter on every view, how the load is calculated, and a section on accessibility. All help texts were brought up to date with the current views.
+- Screenshots (#19): `npm run screenshots` generates the README images in English and German (and the calendar in dark mode) from the built app; CI runs it so the script stays working.
+- Accessibility audit (#20): an automated audit checks every view at 320 and 640 px width, in forced colours (Windows contrast themes) and with reduced motion, and walks from the start screen to an .ics export with the keyboard only. The results are in `docs/accessibility/audit-2026.md`, and the accessibility statement (`docs/accessibility.md`) describes the target (WCAG 2.2 AA), the tests, known limitations and how to report a problem.
+
+### Fixed
+
+- Accessibility (#20): after opening the example or a file from the start screen, the focus moves to the Calendar tab instead of the page; wide tables (meetings, team members, import review and the manual) can be scrolled with the keyboard; the pressed Month or Week button has a border; today is announced as the current date in the month grid; in forced colours the selected view, the selected day, today and the view mode stay visible.
+
 ## 0.6.0 – 2026-11-08
 
 ### Added
 
-- Screenshots (#19): `npm run screenshots` generates the README images in English and German (and the calendar in dark mode) from the built app; CI runs it so the script stays working.
-- Built-in manual (#19): the Help view has a table of contents, guided first steps from the start screen to an .ics export that name the real button and tab labels, a chapter on every view, how the load is calculated, and a section on accessibility. All help texts were brought up to date with the current views.
-- Start screen (#19): a workspace without teams shows a welcome page on the Calendar view with the built-in templates, Open a file, the example and links to an empty workspace and the manual.
 - Installable app (#18): Caldence can be installed from the browser and works offline after the first visit; a prompt offers the new version when an update is available.
 - Deployment (#18): the release ZIP includes ready-made server configurations, and a deployment guide (`docs/deployment.md`) explains how to host Caldence yourself.
 - Region file import (#6): import a region file with holidays in the workspace settings; it is stored in the workspace file and can be removed again.
