@@ -81,7 +81,13 @@
     <tbody>
       {#each summary.byCategory as c (c.categoryId)}
         <tr data-category={c.categoryId}>
-          <th scope="row">{categoryName(c.categoryId)}</th>
+          <th scope="row">
+            <span
+              class="dot"
+              aria-hidden="true"
+              style:background={$workspace.categories.find((x) => x.id === c.categoryId)?.colour}
+            ></span>{categoryName(c.categoryId)}
+          </th>
           {#each summary.byRole as r (r.roleId)}
             <td class="num">{hours(summary.matrix[c.categoryId]?.[r.roleId] ?? 0)}</td>
           {/each}
@@ -107,7 +113,11 @@
         <tr data-role={r.roleId}>
           <th scope="row">{roleName(r.roleId)}</th>
           <td class="num">{hours(r.hours)}</td>
-          <td class="num">{formatPercent($locale, r.percent / 100)}</td>
+          <td class="num">
+            <span class="meter" aria-hidden="true"
+              ><span style:width="{Math.min(100, r.percent)}%"></span></span
+            >{formatPercent($locale, r.percent / 100)}
+          </td>
           <td class="num">{formatNumber($locale, r.fte, 2)}</td>
         </tr>
       {/each}
@@ -162,6 +172,30 @@
 </div>
 
 <style>
+  .meter {
+    display: inline-block;
+    width: 6rem;
+    height: 0.45rem;
+    margin-right: 0.75rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+    vertical-align: middle;
+    overflow: hidden;
+  }
+  .meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #7b6bff, #22b5e0);
+  }
+  .dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-right: 0.55rem;
+    border-radius: 50%;
+  }
   .load {
     max-width: 72rem;
     min-width: 0;
