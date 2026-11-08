@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0 – 2026-11-08
+
 ### Added
 
 - Screenshots (#19): `npm run screenshots` generates the README images in English and German (and the calendar in dark mode) from the built app; CI runs it so the script stays working.
