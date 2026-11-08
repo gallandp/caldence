@@ -58,6 +58,9 @@ test('Open a file reads a workspace file', async ({ page }) => {
   await (await chooser).setFiles('tests/fixtures/valid-workspace.json');
   await expect(page.getByText('valid-workspace.json')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Welcome to|Willkommen bei/ })).toHaveCount(0);
+  // The start screen is gone: the focus moves to the Calendar tab, not to the page.
+  // (The fixture is a German workspace.)
+  await expect(page.getByRole('tab', { name: 'Kalender', exact: true })).toBeFocused();
 });
 
 test('the two links switch to Team and Help', async ({ page }) => {

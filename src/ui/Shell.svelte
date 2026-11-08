@@ -124,6 +124,17 @@
     event.returnValue = '';
   }
 
+  /**
+   * Runs a file action from an empty state. When it loaded a workspace, the empty state with the
+   * focused button is gone: the focus moves to the current tab instead of the page (WCAG 2.4.3).
+   */
+  async function fromEmptyState(action: Promise<void> | undefined) {
+    await action;
+    if ($workspace.teams.length === 0) return;
+    await tick();
+    select(active, true);
+  }
+
   let main: HTMLElement | undefined;
   function skip(event: Event) {
     event.preventDefault();
@@ -205,8 +216,8 @@
           <svelte:boundary>
             {#if id === 'calendar' && $workspace.teams.length === 0}
               <StartView
-                onOpenFile={() => bar?.open()}
-                onOpenExample={() => bar?.openExample()}
+                onOpenFile={() => fromEmptyState(bar?.open())}
+                onOpenExample={() => fromEmptyState(bar?.openExample())}
                 onEmpty={() => select('team', true)}
                 onManual={() => select('help', true)}
                 onCreated={() => void tick().then(() => select('calendar', true))}
@@ -215,7 +226,7 @@
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
-                <button type="button" onclick={() => bar?.openExample()}
+                <button type="button" onclick={() => fromEmptyState(bar?.openExample())}
                   >{$t('calendar.empty.example')}</button
                 >
               </section>
