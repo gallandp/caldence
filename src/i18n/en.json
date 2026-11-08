@@ -504,5 +504,10 @@
   "exchange.import.submit": "Import {n} meetings",
   "exchange.imported": "{n} meetings were imported into {team}.",
   "exchange.open": "Open Meetings",
-  "exchange.newCategory": "Imported"
+  "exchange.newCategory": "Imported",
+  "update.available": "A new version of Caldence is available.",
+  "update.reload": "Reload",
+  "update.later": "Later",
+  "update.offline": "Caldence now also works offline.",
+  "update.ok": "OK"
 }
