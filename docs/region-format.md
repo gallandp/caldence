@@ -6,8 +6,14 @@ A region file is a JSON document describing public holidays and school holidays 
 {
   "id": "de-sn",
   "name": { "de": "Sachsen", "en": "Saxony" },
-  "holidays": [ ...rules... ],
-  "schoolHolidays": [ { "name": { "de": "...", "en": "..." }, "from": "2026-10-12", "to": "2026-10-24" } ],
+  "holidays": [
+    { "type": "fixed", "month": 1, "day": 1, "name": { "de": "Neujahr", "en": "New Year's Day" } },
+    { "type": "easter", "offset": -2, "name": { "de": "Karfreitag", "en": "Good Friday" } },
+    { "type": "special", "id": "repentance-day", "name": { "de": "Buß- und Bettag", "en": "Day of Repentance and Prayer" } }
+  ],
+  "schoolHolidays": [
+    { "name": { "de": "Herbstferien", "en": "Autumn break" }, "from": "2026-10-12", "to": "2026-10-24" }
+  ],
   "schoolHolidaysKnownUntil": "2028-09-01"
 }
 ```
