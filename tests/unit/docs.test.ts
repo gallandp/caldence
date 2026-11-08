@@ -8,7 +8,7 @@ import { loadWorkspace } from '../../src/core/validate';
 function firstJson(file: string): string {
   const text = readFileSync(new URL(`../../docs/${file}`, import.meta.url), 'utf8');
   const m = /```json\n([\s\S]*?)\n```/.exec(text);
-  if (!m) throw new Error(`no json block in ${file}`);
+  if (!m?.[1]) throw new Error(`no json block in ${file}`);
   return m[1];
 }
 
