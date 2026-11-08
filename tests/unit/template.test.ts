@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyWorkspace } from '../../src/core/model';
+import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import {
   applyTemplate,
   loadTemplate,
@@ -227,6 +227,31 @@ describe('wrong files', () => {
     (t.team as { events: { time: string }[] }).events[0]!.time = 'x';
     const r = validateTemplate(t);
     expect(!r.ok && r.errors[0]!.path).toBe('team.events.0.time');
+  });
+  it('rejects customRegions', () => {
+    expect(keys(validateTemplate({ ...tpl(), customRegions: [] }))).toContain(
+      'template.error.notTemplate',
+    );
+  });
+  it('applies a schema 2 template without picking up customRegions', () => {
+    const t = { ...tpl(), schemaVersion: 2 };
+    const r = validateTemplate(t);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.value).not.toHaveProperty('customRegions');
+    const applied = applyTemplate(emptyWorkspace('2026-11-09'), r.value, {
+      name: 'Team',
+      today: '2026-11-09',
+    });
+    expect(applied.ok).toBe(true);
+  });
+  it('exports templates with the current schema and no customRegions', () => {
+    const t = teamToTemplate(exampleWorkspace(), 'team-alpha', {
+      id: 'x',
+      name: 'X',
+      description: '',
+    });
+    expect(t.schemaVersion).toBe(CURRENT_SCHEMA);
+    expect(t).not.toHaveProperty('customRegions');
   });
   it('accepts a template as loaded text', () => {
     const r: ReturnType<typeof loadTemplate> = loadTemplate(JSON.stringify(tpl()));

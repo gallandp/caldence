@@ -24,3 +24,49 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run e2e
+
+  deploy-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run package
+      - name: Unzip into the served folder
+        run: |
+          mkdir -p srv/apps/caldence
+          unzip -q caldence-*.zip -d srv/apps/caldence
+      - name: Start Apache and nginx
+        run: |
+          docker run -d --name apache -p 8081:80 \
+            -v "$PWD/srv:/usr/local/apache2/htdocs:ro" \
+            -v "$PWD/deploy/apache-test.conf:/usr/local/apache2/conf/httpd.conf:ro" \
+            httpd:2.4
+          docker run -d --name nginx -p 8082:80 \
+            -v "$PWD/srv:/usr/share/nginx/html:ro" \
+            -v "$PWD/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.28-alpine
+          for port in 8081 8082; do
+            for i in $(seq 1 30); do
+              curl -fsS -o /dev/null "http://localhost:$port/apps/caldence/" && break
+              if [ "$i" = 30 ]; then
+                docker logs apache; docker logs nginx
+                echo "Port $port did not answer" >&2
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test -c playwright.deploy.config.ts
+        env:
+          DEPLOY_URLS: http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/
+      - name: Server logs
+        if: failure()
+        run: |
+          docker logs apache
+          docker logs nginx

@@ -109,14 +109,23 @@ describe('autosave', () => {
     expect(kv.data.has('current.bak')).toBe(false);
   });
 
-  it('migrates a real schema 1 autosave to schema 2 with an id', async () => {
+  it('migrates a real schema 1 autosave to the current schema with an id', async () => {
     const kv = memory();
     const old: Record<string, unknown> = { ...ws, schemaVersion: 1 };
     delete old.id;
     kv.data.set('current', { ws: old, fileName: 'old.json', dirty: true });
     const restored = await createAutosave(kv).restore();
-    expect(restored?.ws.schemaVersion).toBe(2);
+    expect(restored?.ws.schemaVersion).toBe(3);
+    expect(restored?.ws.customRegions).toEqual([]);
     expect(restored?.ws.id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('restores an autosave whose region is unknown', async () => {
+    const kv = memory();
+    const old = { ...ws, settings: { ...ws.settings, region: 'xx-gone' } };
+    kv.data.set('current', { ws: old, fileName: null, dirty: true });
+    const restored = await createAutosave(kv).restore();
+    expect(restored?.ws.settings.region).toBe('xx-gone');
   });
 
   it('flush writes immediately', async () => {

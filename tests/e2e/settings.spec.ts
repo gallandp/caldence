@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { openWorkspaceFile } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -149,6 +151,154 @@ test('the language field switches the whole UI', async ({ page }) => {
   await expect(page.getByLabel('Zeitzone')).toBeVisible();
   await expect(page.getByText(/Team-spezifische Werte/)).toBeVisible();
 });
+
+/** Imports a region file through the file input (fallback path). */
+async function importRegion(page: Page, name: string, text: string) {
+  const chooser = page.waitForEvent('filechooser');
+  await page
+    .getByRole('button', { name: /^(Import region file…|Regionsdatei importieren…)$/ })
+    .click();
+  await (await chooser).setFiles({ name, mimeType: 'application/json', buffer: Buffer.from(text) });
+}
+
+const sampleRegion = () => readFileSync('tests/fixtures/regions/de-by-sample.json', 'utf8');
+const regionSelect = (page: Page) => page.getByLabel('Region (holidays)');
+
+test('an imported region file is added to the select and selected', async ({ page }) => {
+  await openExample(page);
+  await importRegion(page, 'de-by-sample.json', sampleRegion());
+  await expect(regionSelect(page)).toHaveValue('de-by-sample');
+  await expect(regionSelect(page).locator('option:checked')).toHaveText(
+    'Bavaria (sample) (imported)',
+  );
+  await expect(regionSelect(page)).not.toHaveAttribute('aria-invalid', 'true');
+  // Screen readers hear the result: focus stays on the import button.
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: 'Region Bavaria (sample) was imported and selected.' }),
+  ).toBeVisible();
+
+  // Switching away offers to remove the imported region.
+  await regionSelect(page).selectOption('de-sn');
+  const remove = page.getByRole('button', { name: 'Remove imported region Bavaria (sample)' });
+  await expect(page.getByText('was imported and selected')).toHaveCount(0);
+  await remove.click();
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Import region file…' })).toBeFocused();
+});
+
+test('one undo removes the imported region and restores the previous one', async ({ page }) => {
+  await openExample(page);
+  await importRegion(page, 'de-by-sample.json', sampleRegion());
+  await expect(regionSelect(page)).toHaveValue('de-by-sample');
+  await page.getByRole('button', { name: 'Import region file…' }).focus();
+  await page.keyboard.press('Control+z');
+  await expect(regionSelect(page)).toHaveValue('de-sn');
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+});
+
+test('a region file with a built-in id shows an inline error', async ({ page }) => {
+  await openExample(page);
+  await importRegion(page, 'de-sn.json', readFileSync('src/data/regions/de-sn.json', 'utf8'));
+  await expect(
+    page.getByRole('alert').filter({ hasText: /A built-in region already uses the id/ }),
+  ).toBeVisible();
+  await expect(regionSelect(page)).toHaveAttribute('aria-invalid', 'true');
+  await expect(regionSelect(page)).toHaveAccessibleDescription(/built-in region/);
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+});
+
+test('a file that is not JSON shows an error and changes nothing', async ({ page }) => {
+  await openExample(page);
+  await importRegion(page, 'broken.json', 'not json');
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'The file does not contain valid JSON' }),
+  ).toBeVisible();
+  await expect(regionSelect(page)).toHaveValue('de-sn');
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  // Nothing was applied, so there is nothing to undo: the example stays unmodified.
+  await page.getByRole('button', { name: 'Import region file…' }).focus();
+  await page.keyboard.press('Control+z');
+  await expect(regionSelect(page)).toHaveValue('de-sn');
+  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+});
+
+test('a horizon beyond the known school holidays shows a warning in Settings and Weeks', async ({
+  page,
+}) => {
+  await openExample(page);
+  const warning =
+    /School holidays for Saxony are known only until 09\/01\/2028\. Later school holidays are missing\./;
+  await expect(page.getByText(warning)).toHaveCount(0);
+  await page.getByLabel('Horizon to').fill('2028-12-31');
+  await page.getByLabel('Horizon to').blur();
+  await expect(page.getByText(warning)).toBeVisible();
+  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
+  await expect(page.getByRole('tabpanel').getByText(warning)).toBeVisible();
+});
+
+for (const locale of ['de', 'en'] as const) {
+  test(`axe finds no violations with an imported region and the coverage warning (${locale})`, async ({
+    page,
+  }) => {
+    await openExample(page);
+    await page
+      .getByRole('tabpanel')
+      .getByLabel(/Language|Sprache/)
+      .selectOption(locale);
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+    await importRegion(page, 'de-by-sample.json', sampleRegion());
+    await importRegion(page, 'broken.json', 'not json');
+    await expect(page.locator('#err-region')).toBeVisible();
+    await page.locator('#set-region').selectOption('de-sn');
+    await importRegion(page, 'broken.json', 'not json');
+    await page.locator('#set-to').fill('2028-12-31');
+    await page.locator('#set-to').blur();
+    await expect(page.locator('.settings p.help', { hasText: '2028' })).toBeVisible();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+  });
+}
+
+async function openUnknownRegion(page: Page) {
+  const ws = JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.settings.region = 'xx-gone';
+  await page.goto('/');
+  await openWorkspaceFile(page, ws, 'unknown-region.caldence.json');
+  await openSettings(page);
+}
+
+test('a workspace with an unknown region opens and Settings says so', async ({ page }) => {
+  await openUnknownRegion(page);
+  await expect(regionSelect(page)).toHaveValue('xx-gone');
+  const note = /The region xx-gone is unknown, so no holidays are used\./;
+  await expect(page.getByText(note)).toBeVisible();
+  await expect(regionSelect(page)).toHaveAccessibleDescription(note);
+  await expect(regionSelect(page)).not.toHaveAttribute('aria-invalid', 'true');
+  await regionSelect(page).selectOption('de-sn');
+  await expect(page.getByText(note)).toHaveCount(0);
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+});
+
+for (const locale of ['de', 'en'] as const) {
+  test(`axe finds no violations with an unknown region (${locale})`, async ({ page }) => {
+    await openUnknownRegion(page);
+    await page
+      .getByRole('tabpanel')
+      .getByLabel(/Language|Sprache/)
+      .selectOption(locale);
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+    await expect(page.locator('#note-region')).toBeVisible();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+  });
+}
 
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations in the settings (${locale})`, async ({ page }) => {

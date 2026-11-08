@@ -1,14 +1,19 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { updateSettings } from '../../core/edit';
+  import { onMount, tick } from 'svelte';
+  import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
   import type { Settings } from '../../core/model';
+  import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
+  import type { ValidationError } from '../../core/validate';
+  import { schoolHolidayGap } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
-  import { REGIONS, regionIds } from '../../data/regions';
-  import { translate as t, locale, type Locale } from '../../i18n';
+  import { regionIds } from '../../data/regions';
+  import { formatDisplayDate, translate as t, locale, type Locale } from '../../i18n';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import ListEditor from '../components/ListEditor.svelte';
+  import { browserFileEnv, openTextFile } from '../state/files';
   import { fieldErrors } from '../state/form';
-  import { workspace } from '../state/workspace';
+  import { pickFile } from '../state/picker';
+  import { index, workspace } from '../state/workspace';
 
   const settings = $derived($workspace.settings);
 
@@ -20,6 +25,8 @@
     workspace.subscribe((ws) => {
       if (own) return;
       errors = {};
+      regionProblem = null;
+      importedRegion = null;
       from = ws.settings.horizon.from;
       to = ws.settings.horizon.to;
     }),
@@ -83,10 +90,113 @@
 
   // ---------- selects ----------
 
-  const regionName = (id: string) => REGIONS[id]?.name[$locale] ?? id;
-  const regions = $derived(
-    regionIds().includes(settings.region) ? regionIds() : [...regionIds(), settings.region],
+  const regionName = (id: string): string => {
+    const region = resolveRegion($workspace, id);
+    if (!region) return id;
+    const name = region.name[$locale];
+    return isBuiltinRegion(id) ? name : name + $t('settings.region.custom');
+  };
+  /** The selected region names no built-in or imported region: it loads, but has no holidays. */
+  const unknownRegion = $derived(resolveRegion($workspace, settings.region) === null);
+  const regions = $derived([
+    ...regionIds(),
+    ...$workspace.customRegions.map((r) => r.id),
+    ...(unknownRegion ? [settings.region] : []),
+  ]);
+  /** Imported regions that are not selected, so they can be removed. */
+  const removable = $derived($workspace.customRegions.filter((r) => r.id !== settings.region));
+
+  // ---------- region files: read only on this device, stored in the workspace ----------
+
+  const env = browserFileEnv((accept) => pickFile(accept ?? '.json,application/json'));
+  let importButton: HTMLButtonElement | undefined = $state();
+  /** The refused region file or removal; `path` is a field inside the file, if any. */
+  let regionProblem = $state<{ key: string; path?: string } | null>(null);
+  /** The id of the region file just imported and selected, announced as a status message. */
+  let importedRegion = $state<string | null>(null);
+  const importedName = $derived.by(() => {
+    const id = importedRegion;
+    const region = id ? $workspace.customRegions.find((r) => r.id === id) : undefined;
+    return region ? region.name[$locale] : null;
+  });
+
+  const problemOf = (list: ValidationError[]) => {
+    const first = list[0];
+    return { key: first?.key ?? 'error.type', path: first?.path || undefined };
+  };
+
+  async function importRegion() {
+    importedRegion = null;
+    let file;
+    try {
+      file = await openTextFile(env, [
+        { description: $t('settings.region.file.type'), accept: { 'application/json': ['.json'] } },
+      ]);
+    } catch {
+      regionProblem = { key: 'file.error.read' };
+      return;
+    }
+    if (!file) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(file.text);
+    } catch {
+      regionProblem = { key: 'error.file.json' };
+      return;
+    }
+    const checked = validateRegion(parsed);
+    if (!checked.ok) {
+      regionProblem = problemOf(checked.errors);
+      return;
+    }
+    const region = checked.value;
+    own = true;
+    // Adding and selecting the region is one change, so one undo step.
+    const result = workspace.apply((ws) => {
+      const added = addCustomRegion(ws, region);
+      return added.ok ? updateSettings(added.value, { region: region.id }) : added;
+    });
+    own = false;
+    regionProblem = result.ok ? null : problemOf(result.errors);
+    if (result.ok) {
+      importedRegion = region.id;
+      const next = { ...errors };
+      delete next.region;
+      errors = next;
+    }
+  }
+
+  async function removeRegion(id: string) {
+    importedRegion = null;
+    own = true;
+    const result = workspace.apply((ws) => removeCustomRegion(ws, id));
+    own = false;
+    regionProblem = result.ok ? null : problemOf(result.errors);
+    if (result.ok) {
+      await tick();
+      importButton?.focus();
+    }
+  }
+
+  const errorText = (key: string, label: string) => $t(key, { path: label });
+
+  const regionError = $derived(
+    errors.region
+      ? errorText(errors.region, $t('settings.region'))
+      : regionProblem
+        ? $t(regionProblem.key, { path: regionProblem.path ?? $t('settings.region') })
+        : null,
   );
+
+  /** The selected region's school holidays end before the planning horizon does. */
+  const coverage = $derived.by(() => {
+    const region = schoolHolidayGap($workspace, $index);
+    if (!region) return null;
+    return $t('region.beyondKnown', {
+      region: region.name[$locale],
+      date: formatDisplayDate($locale, region.schoolHolidaysKnownUntil, 'short'),
+    });
+  });
 
   const FALLBACK_ZONES = ['Europe/Berlin', 'Europe/London', 'Europe/Vienna', 'UTC'];
   function supportedZones(): string[] | null {
@@ -103,8 +213,6 @@
   const zoneOptions = $derived(
     zones && !zones.includes(settings.timezone) ? [settings.timezone, ...zones] : zones,
   );
-
-  const errorText = (key: string, label: string) => $t(key, { path: label });
 
   // A zone this browser does not know loads fine, but is flagged here because export and import need it.
   const tzError = $derived(
@@ -161,15 +269,46 @@
         <select
           id="set-region"
           value={settings.region}
-          aria-invalid={errors.region ? 'true' : undefined}
-          aria-describedby={describe('region')}
-          onchange={(e) => commit(['region'], { region: e.currentTarget.value })}
+          aria-invalid={regionError ? 'true' : undefined}
+          aria-describedby={[regionError && 'err-region', unknownRegion && 'note-region']
+            .filter(Boolean)
+            .join(' ') || undefined}
+          onchange={(e) => {
+            regionProblem = null;
+            importedRegion = null;
+            commit(['region'], { region: e.currentTarget.value });
+          }}
         >
           {#each regions as id (id)}
             <option value={id}>{regionName(id)}</option>
           {/each}
         </select>
-        {@render err('region', $t('settings.region'))}
+        <!-- Always present, so screen readers announce what appears in them. -->
+        <div role="alert">
+          {#if regionError}
+            <p class="field-error" id="err-region">{regionError}</p>
+          {/if}
+        </div>
+        {#if unknownRegion}
+          <p class="help" id="note-region">
+            {$t('region.unknown', { region: settings.region })}
+          </p>
+        {/if}
+        <div role="status">
+          {#if importedName}
+            <p class="help">{$t('settings.region.imported', { name: importedName })}</p>
+          {/if}
+        </div>
+        <div class="region-actions">
+          <button type="button" bind:this={importButton} onclick={importRegion}>
+            {$t('settings.region.import')}
+          </button>
+          {#each removable as r (r.id)}
+            <button type="button" onclick={() => removeRegion(r.id)}>
+              {$t('settings.region.remove', { name: r.name[$locale] })}
+            </button>
+          {/each}
+        </div>
       </div>
 
       <div class="field">
@@ -272,6 +411,9 @@
           {@render err('horizon.to', $t('settings.horizon.to'))}
         </div>
       </div>
+      {#if coverage}
+        <p class="help">{coverage}</p>
+      {/if}
     </fieldset>
 
     <label class="check holidays">
@@ -437,6 +579,21 @@
   }
   .hours input {
     width: 5.5rem;
+  }
+  .region-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
   }
   select,
   input[type='number'],

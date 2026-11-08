@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import deSnJson from '../../src/data/regions/de-sn.json';
-import { holidayIndex, holidaysFor, validateRegion, type Region } from '../../src/core/regions';
+import deBySample from '../fixtures/regions/de-by-sample.json';
+import { emptyWorkspace } from '../../src/core/model';
+import {
+  holidayIndex,
+  holidaysFor,
+  resolveRegion,
+  validateRegion,
+  type Region,
+} from '../../src/core/regions';
+import { REGIONS } from '../../src/data/regions';
 
 const r = validateRegion(deSnJson);
 if (!r.ok) throw new Error('de-sn invalid');
@@ -84,5 +93,30 @@ describe('regions', () => {
       expect(keys).toContain('schoolHolidays.0.to:error.date.invalid');
       expect(keys).toContain('schoolHolidaysKnownUntil:error.date.invalid');
     }
+  });
+});
+
+describe('resolveRegion', () => {
+  const custom = (id: string, en: string): Region => ({
+    ...structuredClone(deSn),
+    id,
+    name: { de: en, en },
+  });
+
+  it('finds built-in and imported regions, and null for unknown ids', () => {
+    const ws = { ...emptyWorkspace('2026-11-08'), customRegions: [custom('de-by', 'Bavaria')] };
+    expect(resolveRegion(ws, 'de-sn')).toBe(REGIONS['de-sn']);
+    expect(resolveRegion(ws, 'de-by')?.name.en).toBe('Bavaria');
+    expect(resolveRegion(ws, 'xx')).toBeNull();
+    expect(resolveRegion(ws, 'toString')).toBeNull();
+  });
+
+  it('prefers the built-in region over an imported one with the same id', () => {
+    const ws = { ...emptyWorkspace('2026-11-08'), customRegions: [custom('de-sn', 'Fake')] };
+    expect(resolveRegion(ws, 'de-sn')?.name.en).toBe('Saxony');
+  });
+
+  it('the sample fixture is a valid region', () => {
+    expect(validateRegion(deBySample).ok).toBe(true);
   });
 });

@@ -5,6 +5,7 @@
   import { autosave, restoreWithTimeout } from './state/autosave';
   import { workspace } from './state/workspace';
   import Shell from './Shell.svelte';
+  import UpdateNotice from './UpdateNotice.svelte';
   import './tokens.css';
   import './global.css';
   import './theme.css';
@@ -58,6 +59,8 @@
 
 <svelte:window onpagehide={flushNow} onbeforeunload={flushNow} />
 <svelte:document onvisibilitychange={() => document.hidden && flushNow()} />
+
+<UpdateNotice />
 
 {#if ready}
   <Shell />

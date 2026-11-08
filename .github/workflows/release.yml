@@ -42,7 +42,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          (cd dist && zip -r "../caldence-${{ steps.bump.outputs.version }}.zip" .)
+          npm run package
       - name: Commit, tag and release
         if: steps.bump.outputs.changed == 'true'
         env:

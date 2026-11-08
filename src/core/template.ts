@@ -35,11 +35,16 @@ export function validateTemplate(input: unknown): Result<Template> {
   if ('people' in input) return fail([{ path: 'people', key: 'template.error.personal' }]);
   if (isObj(team) && 'members' in team)
     return fail([{ path: 'team.members', key: 'template.error.personal' }]);
+  // Regions belong to a workspace, never to a template.
+  if ('customRegions' in input)
+    return fail([{ path: 'customRegions', key: 'template.error.notTemplate' }]);
 
   const m = migrate(input);
   if (!m.ok) return fail([{ path: 'schemaVersion', key: m.key }]);
   // Migrations may invent a workspace id; a template keeps its own.
+  // Templates share the workspace schema version; workspace-only fields added on the way are dropped.
   const value: Record<string, unknown> = { ...(m.value as Record<string, unknown>), id: input.id };
+  delete value.customRegions;
 
   const errors: ValidationError[] = [];
   if (value.id === undefined) errors.push({ path: 'id', key: 'error.required' });
@@ -64,6 +69,7 @@ export function validateTemplate(input: unknown): Result<Template> {
       value.team === undefined
         ? undefined
         : [{ ...(value.team as object), id: 'team', members: [] }],
+    customRegions: [],
   };
   const r = validate(temp);
   if (!r.ok) {

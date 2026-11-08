@@ -1,0 +1,60 @@
+{
+  "id": "de-by-sample",
+  "name": { "de": "Bayern (Beispiel)", "en": "Bavaria (sample)" },
+  "holidays": [
+    { "type": "fixed", "month": 1, "day": 1, "name": { "de": "Neujahr", "en": "New Year's Day" } },
+    {
+      "type": "fixed",
+      "month": 1,
+      "day": 6,
+      "name": { "de": "Heilige Drei Könige", "en": "Epiphany" }
+    },
+    { "type": "easter", "offset": -2, "name": { "de": "Karfreitag", "en": "Good Friday" } },
+    { "type": "easter", "offset": 1, "name": { "de": "Ostermontag", "en": "Easter Monday" } },
+    {
+      "type": "fixed",
+      "month": 5,
+      "day": 1,
+      "name": { "de": "Tag der Arbeit", "en": "Labour Day" }
+    },
+    {
+      "type": "easter",
+      "offset": 39,
+      "name": { "de": "Christi Himmelfahrt", "en": "Ascension Day" }
+    },
+    { "type": "easter", "offset": 50, "name": { "de": "Pfingstmontag", "en": "Whit Monday" } },
+    { "type": "easter", "offset": 60, "name": { "de": "Fronleichnam", "en": "Corpus Christi" } },
+    {
+      "type": "fixed",
+      "month": 10,
+      "day": 3,
+      "name": { "de": "Tag der Deutschen Einheit", "en": "German Unity Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 11,
+      "day": 1,
+      "name": { "de": "Allerheiligen", "en": "All Saints' Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 25,
+      "name": { "de": "1. Weihnachtstag", "en": "Christmas Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 26,
+      "name": { "de": "2. Weihnachtstag", "en": "Boxing Day" }
+    }
+  ],
+  "schoolHolidays": [
+    {
+      "name": { "de": "Herbstferien", "en": "Autumn holidays" },
+      "from": "2026-11-02",
+      "to": "2026-11-06"
+    }
+  ],
+  "schoolHolidaysKnownUntil": "2026-12-31"
+}
