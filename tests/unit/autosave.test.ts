@@ -120,6 +120,14 @@ describe('autosave', () => {
     expect(restored?.ws.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it('restores an autosave whose region is unknown', async () => {
+    const kv = memory();
+    const old = { ...ws, settings: { ...ws.settings, region: 'xx-gone' } };
+    kv.data.set('current', { ws: old, fileName: null, dirty: true });
+    const restored = await createAutosave(kv).restore();
+    expect(restored?.ws.settings.region).toBe('xx-gone');
+  });
+
   it('flush writes immediately', async () => {
     const kv = memory();
     const a = createAutosave(kv, 500);

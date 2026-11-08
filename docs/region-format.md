@@ -34,7 +34,7 @@ In **Workspace settings**, next to the region select, **Import region file…** 
 - Imported regions show the suffix "(imported)" in the select. An imported region that is not selected can be removed with **Remove imported region …**; the selected region cannot be removed (`error.region.inUse`).
 - An imported region must not use the id of a built-in region (`error.region.builtin`), and two imported regions must not share an id (`error.region.duplicate`). Built-in regions always win when ids are looked up (`resolveRegion` in `regions.ts`).
 - A file that is not JSON shows `error.file.json`; a file that is not a valid region shows the first validation error. In both cases the workspace is unchanged.
-- `settings.region` must name a built-in or imported region; otherwise the workspace does not validate (`error.ref.unknown`).
+- A workspace whose `settings.region` names no built-in or imported region still opens, like one with an unknown time zone. It then uses no holidays; Settings lists the raw id in the select and says that the region is unknown, so you can choose another one or import its region file.
 
 Templates never contain regions: a template with `customRegions` is refused.
 

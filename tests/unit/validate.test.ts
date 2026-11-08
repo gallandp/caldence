@@ -56,10 +56,14 @@ describe('validate', () => {
     expect(errorsOf({ ...w, id: '' })).toContainEqual({ path: 'id', key: 'error.type' });
   });
 
-  it('rejects a settings.region that resolves nowhere', () => {
+  it('accepts a settings.region that resolves nowhere', () => {
     const w = fixture();
     w.settings.region = 'xx-nowhere';
-    expect(errorsOf(w)).toContainEqual({ path: 'settings.region', key: 'error.ref.unknown' });
+    expect(validate(w).ok).toBe(true);
+    const loaded = loadWorkspace(
+      JSON.stringify({ ...w, schemaVersion: 2, customRegions: undefined }),
+    );
+    expect(loaded.ok && loaded.value.settings.region).toBe('xx-nowhere');
   });
 
   it('accepts a settings.region that names an imported region', () => {

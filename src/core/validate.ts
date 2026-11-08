@@ -299,8 +299,8 @@ function checkTeam(
   );
 }
 
-/** Checks imported regions; returns the ids of the valid ones. */
-function checkCustomRegions(c: Checker, v: unknown): Set<string> {
+/** Checks imported regions: valid shape, no built-in id, no duplicate id. */
+function checkCustomRegions(c: Checker, v: unknown): void {
   const ids = new Set<string>();
   (c.arr(v, 'customRegions') ?? []).forEach((r, i) => {
     const p = `customRegions.${i}`;
@@ -314,7 +314,6 @@ function checkCustomRegions(c: Checker, v: unknown): Set<string> {
     else if (ids.has(id)) c.err(`${p}.id`, 'error.region.duplicate');
     else ids.add(id);
   });
-  return ids;
 }
 
 export function validate(input: unknown): Result<Workspace> {
@@ -360,10 +359,8 @@ export function validate(input: unknown): Result<Workspace> {
   c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
 
-  const customIds = checkCustomRegions(c, w.customRegions);
-  const region = isObj(w.settings) ? w.settings.region : undefined;
-  if (isStr(region) && !isBuiltinRegion(region) && !customIds.has(region))
-    c.err('settings.region', 'error.ref.unknown');
+  // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
+  checkCustomRegions(c, w.customRegions);
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
   return { ok: true, value: input as Workspace };

@@ -7,6 +7,7 @@ import {
   dayLoad,
   filteredOccurrences,
   loadSummary,
+  schoolHolidayGap,
   scopeTeams,
   weekRows,
   workspaceIndex,
@@ -56,6 +57,17 @@ describe('workspaceIndex', () => {
     expect(idx.schoolHolidays.size).toBe(0);
     expect(idx.beyondKnown).toBe(true);
     expect(weekRows(ws, idx, {}).length).toBeGreaterThan(0);
+    // No coverage note for an unknown region: there is no date to name.
+    expect(schoolHolidayGap(ws, idx)).toBeNull();
+  });
+
+  it('names the region whose school holidays end before the horizon', () => {
+    const ws = base();
+    ws.settings.region = 'de-sn';
+    ws.settings.horizon = { from: '2027-01-01', to: '2027-12-31' };
+    expect(schoolHolidayGap(ws, workspaceIndex(ws))).toBeNull();
+    ws.settings.horizon.to = '2028-12-31';
+    expect(schoolHolidayGap(ws, workspaceIndex(ws))?.schoolHolidaysKnownUntil).toBe('2028-09-01');
   });
 });
 

@@ -2,7 +2,13 @@ import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from '.
 import { fte, occurrenceHours, weeklyBaseLoad } from './load';
 import type { Team, Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
-import { holidayIndex, resolveRegion, type HolidayIndex, type HolidayName } from './regions';
+import {
+  holidayIndex,
+  resolveRegion,
+  type HolidayIndex,
+  type HolidayName,
+  type Region,
+} from './regions';
 
 export type Filter = { teamId?: string; roleId?: string; personId?: string };
 
@@ -25,6 +31,15 @@ export function workspaceIndex(ws: Workspace): HolidayIndex {
   const known = resolveRegion(ws, region);
   if (!known) return { holidays: new Map(), schoolHolidays: new Map(), beyondKnown: true };
   return holidayIndex(known, horizon.from, horizon.to);
+}
+
+/**
+ * The selected region when the horizon runs past its known school holidays, else null.
+ * An unknown region gives null: Settings reports it on its own, and there is no date to name.
+ */
+export function schoolHolidayGap(ws: Workspace, index: HolidayIndex): Region | null {
+  if (!index.beyondKnown) return null;
+  return resolveRegion(ws, ws.settings.region);
 }
 
 /**

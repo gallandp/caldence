@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { mondayOf } from '../../core/date';
-  import { resolveRegion } from '../../core/regions';
-  import { scopeTeams, weekRows } from '../../core/views';
+  import { schoolHolidayGap, scopeTeams, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
@@ -30,8 +29,7 @@
 
   /** The selected region's school holidays end before the planning horizon does. */
   const coverage = $derived.by(() => {
-    if (!$index.beyondKnown) return null;
-    const region = resolveRegion($workspace, settings.region);
+    const region = schoolHolidayGap($workspace, $index);
     if (!region) return null;
     return $t('region.beyondKnown', {
       region: region.name[$locale],

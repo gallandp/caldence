@@ -541,3 +541,20 @@ describe('scopeHasEvents', () => {
     expect(scopeHasEvents(ws, { roleId: role.id })).toBe(true);
   });
 });
+
+describe('exportIcs with an unknown region', () => {
+  it('writes no holidays and does not throw', () => {
+    const ws = example();
+    ws.settings.region = 'xx-gone';
+    const index = workspaceIndex(ws);
+    expect(index.holidays.size).toBe(0);
+    expect(index.schoolHolidays.size).toBe(0);
+    let text = '';
+    expect(() => {
+      text = run(ws, opts({ allDay: { holidays: true, schoolHolidays: true, milestones: false } }));
+    }).not.toThrow();
+    expect(text).not.toContain('UID:holiday-');
+    expect(text).not.toContain('UID:school-');
+    expect(text).toContain('BEGIN:VEVENT');
+  });
+});

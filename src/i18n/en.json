@@ -69,6 +69,7 @@
   "settings.region.custom": " (imported)",
   "settings.region.file.type": "Caldence region file",
   "settings.region.remove": "Remove imported region {name}",
+  "region.unknown": "The region {region} is unknown, so no holidays are used. Choose a region or import its region file.",
   "region.beyondKnown": "School holidays for {region} are known only until {date}. Later school holidays are missing.",
   "settings.timezone": "Time zone",
   "settings.timezone.unknown": "This browser does not know the time zone {zone}. Choose a time zone from the list, for example Europe/Berlin; calendar export and import need one.",

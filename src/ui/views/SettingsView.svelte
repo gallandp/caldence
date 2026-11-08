@@ -4,6 +4,7 @@
   import type { Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
   import type { ValidationError } from '../../core/validate';
+  import { schoolHolidayGap } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { regionIds } from '../../data/regions';
   import { formatDisplayDate, translate as t, locale, type Locale } from '../../i18n';
@@ -94,7 +95,13 @@
     const name = region.name[$locale];
     return isBuiltinRegion(id) ? name : name + $t('settings.region.custom');
   };
-  const regions = $derived([...regionIds(), ...$workspace.customRegions.map((r) => r.id)]);
+  /** The selected region names no built-in or imported region: it loads, but has no holidays. */
+  const unknownRegion = $derived(resolveRegion($workspace, settings.region) === null);
+  const regions = $derived([
+    ...regionIds(),
+    ...$workspace.customRegions.map((r) => r.id),
+    ...(unknownRegion ? [settings.region] : []),
+  ]);
   /** Imported regions that are not selected, so they can be removed. */
   const removable = $derived($workspace.customRegions.filter((r) => r.id !== settings.region));
 
@@ -172,8 +179,7 @@
 
   /** The selected region's school holidays end before the planning horizon does. */
   const coverage = $derived.by(() => {
-    if (!$index.beyondKnown) return null;
-    const region = resolveRegion($workspace, settings.region);
+    const region = schoolHolidayGap($workspace, $index);
     if (!region) return null;
     return $t('region.beyondKnown', {
       region: region.name[$locale],
@@ -253,7 +259,9 @@
           id="set-region"
           value={settings.region}
           aria-invalid={regionError ? 'true' : undefined}
-          aria-describedby={regionError ? 'err-region' : undefined}
+          aria-describedby={[regionError && 'err-region', unknownRegion && 'note-region']
+            .filter(Boolean)
+            .join(' ') || undefined}
           onchange={(e) => {
             regionProblem = null;
             commit(['region'], { region: e.currentTarget.value });
@@ -265,6 +273,11 @@
         </select>
         {#if regionError}
           <p class="field-error" id="err-region">{regionError}</p>
+        {/if}
+        {#if unknownRegion}
+          <p class="help" id="note-region">
+            {$t('region.unknown', { region: settings.region })}
+          </p>
         {/if}
         <div class="region-actions">
           <button type="button" bind:this={importButton} onclick={importRegion}>

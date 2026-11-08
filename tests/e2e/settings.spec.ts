@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { openWorkspaceFile } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -244,6 +245,43 @@ for (const locale of ['de', 'en'] as const) {
     await page.locator('#set-to').fill('2028-12-31');
     await page.locator('#set-to').blur();
     await expect(page.locator('.settings p.help', { hasText: '2028' })).toBeVisible();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+  });
+}
+
+async function openUnknownRegion(page: Page) {
+  const ws = JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.settings.region = 'xx-gone';
+  await page.goto('/');
+  await openWorkspaceFile(page, ws, 'unknown-region.caldence.json');
+  await openSettings(page);
+}
+
+test('a workspace with an unknown region opens and Settings says so', async ({ page }) => {
+  await openUnknownRegion(page);
+  await expect(regionSelect(page)).toHaveValue('xx-gone');
+  const note = /The region xx-gone is unknown, so no holidays are used\./;
+  await expect(page.getByText(note)).toBeVisible();
+  await expect(regionSelect(page)).toHaveAccessibleDescription(note);
+  await expect(regionSelect(page)).not.toHaveAttribute('aria-invalid', 'true');
+  await regionSelect(page).selectOption('de-sn');
+  await expect(page.getByText(note)).toHaveCount(0);
+  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+});
+
+for (const locale of ['de', 'en'] as const) {
+  test(`axe finds no violations with an unknown region (${locale})`, async ({ page }) => {
+    await openUnknownRegion(page);
+    await page
+      .getByRole('tabpanel')
+      .getByLabel(/Language|Sprache/)
+      .selectOption(locale);
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+    await expect(page.locator('#note-region')).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
