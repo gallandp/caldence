@@ -15,7 +15,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "e2e": "playwright test --trace off",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

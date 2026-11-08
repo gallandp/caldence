@@ -18,7 +18,7 @@ npm run e2e      # end-to-end tests (Playwright)
 npm run build    # production build into dist/
 ```
 
-`dist/` is a static site that can be uploaded to any web server.
+`dist/` is a static site that can be uploaded to any web server. `npm run package` zips it as `caldence-<version>.zip`. See the [deployment guide](docs/deployment.md).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
