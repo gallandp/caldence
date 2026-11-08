@@ -65,3 +65,8 @@ jobs:
       - run: npx playwright test -c playwright.deploy.config.ts
         env:
           DEPLOY_URLS: http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/
+      - name: Server logs
+        if: failure()
+        run: |
+          docker logs apache
+          docker logs nginx

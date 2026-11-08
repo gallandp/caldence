@@ -1,5 +1,6 @@
 # Caldence is a static site: no rewrite rules are needed.
-# Needs AllowOverride FileInfo Headers Indexes (or put these lines in the vhost).
+# Needs AllowOverride FileInfo and the modules mod_mime and mod_headers
+# (or put these lines in the vhost).
 
 AddType application/manifest+json .webmanifest
 AddType text/javascript .js .mjs

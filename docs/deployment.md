@@ -20,7 +20,7 @@ Overwrite all files with those of the new ZIP. Users who have the app open or in
 
 ## Apache
 
-The included `.htaccess` sets the MIME types and cache headers. The folder needs `AllowOverride FileInfo Headers Indexes`. Alternatively, copy the directives from `.htaccess` into the vhost. The `mod_headers` module is optional: without it the app still works, but updates may be delayed by browser caches.
+The included `.htaccess` sets the MIME types and cache headers. The folder needs `AllowOverride FileInfo`, and `mod_mime` and `mod_headers` must be enabled. Alternatively, copy the directives from `.htaccess` into the vhost. The `mod_headers` module is optional: without it the app still works, but updates may be delayed by browser caches.
 
 ## nginx
 
@@ -28,7 +28,7 @@ Include [`deploy/nginx.conf`](../deploy/nginx.conf) in your configuration and ad
 
 ## IIS
 
-`web.config` is included in the ZIP and sets the same MIME types and cache headers.
+`web.config` is included in the ZIP and sets the same MIME types and cache headers. The only difference: IIS cannot match the hashed `workbox-*.js` file name, so that file is served with `no-cache` instead of `immutable`.
 
 ## Local use
 
