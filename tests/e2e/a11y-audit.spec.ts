@@ -272,6 +272,23 @@ for (const forced of [false, true]) {
   });
 }
 
+for (const width of [320, 800]) {
+  test(`default colours: the selected view tab has a border or an underline at ${width} px`, async ({
+    page,
+  }) => {
+    // Below 60rem the bar beside the selected tab is hidden; a lighter pill alone is too faint.
+    await page.setViewportSize({ width, height: 800 });
+    await loadExample(page, 'en');
+    const selected = page.getByRole('tab', { name: 'Calendar', exact: true });
+    await expect(selected).toHaveAttribute('aria-selected', 'true');
+    const other = page.getByRole('tab', { name: 'Weeks', exact: true });
+    const outlined = (await extraMarks(selected, other, false)).filter(
+      (m) => m.includes('border') || m.includes('underline'),
+    );
+    expect(outlined, 'selected tab marks').not.toEqual([]);
+  });
+}
+
 test('reduced motion: no CSS animation runs after load in any view', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const settled = () =>

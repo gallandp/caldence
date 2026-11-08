@@ -489,6 +489,13 @@
     [role='tab'][aria-selected='true']::before {
       display: none;
     }
+    /* Without the bar beside it, the selected tab keeps a mark that is not only colour (WCAG 1.4.11). */
+    [role='tab'][aria-selected='true'] {
+      text-decoration: underline;
+      text-decoration-color: #b9b0ff;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 0.3em;
+    }
     .side-foot {
       margin-top: 0;
     }
