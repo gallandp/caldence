@@ -186,7 +186,9 @@ for (const width of [1280, 320]) {
     await loadExample(page, 'en');
 
     const selected = page.getByRole('tab', { name: 'Calendar', exact: true });
-    await tabTo(page, selected);
+    // Focus by keyboard: after the click on the example the tab has the focus without a ring.
+    await page.keyboard.press('Tab');
+    await tabTo(page, selected, 'Shift+Tab');
     expect(await focusVisible(selected), 'focused tab').toBe(true);
 
     const button = page.getByRole('button', { name: 'Today', exact: true });

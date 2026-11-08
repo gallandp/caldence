@@ -405,6 +405,15 @@
   [role='tab']:focus-visible {
     outline-color: #b9b0ff;
   }
+  /* Forced colours drop the gradient and the shadow: mark the selected view with a border and an underline. */
+  @media (forced-colors: active) {
+    [role='tab'][aria-selected='true'] {
+      border: 2px solid Highlight;
+      padding: calc(0.6rem - 2px) calc(0.75rem - 2px);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+  }
   .side-foot {
     margin-top: auto;
     padding: 0 0.5rem;
