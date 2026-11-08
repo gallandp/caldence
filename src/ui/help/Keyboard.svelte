@@ -11,9 +11,10 @@
   <p>{$t('help.keyboard.intro')}</p>
 
   <h4>{$t('help.keys.title')}</h4>
-  <div class="scroll">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+  <div class="scroll" role="region" aria-labelledby="manual-keys-caption" tabindex="0">
     <table>
-      <caption class="sr-only">{$t('help.keys.caption')}</caption>
+      <caption id="manual-keys-caption" class="sr-only">{$t('help.keys.caption')}</caption>
       <thead>
         <tr>
           <th scope="col">{$t('help.keys.col.keys')}</th>
@@ -32,9 +33,10 @@
   </div>
 
   <h4>{$t('help.cal.title')}</h4>
-  <div class="scroll">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+  <div class="scroll" role="region" aria-labelledby="manual-cal-caption" tabindex="0">
     <table>
-      <caption class="sr-only">{$t('help.cal.caption')}</caption>
+      <caption id="manual-cal-caption" class="sr-only">{$t('help.cal.caption')}</caption>
       <thead>
         <tr>
           <th scope="col">{$t('help.keys.col.keys')}</th>

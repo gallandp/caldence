@@ -35,9 +35,10 @@
       }}
     />
   </p>
-  <div class="scroll">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+  <div class="scroll" role="region" aria-labelledby="manual-where-caption" tabindex="0">
     <table>
-      <caption class="sr-only">{$t('help.where.caption')}</caption>
+      <caption id="manual-where-caption" class="sr-only">{$t('help.where.caption')}</caption>
       <thead>
         <tr>
           <th scope="col">{$t('help.where.col.field')}</th>
