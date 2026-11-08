@@ -18,8 +18,8 @@
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
 
-  /** `opener` is what gets the focus back: `add` or the id of the event whose Edit opened the form. */
   const uid = $props.id();
+  /** `opener` is what gets the focus back: `add` or the id of the event whose Edit opened the form. */
   let editing = $state<{ key: number; event: CalEvent; opener: string } | null>(null);
   let counter = 0;
   let root: HTMLElement | undefined;
