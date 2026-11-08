@@ -432,9 +432,12 @@
         {#if rows.length === 0}
           <p class="empty">{$t('exchange.import.nothing')}</p>
         {:else}
-          <div class="table-wrap">
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+          <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
             <table>
-              <caption>{$t('exchange.table.caption', { file: fileName })}</caption>
+              <caption id="{uid}-caption"
+                >{$t('exchange.table.caption', { file: fileName })}</caption
+              >
               <thead>
                 <tr>
                   <th scope="col" id="{uid}-h-on">{$t('exchange.col.import')}</th>

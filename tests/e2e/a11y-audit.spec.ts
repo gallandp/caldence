@@ -139,6 +139,30 @@ test('reflow at 320 px: the month grid region is focusable and shows a focus out
   expect(await focusVisible(region)).toBe(true);
 });
 
+test('reflow at 320 px: every table that scrolls is a region reached by Tab with a focus outline', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await loadExample(page, 'en');
+  for (const name of ['Meetings', 'Team', 'Help']) {
+    const tab = page.getByRole('tab', { name, exact: true });
+    await tab.click();
+    const regions = page
+      .getByRole('tabpanel', { name, exact: true })
+      .getByRole('region')
+      .filter({ has: page.locator('table') });
+    const count = await regions.count();
+    expect(count, name).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const region = regions.nth(i);
+      if (!(await region.evaluate((el) => el.scrollWidth > el.clientWidth))) continue;
+      await tab.focus();
+      await tabTo(page, region, 'Tab', 200);
+      expect(await focusVisible(region), `${name} region ${i}`).toBe(true);
+    }
+  }
+});
+
 for (const locale of ['de', 'en'] as const) {
   for (const scheme of ['light', 'dark'] as const) {
     test(`forced colours: axe passes in every view (${locale}, ${scheme})`, async ({ page }) => {

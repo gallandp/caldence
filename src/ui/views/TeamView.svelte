@@ -308,9 +308,11 @@
         {#if team.members.length === 0}
           <p class="empty">{$t('team.members.empty')}</p>
         {:else}
-          <div class="table-wrap">
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+          <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
             <table>
-              <caption>{$t('team.members.caption', { team: team.name })}</caption>
+              <caption id="{uid}-caption">{$t('team.members.caption', { team: team.name })}</caption
+              >
               <thead>
                 <tr>
                   <th scope="col">{$t('team.members.person')}</th>
