@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.0 – 2026-11-08
+
 ### Added
 
 - Installable app (#18): Caldence can be installed from the browser and works offline after the first visit; a prompt offers the new version when an update is available.
