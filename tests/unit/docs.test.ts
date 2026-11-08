@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { addCustomRegion } from '../../src/core/edit';
+import { emptyWorkspace } from '../../src/core/model';
 import { loadTemplate } from '../../src/core/template';
 import { validateRegion } from '../../src/core/regions';
 import { loadWorkspace } from '../../src/core/validate';
@@ -19,7 +21,10 @@ describe('documented examples', () => {
   it('template-format.md loads as a template', () => {
     expect(loadTemplate(firstJson('template-format.md')).ok).toBe(true);
   });
-  it('region-format.md validates as a region', () => {
-    expect(validateRegion(JSON.parse(firstJson('region-format.md'))).ok).toBe(true);
+  it('region-format.md validates as a region and can be imported', () => {
+    const checked = validateRegion(JSON.parse(firstJson('region-format.md')));
+    expect(checked.ok).toBe(true);
+    if (!checked.ok) return;
+    expect(addCustomRegion(emptyWorkspace('2027-01-04'), checked.value).ok).toBe(true);
   });
 });

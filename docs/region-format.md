@@ -2,10 +2,12 @@
 
 A region file is a JSON document describing public holidays and school holidays for one region. Bundled regions live in `src/data/regions/` and are imported at build time (no network access). The code is in `src/core/regions.ts` (`validateRegion` checks the shape).
 
+The example below can be imported as it is, and can serve as a starting point for your own file. Its dates are examples only.
+
 ```json
 {
-  "id": "de-sn",
-  "name": { "de": "Sachsen", "en": "Saxony" },
+  "id": "example-region",
+  "name": { "de": "Beispielregion", "en": "Example region" },
   "holidays": [
     { "type": "fixed", "month": 1, "day": 1, "name": { "de": "Neujahr", "en": "New Year's Day" } },
     { "type": "easter", "offset": -2, "name": { "de": "Karfreitag", "en": "Good Friday" } },
@@ -39,6 +41,7 @@ In **Workspace settings**, next to the region select, **Import region file…** 
 - The imported region is stored in the workspace file itself (`customRegions`, schema 3). Whoever opens the workspace file gets the region with it; nothing else needs to be shared.
 - Imported regions show the suffix "(imported)" in the select. An imported region that is not selected can be removed with **Remove imported region …**; the selected region cannot be removed (`error.region.inUse`).
 - An imported region must not use the id of a built-in region (`error.region.builtin`), and two imported regions must not share an id (`error.region.duplicate`). Built-in regions always win when ids are looked up (`resolveRegion` in `regions.ts`).
+- To replace an imported region with a newer file of the same id, first select another region, remove the old one with **Remove imported region …**, then import the new file (it is selected again). Importing it over the old one is refused as a duplicate.
 - A file that is not JSON shows `error.file.json`; a file that is not a valid region shows the first validation error. In both cases the workspace is unchanged.
 - A workspace whose `settings.region` names no built-in or imported region still opens, like one with an unknown time zone. It then uses no holidays; Settings lists the raw id in the select and says that the region is unknown, so you can choose another one or import its region file.
 
