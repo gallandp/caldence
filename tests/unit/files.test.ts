@@ -8,7 +8,9 @@ import { exampleWorkspace } from '../../src/data/examples';
 import {
   DEFAULT_FILE_NAME,
   createFileService,
+  exportTextFile,
   isActivationError,
+  openTextFile,
   pickWithInput,
   serialize,
   type FileEnv,
@@ -270,5 +272,92 @@ describe('isActivationError', () => {
     expect(isActivationError(new DOMException('x', 'NotAllowedError'))).toBe(true);
     expect(isActivationError(new DOMException('x', 'AbortError'))).toBe(false);
     expect(isActivationError(new Error('x'))).toBe(false);
+  });
+});
+
+describe('text files', () => {
+  const types = [{ description: 'Calendar', accept: { 'text/calendar': ['.ics'] } }];
+
+  it('exportTextFile writes through the save picker and returns the chosen name', async () => {
+    const { handle, writes } = fakeHandle('cal.ics');
+    const showSaveFilePicker = vi.fn(async () => handle);
+    const env: FileEnv = { showSaveFilePicker, download: vi.fn(), pickFile: async () => null };
+    expect(await exportTextFile(env, 'x.ics', 'BEGIN', types)).toBe('cal.ics');
+    expect(writes).toEqual(['BEGIN']);
+    expect(showSaveFilePicker).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestedName: 'x.ics', types }),
+    );
+  });
+
+  it('exportTextFile downloads without the picker API', async () => {
+    const download = vi.fn();
+    expect(
+      await exportTextFile({ download, pickFile: async () => null }, 'x.ics', 'T', types),
+    ).toBe('x.ics');
+    expect(download).toHaveBeenCalledWith('x.ics', 'T');
+  });
+
+  it('exportTextFile maps AbortError to null', async () => {
+    const env: FileEnv = {
+      showSaveFilePicker: () => Promise.reject(new DOMException('x', 'AbortError')),
+      download: vi.fn(),
+      pickFile: async () => null,
+    };
+    expect(await exportTextFile(env, 'x', 't', types)).toBeNull();
+  });
+
+  it('openTextFile reads through the open picker', async () => {
+    const { handle } = fakeHandle('t.json', 'hello');
+    const env: FileEnv = {
+      showOpenFilePicker: async () => [handle],
+      download: vi.fn(),
+      pickFile: async () => null,
+    };
+    expect(await openTextFile(env, types)).toEqual({ name: 't.json', text: 'hello' });
+  });
+
+  it('openTextFile falls back to the input with the accept string', async () => {
+    const pickFile = vi.fn(async () => new File(['abc'], 'f.ics'));
+    const env: FileEnv = { download: vi.fn(), pickFile };
+    expect(await openTextFile(env, types)).toEqual({ name: 'f.ics', text: 'abc' });
+    expect(pickFile).toHaveBeenCalledWith('.ics,text/calendar');
+    expect(await openTextFile({ download: vi.fn(), pickFile: async () => null }, types)).toBeNull();
+  });
+
+  it('openTextFile passes the raw bytes through decode when given', async () => {
+    const raw = Uint8Array.from([0x41, 0xc3, 0x0d, 0x0a, 0x20, 0xa4]);
+    const pickFile = vi.fn(async () => new File([raw], 'f.ics'));
+    const decode = vi.fn((b: Uint8Array) => `${b.length}`);
+    expect(await openTextFile({ download: vi.fn(), pickFile }, types, decode)).toEqual({
+      name: 'f.ics',
+      text: '6',
+    });
+    expect(decode).toHaveBeenCalledOnce();
+  });
+
+  it('openTextFile returns null on AbortError', async () => {
+    const env: FileEnv = {
+      showOpenFilePicker: () => Promise.reject(new DOMException('x', 'AbortError')),
+      download: vi.fn(),
+      pickFile: async () => null,
+    };
+    expect(await openTextFile(env, types)).toBeNull();
+  });
+
+  it('a workspace save after an export still writes to the workspace handle', async () => {
+    const workspaceFile = fakeHandle('w.json');
+    const exported = fakeHandle('cal.ics');
+    const env: FileEnv = {
+      showOpenFilePicker: async () => [workspaceFile.handle],
+      showSaveFilePicker: async () => exported.handle,
+      download: vi.fn(),
+      pickFile: async () => null,
+    };
+    const svc = createFileService(env);
+    await svc.open();
+    await exportTextFile(env, 'cal.ics', 'X', types);
+    await svc.save(ws, 'w.json');
+    expect(workspaceFile.writes).toEqual([serialize(ws)]);
+    expect(exported.writes).toEqual(['X']);
   });
 });

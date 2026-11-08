@@ -29,6 +29,10 @@ describe('catalogues', () => {
     }
   });
 
+  it('address the reader formally (Sie) in German', () => {
+    for (const [k, v] of Object.entries(de)) expect(v, k).not.toMatch(/\b(du|dich|dir|dein\w*)\b/i);
+  });
+
   it('use the same placeholders in both languages', () => {
     const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
     for (const k of Object.keys(de) as (keyof typeof de)[]) expect(ph(de[k]), k).toEqual(ph(en[k]));

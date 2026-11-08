@@ -100,6 +100,15 @@ describe('autosave', () => {
     expect(kv.data.has('current.bak')).toBe(false);
   });
 
+  it('restores an autosave whose timezone this browser does not know', async () => {
+    const kv = memory();
+    const stored = { ...ws, settings: { ...ws.settings, timezone: 'Mitteleuropa' } };
+    kv.data.set('current', { ws: stored, fileName: 'old.json', dirty: false });
+    const restored = await createAutosave(kv).restore();
+    expect(restored?.ws.settings.timezone).toBe('Mitteleuropa');
+    expect(kv.data.has('current.bak')).toBe(false);
+  });
+
   it('migrates a real schema 1 autosave to schema 2 with an id', async () => {
     const kv = memory();
     const old: Record<string, unknown> = { ...ws, schemaVersion: 1 };

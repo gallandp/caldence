@@ -9,7 +9,10 @@
   import LoadView from './views/LoadView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
+  import TemplatesView from './views/TemplatesView.svelte';
+  import ExchangeView from './views/ExchangeView.svelte';
   import HelpView from './views/HelpView.svelte';
+  import { registerFileInput } from './state/picker';
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
@@ -59,6 +62,8 @@
   }
 
   let bar: WorkspaceBar | undefined;
+  let fileInput: HTMLInputElement | undefined;
+  $effect(() => (fileInput ? registerFileInput(fileInput) : undefined));
 
   /** Blurs the focused control so that a commit-on-blur value is in the workspace before saving. */
   function commitFocused(): HTMLElement | null {
@@ -124,6 +129,15 @@
 
 <WorkspaceBar bind:this={bar} />
 
+<input
+  bind:this={fileInput}
+  type="file"
+  accept=".json,application/json"
+  aria-label={$t('file.input')}
+  tabindex="-1"
+  hidden
+/>
+
 <div class="tabs" role="tablist" aria-label={$t('nav.views')}>
   {#each views as id (id)}
     <button
@@ -175,6 +189,12 @@
           {#if active === 'team'}<TeamView />{/if}
         {:else if id === 'settings'}
           {#if active === 'settings'}<SettingsView />{/if}
+        {:else if id === 'templates'}
+          {#if active === 'templates'}<TemplatesView onOpenTeam={() => select('team', true)} />{/if}
+        {:else if id === 'exchange'}
+          {#if active === 'exchange'}<ExchangeView
+              onOpenMeetings={() => select('meetings', true)}
+            />{/if}
         {:else if id === 'help'}
           {#if active === 'help'}<HelpView />{/if}
         {:else}

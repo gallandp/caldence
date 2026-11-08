@@ -1,0 +1,205 @@
+{
+  "kind": "caldence-template",
+  "schemaVersion": 2,
+  "id": "kanban",
+  "name": "Kanban",
+  "description": "Flow-based work with the Kanban cadences.",
+  "roles": [
+    {
+      "id": "r-sdm",
+      "name": "Service Delivery Manager",
+      "colour": "#1d4ed8"
+    },
+    {
+      "id": "r-srm",
+      "name": "Service Request Manager",
+      "colour": "#15803d"
+    },
+    {
+      "id": "r-team",
+      "name": "Team",
+      "colour": "#b45309"
+    }
+  ],
+  "categories": [
+    {
+      "id": "c-kanban",
+      "name": "Kanban cadences",
+      "colour": "#1d4ed8"
+    }
+  ],
+  "team": {
+    "name": "Kanban",
+    "cadence": {
+      "kind": "flow",
+      "lengthWeeks": 2,
+      "start": "2027-01-04"
+    },
+    "assumptions": {},
+    "cycles": [],
+    "events": [
+      {
+        "id": "e-meeting",
+        "name": "Team Kanban Meeting",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "weekdays",
+          "weekdays": [1, 2, 3, 4, 5]
+        },
+        "time": "09:15",
+        "duration": 15,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-replen",
+        "name": "Replenishment",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "weekly",
+          "weekday": 1
+        },
+        "time": "10:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 0.5
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-delivery",
+        "name": "Delivery Planning",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "every-n-weeks",
+          "weekday": 4,
+          "n": 2,
+          "anchor": "2027-01-04"
+        },
+        "time": "14:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 1
+          }
+        ],
+        "preparation": 0.25
+      },
+      {
+        "id": "e-sdr",
+        "name": "Service Delivery Review",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "every-n-weeks",
+          "weekday": 3,
+          "n": 2,
+          "anchor": "2027-01-04"
+        },
+        "time": "13:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-risk",
+        "name": "Risk Review",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "monthly-nth-weekday",
+          "weekday": 2,
+          "nth": 3
+        },
+        "time": "14:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-ops",
+        "name": "Operations Review",
+        "categoryId": "c-kanban",
+        "rule": {
+          "type": "monthly-nth-weekday",
+          "weekday": 4,
+          "nth": 1
+        },
+        "time": "10:00",
+        "duration": 90,
+        "participants": [
+          {
+            "roleId": "r-sdm",
+            "share": 1
+          },
+          {
+            "roleId": "r-srm",
+            "share": 1
+          },
+          {
+            "roleId": "r-team",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      }
+    ]
+  }
+}

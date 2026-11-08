@@ -132,6 +132,25 @@ describe('activeTeamId', () => {
   });
 });
 
+describe('workspace store with a Result tuple', () => {
+  it('accepts Result<[Workspace, string]> and returns the id', () => {
+    const s = fresh();
+    const r = s.apply((ws) => {
+      const added = addTeam(ws, 'A', '2026-01-05');
+      return { ok: true as const, value: added };
+    });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.id).toBe(get(s).teams[0]!.id);
+    expect(get(s).teams).toHaveLength(1);
+  });
+  it('passes a failed tuple result through unchanged', () => {
+    const s = fresh();
+    const r = s.apply(() => ({ ok: false, errors: [{ path: '', key: 'error.x' }] }));
+    expect(r.ok).toBe(false);
+    expect(get(s.canUndo)).toBe(false);
+  });
+});
+
 describe('fieldErrors', () => {
   it('maps paths relative to the prefix', () => {
     expect(

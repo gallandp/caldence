@@ -7,18 +7,13 @@
   import FilterBar from './FilterBar.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import { autosave } from './state/autosave';
-  import {
-    browserFileEnv,
-    createFileService,
-    isActivationError,
-    pickWithInput,
-  } from './state/files';
+  import { browserFileEnv, createFileService, isActivationError } from './state/files';
+  import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
 
   const { dirty, fileName } = workspace;
   const autosaveOn = autosave.status;
 
-  let input: HTMLInputElement | undefined;
   type Problem = { key: string; params?: Record<string, string | number>; more: number };
   let error = $state<Problem | null>(null);
   let askOpen = $state(false);
@@ -27,7 +22,7 @@
   let busy = false;
 
   const files = createFileService(
-    browserFileEnv(() => (input ? pickWithInput(input, window) : Promise.resolve(null))),
+    browserFileEnv((accept) => pickFile(accept ?? '.json,application/json')),
   );
 
   function ask(): Promise<Choice> {
@@ -171,15 +166,6 @@
   <TeamSwitcher />
   <FilterBar />
 </div>
-
-<input
-  bind:this={input}
-  type="file"
-  accept=".json,application/json"
-  aria-label={$t('file.input')}
-  tabindex="-1"
-  hidden
-/>
 
 <ConfirmDialog
   open={askOpen}

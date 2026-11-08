@@ -27,7 +27,7 @@ All phase 1 and phase 2 constraints still apply (see `docs/superpowers/plans/202
 New for phase 3:
 - **Wall-clock times.** A meeting at 09:00 stays at 09:00 local time in every export and import, on both sides of a DST change.
 - **Privacy.** Template files never contain people, members or settings. Imported and exported files are read and written only on the device.
-- **Stable UIDs.** A recurring series exports as `UID:<eventId>.<teamId>.<workspaceId>@caldence`. All-day entries use `UID:<kind>-<date>.<workspaceId>@caldence` with kind `holiday`, `school` or `milestone-<cycleId>-<milestoneId>`.
+- **Stable UIDs.** A recurring series exports as `UID:<eventId>.<teamId>.<workspaceId>@caldence`. A single event (`once`, `cycle-milestone`) exports as `UID:<eventId>.<teamId>.<workspaceId>-<date>@caldence`. All-day entries use `UID:<kind>-<date>.<workspaceId>@caldence` with kind `holiday`, `school` or `milestone-<teamId>-<cycleId>-<milestoneId>`.
 - **iCalendar output.** Lines end in CRLF and are folded at 75 octets without splitting a UTF-8 character. Text values escape `\`, `;`, `,` and newlines. `PRODID:-//Caldence//Caldence <APP_VERSION>//EN`, `VERSION:2.0`, `CALSCALE:GREGORIAN`, `METHOD:PUBLISH`.
 - **File names.**
   - Templates: `<slug>.caldence-template.json`.
@@ -155,9 +155,9 @@ New for phase 3:
   | --- | --- | --- | --- | --- |
   | `scrum` | sprint, 2 weeks | Product Owner, Scrum Master, Developers | Scrum events, Refinement | Sprint Planning (cadence-day 0, 09:30, 120); Daily Scrum (weekdays Mon–Fri, 09:15, 15); Backlog Refinement (weekly Wed, 14:00, 60); Sprint Review (cadence-day 11, 10:00, 60); Sprint Retrospective (cadence-day 11, 13:00, 90) |
   | `kanban` | flow, 2 weeks | Service Delivery Manager, Service Request Manager, Team | Kanban cadences | Team Kanban Meeting (weekdays Mon–Fri, 09:15, 15); Replenishment (weekly Mon, 10:00, 60); Delivery Planning (every-n-weeks 2 Thu, 14:00, 60); Service Delivery Review (every-n-weeks 2 Wed, 13:00, 60); Risk Review (monthly 3rd Tue, 14:00, 60); Operations Review (monthly 1st Thu, 10:00, 90) |
-  | `safe` | pi, 10 weeks | Product Owner, Scrum Master/Team Coach, Agile Team, Product Management, Release Train Engineer | PI events, Iteration events | PI Planning day 1 and day 2 (cadence-day 0 and 1, 09:00, 480); Iteration Planning (every-n-weeks 2 Mon, 09:30, 120); Team Sync (weekdays Mon–Fri, 09:15, 15); Iteration Review (every-n-weeks 2 Fri, 10:00, 60); Iteration Retrospective (every-n-weeks 2 Fri, 13:00, 60); System Demo (every-n-weeks 2 Fri, 14:00, 60); Inspect & Adapt (cadence-day 66, 09:00, 240); PI Planning preparation (cycle-milestone "PI 1"/"Next PI Planning", offset −7, 10:00, 120). One cycle "PI 1" has the milestones Inspect & Adapt 2027-03-11 and Next PI Planning 2027-03-15. |
+  | `safe` | pi, 10 weeks | Product Owner, Scrum Master/Team Coach, Agile Team, Product Management, Release Train Engineer | PI events, Iteration events | PI Planning day 1 and day 2 (cadence-day 0 and 1, 09:00, 480); Iteration Planning (every-n-weeks 2 Mon, 09:30, 120); Team Sync (weekdays Mon–Fri, 09:15, 15); Iteration Review (every-n-weeks 2 Fri, anchor 2027-01-11, 10:00, 60); Iteration Retrospective (every-n-weeks 2 Fri, anchor 2027-01-11, 13:00, 60); System Demo (every-n-weeks 2 Fri, anchor 2027-01-11, 14:00, 60); Inspect & Adapt (cadence-day 66, 09:00, 240); PI Planning preparation (cycle-milestone "PI 1"/"Next PI Planning", offset −7, 10:00, 120). One cycle "PI 1" has the milestones Inspect & Adapt 2027-03-11 and Next PI Planning 2027-03-15. |
 
-  - The anchor of every `every-n-weeks` rule is the cadence start.
+  - The anchor of every `every-n-weeks` rule is the cadence start, except Iteration Review, Iteration Retrospective and System Demo: they close each 2-week iteration, so their anchor is the cadence start + 7 days (2027-01-11) and they first fall on Friday 2027-01-15.
   - Participants have share 1, except Developers / Agile Team / Team in Refinement, Replenishment and Iteration Planning, who have share 0.5.
   - `preparation` is 0.25 for planning events and 0 everywhere else.
 
@@ -394,7 +394,7 @@ New for phase 3:
       - series whose last date is before `today`. With COUNT, the last date is estimated as start + (COUNT − 1) × interval periods.
     - **Past single events.** They are not listed and not reported one by one. They are only counted in `hiddenPast` (Review Focus 1).
     - **Duplicates.** `duplicateOf` is set to an existing event id when either:
-      - the UID matches `<eventId>.<teamId>.<ws.id>@caldence`, with or without a `-<date>` suffix; or
+      - the UID matches `<eventId>.<teamId>.<ws.id>@caldence` or, for a single event, `<eventId>.<teamId>.<ws.id>-<date>@caldence`; or
       - the trimmed name (ignoring case), the rule and the time all match an event of the team.
 
       Duplicates start with `selected: false`.

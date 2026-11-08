@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { updateSettings } from '../../core/edit';
   import type { Settings } from '../../core/model';
+  import { isKnownZone } from '../../core/zone';
   import { REGIONS, regionIds } from '../../data/regions';
   import { translate as t, locale, type Locale } from '../../i18n';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
@@ -105,6 +106,15 @@
 
   const errorText = (key: string, label: string) => $t(key, { path: label });
 
+  // A zone this browser does not know loads fine, but is flagged here because export and import need it.
+  const tzError = $derived(
+    errors.timezone
+      ? errorText(errors.timezone, $t('settings.timezone'))
+      : isKnownZone(settings.timezone)
+        ? null
+        : $t('settings.timezone.unknown', { zone: settings.timezone }),
+  );
+
   function describe(key: string): string | undefined {
     return errors[key] ? `err-${key}` : undefined;
   }
@@ -168,8 +178,8 @@
           <select
             id="set-tz"
             value={settings.timezone}
-            aria-invalid={errors.timezone ? 'true' : undefined}
-            aria-describedby={describe('timezone')}
+            aria-invalid={tzError ? 'true' : undefined}
+            aria-describedby={tzError ? 'err-timezone' : undefined}
             onchange={(e) => commit(['timezone'], { timezone: e.currentTarget.value })}
           >
             {#each zoneOptions as zone (zone)}
@@ -182,8 +192,8 @@
             type="text"
             list="set-tz-list"
             value={settings.timezone}
-            aria-invalid={errors.timezone ? 'true' : undefined}
-            aria-describedby={describe('timezone')}
+            aria-invalid={tzError ? 'true' : undefined}
+            aria-describedby={tzError ? 'err-timezone' : undefined}
             onchange={(e) => commit(['timezone'], { timezone: e.currentTarget.value.trim() })}
           />
           <datalist id="set-tz-list">
@@ -192,7 +202,9 @@
             {/each}
           </datalist>
         {/if}
-        {@render err('timezone', $t('settings.timezone'))}
+        {#if tzError}
+          <p class="field-error" id="err-timezone">{tzError}</p>
+        {/if}
       </div>
 
       <div class="field">

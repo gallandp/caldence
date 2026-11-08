@@ -115,6 +115,8 @@ function checkSettings(c: Checker, v: unknown): void {
   if (s.locale === undefined) c.err('settings.locale', 'error.required');
   else if (s.locale !== 'de' && s.locale !== 'en') c.err('settings.locale', 'error.enum.invalid');
   c.str(s, 'region', p);
+  // Any non-empty name loads: a zone this browser does not know is reported where it is used
+  // (settings, calendar exchange), so a file or autosave from another browser never fails to load.
   c.str(s, 'timezone', p);
   if (s.workdays === undefined) c.err('settings.workdays', 'error.required');
   else if (Array.isArray(s.workdays) && s.workdays.length === 0)
@@ -349,6 +351,13 @@ export function loadWorkspace(text: string): Result<Workspace> {
   } catch {
     return { ok: false, errors: [{ path: '', key: 'error.file.json' }] };
   }
+  // A template file (see template.ts) is not a workspace; say where it belongs.
+  if (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    (parsed as Record<string, unknown>).kind === 'caldence-template'
+  )
+    return { ok: false, errors: [{ path: 'kind', key: 'file.error.isTemplate' }] };
   const m = migrate(parsed);
   if (!m.ok) return { ok: false, errors: [{ path: 'schemaVersion', key: m.key }] };
   return validate(m.value);

@@ -14,6 +14,11 @@ export interface FileHandleLike {
   createWritable(): Promise<WritableLike>;
 }
 
+export interface FilePickerType {
+  description: string;
+  accept: Record<string, string[]>;
+}
+
 interface PickerOptions {
   types?: { description?: string; accept: Record<string, string[]> }[];
   suggestedName?: string;
@@ -24,7 +29,8 @@ export interface FileEnv {
   showOpenFilePicker?: (options?: PickerOptions) => Promise<FileHandleLike[]>;
   showSaveFilePicker?: (options?: PickerOptions) => Promise<FileHandleLike>;
   download(name: string, text: string): void;
-  pickFile(): Promise<File | null>;
+  /** `accept` is the value for the file input's accept attribute. */
+  pickFile(accept?: string): Promise<File | null>;
 }
 
 export function serialize(ws: Workspace): string {
@@ -92,6 +98,63 @@ export function pickWithInput(
     input.value = '';
     input.click();
   });
+}
+
+/** The accept attribute for a file input that takes the given picker types. */
+function acceptString(types: FilePickerType[]): string {
+  return types
+    .flatMap((type) => Object.entries(type.accept).flatMap(([mime, exts]) => [...exts, mime]))
+    .join(',');
+}
+
+/**
+ * Reads a text file chosen by the user; null when cancelled. Never touches the workspace handle.
+ * With `decode`, the raw bytes go through it instead of the browser's UTF-8 decoding (for example
+ * `unfoldBytes` for .ics files, which must be unfolded before they are decoded).
+ */
+export async function openTextFile(
+  env: FileEnv,
+  types: FilePickerType[],
+  decode?: (bytes: Uint8Array) => string,
+): Promise<{ name: string; text: string } | null> {
+  const read = async (file: File): Promise<string> =>
+    decode ? decode(new Uint8Array(await file.arrayBuffer())) : file.text();
+  try {
+    if (env.showOpenFilePicker) {
+      const [first] = await env.showOpenFilePicker({ types });
+      if (!first) return null;
+      const file = await first.getFile();
+      return { name: first.name, text: await read(file) };
+    }
+    const file = await env.pickFile(acceptString(types));
+    return file ? { name: file.name, text: await read(file) } : null;
+  } catch (error) {
+    if (isAbort(error)) return null;
+    throw error;
+  }
+}
+
+/** Saves text through the save picker or a download; returns the file name, or null when cancelled. */
+export async function exportTextFile(
+  env: FileEnv,
+  name: string,
+  text: string,
+  types: FilePickerType[],
+): Promise<string | null> {
+  if (env.showSaveFilePicker) {
+    try {
+      const target = await env.showSaveFilePicker({ suggestedName: name, types });
+      const writable = await target.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return target.name;
+    } catch (error) {
+      if (isAbort(error)) return null;
+      throw error;
+    }
+  }
+  env.download(name, text);
+  return name;
 }
 
 export function createFileService(env: FileEnv) {
@@ -163,14 +226,16 @@ export function createFileService(env: FileEnv) {
 }
 
 /** Real browser environment: picker APIs where present, otherwise a download link and a file input. */
-export function browserFileEnv(pickFile: () => Promise<File | null>): FileEnv {
+export function browserFileEnv(pickFile: (accept?: string) => Promise<File | null>): FileEnv {
   const w = window as unknown as Pick<FileEnv, 'showOpenFilePicker' | 'showSaveFilePicker'>;
   return {
     showOpenFilePicker: w.showOpenFilePicker?.bind(window),
     showSaveFilePicker: w.showSaveFilePicker?.bind(window),
     pickFile,
     download(name, text) {
-      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const url = URL.createObjectURL(
+        new Blob([text], { type: name.endsWith('.ics') ? 'text/calendar' : 'application/json' }),
+      );
       const a = document.createElement('a');
       a.href = url;
       a.download = name;

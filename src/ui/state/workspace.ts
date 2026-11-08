@@ -6,10 +6,12 @@ import { detectLocale } from '../../i18n';
 
 export const MAX_HISTORY = 50;
 
-export type Change = (ws: Workspace) => Workspace | Result<Workspace> | [Workspace, string];
+export type Change = (
+  ws: Workspace,
+) => Workspace | Result<Workspace> | [Workspace, string] | Result<[Workspace, string]>;
 
-function isResult(x: Workspace | Result<Workspace>): x is Result<Workspace> {
-  return 'ok' in x && typeof (x as { ok: unknown }).ok === 'boolean';
+function isResult<T>(x: unknown): x is Result<T> {
+  return typeof x === 'object' && x !== null && typeof (x as { ok?: unknown }).ok === 'boolean';
 }
 
 export function createWorkspaceStore(initial: Workspace) {
@@ -23,15 +25,15 @@ export function createWorkspaceStore(initial: Workspace) {
     const current = get(state);
     // The change works on a copy, so in-place mutation can neither corrupt the live state nor history.
     const raw = change(structuredClone(current));
-    const out = Array.isArray(raw) ? raw[0] : raw;
-    const id = Array.isArray(raw) ? raw[1] : undefined;
-    let next: Workspace;
-    if (isResult(out)) {
-      if (!out.ok) return out;
-      next = out.value;
+    let unwrapped: Workspace | [Workspace, string];
+    if (isResult<Workspace | [Workspace, string]>(raw)) {
+      if (!raw.ok) return raw;
+      unwrapped = raw.value;
     } else {
-      next = out;
+      unwrapped = raw;
     }
+    const next = Array.isArray(unwrapped) ? unwrapped[0] : unwrapped;
+    const id = Array.isArray(unwrapped) ? unwrapped[1] : undefined;
     const checked = validate(next);
     if (!checked.ok) return checked;
     if (JSON.stringify(checked.value) === JSON.stringify(current))

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Rule, Team } from '../../src/core/model';
-import { ruleDraft, toRule, weekdayName, weekdayRuns } from '../../src/ui/meetings/rules';
+import {
+  ruleDraft,
+  ruleSummary,
+  toRule,
+  weekdayName,
+  weekdayRuns,
+} from '../../src/ui/meetings/rules';
 
 const team: Team = {
   id: 't1',
@@ -71,5 +77,28 @@ describe('weekdayName', () => {
     expect(weekdayName('en', 1)).toBe('Monday');
     expect(weekdayName('en', 7)).toBe('Sunday');
     expect(weekdayName('de', 3)).toBe('Mittwoch');
+  });
+});
+
+describe('ruleSummary', () => {
+  const tr = (key: string, params?: Record<string, string | number>) =>
+    `${key}${params ? JSON.stringify(params) : ''}`;
+
+  it('describes weekdays as runs and a milestone offset', () => {
+    expect(ruleSummary({ type: 'weekdays', weekdays: [1, 2, 3, 4, 5] }, team, tr, 'en')).toBe(
+      'meet.sum.weekdays{"weekdays":"meet.sum.range{\\"from\\":\\"Monday\\",\\"to\\":\\"Friday\\"}"}',
+    );
+    expect(
+      ruleSummary(
+        { type: 'cycle-milestone', cycleId: 'cy1', milestoneId: 'm1', offsetDays: -1 },
+        team,
+        tr,
+        'en',
+      ),
+    ).toBe('meet.sum.beforeOne{"milestone":"M","cycle":"C","n":"1"}');
+  });
+
+  it('formats a once rule with a localised date', () => {
+    expect(ruleSummary({ type: 'once', date: '2027-01-06' }, team, tr, 'de')).toContain('2027');
   });
 });

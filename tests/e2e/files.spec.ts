@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
@@ -94,6 +95,24 @@ test('opening an invalid file shows an error and keeps the workspace', async ({ 
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
+});
+
+test('opening a template file with Open says to apply it in Templates', async ({ page }) => {
+  await openExample(page);
+  await page.getByLabel(/Language|Sprache/).selectOption('en');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open', exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: 'scrum.caldence-template.json',
+    mimeType: 'application/json',
+    buffer: readFileSync('src/data/templates/scrum.en.json'),
+  });
+  await expect(page.getByRole('alert')).toHaveText(
+    'This is a template. Apply it in the Templates view.',
+  );
+  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
 });
 
 test('New while dirty asks first; cancel keeps the data; axe passes with the dialog open', async ({
