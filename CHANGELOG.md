@@ -17,6 +17,10 @@
 - Calendar: all seven days of the month stay visible beside the day details on a laptop screen.
 - The empty Weeks and Load views use the same label for opening the example as the start screen.
 
+### Changed
+
+- German interface: one term each for FTE (instead of "VZÄ" in the settings) and for the cadence ("Takt" instead of "Taktung").
+
 ## 0.6.0 – 2026-11-08
 
 ### Added
