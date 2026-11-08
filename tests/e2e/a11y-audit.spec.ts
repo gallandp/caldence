@@ -176,22 +176,33 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await loadExample(page, 'en');
-  for (const name of ['Meetings', 'Team', 'Help']) {
+  for (const name of ['Meetings', 'Team', 'Help', 'Import / Export']) {
     const tab = page.getByRole('tab', { name, exact: true });
     await tab.click();
+    if (name === 'Import / Export') {
+      // The import review table appears once an .ics file is chosen.
+      const chooser = page.waitForEvent('filechooser');
+      await page.getByRole('button', { name: 'Choose .ics file…' }).click();
+      await (await chooser).setFiles('tests/fixtures/ics/outlook-sample.ics');
+      await expect(page.getByRole('tabpanel', { name }).locator('tbody tr').first()).toBeVisible();
+    }
     const regions = page
       .getByRole('tabpanel', { name, exact: true })
       .getByRole('region')
       .filter({ has: page.locator('table') });
     const count = await regions.count();
     expect(count, name).toBeGreaterThan(0);
+    let scrolled = 0;
     for (let i = 0; i < count; i++) {
       const region = regions.nth(i);
       if (!(await region.evaluate((el) => el.scrollWidth > el.clientWidth))) continue;
+      scrolled++;
       await tab.focus();
       await tabTo(page, region, 'Tab', 200);
       expect(await focusVisible(region), `${name} region ${i}`).toBe(true);
     }
+    // Each of these views has at least one table that is wider than 320 px.
+    expect(scrolled, `${name}: scrolling table regions`).toBeGreaterThan(0);
   }
 });
 
