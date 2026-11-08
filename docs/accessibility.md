@@ -10,10 +10,11 @@ Caldence targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA, in German a
 
 - **Automated checks in CI.** Every pull request runs axe-core (WCAG 2.0, 2.1 and 2.2 A and AA rules) in every view, in both languages and both colour schemes, and in the dialogs and forms that the end-to-end tests open. A violation fails the build.
 - **The accessibility audit.** [`tests/e2e/a11y-audit.spec.ts`](../tests/e2e/a11y-audit.spec.ts) also runs in CI. With the example workspace loaded, it checks every view at 320 and 640 px width (reflow), in forced colours, with reduced motion, and walks from the start screen to an .ics export with the keyboard only. The results and findings are in the [audit report 2026](accessibility/audit-2026.md).
-- **Screen readers.** NVDA with Firefox on Windows and VoiceOver with Safari on macOS are tested by hand, with the checklists in the audit report. Their results are recorded there.
+- **Screen readers.** Hand testing with NVDA and Firefox on Windows and with VoiceOver and Safari on macOS is planned, with the checklists in the audit report. It is not complete yet; the results will be recorded there.
 
 ## Known limitations
 
+- **Screen-reader testing is not complete yet.** Caldence is built for screen readers (names, roles, states and live messages are checked automatically), but the hand tests with NVDA and VoiceOver are still open.
 - **Wide tables scroll inside their own area.** At 320 px width (400 % zoom) the month grid and the wide tables (meetings, team members, import review, the tables in the manual) scroll sideways inside a labelled area that you can reach with Tab and scroll with the arrow keys. The page itself does not scroll sideways.
 - **File bar icons in contrast themes.** The icons on New, Open, Save and Save as are not shown in Windows contrast themes. The text labels are.
 - **Orientation of the view list on narrow screens.** Below about 960 px width the view tabs are shown in one row, but are announced as a vertical list. Both Left / Right and Up / Down move between them.
