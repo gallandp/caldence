@@ -603,6 +603,23 @@
     background: linear-gradient(135deg, #7b6bff, #5340e6);
     box-shadow: 0 4px 10px -2px rgb(83 64 230 / 0.55);
   }
+  /* Forced colours drop shadows and gradients: draw the states with borders and an underline. */
+  @media (forced-colors: active) {
+    .group:nth-child(2) button[aria-pressed='true'] {
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+    td.selected::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 2px solid Highlight;
+      pointer-events: none;
+    }
+    td.today .day {
+      border: 2px solid CanvasText;
+    }
+  }
   .warn {
     padding: 0 0.4rem;
     border-radius: 999px;
