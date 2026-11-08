@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0 – 2026-11-08
+
 ### Added
 
 - Templates (#15): apply the built-in Scrum, Kanban and SAFe templates in German or English, and import or export your own template files. Templates hold roles, cadence, categories and meetings, but no people.
