@@ -227,7 +227,7 @@
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
                 <button type="button" onclick={() => fromEmptyState(bar?.openExample())}
-                  >{$t('calendar.empty.example')}</button
+                  >{$t('start.example')}</button
                 >
               </section>
             {:else if id === 'calendar'}
