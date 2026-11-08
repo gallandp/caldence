@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.0 – 2026-11-08
+
 ### Added
 
 - Start screen (#19): a workspace without teams shows a welcome page on the Calendar view with the built-in templates, Open a file, the example and links to an empty workspace and the manual.
