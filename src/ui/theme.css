@@ -79,12 +79,9 @@
 }
 
 /* ---------- Top bar (file) and context bar (team, filters) ---------- */
+/* Not sticky: a fixed bar would cover focused fields when scrolling (WCAG 2.4.11, 2.5.8). */
 #app .content > .bar:not(.context) {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   border-bottom: 1px solid var(--border);
   padding: 0.7rem 2rem;
   gap: 0.5rem 1rem;

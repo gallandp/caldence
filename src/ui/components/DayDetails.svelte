@@ -62,7 +62,7 @@
 <style>
   .details {
     position: sticky;
-    top: 5rem;
+    top: 1rem;
     margin-top: 0;
     padding: 1.1rem;
     border: 1px solid var(--border);

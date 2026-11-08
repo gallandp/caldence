@@ -4,7 +4,7 @@
 
 ### Changed
 
-- New look: a dark sidebar with icons for the views, a top bar that stays in place with Save as the main button, cards for every view, and a refreshed colour scheme in light and dark mode. On narrow screens the sidebar becomes a header.
+- New look: a dark sidebar with icons for the views, a top bar with Save as the main button, cards for every view, and a refreshed colour scheme in light and dark mode. On narrow screens the sidebar becomes a header.
 - The month calendar shows each day's meetings as chips in their category colour, marks today, school holidays and non-working days, and opens the day details next to the grid on wide screens.
 - The load view shows category colours and a bar for each role's share of the working week.
 
