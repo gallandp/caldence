@@ -155,13 +155,22 @@ for (const locale of ['de', 'en'] as const) {
   });
 }
 
-test('the manual fits 375 px without horizontal scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 800 });
-  await page.goto('/');
-  await page.getByRole('tab', { name: /^(Help|Hilfe)$/ }).click();
-  await expect(page.getByRole('navigation', { name: /^(Contents|Inhalt)$/ })).toBeVisible();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
-});
+for (const locale of ['de', 'en'] as const) {
+  test.describe(`narrow manual (${locale})`, () => {
+    test.use({ locale: locale === 'de' ? 'de-DE' : 'en-US' });
+    test('the manual fits 375 px without horizontal scroll', async ({ page }) => {
+      const c = catalogue(locale);
+      await page.setViewportSize({ width: 375, height: 800 });
+      await page.goto('/');
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await page.getByRole('tab', { name: c['view.help'], exact: true }).click();
+      await expect(
+        page.getByRole('navigation', { name: c['help.toc'], exact: true }),
+      ).toBeVisible();
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  });
+}

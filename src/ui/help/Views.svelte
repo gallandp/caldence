@@ -36,6 +36,7 @@
         load: 'view.load',
         role: 'filter.role',
         person: 'filter.person',
+        all: 'filter.all',
       }}
     />
   </p>
@@ -44,7 +45,15 @@
   <p>
     <Rich
       key="help.views.calendar"
-      labels={{ month: 'cal.mode.month', week: 'cal.mode.week', today: 'cal.today' }}
+      labels={{
+        month: 'cal.mode.month',
+        week: 'cal.mode.week',
+        today: 'cal.today',
+        prev: 'cal.prev.month',
+        next: 'cal.next.month',
+        prevWeek: 'cal.prev.week',
+        nextWeek: 'cal.next.week',
+      }}
     />
   </p>
   <p>
