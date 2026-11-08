@@ -1,29 +1,57 @@
 /* Design tokens. Every text/background pair is at least 4.5:1, focus ring at least 3:1. */
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --surface: #f3f4f6;
-  --text: #1f2933;
-  --text-muted: #4b5563;
-  --border: #6b7280;
-  --accent: #1d4ed8;
-  --focus: #1d4ed8;
-  --danger: #b91c1c;
+  --bg: #f4f5fb;
+  --surface: #ffffff;
+  --surface-2: #f1f2f9;
+  --text: #0f1426;
+  --text-muted: #555d74;
+  --border: #e2e5f0;
+  --border-strong: #7a8197;
+  --accent: #5340e6;
+  --accent-hover: #4431d1;
+  --accent-soft: #efedff;
+  --accent-text: #4a37d6;
+  --on-accent: #ffffff;
+  --focus: #5340e6;
+  --danger: #c0262d;
+  --danger-soft: #fdecec;
+  --warn: #9a5b00;
+  --warn-soft: #fff5e1;
+  --school: #fff8e6;
+  --side-bg: #0e1124;
+  --side-text: #c3c7de;
   --space: 1rem;
-  --radius: 0.375rem;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --radius: 0.6rem;
+  --radius-lg: 1rem;
+  --shadow: 0 1px 2px rgb(15 20 38 / 0.04), 0 8px 24px -8px rgb(15 20 38 / 0.1);
+  --shadow-lg: 0 24px 64px -16px rgb(15 20 38 / 0.35);
+  --font: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', Roboto, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111827;
-    --surface: #1f2937;
-    --text: #f3f4f6;
-    --text-muted: #c4cad4;
-    --border: #9ca3af;
-    --accent: #93c5fd;
-    --focus: #93c5fd;
-    --danger: #fca5a5;
+    --bg: #0a0c18;
+    --surface: #12152a;
+    --surface-2: #191d36;
+    --text: #eceefa;
+    --text-muted: #a8aec8;
+    --border: #262b49;
+    --border-strong: #6f7699;
+    --accent: #a99dff;
+    --accent-hover: #c2b9ff;
+    --accent-soft: #26214d;
+    --accent-text: #bdb3ff;
+    --on-accent: #120e33;
+    --focus: #a99dff;
+    --danger: #ff9b9b;
+    --danger-soft: #3a1820;
+    --warn: #ffc670;
+    --warn-soft: #33270f;
+    --school: #241f12;
+    --side-bg: #070914;
+    --side-text: #b4b9d4;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -8px rgb(0 0 0 / 0.5);
   }
 }
 
