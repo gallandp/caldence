@@ -12,6 +12,7 @@
     type FilePickerType,
   } from '../state/files';
   import { pickFile } from '../state/picker';
+  import ApplyDialog from '../templates/ApplyDialog.svelte';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
 
   let { onOpenTeam }: { onOpenTeam?: () => void } = $props();
@@ -30,11 +31,7 @@
   let problem = $state<Problem | null>(null);
   let exported = $state<string | null>(null);
 
-  // Apply dialog (built-in templates)
-  let dialog: HTMLDialogElement | undefined;
-  let target = $state.raw<Template | null>(null);
-  let dialogName = $state('');
-  let dialogError = $state(false);
+  let applyDialog: ApplyDialog | undefined;
 
   // Import
   let imported = $state.raw<Template | null>(null);
@@ -42,10 +39,8 @@
   let importError = $state(false);
 
   let openButton = $state<HTMLButtonElement | undefined>();
-  let dialogInput: HTMLInputElement | undefined;
-  let dialogProblem = $state<Problem | null>(null);
 
-  function create(template: Template, name: string, inDialog = false): boolean {
+  function create(template: Template, name: string): boolean {
     const trimmed = name.trim();
     if (trimmed === '') return false;
     const result = workspace.apply((ws) =>
@@ -53,11 +48,7 @@
     );
     if (!result.ok) {
       const first = result.errors[0];
-      const failure = { key: first?.key ?? 'error.type', path: first?.path };
-      if (inDialog) {
-        dialogProblem = failure;
-        void tick().then(() => dialogInput?.focus());
-      } else problem = failure;
+      problem = { key: first?.key ?? 'error.type', path: first?.path };
       return false;
     }
     problem = null;
@@ -69,28 +60,12 @@
     return true;
   }
 
-  function openDialog(id: BuiltinTemplateId) {
-    target = builtinTemplate(id, get(locale));
-    dialogName = target.name;
-    dialogError = false;
-    dialogProblem = null;
-    dialog?.showModal();
-  }
-
-  function closeDialog() {
-    dialog?.close();
-    target = null;
-  }
-
-  function submitDialog(event: SubmitEvent) {
-    event.preventDefault();
-    if (!target) return;
-    if (dialogName.trim() === '') {
-      dialogError = true;
-      dialogInput?.focus();
-      return;
-    }
-    if (create(target, dialogName, true)) closeDialog();
+  function onApplied(name: string) {
+    problem = null;
+    exported = null;
+    created = name;
+    // The control that was used is gone or inert now: move focus to the outcome.
+    void tick().then(() => openButton?.focus());
   }
 
   async function importFile() {
@@ -191,7 +166,7 @@
         <article aria-labelledby="{uid}-{id}-h">
           <h4 id="{uid}-{id}-h">{template.name}</h4>
           <p>{template.description}</p>
-          <button type="button" class="primary" onclick={() => openDialog(id)}
+          <button type="button" class="primary" onclick={() => applyDialog?.show(id)}
             >{$t('templates.apply')}</button
           >
         </article>
@@ -287,44 +262,7 @@
   </section>
 </div>
 
-<dialog
-  bind:this={dialog}
-  aria-labelledby="{uid}-dialog-h"
-  oncancel={(e) => {
-    e.preventDefault();
-    closeDialog();
-  }}
->
-  <h2 id="{uid}-dialog-h">{$t('templates.dialog.title', { name: target?.name ?? '' })}</h2>
-  <form onsubmit={submitDialog}>
-    <div class="field">
-      <label for="{uid}-dialog-name">{$t('templates.teamName')}</label>
-      <input
-        id="{uid}-dialog-name"
-        type="text"
-        bind:this={dialogInput}
-        bind:value={dialogName}
-        aria-invalid={dialogError || dialogProblem ? 'true' : undefined}
-        aria-describedby={dialogError || dialogProblem ? `${uid}-dialog-err` : undefined}
-        oninput={() => {
-          dialogError = false;
-          dialogProblem = null;
-        }}
-      />
-    </div>
-    {#if dialogError}
-      <p class="field-error" id="{uid}-dialog-err">{$t('templates.error.name')}</p>
-    {:else if dialogProblem}
-      <p class="field-error" id="{uid}-dialog-err">
-        {$t(dialogProblem.key, { path: dialogProblem.path ?? '' })}
-      </p>
-    {/if}
-    <div class="actions">
-      <button type="submit" class="primary">{$t('templates.create')}</button>
-      <button type="button" onclick={closeDialog}>{$t('dialog.cancel')}</button>
-    </div>
-  </form>
-</dialog>
+<ApplyDialog bind:this={applyDialog} oncreated={onApplied} />
 
 <style>
   .templates {
@@ -422,27 +360,5 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 0.4rem 0.5rem;
-  }
-  dialog {
-    max-width: min(32rem, calc(100vw - 2 * var(--space)));
-    padding: calc(var(--space) * 1.5);
-    background: var(--bg);
-    color: var(--text);
-    border: 2px solid var(--border);
-    border-radius: var(--radius);
-  }
-  dialog::backdrop {
-    background: rgb(0 0 0 / 0.5);
-  }
-  dialog h2 {
-    margin-top: 0;
-    font-size: 1.25rem;
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: flex-end;
-    margin-top: var(--space);
   }
 </style>

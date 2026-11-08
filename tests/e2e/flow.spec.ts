@@ -91,7 +91,7 @@ async function expectEverything(page: Page) {
 test('from an empty workspace to saved, restored and reopened data', async ({ page }) => {
   await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Open example' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open the example' }).first()).toBeVisible();
 
   // Roles and a person in the workspace settings.
   await tab(page, 'Workspace settings').click();

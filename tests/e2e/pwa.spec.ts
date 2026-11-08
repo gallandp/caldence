@@ -39,7 +39,7 @@ test('works offline once the service worker is installed', async ({ page, contex
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open example' }).click();
+  await page.getByRole('button', { name: 'Open the example' }).click();
   await expect(page.getByText('Untitled')).toBeVisible();
 });
 

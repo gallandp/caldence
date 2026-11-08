@@ -4,6 +4,7 @@
 
 ### Added
 
+- Start screen (#19): a workspace without teams shows a welcome page on the Calendar view with the built-in templates, Open a file, the example and links to an empty workspace and the manual.
 - Installable app (#18): Caldence can be installed from the browser and works offline after the first visit; a prompt offers the new version when an update is available.
 - Deployment (#18): the release ZIP includes ready-made server configurations, and a deployment guide (`docs/deployment.md`) explains how to host Caldence yourself.
 - Region file import (#6): import a region file with holidays in the workspace settings; it is stored in the workspace file and can be removed again.

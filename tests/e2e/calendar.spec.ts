@@ -202,7 +202,7 @@ test('days outside the planning horizon show no data', async ({ page }) => {
 
 test('a workspace without teams shows the start screen', async ({ page }) => {
   await page.goto('/');
-  await expect(panel(page).getByRole('button', { name: 'Open example' })).toBeVisible();
+  await expect(panel(page).getByRole('button', { name: 'Open the example' })).toBeVisible();
   await expect(panel(page).getByRole('grid')).toHaveCount(0);
 });
 

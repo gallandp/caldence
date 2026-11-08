@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
+  import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import WeeksView from './views/WeeksView.svelte';
@@ -201,7 +203,15 @@
         >
           <h2>{$t('view.' + id)}</h2>
           <svelte:boundary>
-            {#if (id === 'calendar' || id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
+            {#if id === 'calendar' && $workspace.teams.length === 0}
+              <StartView
+                onOpenFile={() => bar?.open()}
+                onOpenExample={() => bar?.openExample()}
+                onEmpty={() => select('team', true)}
+                onManual={() => select('help', true)}
+                onCreated={() => void tick().then(() => select('calendar', true))}
+              />
+            {:else if (id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>

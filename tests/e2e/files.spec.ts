@@ -17,11 +17,11 @@ test.beforeEach(async ({ page }) => {
 
 async function openExample(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open example' }).click();
+  await page.getByRole('button', { name: 'Open the example' }).click();
   // The example adopts the current UI language, so the UI stays English.
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByText('Untitled')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
 }
 
 /** Two edits through the language switch (a workspace setting): de, then back to en. */
@@ -59,7 +59,7 @@ test('autosave restores the changed data and the unsaved marker after reload', a
   // The changed value (language de) survived, and so did the dirty flag and the example.
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Beispiel öffnen' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Das Beispiel öffnen' })).toHaveCount(0);
 });
 
 test('save as downloads workspace.caldence.json and clears the marker', async ({ page }) => {
@@ -91,7 +91,7 @@ test('opening an invalid file shows an error and keeps the workspace', async ({ 
   await expect(page.getByText('workspace.caldence.json')).toBeVisible();
   await expect(page.getByText('✓ Saved')).toBeVisible();
   // The example is still loaded and the earlier edits are still undoable.
-  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
@@ -112,7 +112,7 @@ test('opening a template file with Open says to apply it in Templates', async ({
   await expect(page.getByRole('alert')).toHaveText(
     'This is a template. Apply it in the Templates view.',
   );
-  await expect(page.getByRole('button', { name: 'Open example' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
 });
 
 test('New while dirty asks first; cancel keeps the data; axe passes with the dialog open', async ({
@@ -138,7 +138,7 @@ test('New while dirty asks first; cancel keeps the data; axe passes with the dia
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await dialog.getByRole('button', { name: 'Discard' }).click();
-  await expect(page.getByRole('button', { name: 'Open example' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open the example' })).toBeVisible();
 });
 
 test('Ctrl+S saves via the shortcut', async ({ page }) => {
