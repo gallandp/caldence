@@ -34,7 +34,7 @@ New for phase 4:
 - **No hosting credentials** in the repository or its workflows, and no deploy step. The maintainer uploads the release ZIP by hand.
 - **Never lose data on update.** An update is applied only after the user chooses "Reload". The autosave is flushed before the reload.
 - **Caching.** `index.html`, `sw.js`, `registerSW.js` and `manifest.webmanifest` are served with `Cache-Control: no-cache`. Files in `assets/` (hashed names) get `Cache-Control: public, max-age=31536000, immutable`. `.webmanifest` is served as `application/manifest+json`.
-- **Do not touch the redesign's files in Part A:** `src/ui/Shell.svelte`, `src/ui/views/CalendarView.svelte`, `src/ui/views/LoadView.svelte`, any `DayItemList`, `src/ui/tokens.css` and `src/ui/global.css`. New UI in Part A uses existing classes and has no new global styles.
+- **Do not touch the redesign's files in Part A:** `src/ui/Shell.svelte`, `src/ui/views/CalendarView.svelte`, `src/ui/views/LoadView.svelte`, any `DayItemList` or `DayDetails`, `src/ui/theme.css`, `src/ui/tokens.css` and `src/ui/global.css`. New UI in Part A uses existing classes and has no new global styles.
 - **Release.** PR A has the label `release:minor` and ships as 0.5.0. PR B has `release:major` and ships as 1.0.0. Each PR body has one `Closes #N` line per issue, because GitHub closes only the first number of a combined line.
 
 ## Review Focus
