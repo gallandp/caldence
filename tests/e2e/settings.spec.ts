@@ -349,7 +349,7 @@ test('a stale error and draft disappear when the workspace changes elsewhere', a
   const to = page.getByLabel('Horizon to');
   await to.fill('2026-01-01');
   await expect(page.getByText(/before its start/)).toBeVisible();
-  await page.locator('header').getByLabel('Language').selectOption('de');
+  await page.getByRole('complementary').getByLabel('Language').selectOption('de');
   await expect(page.getByText(/liegt vor dem Beginn|before its start/)).toHaveCount(0);
   await expect(page.getByLabel('Zeitraum bis')).toHaveValue('2027-12-31');
 });

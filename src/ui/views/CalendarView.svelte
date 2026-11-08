@@ -124,6 +124,7 @@
           event?.categoryId ??
           '',
         team: team?.name ?? o.teamId,
+        colour: $workspace.categories.find((c) => c.id === event?.categoryId)?.colour,
         hours: o.hours,
         skipped: o.skippedHoliday !== undefined,
       };
@@ -181,6 +182,16 @@
     const meetings = $t(count === 1 ? 'cal.meetings.one' : 'cal.meetings.other', {
       n: formatNumber($locale, count, 0),
     });
+    const chips = occs
+      .filter((o) => !o.skippedHoliday)
+      .map((o) => {
+        const team = $workspace.teams.find((x) => x.id === o.teamId);
+        const event = team?.events.find((e) => e.id === o.eventId);
+        const colour =
+          $workspace.categories.find((c) => c.id === event?.categoryId)?.colour ?? '#64748b';
+        return { key: `${o.teamId}/${o.eventId}`, start: o.start, name: event?.name ?? '', colour };
+      });
+    const today = date === localToday();
     const overlap = inside && date in overlapsByDate;
     const nonWork = inside && !$workspace.settings.workdays.includes(weekday(date));
     const parts = [formatDisplayDate($locale, date, 'long')];
@@ -201,6 +212,8 @@
       meetings,
       overlap,
       nonWork,
+      chips,
+      today,
       label: parts.join($t('cal.list.sep')),
     };
   }
@@ -344,6 +357,8 @@
                   class:other={date.slice(0, 7) !== cursor.slice(0, 7)}
                   class:muted={!c.inside || c.nonWork}
                   class:selected={selected === date}
+                  class:today={c.today}
+                  class:school={c.school !== undefined}
                   tabindex={date === cursor ? 0 : -1}
                   aria-selected={selected === date}
                   onclick={() => select(date)}
@@ -358,14 +373,18 @@
                     {/if}
                   </span>
                   <span class="visual" aria-hidden="true">
+                    {#if c.showLoad && c.chips.length > 0}<span class="load">{c.hours}</span>{/if}
                     {#if c.holiday}<span class="holiday">{c.holiday}</span>{/if}
-                    {#if c.school}<span class="school">{c.school}</span>{/if}
+                    {#if c.school}<span class="schoolname">{c.school}</span>{/if}
                     {#each c.cadence as label, i (i)}<span class="cadence">{label}</span>{/each}
-                    {#each c.milestones as name, i (i)}<span class="milestone">{name}</span>{/each}
-                    {#if c.showLoad}
-                      <span class="load">{c.hours}</span>
-                      <span class="count">{c.meetings}</span>
-                    {/if}
+                    {#each c.milestones as name, i (i)}<span class="milestone">◆ {name}</span
+                      >{/each}
+                    {#each c.chips.slice(0, 3) as chip (chip.key)}
+                      <span class="chip" style:--c={chip.colour}
+                        ><span class="t">{chip.start}</span>{chip.name}</span
+                      >
+                    {/each}
+                    {#if c.chips.length > 3}<span class="more">+{c.chips.length - 3}</span>{/if}
                   </span>
                 </td>
               {/each}
@@ -411,120 +430,251 @@
 
 <style>
   .calendar {
-    max-width: 72rem;
     min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 1.5rem;
+    align-items: start;
+  }
+  .calendar:has(> :global(.details)) {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+  }
+  .calendar > :not(.scroll):not(:global(.details)) {
+    grid-column: 1 / -1;
   }
   .hint {
-    padding: 0.75rem var(--space);
-    border: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin: 0 0 1.25rem;
+    padding: 0.9rem 1.1rem;
     border-radius: var(--radius);
-    background: var(--surface);
-  }
-  button {
-    font: inherit;
-    color: var(--text);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.75rem;
-    cursor: pointer;
-  }
-  button[aria-pressed='true'] {
-    background: var(--surface);
-    border-color: var(--accent);
-    border-width: 2px;
-    padding: calc(0.4rem - 1px) calc(0.75rem - 1px);
-    font-weight: 600;
+    background: var(--accent-soft);
   }
   .toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem 1rem;
-    margin-bottom: var(--space);
+    gap: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
   }
   .group {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
+    gap: 0.35rem;
+  }
+  .group:first-child {
+    order: 2;
+    margin-left: auto;
+  }
+  .group:nth-child(2) {
+    order: 3;
+    gap: 0;
+    padding: 0.2rem;
+    border-radius: calc(var(--radius) + 0.2rem);
+    background: var(--surface-2);
+  }
+  .group:nth-child(2) button {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .group:nth-child(2) button[aria-pressed='true'] {
+    background: var(--surface) !important;
+    color: var(--accent-text) !important;
+    box-shadow: 0 1px 3px rgb(15 20 38 / 0.15) !important;
   }
   .period {
+    order: 1;
     margin: 0;
-    font-weight: 600;
+    font-size: 1.5rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
   }
   .scroll {
     overflow-x: auto;
   }
   table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
     min-width: 44rem;
     table-layout: fixed;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
   }
   caption {
-    text-align: left;
-    font-weight: 600;
-    padding-bottom: 0.25rem;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
   th,
   td {
-    border: 1px solid var(--border);
-    padding: 0.25rem 0.4rem;
+    border: 0;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 0.45rem 0.5rem;
     text-align: left;
     vertical-align: top;
     overflow-wrap: anywhere;
   }
-  th {
-    background: var(--surface);
+  tr > :last-child {
+    border-right: 0;
+  }
+  tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+  thead th {
+    background: var(--accent-soft);
+    color: var(--accent-text) !important;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 0.6rem 0.6rem;
   }
   .weekcol {
-    width: 3.5rem;
+    width: 3rem;
+    text-align: center;
     color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: var(--surface-2);
   }
   td {
-    height: 6rem;
-    font-size: 0.85rem;
+    height: 7.5rem;
+    font-size: 0.8rem;
     cursor: pointer;
     position: relative;
+    background: var(--surface);
+    transition: background-color 0.12s;
   }
-  td .visual span {
-    display: block;
+  td:hover {
+    background: var(--surface-2);
+  }
+  td.school {
+    background: var(--school);
+  }
+  td.muted,
+  td.other {
+    background:
+      repeating-linear-gradient(
+        -45deg,
+        transparent 0 6px,
+        color-mix(in srgb, var(--border) 45%, transparent) 6px 7px
+      ),
+      var(--surface-2);
+  }
+  td.other .day {
+    color: var(--text-muted);
+  }
+  td.selected {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  td:focus-visible {
+    outline-offset: -3px;
   }
   .top {
     display: flex;
     align-items: center;
     gap: 0.25rem;
   }
-  td.muted,
-  td.other {
-    background: var(--surface);
-    color: var(--text-muted);
-  }
-  td.selected {
-    outline: 3px solid var(--accent);
-    outline-offset: -3px;
-  }
-  td:focus-visible {
-    outline-offset: -3px;
-  }
   .day {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
     font-weight: 700;
   }
+  td.today .day {
+    color: #fff;
+    background: linear-gradient(135deg, #7b6bff, #5340e6);
+    box-shadow: 0 4px 10px -2px rgb(83 64 230 / 0.55);
+  }
   .warn {
-    padding: 0 0.35rem;
-    border: 1px solid currentColor;
+    padding: 0 0.4rem;
     border-radius: 999px;
+    font-weight: 700;
     color: var(--danger);
+    background: var(--danger-soft);
   }
-  .holiday {
-    font-weight: 600;
+  .visual {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-top: 0.2rem;
   }
-  .school,
-  .count {
+  .visual > span {
+    line-height: 1.3;
+  }
+  .load {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
   }
+  .holiday {
+    font-weight: 700;
+    color: var(--danger);
+  }
+  .schoolname {
+    font-size: 0.72rem;
+    color: var(--warn);
+    font-weight: 600;
+  }
   .cadence {
-    font-style: italic;
+    align-self: flex-start;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(90deg, #6f5ef9, #22a6d6);
+  }
+  .milestone {
+    font-weight: 700;
+    color: var(--accent-text);
+  }
+  .chip {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.12rem 0.4rem;
+    border-radius: 0.35rem;
+    border-left: 3px solid var(--c);
+    background: color-mix(in srgb, var(--c) 18%, var(--surface));
+    color: var(--text);
+    font-weight: 550;
+  }
+  .chip .t {
+    display: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-right: 0.3rem;
+  }
+  @container (min-width: 9rem) {
+    .chip .t {
+      display: inline;
+    }
+  }
+  td {
+    container-type: inline-size;
+  }
+  .more {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
   }
   .weekday {
     margin-bottom: var(--space);
@@ -539,5 +689,10 @@
   .note {
     margin: 0;
     font-weight: 600;
+  }
+  @media (max-width: 75rem) {
+    .calendar:has(> :global(.details)) {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 </style>

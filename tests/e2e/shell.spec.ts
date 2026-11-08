@@ -25,3 +25,15 @@ test('Ctrl+S saves a value that is still being edited', async ({ page }) => {
   const saved = JSON.parse(readFileSync(path, 'utf8')) as Workspace;
   expect(saved.people.find((p) => p.name === 'Alex')?.hoursPerWeek).toBe(17);
 });
+
+test('the vertical view list also follows ArrowDown and ArrowUp', async ({ page }) => {
+  await page.goto('/');
+  const list = page.getByRole('tablist');
+  await expect(list).toHaveAttribute('aria-orientation', 'vertical');
+  await page.getByRole('tab', { name: 'Calendar' }).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('tab', { name: 'Weeks' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Weeks' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('tab', { name: 'Calendar' })).toBeFocused();
+});

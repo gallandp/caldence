@@ -249,7 +249,7 @@ for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations in the team view (${locale})`, async ({ page }) => {
     await openExample(page);
     await page
-      .locator('header')
+      .getByRole('complementary')
       .getByLabel(/Language|Sprache/)
       .selectOption(locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
@@ -336,7 +336,7 @@ test('the filter follows the active team', async ({ page }) => {
 test('a duplicated team is named in the UI language', async ({ page }) => {
   await openExample(page);
   await page
-    .locator('header')
+    .getByRole('complementary')
     .getByLabel(/Language|Sprache/)
     .selectOption('de');
   await page.getByRole('button', { name: 'Team duplizieren' }).click();

@@ -8,6 +8,7 @@
   import UpdateNotice from './UpdateNotice.svelte';
   import './tokens.css';
   import './global.css';
+  import './theme.css';
 
   // The UI language is a workspace setting.
   $effect(() => {

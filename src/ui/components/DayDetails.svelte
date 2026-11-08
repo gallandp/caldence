@@ -61,11 +61,16 @@
 
 <style>
   .details {
-    margin-top: var(--space);
-    padding: var(--space);
+    position: sticky;
+    top: 1rem;
+    margin-top: 0;
+    padding: 1.1rem;
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+  }
+  h3 {
+    font-size: 1rem;
   }
   .head {
     display: flex;
