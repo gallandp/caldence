@@ -35,9 +35,16 @@ export default defineConfig({
           },
         ],
       },
+      // The icons are already matched by globPatterns; listing them again duplicates precache entries.
+      includeManifestIcons: false,
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,json,webmanifest}'],
-        navigateFallback: 'index.html',
+        // manifest.webmanifest is added by the plugin itself.
+        globPatterns: ['**/*.{js,css,html,svg,png,json}'],
+        // No navigateFallback: the app has one page, and precacheAndRoute serves ./ via
+        // directoryIndex. A fallback would answer every other page in scope with the app.
+        navigateFallback: null,
+        // ./?anything still opens the app offline.
+        ignoreURLParametersMatching: [/.*/],
       },
     }),
   ],
