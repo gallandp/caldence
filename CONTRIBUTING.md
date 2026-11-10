@@ -40,7 +40,7 @@ Caldence targets WCAG 2.2 AA. Check every UI change against this list:
 - Branch from `main`, for example `feature/<topic>` or `fix/<topic>`.
 - Add an entry under `## Unreleased` in `CHANGELOG.md`. Every PR does this.
 - Add tests: unit tests in `tests/unit/`, end-to-end tests in `tests/e2e/`.
-- Add exactly one release label. Never change the version by hand; it is bumped automatically on merge.
+- Add exactly one release label. Never change the version by hand. After the merge, a release PR named "Release X.Y.Z" collects the version and changelog of everything merged since the last release (the largest label wins); merging it publishes the release.
 
 | Label            | Effect on `Major.Minor.Hotfix`                       |
 | ---------------- | ---------------------------------------------------- |

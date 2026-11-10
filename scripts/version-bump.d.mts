@@ -6,3 +6,5 @@ export function releaseChangelog(
   version: string,
   date: string,
 ): { changelog: string; notes: string };
+export function highestLabel(labels: string[]): string;
+export function versionNotes(changelog: string, version: string): string;
