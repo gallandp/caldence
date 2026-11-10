@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.2 – 2026-11-10
+
 ### Security
 
 - Calendar export (#39): ids from a workspace or template file can no longer add lines to an exported .ics file. Ids must now be 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`; files with other ids are rejected with a message naming the id. The export also removes control characters from every line and quotes the time zone where needed. Ids the app creates itself always had this form.
