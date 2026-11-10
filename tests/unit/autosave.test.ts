@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { emptyWorkspace } from '../../src/core/model';
 import { migrate } from '../../src/core/migrate';
-import { createAutosave, idbStore, restoreWithTimeout, type KV } from '../../src/ui/state/autosave';
+import {
+  createAutosave,
+  idbStore,
+  restoreWithTimeout,
+  wantsReset,
+  type KV,
+} from '../../src/ui/state/autosave';
 
 vi.mock('../../src/core/migrate', async (importOriginal) => {
   const original = await importOriginal<typeof import('../../src/core/migrate')>();
@@ -241,5 +247,29 @@ describe('restoreWithTimeout', () => {
     };
     await expect(restoreWithTimeout(service, 3000)).resolves.toBeNull();
     expect(service.disable).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('autosave reset (security #41)', () => {
+  it('keeps the stored workspace as current.bak and restores nothing', async () => {
+    const kv = memory();
+    const stored = { ws, fileName: 'a.json', dirty: true };
+    kv.data.set('current', stored);
+    const a = createAutosave(kv, 500);
+    expect(await a.reset()).toBeNull();
+    expect(kv.data.get('current.bak')).toEqual(stored);
+  });
+
+  it('does nothing without stored data', async () => {
+    const kv = memory();
+    expect(await createAutosave(kv, 500).reset()).toBeNull();
+    expect(kv.data.has('current.bak')).toBe(false);
+  });
+
+  it('wantsReset reads the reset parameter', () => {
+    expect(wantsReset('https://caldence.de/?reset')).toBe(true);
+    expect(wantsReset('https://caldence.de/?reset=1')).toBe(true);
+    expect(wantsReset('https://caldence.de/')).toBe(false);
+    expect(wantsReset('https://caldence.de/?x=reset')).toBe(false);
   });
 });

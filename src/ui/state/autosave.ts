@@ -119,6 +119,20 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     };
   }
 
+  /**
+   * Starts without the stored workspace (`?reset`): it is kept as the backup, and the next write
+   * replaces it. The way out when a stored workspace keeps the app from starting (security #41).
+   */
+  async function reset(): Promise<null> {
+    try {
+      const stored = await kv.get(AUTOSAVE_KEY);
+      if (stored !== undefined && stored !== null) await kv.set(BACKUP_KEY, stored);
+    } catch {
+      // Unreadable or unwritable: nothing to keep, and the next write may still work.
+    }
+    return null;
+  }
+
   async function flush(): Promise<void> {
     clearTimeout(timer);
     timer = undefined;
@@ -165,6 +179,7 @@ export function createAutosave(kv: KV, debounceMs = 500) {
 
   return {
     restore,
+    reset,
     schedule,
     flush,
     flushNow,
@@ -177,6 +192,11 @@ export function createAutosave(kv: KV, debounceMs = 500) {
 }
 
 export const autosave = createAutosave(idbStore());
+
+/** True when the page address asks to start without the stored workspace (`?reset`). */
+export function wantsReset(href: string): boolean {
+  return new URL(href).searchParams.has('reset');
+}
 
 /**
  * Restore, but give up after `ms` so the app never hangs on "Loading…".

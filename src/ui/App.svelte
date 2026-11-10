@@ -2,7 +2,7 @@
   import { locale } from '../i18n';
   import { onMount } from 'svelte';
   import { translate as t } from '../i18n';
-  import { autosave, restoreWithTimeout } from './state/autosave';
+  import { autosave, restoreWithTimeout, wantsReset } from './state/autosave';
   import { workspace } from './state/workspace';
   import Shell from './Shell.svelte';
   import UpdateNotice from './UpdateNotice.svelte';
@@ -20,6 +20,14 @@
 
   onMount(async () => {
     try {
+      if (wantsReset(location.href)) {
+        await autosave.reset();
+        // A reload must not reset again.
+        const url = new URL(location.href);
+        url.searchParams.delete('reset');
+        history.replaceState(history.state, '', url);
+        return;
+      }
       const restored = await restoreWithTimeout(autosave);
       if (restored) workspace.replace(restored.ws, restored);
     } finally {
