@@ -31,6 +31,9 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run e2e
       - run: npm run screenshots -- --out "$RUNNER_TEMP/shots"
+      # All packages are devDependencies (the bundle is built from them), so --omit=dev would
+      # check nothing. Fails on high and critical advisories; lower ones go through Dependabot.
+      - run: npm audit --audit-level=high
 
   deploy-smoke:
     runs-on: ubuntu-latest
