@@ -27,6 +27,22 @@ export function escapeText(s: string): string {
     .replace(/\r\n|\r|\n/g, '\\n');
 }
 
+/** Control characters RFC 5545 forbids in content lines (all but HTAB). */
+// eslint-disable-next-line no-control-regex -- matching control characters is the point
+const CONTROL = /[\x00-\x08\x0a-\x1f\x7f]/g;
+
+/** A content line without control characters: no value can end the line or start a new one. */
+export const contentLine = (line: string): string => line.replace(CONTROL, '');
+
+/** A UID part: ids are restricted on load (validate.ts), anything else becomes '_'. */
+export const uidPart = (s: string): string => s.replace(/[^A-Za-z0-9._-]/g, '_');
+
+/** A parameter value (RFC 5545 3.1): no quotes or control characters, quoted when it holds ;:, */
+export function paramValue(s: string): string {
+  const v = contentLine(s).replace(/"/g, '');
+  return /[;:,]/.test(v) ? `"${v}"` : v;
+}
+
 const utf8Length = (ch: string): number => {
   const c = ch.codePointAt(0) ?? 0;
   return c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
@@ -72,7 +88,7 @@ function stamp(ms: number): string {
 
 /** VTIMEZONE lines: one STANDARD or DAYLIGHT per transition in fromYear..toYear. */
 export function vtimezone(tz: string, fromYear: number, toYear: number): string[] {
-  const lines = ['BEGIN:VTIMEZONE', `TZID:${tz}`];
+  const lines = ['BEGIN:VTIMEZONE', `TZID:${contentLine(tz)}`];
   const sub = (kind: string, dtstart: string, from: number, to: number) => {
     lines.push(
       `BEGIN:${kind}`,
@@ -186,6 +202,7 @@ export function exportIcsWithCounts(
   let series = 0;
   let single = 0;
   const tz = ws.settings.timezone;
+  const tzid = paramValue(tz);
   const dtstamp = `DTSTAMP:${utcStamp(opts.now)}`;
   const settings = { ...ws.settings, horizon: { from: opts.from, to: opts.to } };
   const roleNames = new Map(ws.roles.map((r) => [r.id, r.name]));
@@ -225,7 +242,7 @@ export function exportIcsWithCounts(
       const occs = byEvent.get(event.id);
       const first = occs?.[0];
       if (!occs || !first) continue;
-      const uid = `${event.id}.${team.id}.${ws.id}`;
+      const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
       const roles = event.participants
         .map((p) => roleNames.get(p.roleId))
         .filter((n): n is string => n !== undefined);
@@ -248,8 +265,8 @@ export function exportIcsWithCounts(
             'BEGIN:VEVENT',
             `UID:${uid}-${occ.date}@caldence`,
             dtstamp,
-            `DTSTART;TZID=${tz}:${localStamp(occ.date, occ.start)}`,
-            `DTEND;TZID=${tz}:${plusMinutes(occ.date, occ.start, occ.duration)}`,
+            `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`,
+            `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`,
             ...common,
             ...alarm(event.name),
             'END:VEVENT',
@@ -262,12 +279,12 @@ export function exportIcsWithCounts(
         'BEGIN:VEVENT',
         `UID:${uid}@caldence`,
         dtstamp,
-        `DTSTART;TZID=${tz}:${localStamp(first.date, first.start)}`,
-        `DTEND;TZID=${tz}:${plusMinutes(first.date, first.start, first.duration)}`,
+        `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`,
+        `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`,
         rule,
         ...occs
           .filter((o) => o.skippedHoliday)
-          .map((o) => `EXDATE;TZID=${tz}:${localStamp(o.date, o.start)}`),
+          .map((o) => `EXDATE;TZID=${tzid}:${localStamp(o.date, o.start)}`),
         ...common,
         ...alarm(event.name),
         'END:VEVENT',
@@ -285,7 +302,7 @@ export function exportIcsWithCounts(
     single++;
     lines.push(
       'BEGIN:VEVENT',
-      `UID:${uid}.${ws.id}@caldence`,
+      `UID:${uidPart(uid)}.${uidPart(ws.id)}@caldence`,
       dtstamp,
       `DTSTART;VALUE=DATE:${compactDate(from)}`,
       `DTEND;VALUE=DATE:${compactDate(toExclusive)}`,
@@ -341,5 +358,9 @@ export function exportIcsWithCounts(
   }
 
   lines.push('END:VCALENDAR');
-  return { text: lines.map((l) => `${foldLine(l)}\r\n`).join(''), series, single };
+  return {
+    text: lines.map((l) => `${foldLine(contentLine(l))}\r\n`).join(''),
+    series,
+    single,
+  };
 }

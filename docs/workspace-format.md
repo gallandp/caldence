@@ -15,7 +15,7 @@ A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. 
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
 
-All ids are non-empty strings and unique within their list. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
+All ids (the workspace `id` and the ids of roles, people, categories, teams, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
 
 ### `settings`
 
