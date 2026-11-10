@@ -1,52 +1,52 @@
-# Erststart und Onboarding: Design
+# First start and onboarding: design
 
-Stand: 2026-11-10. Status: abgestimmt mit Philipp, Umsetzung pro Issue auf Zuruf.
+Date: 2026-11-10. Status: agreed with the maintainer; each measure is implemented on request.
 
-## Zielgruppen
+## Target groups
 
-Agile Coaches, Scrum Master, Product Owner, Führungskräfte. Drei der vier planen vor allem für andere, oft für mehrere Teams. Der Einstieg geht deshalb von einer planenden Person aus; der eigene Kalender ist optional.
+Agile coaches, Scrum Masters, Product Owners and managers. Three of the four mainly plan for others, often for several teams. The first start therefore assumes a person who plans for a team; their own calendar is optional.
 
-## Ist-Zustand und Brüche
+## Current state and gaps
 
-1. Ein Team aus einer Vorlage hat keine Personen. Auslastung und Export pro Person bleiben leer. Personen entstehen unter Einstellungen, Mitgliedschaften unter Team.
-2. Region (de-sn), Zeitzone, Planungszeitraum und Wochenstunden werden still gesetzt.
-3. Im leeren Zustand widersprüchliche Signale: roter Hinweis „Team hinzufügen“, Startkarte, Filter ohne Daten, „Speichern“ als Hauptknopf.
-4. Autosave und die Rolle der Datei werden nirgends erklärt.
-5. „Mit einem leeren Arbeitsbereich beginnen“ führt in eine leere Team-Ansicht.
-6. Die Hilfe „Erste Schritte“ braucht 11 Schritte über 6 Ansichten.
+1. A team created from a template has no people. The load view and the per-person export stay empty. People are added under Settings, memberships under Team.
+2. Region (de-sn), time zone, planning horizon and weekly hours are set silently.
+3. The empty state sends mixed signals: a red "Add team" hint, the welcome card, filters without data, and "Save" as the primary button.
+4. Autosave and the purpose of the workspace file are never explained.
+5. "Start with an empty workspace" leads to an empty Team view.
+6. The "First steps" help needs 11 steps across 6 views.
 
-## Soll: User Journey
+## Target: user journey
 
-1. **Ankommen**: eine Hauptaktion „Neu planen“, klein daneben „Datei öffnen“ und „Beispiel ansehen“.
-2. **Assistent „Neu planen“**
-   1. Arbeitsweise: Scrum, Kanban, SAFe oder „Ohne Vorlage“; jede Kachel sagt in einem Satz, was sie mitbringt.
-   2. Team: Name und Takt-Start (vorbelegt wie heute in `applyTemplate`).
-   3. Team zusammenstellen: pro Rolle der Vorlage Namen eintragen (mehrere möglich); optional „Ich bin selbst dabei als …“. Überspringbar.
-   4. Rahmen bestätigen: Zeitzone aus dem Browser, Region als Vorschlag, Planungszeitraum.
-3. **Ergebnis**: Kalender mit dem Team (oder der eigenen Person, falls eingetragen). Einmalige Hinweiskarte mit „Termine anpassen“, „Kalender verteilen“ und dem Satz zu Autosave und Datei.
-4. **Anpassen** in Termine, Auslastung zeigt die Wirkung.
-5. **Verteilen**: .ics pro Person oder Rolle.
-6. **Wiederkommen**: Autosave; Datei nur zum Sichern und Teilen.
-7. **Ausbauen**: „Weiteres Team anlegen“ startet denselben Assistenten, vorhandene Personen stehen zur Auswahl.
+1. **Arrive**: one primary action "Plan new", with "Open file" and "Open example" as secondary actions.
+2. **"Plan new" wizard**
+   1. Way of working: Scrum, Kanban, SAFe or "No template"; each tile says in one sentence what it brings.
+   2. Team: name and cadence start (prefilled as `applyTemplate` does today).
+   3. Build the team: enter names per template role (several allowed); optional "I take part as …". Can be skipped.
+   4. Confirm the frame: time zone from the browser, region as a suggestion, planning horizon.
+3. **Result**: calendar showing the team (or the user's own person, if entered). A one-time hint card with "Adjust meetings", "Share calendars" and one sentence on autosave and the file.
+4. **Adjust** meetings; the load view shows the effect.
+5. **Share**: .ics per person or role.
+6. **Return**: autosave restores everything; the file is only for backup and sharing.
+7. **Grow**: "Add another team" runs the same wizard and offers existing people.
 
-Später, ohne Assistent: Arbeitszeit und Teilzeit, Schulferien, Auslastungsgrenzen, Kategorien, Zyklen, Meilensteine, Annahmen, eigene Vorlagen und Regionen. Leerzustände nennen jeweils genau einen nächsten Schritt.
+Later, outside the wizard: working hours and part time, school holidays, load thresholds, categories, cycles, milestones, assumptions, own templates and regions. Each empty state names exactly one next step.
 
-## Technik
+## Technical approach
 
-- Rein clientseitig, keine neuen Abhängigkeiten.
-- Neue reine Funktion in `src/core` (z. B. `setupTeam`): wendet die Vorlage an, legt Personen und Mitgliedschaften an und setzt die Rahmen-Einstellungen. Unit-Tests.
-- Der Assistent schreibt alles mit einem `workspace.apply`, also ein Strg+Z.
-- UI in `src/ui/setup/`; `StartView` wird schlanker.
-- WCAG 2.2 AA für jeden Schritt; axe in E2E.
+- Client-side only, no new dependencies.
+- New pure function in `src/core` (for example `setupTeam`): applies the template, creates people and memberships and sets the frame settings. Unit tests.
+- The wizard writes everything with one `workspace.apply`, so one Ctrl+Z undoes it.
+- UI in `src/ui/setup/`; `StartView` gets simpler.
+- WCAG 2.2 AA for every step; axe in E2E.
 
-## Umbaumaßnahmen (je ein Issue)
+## Changes (one issue each)
 
-1. Leeren Zustand aufräumen (release:hotfix).
-2. Assistent „Neu planen“ mit `setupTeam` (release:minor).
-3. Rahmen-Schritt mit Vorschlägen für Zeitzone und Region.
-4. Hinweiskarte nach dem Einrichten.
-5. Export „Kalender verteilen“: mehrere .ics auf einmal.
-6. „Weiteres Team anlegen“ über die Teamauswahl.
-7. Hilfe „Erste Schritte“, E2E-Tests und Screenshots nachziehen (läuft mit jeder Maßnahme mit).
+1. Clean up the empty state (release:hotfix).
+2. "Plan new" wizard with `setupTeam` (release:minor).
+3. Frame step with suggestions for time zone and region.
+4. Hint card after setup.
+5. "Share calendars" export: several .ics files at once.
+6. "Add another team" through the team switcher.
+7. Update the "First steps" help, E2E tests and screenshots (part of every change).
 
-Reihenfolge: 1 und 2 zuerst, dann 3 und 4, dann 5 und 6.
+Order: 1 and 2 first, then 3 and 4, then 5 and 6.
