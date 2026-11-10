@@ -6,6 +6,12 @@
 
 - Load and weeks (#40): ids such as `__proto__`, `constructor` or `toString` from a workspace or template file no longer change `Object.prototype` or produce wrong numbers. Hours are counted in records without a prototype, an assumption is only read when the team has it, and the calendar import review no longer uses a raw UID as key.
 
+## 1.0.2 – 2026-11-10
+
+### Security
+
+- Calendar export (#39): ids from a workspace or template file can no longer add lines to an exported .ics file. Ids must now be 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`; files with other ids are rejected with a message naming the id. The export also removes control characters from every line and quotes the time zone where needed. Ids the app creates itself always had this form.
+
 ## 1.0.1 – 2026-11-08
 
 ### Changed

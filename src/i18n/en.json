@@ -12,6 +12,7 @@
   "error.enum.invalid": "Invalid value at {path}",
   "error.horizon.order": "The end of the planning horizon at {path} is before its start",
   "error.id.duplicate": "Duplicate ID at {path}",
+  "error.id.invalid": "Invalid ID at {path} (allowed: up to 64 letters A–Z, digits, \".\", \"_\" and \"-\")",
   "error.ref.unknown": "Unknown reference at {path}",
   "error.ref.inuse": "Still in use: {path}",
   "error.region.builtin": "A built-in region already uses the id of this region file",

@@ -27,3 +27,12 @@ describe('slug edge cases', () => {
     expect(slug('Zoë Müller')).toBe('zoe-mueller');
   });
 });
+
+describe('slug length', () => {
+  it('is at most 64 characters, so it is a valid template id', () => {
+    const s = slug(`${'Sehr langer Teamname '.repeat(10)}`);
+    expect(s.length).toBeLessThanOrEqual(64);
+    expect(s).toMatch(/^[a-z0-9-]+$/);
+    expect(s.endsWith('-')).toBe(false);
+  });
+});

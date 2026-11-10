@@ -8,7 +8,7 @@ A Caldence template describes the roles, categories and recurring events of **on
 | --- | --- | --- |
 | `kind` | `"caldence-template"` | Marks the file as a template. A workspace file has no `kind`. |
 | `schemaVersion` | integer | Schema version of the file. |
-| `id` | string | Stable id of the template; copied to `templateId` of every team created from it. |
+| `id` | string | Stable id of the template; copied to `templateId` of every team created from it. Like all ids in a template (roles, categories, cycles, milestones, events): 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`. |
 | `name` | string | Display name. |
 | `description` | string | One sentence about the template. |
 | `roles` | list of `{ id, name, colour }` | Roles the events refer to. |

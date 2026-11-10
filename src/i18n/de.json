@@ -12,6 +12,7 @@
   "error.enum.invalid": "Ungültiger Wert bei {path}",
   "error.horizon.order": "Das Ende des Planungszeitraums bei {path} liegt vor dem Beginn",
   "error.id.duplicate": "Doppelte ID bei {path}",
+  "error.id.invalid": "Ungültige ID bei {path} (erlaubt: bis zu 64 Buchstaben A–Z, Ziffern, \".\", \"_\" und \"-\")",
   "error.ref.unknown": "Unbekannter Verweis bei {path}",
   "error.ref.inuse": "Wird noch verwendet: {path}",
   "error.region.builtin": "Eine eingebaute Region verwendet bereits die ID dieser Regionsdatei",

@@ -228,6 +228,15 @@ describe('wrong files', () => {
     const r = validateTemplate(t);
     expect(!r.ok && r.errors[0]!.path).toBe('team.events.0.time');
   });
+  it('rejects ids with line breaks or other unsafe characters (security #39)', () => {
+    const t = tpl();
+    t.id = 'scrum\r\nX-INJECT:1';
+    (t.team as { events: { id: string }[] }).events[0]!.id = 'e\nBEGIN:VEVENT';
+    const r = validateTemplate(t);
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.errors).toContainEqual({ path: 'id', key: 'error.id.invalid' });
+    expect(!r.ok && r.errors).toContainEqual({ path: 'team.events.0.id', key: 'error.id.invalid' });
+  });
   it('rejects customRegions', () => {
     expect(keys(validateTemplate({ ...tpl(), customRegions: [] }))).toContain(
       'template.error.notTemplate',
