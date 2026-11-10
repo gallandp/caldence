@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Security
+
+- Security policy (#44): `SECURITY.md` explains how to report a vulnerability privately and what to expect. Dependabot proposes weekly updates for npm packages and GitHub Actions, CodeQL scans the code and the workflows, and CI fails on high or critical `npm audit` advisories.
+
 ## 1.0.2 – 2026-11-10
 
 ### Security

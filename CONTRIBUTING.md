@@ -49,6 +49,10 @@ Caldence targets WCAG 2.2 AA. Check every UI change against this list:
 | `release:hotfix` | 1.2.3 becomes 1.2.4 (also used when no label is set) |
 | `release:none`   | no release (docs, CI, tooling)                       |
 
+## Security
+
+Please report security problems privately, not as an issue. See [SECURITY.md](SECURITY.md).
+
 ## Conduct
 
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Contributions are licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).

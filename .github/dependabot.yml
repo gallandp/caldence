@@ -1,0 +1,27 @@
+# Weekly dependency updates, one grouped PR per ecosystem (security updates come at once).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Svelte and workbox-window end up in the shipped bundle, so updates are released as a hotfix.
+    labels: ['release:hotfix']
+    commit-message:
+      prefix: 'deps'
+    groups:
+      npm:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: ['release:none']
+    commit-message:
+      prefix: 'ci'
+    groups:
+      actions:
+        patterns: ['*']
