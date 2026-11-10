@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Security
+
+- Security headers (#42): the release sends a Content Security Policy (only the app's own files, no inline scripts or styles, no framing), `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy` through `.htaccess`, `web.config` and the nginx example, and `index.html` carries the policy as a `<meta>` tag for hosts without headers. `README.txt` and `web.config` are no longer served. `docs/deployment.md` explains HTTPS redirect, HSTS and a single host name, which are set by the host.
+
 ## 1.0.2 – 2026-11-10
 
 ### Security

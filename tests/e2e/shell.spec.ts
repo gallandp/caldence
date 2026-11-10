@@ -37,3 +37,25 @@ test('the vertical view list also follows ArrowDown and ArrowUp', async ({ page 
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeFocused();
 });
+
+test('every view runs under the Content Security Policy without violations (#42)', async ({
+  page,
+}) => {
+  const violations: string[] = [];
+  page.on('console', (m) => {
+    if (/Content Security Policy|Refused to/i.test(m.text())) violations.push(m.text());
+  });
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) =>
+      console.error(`Refused to load: ${e.violatedDirective} ${e.blockedURI}`),
+    );
+  });
+  await openExample(page);
+  await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveCount(1);
+  for (const tab of await page.getByRole('tab').all()) {
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+  }
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  expect(violations).toEqual([]);
+});
