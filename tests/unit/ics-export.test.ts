@@ -2,11 +2,14 @@ import ICAL from 'ical.js';
 import { describe, expect, it } from 'vitest';
 import valid from '../../src/data/examples/example.caldence.json';
 import {
+  contentLine,
   escapeText,
   exportIcs,
   exportIcsWithCounts,
   foldLine,
+  paramValue,
   scopeHasEvents,
+  uidPart,
   vtimezone,
   type IcsExportOptions,
 } from '../../src/core/ics';
@@ -556,5 +559,60 @@ describe('exportIcs with an unknown region', () => {
     expect(text).not.toContain('UID:holiday-');
     expect(text).not.toContain('UID:school-');
     expect(text).toContain('BEGIN:VEVENT');
+  });
+});
+
+describe('exportIcs with unsafe ids or zone names (security #39)', () => {
+  // validate() rejects such ids; the export must stay safe even when a caller skips it.
+  const INJECT = '\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nSUMMARY:injected\r\nX-A;B="c":d';
+
+  it('never lets an id end a content line', () => {
+    const ws = example();
+    ws.id = `w${INJECT}`;
+    const team = ws.teams[0]!;
+    team.id = `t${INJECT}`;
+    team.events[0]!.id = `e${INJECT}`;
+    for (const c of team.cycles) {
+      c.id = `c${INJECT}`;
+      for (const m of c.milestones) m.id = `m${INJECT}`;
+    }
+    const text = run(
+      ws,
+      opts({ allDay: { holidays: true, schoolHolidays: true, milestones: true } }),
+    );
+    const lines = unfold(text);
+    expect(lines).not.toContain('SUMMARY:injected');
+    // eslint-disable-next-line no-control-regex -- looking for control characters
+    expect(text).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/);
+    expect(text.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/);
+    for (const uid of lines.filter((l) => l.startsWith('UID:')))
+      expect(uid).toMatch(/^UID:[A-Za-z0-9._@-]+$/);
+    expect(new ICAL.Component(ICAL.parse(text)).getAllSubcomponents('vevent').length).toBe(
+      blocks(text, 'VEVENT').length,
+    );
+  });
+
+  it('refuses a zone name with a line break, so it never reaches the file', () => {
+    // The zone also goes through contentLine/paramValue (tested below) in case this ever changes.
+    const ws = example();
+    ws.settings.timezone = 'Europe/Berlin\r\nX-EVIL:1';
+    expect(() => run(ws)).toThrow(RangeError);
+  });
+});
+
+describe('line helpers (security #39)', () => {
+  it('drops control characters from a content line, keeps tabs', () => {
+    expect(contentLine('A\r\nB\u0000C\tD\u007f')).toBe('ABC\tD');
+  });
+  it('keeps safe id characters in a UID part and replaces the rest', () => {
+    expect(uidPart('e-1.a_B')).toBe('e-1.a_B');
+    expect(uidPart('a\r\n;:"b')).toBe('a_____b');
+  });
+  it('quotes a parameter value with ; : or , and drops quotes', () => {
+    expect(paramValue('Europe/Berlin')).toBe('Europe/Berlin');
+    expect(paramValue('Etc/GMT+1')).toBe('Etc/GMT+1');
+    expect(paramValue('a;b')).toBe('"a;b"');
+    expect(paramValue('a:b')).toBe('"a:b"');
+    expect(paramValue('a"b\r\n')).toBe('ab');
   });
 });

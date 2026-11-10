@@ -10,7 +10,7 @@ import {
   type Team,
   type Workspace,
 } from './model';
-import { validate, type Result, type ValidationError } from './validate';
+import { isValidId, validate, type Result, type ValidationError } from './validate';
 
 export interface Template {
   kind: 'caldence-template';
@@ -50,6 +50,7 @@ export function validateTemplate(input: unknown): Result<Template> {
   if (value.id === undefined) errors.push({ path: 'id', key: 'error.required' });
   else if (typeof value.id !== 'string' || value.id.trim() === '')
     errors.push({ path: 'id', key: 'error.type' });
+  else if (!isValidId(value.id)) errors.push({ path: 'id', key: 'error.id.invalid' });
   if (value.name === undefined) errors.push({ path: 'name', key: 'error.required' });
   else if (typeof value.name !== 'string' || value.name.trim() === '')
     errors.push({ path: 'name', key: 'error.type' });

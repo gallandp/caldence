@@ -14,6 +14,13 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 const isStr = (v: unknown): v is string => typeof v === 'string' && v.trim() !== '';
 
+/**
+ * Ids are short ASCII tokens. They end up in calendar UIDs and object keys, so line breaks,
+ * separators and quotes from a shared file must never get through (security #39).
+ */
+export const ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+export const isValidId = (v: unknown): v is string => typeof v === 'string' && ID_PATTERN.test(v);
+
 class Checker {
   errors: ValidationError[] = [];
 
@@ -89,6 +96,7 @@ class Checker {
       const id = item.id;
       if (id === undefined) return this.err(`${path}.${i}.id`, 'error.required');
       if (!isStr(id)) return this.err(`${path}.${i}.id`, 'error.type');
+      if (!isValidId(id)) return this.err(`${path}.${i}.id`, 'error.id.invalid');
       if (seen.has(id)) this.err(`${path}.${i}.id`, 'error.id.duplicate');
       seen.add(id);
     });
@@ -331,6 +339,7 @@ export function validate(input: unknown): Result<Workspace> {
 
   if (w.id === undefined) c.err('id', 'error.required');
   else if (!isStr(w.id)) c.err('id', 'error.type');
+  else if (!isValidId(w.id)) c.err('id', 'error.id.invalid');
 
   checkSettings(c, w.settings);
 

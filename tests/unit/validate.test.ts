@@ -314,3 +314,53 @@ describe('loadWorkspace', () => {
     });
   });
 });
+
+describe('ids (security #39)', () => {
+  const bad = ['a\r\nb', 'a b', 'ä', 'a;b', 'a:b', 'a"b', 'x'.repeat(65)];
+
+  it.each(bad)('rejects the workspace id %j', (id) => {
+    const w = fixture();
+    w.id = id;
+    expect(errorsOf(w)).toContainEqual({ path: 'id', key: 'error.id.invalid' });
+  });
+
+  it.each(bad)('rejects the list ids %j', (id) => {
+    const w = fixture();
+    w.roles[0]!.id = id;
+    w.people[0]!.id = id;
+    w.categories[0]!.id = id;
+    const t = w.teams[0]!;
+    t.cycles[0]!.milestones[0]!.id = id;
+    t.cycles[0]!.id = id;
+    t.events[0]!.id = id;
+    t.id = id;
+    const errors = errorsOf(w);
+    for (const path of [
+      'roles.0.id',
+      'people.0.id',
+      'categories.0.id',
+      'teams.0.id',
+      'teams.0.cycles.0.id',
+      'teams.0.cycles.0.milestones.0.id',
+      'teams.0.events.0.id',
+    ])
+      expect(errors).toContainEqual({ path, key: 'error.id.invalid' });
+  });
+
+  it('accepts UUIDs, generated ids and template ids', () => {
+    for (const id of [
+      '0b8f5c1e-6d3a-4e2b-9a47-5c1d2e3f4a60',
+      'e12',
+      'ev-flow-review',
+      'a.b_C-9',
+      'x'.repeat(64),
+    ]) {
+      const w = fixture();
+      w.id = id;
+      w.roles[0]!.id = id;
+      w.teams[0]!.members[0]!.roleId = id;
+      w.teams[0]!.events[0]!.participants[0]!.roleId = id;
+      expect(validate(w).ok, id).toBe(true);
+    }
+  });
+});
