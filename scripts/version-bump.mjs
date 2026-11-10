@@ -1,5 +1,8 @@
 // Version helper for the release workflow.
-// Library: bump(), releaseChangelog(). CLI: node scripts/version-bump.mjs <label|none-given> [date]
+// Library: bump(), releaseChangelog(), highestLabel(), versionNotes().
+// CLI: node scripts/version-bump.mjs <label|none-given> [date]   bumps package.json and CHANGELOG.md
+//      node scripts/version-bump.mjs level < labels.txt          prints the largest bump of the labels
+//      node scripts/version-bump.mjs notes <version>             writes release-notes.md
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -32,7 +35,43 @@ export function releaseChangelog(changelog, version, date) {
   return { changelog: changelogOut, notes };
 }
 
+const ORDER = ['release:none', 'release:hotfix', 'release:minor', 'release:major'];
+
+/** The largest bump among the labels of several merged PRs; a PR without label counts as hotfix. */
+export function highestLabel(labels) {
+  let best = 0;
+  for (const raw of labels) {
+    const i = ORDER.indexOf(raw);
+    best = Math.max(best, i === -1 ? 1 : i);
+  }
+  return ORDER[best];
+}
+
+/** The changelog section of a released version, without its heading. */
+export function versionNotes(changelog, version) {
+  const m = new RegExp(`\\n## ${version.replace(/\./g, '\\.')} [^\\n]*\\n`).exec(changelog);
+  if (!m) throw new Error(`CHANGELOG.md has no section for ${version}`);
+  const start = m.index + m[0].length;
+  const next = changelog.indexOf('\n## ', start);
+  return changelog.slice(start, next === -1 ? changelog.length : next).trim();
+}
+
 function main(argv) {
+  if (argv[2] === 'level') {
+    const labels = readFileSync(0, 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    console.log(highestLabel(labels));
+    return;
+  }
+  if (argv[2] === 'notes') {
+    writeFileSync(
+      'release-notes.md',
+      `${versionNotes(readFileSync('CHANGELOG.md', 'utf8'), argv[3])}\n`,
+    );
+    return;
+  }
   const raw = argv[2];
   const label = raw && raw !== 'null' ? raw : null;
   const date = argv[3] ?? new Date().toISOString().slice(0, 10);
