@@ -5,6 +5,7 @@
 ### Security
 
 - Load and weeks (#40): ids such as `__proto__`, `constructor` or `toString` from a workspace or template file no longer change `Object.prototype` or produce wrong numbers. Hours are counted in records without a prototype, an assumption is only read when the team has it, and the calendar import review no longer uses a raw UID as key.
+- Release and CI workflows (#43): actions are pinned to commit SHAs. The release no longer pushes to the protected `main`: merging a PR with a release label opens or updates a release PR with version and changelog, and merging that PR builds the release in a job with a read-only token and publishes it from a separate job without npm. Releases now include a SHA-256 file and a build provenance attestation (see `docs/deployment.md`). Workflow values reach scripts through environment variables, every job has a time limit, and `npm ci` runs without install scripts.
 
 ## 1.0.2 – 2026-11-10
 

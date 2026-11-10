@@ -1,59 +1,188 @@
 name: Release
 
+# main is protected (PRs only, required check "check"), so this workflow never pushes to main:
+#
+# 1. A merged PR with a release:* label: `plan` sees unreleased changes, and `release-pr` opens
+#    or updates the PR "Release X.Y.Z" on the branch release/next (version and changelog), then
+#    starts CI for it (see there).
+# 2. That PR is merged by hand: `plan` sees a version without a tag, `build` builds the ZIP with
+#    a read-only token, and `publish` tags the merge commit and publishes the release.
+
 on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
-    # Skip the version commit created by this workflow (avoids loops).
-    if: ${{ !startsWith(github.event.head_commit.message, 'Version ') }}
+  plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      version: ${{ steps.plan.outputs.version }}
+      level: ${{ steps.plan.outputs.level }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          node-version: 22
-          cache: npm
-      - name: Read release label of the merged PR
-        id: label
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Decide between release PR, publish and nothing
+        id: plan
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # No associated PR (e.g. a direct push): release nothing instead of a hotfix.
-          # A PR without a release label keeps the default ("none-given" = hotfix).
-          label=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
-            --jq 'if length == 0 then "release:none" else ([.[].labels[].name | select(startswith("release:"))] | first // "none-given") end')
-          echo "label=$label" >> "$GITHUB_OUTPUT"
-      - name: Bump version and changelog
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if ! git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            # The release PR was merged: its version has no tag yet.
+            echo "mode=publish" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Labels of every PR merged since the last release; a PR without one counts as hotfix,
+          # a direct push without PR (none possible on protected main) as nothing.
+          : > labels.txt
+          for sha in $(git rev-list --first-parent "v$version..HEAD"); do
+            gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" \
+              --jq 'if length == 0 then "release:none" else ([.[].labels[].name | select(startswith("release:"))] | first // "none-given") end' \
+              >> labels.txt
+          done
+          level=$(node scripts/version-bump.mjs level < labels.txt)
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          if [ "$level" = "release:none" ]; then
+            echo "mode=none" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=pr" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Opens or updates the release PR. Runs only the repository's own version script, never npm.
+  release-pr:
+    needs: plan
+    if: needs.plan.outputs.mode == 'pr'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      # To start CI for the release PR (see the last step).
+      actions: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Bump version and changelog on release/next
         id: bump
-        if: steps.label.outputs.label != 'release:none'
-        run: node scripts/version-bump.mjs "${{ steps.label.outputs.label }}"
-      - name: Build
-        if: steps.bump.outputs.changed == 'true'
-        run: |
-          npm ci
-          npm run build
-          npm run package
-      - name: Commit, tag and release
-        if: steps.bump.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.bump.outputs.version }}
+          LEVEL: ${{ needs.plan.outputs.level }}
         run: |
+          git switch -C release/next
+          node scripts/version-bump.mjs "$LEVEL"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json CHANGELOG.md
-          git commit -m "Version $VERSION"
-          git tag "v$VERSION"
-          git push origin HEAD:main "v$VERSION"
-          gh release create "v$VERSION" "caldence-$VERSION.zip" \
-            --title "Caldence $VERSION" --notes-file release-notes.md
+          version=$(node -p "require('./package.json').version")
+          git commit -m "Version $version"
+          # Rebuilt from main every time, so it always holds everything merged since the last release.
+          git push --force origin release/next
+      - name: Open or update the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+          LEVEL: ${{ needs.plan.outputs.level }}
+        run: |
+          {
+            echo "Merging this PR publishes Caldence $VERSION ($LEVEL)."
+            echo
+            echo "It is rebuilt from main whenever another PR with a release label is merged."
+            echo
+            cat release-notes.md
+          } > body.md
+          number=$(gh pr list --head release/next --state open --json number --jq '.[0].number // empty')
+          if [ -z "$number" ]; then
+            gh pr create --base main --head release/next --title "Release $VERSION" \
+              --body-file body.md --label release:none
+          else
+            gh pr edit "$number" --title "Release $VERSION" --body-file body.md
+          fi
+      - name: Start CI for the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Pushes and PRs made with GITHUB_TOKEN start no workflows; workflow_dispatch is the
+        # exception. The run reports the required check "check" on the PR's head commit.
+        run: gh workflow run ci.yml --ref release/next
+
+  # Runs npm and every dependency's build code, so it gets a read-only token that is not kept
+  # on disk. The result is handed to the publish job as an artifact.
+  build:
+    needs: plan
+    if: needs.plan.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build and package
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          # No dependency needs an install script.
+          npm ci --ignore-scripts
+          npm run build
+          npm run package
+          sha256sum "caldence-$VERSION.zip" > "caldence-$VERSION.zip.sha256"
+          node scripts/version-bump.mjs notes "$VERSION"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: |
+            caldence-${{ needs.plan.outputs.version }}.zip
+            caldence-${{ needs.plan.outputs.version }}.zip.sha256
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  # Never runs npm: attests the built ZIP, tags the merge commit and publishes the release.
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/release
+      - name: Check the ZIP against its checksum
+        working-directory: ${{ runner.temp }}/release
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: sha256sum -c "caldence-$VERSION.zip.sha256"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/release/caldence-${{ needs.plan.outputs.version }}.zip
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_DIR: ${{ runner.temp }}/release
+        # --target creates the tag on the merge commit through the API; nothing is pushed to main.
+        run: |
+          gh release create "v$VERSION" \
+            "$RELEASE_DIR/caldence-$VERSION.zip" "$RELEASE_DIR/caldence-$VERSION.zip.sha256" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Caldence $VERSION" --notes-file "$RELEASE_DIR/release-notes.md"
