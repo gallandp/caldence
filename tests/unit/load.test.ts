@@ -213,3 +213,53 @@ describe('warnings', () => {
     ]);
   });
 });
+
+describe('ids that name Object.prototype members (security #40)', () => {
+  const hostile = ['__proto__', 'constructor', 'toString', 'hasOwnProperty'];
+
+  it.each(hostile)(
+    'weeklyBaseLoad keeps role and category %j apart from Object.prototype',
+    (id) => {
+      const t = team([
+        event(
+          { type: 'weekly', weekday: 1 },
+          { categoryId: id, participants: [{ roleId: id, share: 1 }] },
+        ),
+      ]);
+      const before = Object.getOwnPropertyNames(Object.prototype).length;
+      const { byRole, byCategory } = weeklyBaseLoad(t);
+      expect(Object.getOwnPropertyNames(Object.prototype).length).toBe(before);
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      expect(Object.getOwnPropertyDescriptor(byRole, id)?.value).toBe(1);
+      expect(Object.getOwnPropertyDescriptor(byCategory[id] as object, id)?.value).toBe(1);
+    },
+  );
+
+  it('weeklyBaseLoad does not write onto Object.prototype (#40 reproduction)', () => {
+    const t = team([
+      event(
+        { type: 'weekly', weekday: 1 },
+        { categoryId: '__proto__', participants: [{ roleId: 'polluted', share: 1 }] },
+      ),
+    ]);
+    weeklyBaseLoad(t);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it.each(hostile)('loadPerWeek counts team, role and person %j as plain keys', (id) => {
+    const t = team(
+      [event({ type: 'weekly', weekday: 1 }, { participants: [{ roleId: id, share: 1 }] })],
+      {
+        id,
+        members: [{ personId: id, roleId: id }],
+      },
+    );
+    const ws = workspace([t]);
+    ws.people = [{ id, name: 'X', hoursPerWeek: 40 }];
+    const weeks = loadPerWeek(ws, noIndex());
+    const w = at(weeks, 0);
+    expect(Object.getOwnPropertyDescriptor(w.byPerson, id)?.value).toBe(1);
+    expect(Object.getOwnPropertyDescriptor(w.byTeamRole[id] as object, id)?.value).toBe(1);
+    expect(warnings(weeks, ws).every((x) => x.personId === id)).toBe(true);
+  });
+});

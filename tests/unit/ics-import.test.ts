@@ -682,3 +682,23 @@ describe('importEvents', () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe('reviewImport: UIDs that name Object.prototype members (security #40)', () => {
+  it.each(['__proto__', 'constructor', 'toString'])(
+    'gives UID %j a key that is no inherited member',
+    (uid) => {
+      const { ws, teamId } = target();
+      const text = calendar(
+        vevent(uid, [
+          'DTSTART:20270105T090000Z',
+          'DTEND:20270105T093000Z',
+          'RRULE:FREQ=WEEKLY;BYDAY=TU',
+        ]),
+      );
+      const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+      const key = review.candidates[0]!.key;
+      expect(key in {}).toBe(false);
+      expect(key).not.toBe('__proto__');
+    },
+  );
+});

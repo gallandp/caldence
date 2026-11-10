@@ -323,3 +323,35 @@ describe('loadSummary', () => {
     expect(loadSummary(ws, {}).byRole[0]).toMatchObject({ percent: 0, fte: 0 });
   });
 });
+
+describe('ids that name Object.prototype members (security #40)', () => {
+  it.each(['__proto__', 'constructor', 'toString'])('counts the hours of role %j', (id) => {
+    const ws = base();
+    ws.teams[0]!.events = [ev('e1', '09:00', 60, id)];
+    ws.teams[0]!.cycles = [];
+    const index = workspaceIndex(ws);
+    const occ = filteredOccurrences(ws, index, {});
+    expect(occ.map((o) => o.hours)).toEqual([1]);
+    const rows = weekRows(ws, index, {});
+    expect(rows.reduce((s, r) => s + r.total, 0)).toBe(1);
+    expect(rows.some((r) => Object.getOwnPropertyDescriptor(r.byRole, id)?.value === 1)).toBe(true);
+  });
+
+  it.each(['__proto__', 'constructor', 'toString'])(
+    'sums role and category %j in loadSummary',
+    (id) => {
+      const ws = base();
+      ws.roles[0]!.id = id;
+      ws.categories[0]!.id = id;
+      const t = ws.teams[0]!;
+      t.cycles = [];
+      t.members = [{ personId: 'p1', roleId: id }];
+      t.events = [
+        { ...ev('e1', '09:00', 60, id), categoryId: id, rule: { type: 'weekly', weekday: 1 } },
+      ];
+      const summary = loadSummary(ws, {});
+      expect(summary.byRole.map((r) => r.hours)).toEqual([1]);
+      expect(summary.byCategory.map((c) => c.hours)).toEqual([1]);
+    },
+  );
+});

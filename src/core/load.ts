@@ -1,6 +1,7 @@
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import type { CalEvent, Rule, Team, Workspace } from './model';
 import { effectiveDuration, occurrences } from './recurrence';
+import { record } from './record';
 import type { HolidayIndex } from './regions';
 
 export interface BaseLoad {
@@ -46,8 +47,8 @@ export function occurrenceHours(event: CalEvent, minutes: number, share: number)
 
 /** Analytical recurring average in hours per week, independent of horizon and holidays. */
 export function weeklyBaseLoad(team: Team): BaseLoad {
-  const byRole: Record<string, number> = {};
-  const byCategory: Record<string, Record<string, number>> = {};
+  const byRole = record<number>();
+  const byCategory = record<Record<string, number>>();
   for (const event of team.events) {
     const perWeek = occurrencesPerWeek(event.rule, team);
     if (perWeek === 0) continue;
@@ -55,7 +56,7 @@ export function weeklyBaseLoad(team: Team): BaseLoad {
     for (const p of event.participants) {
       const hours = perWeek * occurrenceHours(event, minutes, p.share);
       byRole[p.roleId] = (byRole[p.roleId] ?? 0) + hours;
-      const cat = (byCategory[event.categoryId] ??= {});
+      const cat = (byCategory[event.categoryId] ??= record());
       cat[p.roleId] = (cat[p.roleId] ?? 0) + hours;
     }
   }
@@ -69,9 +70,9 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
   const weeks: WeekLoad[] = [];
   for (let i = 0; i < count; i++) {
-    const byPerson: Record<string, number> = {};
+    const byPerson = record<number>();
     for (const person of ws.people) byPerson[person.id] = 0;
-    weeks.push({ monday: addDays(first, i * 7), byPerson, byTeamRole: {} });
+    weeks.push({ monday: addDays(first, i * 7), byPerson, byTeamRole: record() });
   }
 
   for (const team of ws.teams) {
@@ -83,7 +84,7 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
       if (!event || !week) continue;
       for (const p of event.participants) {
         const hours = occurrenceHours(event, occ.duration, p.share);
-        const roles = (week.byTeamRole[team.id] ??= {});
+        const roles = (week.byTeamRole[team.id] ??= record());
         roles[p.roleId] = (roles[p.roleId] ?? 0) + hours;
         for (const m of team.members) {
           if (m.roleId === p.roleId) {

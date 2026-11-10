@@ -1,4 +1,5 @@
 import { isValidDate, isValidTime } from './date';
+import { inYearRange, latestHorizonEnd, LIMITS } from './limits';
 import { migrate } from './migrate';
 import { CURRENT_SCHEMA, type Workspace } from './model';
 import { validateRegion } from './regionFile';
@@ -35,21 +36,27 @@ class Checker {
     return undefined;
   }
 
-  arr(v: unknown, path: string): unknown[] | undefined {
+  /** A list; longer than `max` is reported, and the list is still checked item by item. */
+  arr(v: unknown, path: string, max?: number): unknown[] | undefined {
     if (v === undefined) this.err(path, 'error.required');
     else if (!Array.isArray(v)) this.err(path, 'error.type');
-    else return v;
+    else {
+      if (max !== undefined && v.length > max) this.err(path, 'error.list.tooLong');
+      return v;
+    }
     return undefined;
   }
 
   str(o: Obj, k: string, path: string): void {
     if (o[k] === undefined) this.err(`${path}.${k}`, 'error.required');
     else if (!isStr(o[k])) this.err(`${path}.${k}`, 'error.type');
+    else if (o[k].length > LIMITS.textChars) this.err(`${path}.${k}`, 'error.text.tooLong');
   }
 
   date(o: Obj, k: string, path: string): boolean {
     if (o[k] === undefined) this.err(`${path}.${k}`, 'error.required');
     else if (!isValidDate(o[k])) this.err(`${path}.${k}`, 'error.date.invalid');
+    else if (!inYearRange(o[k])) this.err(`${path}.${k}`, 'error.date.range');
     else return true;
     return false;
   }
@@ -103,8 +110,13 @@ class Checker {
     return seen;
   }
 
-  each(v: unknown, path: string, fn: (o: Obj, p: string, i: number) => void): unknown[] {
-    const list = this.arr(v, path) ?? [];
+  each(
+    v: unknown,
+    path: string,
+    fn: (o: Obj, p: string, i: number) => void,
+    max?: number,
+  ): unknown[] {
+    const list = this.arr(v, path, max) ?? [];
     list.forEach((item, i) => {
       const o = this.obj(item, `${path}.${i}`);
       if (o) fn(o, `${path}.${i}`, i);
@@ -137,7 +149,7 @@ function checkSettings(c: Checker, v: unknown): void {
     new Set(s.workdays).size !== s.workdays.length
   )
     c.err('settings.workdays', 'error.weekday.range');
-  c.num(s, 'hoursPerWeek', p, { min: 0, exclusive: true });
+  c.num(s, 'hoursPerWeek', p, { min: 0, exclusive: true, max: LIMITS.hoursPerWeek });
   if (typeof s.skipHolidays !== 'boolean')
     c.err('settings.skipHolidays', s.skipHolidays === undefined ? 'error.required' : 'error.type');
 
@@ -147,11 +159,19 @@ function checkSettings(c: Checker, v: unknown): void {
     const toOk = c.date(h, 'to', 'settings.horizon');
     if (fromOk && toOk && (h.to as string) < (h.from as string))
       c.err('settings.horizon.to', 'error.horizon.order');
+    else if (fromOk && toOk) {
+      if ((h.to as string) > latestHorizonEnd(h.from as string))
+        c.err('settings.horizon.to', 'error.horizon.tooLong');
+    }
   }
   const t = c.obj(s.thresholds, 'settings.thresholds');
   if (t) {
-    c.num(t, 'warnFactor', 'settings.thresholds', { min: 0, exclusive: true });
-    c.num(t, 'maxFte', 'settings.thresholds', { min: 0, exclusive: true });
+    c.num(t, 'warnFactor', 'settings.thresholds', {
+      min: 0,
+      exclusive: true,
+      max: LIMITS.warnFactor,
+    });
+    c.num(t, 'maxFte', 'settings.thresholds', { min: 0, exclusive: true, max: LIMITS.maxFte });
   }
 }
 
@@ -182,7 +202,7 @@ function checkRule(
     }
     case 'every-n-weeks':
       c.weekday(r, 'weekday', path);
-      c.num(r, 'n', path, { min: 1, int: true });
+      c.num(r, 'n', path, { min: 1, int: true, max: LIMITS.everyNWeeks });
       c.date(r, 'anchor', path);
       break;
     case 'monthly-nth-weekday':
@@ -197,7 +217,11 @@ function checkRule(
         c.err(`${path}.day`, 'error.number.invalid');
       break;
     case 'cycle-milestone': {
-      c.num(r, 'offsetDays', path, { int: true });
+      c.num(r, 'offsetDays', path, {
+        int: true,
+        min: -LIMITS.offsetDays,
+        max: LIMITS.offsetDays,
+      });
       c.ref(r, 'cycleId', path, new Set(cycles.keys()));
       const ms = isStr(r.cycleId) ? cycles.get(r.cycleId) : undefined;
       if (ms) c.ref(r, 'milestoneId', path, ms);
@@ -226,15 +250,15 @@ function checkEvent(
   c.ref(e, 'categoryId', p, categoryIds);
   checkRule(c, e.rule, `${p}.rule`, cycles, cadenceDays);
   c.time(e, 'time', p);
-  c.num(e, 'duration', p, { min: 0, exclusive: true, int: true });
+  c.num(e, 'duration', p, { min: 0, exclusive: true, int: true, max: LIMITS.minutes });
   c.num(e, 'preparation', p, { min: 0, max: 1 });
   if (e.scaling !== undefined) {
     const sc = c.obj(e.scaling, `${p}.scaling`);
     if (sc) {
       const sp = `${p}.scaling`;
-      c.num(sc, 'base', sp, { min: 0 });
-      c.num(sc, 'perUnit', sp, { min: 0 });
-      c.num(sc, 'grid', sp, { min: 0, exclusive: true });
+      c.num(sc, 'base', sp, { min: 0, max: LIMITS.minutes });
+      c.num(sc, 'perUnit', sp, { min: 0, max: LIMITS.minutes });
+      c.num(sc, 'grid', sp, { min: 0, exclusive: true, max: LIMITS.minutes });
       c.str(sc, 'assumption', sp);
     }
   }
@@ -266,32 +290,43 @@ function checkTeam(
     if (cad.kind === undefined) c.err(`${p}.cadence.kind`, 'error.required');
     else if (!['sprint', 'flow', 'pi'].includes(cad.kind as string))
       c.err(`${p}.cadence.kind`, 'error.enum.invalid');
-    c.num(cad, 'lengthWeeks', `${p}.cadence`, { min: 1, int: true });
+    c.num(cad, 'lengthWeeks', `${p}.cadence`, { min: 1, int: true, max: LIMITS.lengthWeeks });
     c.date(cad, 'start', `${p}.cadence`);
   }
 
   const pairs = new Set<string>();
-  c.each(t.members, `${p}.members`, (m, mp) => {
-    c.ref(m, 'personId', mp, personIds);
-    c.ref(m, 'roleId', mp, roleIds);
-    if (isStr(m.personId) && isStr(m.roleId)) {
-      const pair = JSON.stringify([m.personId, m.roleId]);
-      if (pairs.has(pair)) c.err(mp, 'error.id.duplicate');
-      pairs.add(pair);
-    }
-  });
+  c.each(
+    t.members,
+    `${p}.members`,
+    (m, mp) => {
+      c.ref(m, 'personId', mp, personIds);
+      c.ref(m, 'roleId', mp, roleIds);
+      if (isStr(m.personId) && isStr(m.roleId)) {
+        const pair = JSON.stringify([m.personId, m.roleId]);
+        if (pairs.has(pair)) c.err(mp, 'error.id.duplicate');
+        pairs.add(pair);
+      }
+    },
+    LIMITS.membersPerTeam,
+  );
 
   const a = c.obj(t.assumptions, `${p}.assumptions`);
-  if (a)
-    for (const [k, v] of Object.entries(a))
-      if (!isNum(v)) c.err(`${p}.assumptions.${k}`, 'error.number.invalid');
+  if (a) {
+    const entries = Object.entries(a);
+    if (entries.length > LIMITS.assumptionsPerTeam) c.err(`${p}.assumptions`, 'error.list.tooLong');
+    for (const [k, v] of entries) {
+      if (k.length > LIMITS.textChars) c.err(`${p}.assumptions`, 'error.text.tooLong');
+      if (!isNum(v) || Math.abs(v) > LIMITS.assumptionValue)
+        c.err(`${p}.assumptions.${k}`, 'error.number.invalid');
+    }
+  }
 
   const cycles = new Map<string, Set<string>>();
-  const cycleList = c.arr(t.cycles, `${p}.cycles`) ?? [];
+  const cycleList = c.arr(t.cycles, `${p}.cycles`, LIMITS.cyclesPerTeam) ?? [];
   c.ids(cycleList, `${p}.cycles`);
   c.each(cycleList, `${p}.cycles`, (cy, cp) => {
     c.str(cy, 'name', cp);
-    const msList = c.arr(cy.milestones, `${cp}.milestones`) ?? [];
+    const msList = c.arr(cy.milestones, `${cp}.milestones`, LIMITS.milestonesPerCycle) ?? [];
     const msIds = c.ids(msList, `${cp}.milestones`);
     c.each(msList, `${cp}.milestones`, (m, mp) => {
       c.str(m, 'name', mp);
@@ -310,7 +345,7 @@ function checkTeam(
 /** Checks imported regions: valid shape, no built-in id, no duplicate id. */
 function checkCustomRegions(c: Checker, v: unknown): void {
   const ids = new Set<string>();
-  (c.arr(v, 'customRegions') ?? []).forEach((r, i) => {
+  (c.arr(v, 'customRegions', LIMITS.customRegions) ?? []).forEach((r, i) => {
     const p = `customRegions.${i}`;
     const result = validateRegion(r);
     if (!result.ok) {
@@ -343,28 +378,33 @@ export function validate(input: unknown): Result<Workspace> {
 
   checkSettings(c, w.settings);
 
-  const roles = c.arr(w.roles, 'roles') ?? [];
+  const roles = c.arr(w.roles, 'roles', LIMITS.roles) ?? [];
   const roleIds = c.ids(roles, 'roles');
   c.each(roles, 'roles', (r, p) => {
     c.str(r, 'name', p);
     c.colour(r, 'colour', p);
   });
 
-  const people = c.arr(w.people, 'people') ?? [];
+  const people = c.arr(w.people, 'people', LIMITS.people) ?? [];
   const personIds = c.ids(people, 'people');
   c.each(people, 'people', (o, p) => {
     c.str(o, 'name', p);
-    c.num(o, 'hoursPerWeek', p, { min: 0 });
+    c.num(o, 'hoursPerWeek', p, { min: 0, max: LIMITS.hoursPerWeek });
   });
 
-  const cats = c.arr(w.categories, 'categories') ?? [];
+  const cats = c.arr(w.categories, 'categories', LIMITS.categories) ?? [];
   const categoryIds = c.ids(cats, 'categories');
   c.each(cats, 'categories', (o, p) => {
     c.str(o, 'name', p);
     c.colour(o, 'colour', p);
   });
 
-  const teams = c.arr(w.teams, 'teams') ?? [];
+  const teams = c.arr(w.teams, 'teams', LIMITS.teams) ?? [];
+  const eventCount = teams.reduce<number>(
+    (n, t) => n + (isObj(t) && Array.isArray(t.events) ? t.events.length : 0),
+    0,
+  );
+  if (eventCount > LIMITS.events) c.err('teams', 'error.list.tooLong');
   c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
 
@@ -376,6 +416,8 @@ export function validate(input: unknown): Result<Workspace> {
 }
 
 export function loadWorkspace(text: string): Result<Workspace> {
+  if (text.length > LIMITS.fileChars)
+    return { ok: false, errors: [{ path: '', key: 'error.file.tooLarge' }] };
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);

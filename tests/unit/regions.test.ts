@@ -120,3 +120,50 @@ describe('resolveRegion', () => {
     expect(validateRegion(deBySample).ok).toBe(true);
   });
 });
+
+describe('region limits (security #41)', () => {
+  const sample = (): Record<string, unknown> => structuredClone(deBySample) as never;
+  const keys = (v: unknown): string[] => {
+    const r = validateRegion(v);
+    return r.ok ? [] : r.errors.map((e) => `${e.path} ${e.key}`);
+  };
+
+  it('rejects school holidays outside 1900 to 2200 or longer than a year', () => {
+    const r = sample();
+    r.schoolHolidays = [
+      { name: { de: 'A', en: 'A' }, from: '1000-01-01', to: '9999-12-31' },
+      { name: { de: 'B', en: 'B' }, from: '2027-01-01', to: '2028-01-03' },
+    ];
+    expect(keys(r)).toEqual(
+      expect.arrayContaining([
+        'schoolHolidays.0.from error.date.range',
+        'schoolHolidays.0.to error.date.range',
+        'schoolHolidays.1.to error.schoolHoliday.tooLong',
+      ]),
+    );
+  });
+
+  it('rejects too many entries and too long names', () => {
+    const r = sample();
+    r.schoolHolidays = Array.from({ length: 501 }, () => ({
+      name: { de: 'A', en: 'A' },
+      from: '2027-01-01',
+      to: '2027-01-02',
+    }));
+    r.holidays = Array.from({ length: 101 }, () => ({
+      type: 'fixed',
+      month: 1,
+      day: 1,
+      name: { de: 'x'.repeat(201), en: 'x' },
+    }));
+    const k = keys(r);
+    expect(k).toContain('schoolHolidays error.list.tooLong');
+    expect(k).toContain('holidays error.list.tooLong');
+    expect(k).toContain('holidays.0.name.de error.text.tooLong');
+  });
+
+  it('pads the year of the repentance day', () => {
+    const region = { ...REGIONS['de-sn']! };
+    expect(() => holidaysFor(region, 999)).not.toThrow();
+  });
+});

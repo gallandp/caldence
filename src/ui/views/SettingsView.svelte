@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
+  import { LIMITS } from '../../core/limits';
   import type { Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
   import type { ValidationError } from '../../core/validate';
@@ -137,6 +138,10 @@
       return;
     }
     if (!file) return;
+    if (file.text.length > LIMITS.fileChars) {
+      regionProblem = { key: 'error.file.tooLarge' };
+      return;
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(file.text);
