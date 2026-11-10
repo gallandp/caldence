@@ -269,3 +269,16 @@ describe('wrong files', () => {
     expect(v?.kind).toBe('caldence-template');
   });
 });
+
+describe('template limits (security #41)', () => {
+  it('rejects text above 5 MB before parsing it', () => {
+    const r = loadTemplate(`{"x":"${'a'.repeat(5 * 1024 * 1024)}"}`);
+    expect(!r.ok && r.errors).toEqual([{ path: '', key: 'error.file.tooLarge' }]);
+  });
+  it('rejects a description above 2000 characters', () => {
+    const t = structuredClone(BUILTIN_TEMPLATES.scrum.en) as unknown as Record<string, unknown>;
+    t.description = 'x'.repeat(2001);
+    const r = validateTemplate(t);
+    expect(!r.ok && r.errors).toContainEqual({ path: 'description', key: 'error.text.tooLong' });
+  });
+});

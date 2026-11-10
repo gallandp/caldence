@@ -27,11 +27,11 @@ export type HolidayIndex = {
   beyondKnown: boolean;
 };
 
-const pad = (n: number): string => String(n).padStart(2, '0');
+const pad = (n: number, w = 2): string => String(n).padStart(w, '0');
 
 /** Last Wednesday strictly before 23 November. */
 function repentanceDay(year: number): ISODate {
-  const d = `${year}-11-22`;
+  const d = `${pad(year, 4)}-11-22`;
   return addDays(d, -((weekday(d) - 3 + 7) % 7));
 }
 

@@ -177,3 +177,54 @@ test('Open while dirty: after Save in the dialog a refused open picker shows a h
   await expect(page.getByText('saved.caldence.json')).toBeVisible();
   await expect(page.getByText('✓ Saved')).toBeVisible();
 });
+
+test('a file with a horizon from 1000 to 9999 is refused at once (security #41)', async ({
+  page,
+}) => {
+  const ws = JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.settings.horizon = { from: '1000-01-01', to: '9999-12-31' };
+  await page.goto('/');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open', exact: true }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: 'huge.caldence.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(ws)),
+  });
+  await expect(page.getByRole('alert')).toContainText('outside the supported years 1900 to 2200', {
+    timeout: 2000,
+  });
+  await expect(page.getByText('huge.caldence.json')).toHaveCount(0);
+});
+
+test('?reset starts empty, keeps the stored workspace as backup and drops the parameter', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.getByLabel('Language').selectOption('de');
+  await expect.poll(() => storedTeams(page)).toBe(2);
+  await page.goto('/?reset');
+  await expect(
+    page.getByRole('button', { name: /Beispiel öffnen|Open the example/ }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  const backupTeams = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        const req = indexedDB.open('caldence', 1);
+        req.onsuccess = () => {
+          const get = req.result.transaction('autosave').objectStore('autosave').get('current.bak');
+          get.onsuccess = () =>
+            resolve(
+              (get.result as { ws: { teams: unknown[] } } | undefined)?.ws.teams.length ?? -1,
+            );
+          get.onerror = () => resolve(-1);
+        };
+        req.onerror = () => resolve(-1);
+      }),
+  );
+  expect(backupTeams).toBe(2);
+});

@@ -71,6 +71,29 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
+## Limits
+
+A file that goes beyond these limits is rejected with a message naming the field. They keep a shared file from making the app unusable (every view walks the planning horizon day by day for every meeting).
+
+| What | Limit |
+| --- | --- |
+| File size | 5 MB |
+| Dates (all of them) | years 1900 to 2200 |
+| Planning horizon | at most 5 years (`to` at most the same date 5 years after `from`) |
+| Meetings | 500 in all teams together |
+| Teams / roles / categories / people | 50 / 200 / 200 / 1000 |
+| Members, cycles, milestones per cycle, assumptions per team | 1000, 100, 100, 50 |
+| Imported regions | 20 (each with at most 100 holidays and 500 school holidays of at most a year each) |
+| Names and other text | 200 characters (template description: 2000) |
+| Hours per week | 168 |
+| Cadence length, `every-n-weeks` `n` | 52 weeks |
+| `duration`, scaling `base`, `perUnit`, `grid` | 1440 minutes |
+| `offsetDays` | -366 to 366 |
+| Assumption values | -10000 to 10000 |
+| `warnFactor`, `maxFte` | 100, 10 |
+
+If a stored workspace ever keeps the app from starting, open it with `?reset` at the end of the address (for example `https://caldence.de/?reset`). The app then starts with an empty workspace; the stored one is kept in the browser as a backup (`current.bak`) until the next reset or unreadable start.
+
 Older files (schema 1 and 2) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
 
 ## Privacy
