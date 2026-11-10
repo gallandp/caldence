@@ -16,7 +16,9 @@ export interface Occurrence {
 export function effectiveDuration(event: CalEvent, team: Team): number {
   const s = event.scaling;
   if (!s) return event.duration;
-  const raw = s.base + s.perUnit * (team.assumptions[s.assumption] ?? 0);
+  // Own keys only: an assumption named `constructor` must not read Object.prototype (#40).
+  const units = Object.hasOwn(team.assumptions, s.assumption) ? team.assumptions[s.assumption] : 0;
+  const raw = s.base + s.perUnit * (units ?? 0);
   return s.grid > 0 ? Math.ceil(raw / s.grid) * s.grid : raw;
 }
 

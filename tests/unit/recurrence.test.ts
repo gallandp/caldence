@@ -212,3 +212,22 @@ describe('effectiveDuration', () => {
     ).toBe(45);
   });
 });
+
+describe('effectiveDuration with an assumption that names an Object.prototype member (security #40)', () => {
+  it.each(['constructor', 'toString', '__proto__'])('treats a missing %j as 0, not NaN', (name) => {
+    const e = event(
+      { type: 'weekly', weekday: 1 },
+      { scaling: { base: 30, perUnit: 5, assumption: name, grid: 15 } },
+    );
+    expect(effectiveDuration(e, team([e]))).toBe(30);
+  });
+  it('uses an own assumption with such a name', () => {
+    const e = event(
+      { type: 'weekly', weekday: 1 },
+      { scaling: { base: 30, perUnit: 5, assumption: 'constructor', grid: 15 } },
+    );
+    expect(effectiveDuration(e, team([e], { assumptions: JSON.parse('{"constructor": 3}') }))).toBe(
+      45,
+    );
+  });
+});

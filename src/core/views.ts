@@ -2,6 +2,7 @@ import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from '.
 import { fte, occurrenceHours, weeklyBaseLoad } from './load';
 import type { Team, Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
+import { record } from './record';
 import {
   holidayIndex,
   resolveRegion,
@@ -68,7 +69,7 @@ function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attribu
     for (const occ of occurrences(team, ws.settings, index)) {
       const event = events.get(occ.eventId);
       if (!event) continue;
-      const byRole: Record<string, number> = {};
+      const byRole = record<number>();
       let attends = false;
       for (const p of event.participants) {
         if (personRoles ? !personRoles.has(p.roleId) : filter.roleId && p.roleId !== filter.roleId)
@@ -115,7 +116,7 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
   const teams = scopeTeams(ws, filter);
   const rows: WeekRow[] = [];
-  const perWeek: Record<string, number>[] = Array.from({ length: count }, () => ({}));
+  const perWeek: Record<string, number>[] = Array.from({ length: count }, () => record<number>());
   for (const { occ, byRole } of attributed(ws, index, filter)) {
     const bucket = perWeek[diffDays(mondayOf(occ.date), first) / 7];
     if (!bucket) continue;
@@ -130,8 +131,8 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
       cadence: [],
       milestones: [],
       holidays: [],
-      byRole: perWeek[i] ?? {},
-      total: sum(perWeek[i] ?? {}),
+      byRole: perWeek[i] ?? record(),
+      total: sum(perWeek[i] ?? record()),
     };
     for (const team of teams) {
       const length = team.cadence.lengthWeeks * 7;
@@ -175,9 +176,9 @@ export function loadSummary(
   /** Hours per week by category and role (only entries that exist). */
   matrix: Record<string, Record<string, number>>;
 } {
-  const roleHours: Record<string, number> = {};
-  const catHours: Record<string, number> = {};
-  const matrix: Record<string, Record<string, number>> = {};
+  const roleHours = record<number>();
+  const catHours = record<number>();
+  const matrix = record<Record<string, number>>();
   const seenRoles = new Set<string>();
   const seenCats = new Set<string>();
   const hpw = ws.settings.hoursPerWeek;
@@ -200,7 +201,7 @@ export function loadSummary(
       for (const [roleId, h] of Object.entries(roles)) {
         if (!wanted(roleId)) continue;
         catHours[categoryId] = (catHours[categoryId] ?? 0) + h;
-        const row = (matrix[categoryId] ??= {});
+        const row = (matrix[categoryId] ??= record());
         row[roleId] = (row[roleId] ?? 0) + h;
       }
     }
