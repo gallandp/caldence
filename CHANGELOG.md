@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Release: when no changelog entry was written since the last release (for example only Dependabot updates), the release PR lists the merged PRs instead of an empty section that made its CI fail.
+
 ## 1.1.0 – 2026-11-10
 
 ### Security

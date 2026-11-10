@@ -1,9 +1,10 @@
 // Version helper for the release workflow.
 // Library: bump(), releaseChangelog(), highestLabel(), versionNotes().
 // CLI: node scripts/version-bump.mjs <label|none-given> [date]   bumps package.json and CHANGELOG.md
+//      (uses release-changes.md, if present, when Unreleased is empty)
 //      node scripts/version-bump.mjs level < labels.txt          prints the largest bump of the labels
 //      node scripts/version-bump.mjs notes <version>             writes release-notes.md
-import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** Next Major.Minor.Hotfix version for a PR label. No label counts as hotfix. */
@@ -19,15 +20,22 @@ export function bump(version, label) {
   return `${major}.${minor}.${hotfix + 1}`;
 }
 
-/** Moves the Unreleased entries under a new version heading; returns new text and the notes. */
-export function releaseChangelog(changelog, version, date) {
+/**
+ * Moves the Unreleased entries under a new version heading; returns new text and the notes.
+ * When Unreleased is empty (only Dependabot PRs, say), `fallback` (list lines such as the
+ * merged PR titles) or a short default becomes a "Changed" section.
+ */
+export function releaseChangelog(changelog, version, date, fallback = '') {
   const heading = '## Unreleased';
   const start = changelog.indexOf(heading);
   if (start === -1) throw new Error('CHANGELOG.md has no "## Unreleased" section');
   const bodyStart = start + heading.length;
   const next = changelog.indexOf('\n## ', bodyStart);
   const end = next === -1 ? changelog.length : next + 1;
-  const notes = changelog.slice(bodyStart, end).trim();
+  const found = changelog.slice(bodyStart, end).trim();
+  const notes =
+    found ||
+    `### Changed\n\n${fallback.trim() || '- Maintenance release without changes to the app.'}`;
   const rest = changelog.slice(end);
   const released = `## ${version} – ${date}\n\n${notes}\n`;
   const head = changelog.slice(0, start);
@@ -81,7 +89,16 @@ function main(argv) {
   if (changed) {
     pkg.version = next;
     writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-    const { changelog, notes } = releaseChangelog(readFileSync('CHANGELOG.md', 'utf8'), next, date);
+    // Optional list of merged PRs, written by the release workflow.
+    const fallback = existsSync('release-changes.md')
+      ? readFileSync('release-changes.md', 'utf8')
+      : '';
+    const { changelog, notes } = releaseChangelog(
+      readFileSync('CHANGELOG.md', 'utf8'),
+      next,
+      date,
+      fallback,
+    );
     writeFileSync('CHANGELOG.md', changelog);
     writeFileSync('release-notes.md', `${notes}\n`);
   }
