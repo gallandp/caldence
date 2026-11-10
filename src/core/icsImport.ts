@@ -693,8 +693,11 @@ export function reviewImport(
         bySignature.get(`${nameKey(ev.summary)}\u0000${time}\u0000${ruleKey(rule, null)}`) ?? null;
     if (duplicateOf !== null) selected = false;
 
-    let key = ev.uid || `event-${review.candidates.length + 1}`;
-    for (let n = 2; keys.has(key); n++) key = `${ev.uid}#${n}`;
+    // Prefixed, so a UID such as `__proto__` or `constructor` is never a key of Object.prototype
+    // when the review screen keeps per-candidate choices in a plain object (security #40).
+    const base = ev.uid ? `uid:${ev.uid}` : `event-${review.candidates.length + 1}`;
+    let key = base;
+    for (let n = 2; keys.has(key); n++) key = `${base}#${n}`;
     keys.add(key);
 
     const first = ev.categories[0];
