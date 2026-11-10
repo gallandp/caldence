@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SECURITY_HEADERS } from '../../security-headers';
 
 // Base URLs of deployed copies, comma-separated, each ending in "/".
 const urls = (process.env.DEPLOY_URLS ?? '')
@@ -49,6 +50,42 @@ for (const base of urls) {
       const asset = await request.get(new URL(src!, base).toString());
       expect(asset.headers()['content-type']).toContain('javascript');
       expect(asset.headers()['cache-control']).toContain('immutable');
+    });
+
+    test('security headers on the page, the service worker and an asset (#42)', async ({
+      page,
+      request,
+    }) => {
+      test.skip(!checkHeaders, 'headers are not checked on this server');
+      await page.goto(base);
+      const src = await page.locator('script[src*="assets/"]').first().getAttribute('src');
+      for (const url of [
+        base,
+        base + 'index.html',
+        base + 'sw.js',
+        new URL(src!, base).toString(),
+      ]) {
+        const headers = (await request.get(url)).headers();
+        for (const [name, value] of Object.entries(SECURITY_HEADERS))
+          expect(headers[name.toLowerCase()], `${name} on ${url}`).toBe(value);
+      }
+    });
+
+    test('operator files are not served (#42)', async ({ request }) => {
+      test.skip(!checkHeaders, 'plain servers serve every file');
+      for (const file of ['README.txt', 'web.config', '.htaccess'])
+        expect((await request.get(base + file)).status(), file).toBeGreaterThanOrEqual(400);
+    });
+
+    test('the app runs under the policy without violations (#42)', async ({ page }) => {
+      const violations: string[] = [];
+      page.on('console', (m) => {
+        if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+      });
+      await page.goto(base);
+      await expect(page.getByRole('tablist').first()).toBeVisible();
+      await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+      expect(violations).toEqual([]);
     });
 
     test('the service worker controls the page and it works offline', async ({ page, context }) => {

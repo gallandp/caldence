@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { injectCspMeta } from './security-headers';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string;
@@ -11,6 +12,7 @@ export default defineConfig({
   base: './',
   plugins: [
     svelte(),
+    { name: 'csp-meta', apply: 'build', transformIndexHtml: injectCspMeta },
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
