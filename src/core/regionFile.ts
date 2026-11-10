@@ -1,4 +1,5 @@
-import { isValidDate } from './date';
+import { diffDays, isValidDate } from './date';
+import { inYearRange, LIMITS } from './limits';
 import type { Region } from './regions';
 import type { Result, ValidationError } from './validate';
 
@@ -19,6 +20,7 @@ export function validateRegion(input: unknown): Result<Region> {
   const str = (o: Obj, k: string, path: string) => {
     if (o[k] === undefined) err(j(path, k), 'error.required');
     else if (!isStr(o[k])) err(j(path, k), 'error.type');
+    else if (o[k].length > LIMITS.textChars) err(j(path, k), 'error.text.tooLong');
   };
   const int = (o: Obj, k: string, path: string, min: number, max: number) => {
     const v = o[k];
@@ -29,6 +31,7 @@ export function validateRegion(input: unknown): Result<Region> {
   const date = (o: Obj, k: string, path: string) => {
     if (o[k] === undefined) err(j(path, k), 'error.required');
     else if (!isValidDate(o[k])) err(j(path, k), 'error.date.invalid');
+    else if (!inYearRange(o[k])) err(j(path, k), 'error.date.range');
   };
   const name = (o: Obj, path: string) => {
     if (o.name === undefined) return err(j(path, 'name'), 'error.required');
@@ -36,10 +39,13 @@ export function validateRegion(input: unknown): Result<Region> {
     str(o.name, 'de', j(path, 'name'));
     str(o.name, 'en', j(path, 'name'));
   };
-  const list = (o: Obj, k: string): unknown[] => {
+  const list = (o: Obj, k: string, max: number): unknown[] => {
     if (o[k] === undefined) err(k, 'error.required');
     else if (!Array.isArray(o[k])) err(k, 'error.type');
-    else return o[k];
+    else {
+      if (o[k].length > max) err(k, 'error.list.tooLong');
+      return o[k];
+    }
     return [];
   };
 
@@ -53,7 +59,7 @@ export function validateRegion(input: unknown): Result<Region> {
   name(input, '');
   date(input, 'schoolHolidaysKnownUntil', '');
 
-  list(input, 'holidays').forEach((h, i) => {
+  list(input, 'holidays', LIMITS.regionHolidays).forEach((h, i) => {
     const p = `holidays.${i}`;
     if (!isObj(h)) return err(p, 'error.type');
     name(h, p);
@@ -72,7 +78,7 @@ export function validateRegion(input: unknown): Result<Region> {
     } else err(j(p, 'type'), h.type === undefined ? 'error.required' : 'error.enum.invalid');
   });
 
-  list(input, 'schoolHolidays').forEach((s, i) => {
+  list(input, 'schoolHolidays', LIMITS.regionSchoolHolidays).forEach((s, i) => {
     const p = `schoolHolidays.${i}`;
     if (!isObj(s)) return err(p, 'error.type');
     name(s, p);
@@ -80,6 +86,15 @@ export function validateRegion(input: unknown): Result<Region> {
     date(s, 'to', p);
     if (isValidDate(s.from) && isValidDate(s.to) && s.to < s.from)
       err(j(p, 'to'), 'error.date.invalid');
+    // One entry is one holiday; the index walks it day by day.
+    else if (
+      isValidDate(s.from) &&
+      isValidDate(s.to) &&
+      inYearRange(s.from) &&
+      inYearRange(s.to) &&
+      diffDays(s.to, s.from) > 366
+    )
+      err(j(p, 'to'), 'error.schoolHoliday.tooLong');
   });
 
   return errors.length ? { ok: false, errors } : { ok: true, value: input as unknown as Region };

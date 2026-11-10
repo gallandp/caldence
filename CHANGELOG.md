@@ -4,6 +4,8 @@
 
 ### Security
 
+- Load and weeks (#40): ids such as `__proto__`, `constructor` or `toString` from a workspace or template file no longer change `Object.prototype` or produce wrong numbers. Hours are counted in records without a prototype, an assumption is only read when the team has it, and the calendar import review no longer uses a raw UID as key.
+- Large files (#41): a workspace, template or region file can no longer freeze the app. Files above 5 MB are refused before they are read, all dates must be in the years 1900 to 2200, the planning horizon may be at most 5 years long, and there are upper limits for the number of meetings (500 in all), teams, people and other lists, for text lengths and for numbers such as durations and cadence lengths (see `docs/workspace-format.md`). A stored workspace beyond these limits is not restored but kept as a backup. Adding `?reset` to the address starts with an empty workspace in any case.
 - Security headers (#42): the release sends a Content Security Policy (only the app's own files, no inline scripts or styles, no framing), `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` and `Permissions-Policy` through `.htaccess`, `web.config` and the nginx example, and `index.html` carries the policy as a `<meta>` tag for hosts without headers. `README.txt` and `web.config` are no longer served. `docs/deployment.md` explains HTTPS redirect, HSTS and a single host name, which are set by the host.
 
 ## 1.0.2 – 2026-11-10
