@@ -14,6 +14,15 @@ Caldence is a static site. The release ZIP contains the files of `dist/` at its 
 3. Upload all files to the folder of your webspace, by SFTP or the provider's file manager. Make sure the hidden file `.htaccess` is uploaded too (enable "show hidden files" in your client).
 4. Open the folder's address in your browser.
 
+## Checking the download
+
+Every release has a `caldence-<version>.zip.sha256` next to the ZIP and a build provenance attestation, which proves the ZIP was built by this repository's release workflow from the tagged commit.
+
+```sh
+sha256sum -c caldence-<version>.zip.sha256
+gh attestation verify caldence-<version>.zip --repo gallandp/caldence
+```
+
 ## Updating
 
 Overwrite all files with those of the new ZIP. Users see the "new version" prompt and can reload: on the next start, or in a tab that stays open within about an hour (and whenever the tab becomes visible again while online). Their workspace is saved before the reload.

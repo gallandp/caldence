@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bump, releaseChangelog } from '../../scripts/version-bump.mjs';
+import { bump, highestLabel, releaseChangelog, versionNotes } from '../../scripts/version-bump.mjs';
 
 describe('bump', () => {
   it('raises the minor version and resets the hotfix', () => {
@@ -27,5 +27,31 @@ describe('releaseChangelog', () => {
       '# Changelog\n\n## Unreleased\n\n## 0.2.0 – 2026-11-07\n\n- Added x\n\n## 0.1.0 – 2026-01-01\n\n- Old\n',
     );
     expect(r.notes).toBe('- Added x');
+  });
+});
+
+describe('highestLabel (release PR collects several merged PRs)', () => {
+  it('takes the largest bump', () => {
+    expect(highestLabel(['release:hotfix', 'release:minor', 'release:none'])).toBe('release:minor');
+    expect(highestLabel(['release:minor', 'release:major'])).toBe('release:major');
+  });
+  it('counts a PR without label as hotfix', () => {
+    expect(highestLabel(['release:none', 'none-given'])).toBe('release:hotfix');
+  });
+  it('is release:none when nothing is released', () => {
+    expect(highestLabel(['release:none'])).toBe('release:none');
+    expect(highestLabel([])).toBe('release:none');
+  });
+});
+
+describe('versionNotes', () => {
+  const log =
+    '# Changelog\n\n## Unreleased\n\n## 1.1.0 – 2026-11-10\n\n### Security\n\n- A\n\n## 1.0.2 – 2026-11-10\n\n- B\n';
+  it('returns the section of a released version', () => {
+    expect(versionNotes(log, '1.1.0')).toBe('### Security\n\n- A');
+    expect(versionNotes(log, '1.0.2')).toBe('- B');
+  });
+  it('throws for a version without section', () => {
+    expect(() => versionNotes(log, '9.9.9')).toThrow();
   });
 });
