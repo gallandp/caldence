@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA, emptyWorkspace, type Workspace } from '../../src/core/model';
 import type { Region } from '../../src/core/regions';
 import { loadWorkspace, validate } from '../../src/core/validate';
+import { latestHorizonEnd } from '../../src/core/limits';
 
 const fixture = (): Workspace =>
   JSON.parse(readFileSync('tests/fixtures/valid-workspace.json', 'utf8')) as Workspace;
@@ -362,5 +363,105 @@ describe('ids (security #39)', () => {
       w.teams[0]!.events[0]!.participants[0]!.roleId = id;
       expect(validate(w).ok, id).toBe(true);
     }
+  });
+});
+
+describe('limits (security #41)', () => {
+  const keys = (w: unknown) => errorsOf(w).map((e) => `${e.path} ${e.key}`);
+
+  it('rejects the horizon 1000 to 9999 from the issue', () => {
+    const w = fixture();
+    w.settings.horizon = { from: '1000-01-01', to: '9999-12-31' };
+    expect(keys(w)).toEqual(
+      expect.arrayContaining([
+        'settings.horizon.from error.date.range',
+        'settings.horizon.to error.date.range',
+      ]),
+    );
+  });
+
+  it('rejects a horizon longer than five years, accepts exactly five', () => {
+    const w = fixture();
+    w.settings.horizon = { from: '2026-01-01', to: '2031-01-02' };
+    expect(keys(w)).toContain('settings.horizon.to error.horizon.tooLong');
+    w.settings.horizon = { from: '2026-01-01', to: '2031-01-01' };
+    expect(validate(w).ok).toBe(true);
+  });
+
+  it('rejects dates outside 1900 to 2200 anywhere', () => {
+    const w = fixture();
+    w.teams[0]!.cycles[0]!.milestones[0]!.date = '0100-01-01';
+    w.teams[0]!.cadence.start = '2201-01-01';
+    expect(keys(w)).toEqual(
+      expect.arrayContaining([
+        'teams.0.cycles.0.milestones.0.date error.date.range',
+        'teams.0.cadence.start error.date.range',
+      ]),
+    );
+  });
+
+  it('rejects numbers above their maximum', () => {
+    const w = fixture();
+    const t = w.teams[0]!;
+    t.cadence.lengthWeeks = 53;
+    const e = t.events[0]!;
+    e.duration = 1441;
+    e.rule = { type: 'cycle-milestone', cycleId: 'cy1', milestoneId: 'm1', offsetDays: 367 };
+    w.people[0]!.hoursPerWeek = 169;
+    w.settings.hoursPerWeek = 169;
+    const k = keys(w);
+    for (const path of [
+      'teams.0.cadence.lengthWeeks',
+      'teams.0.events.0.duration',
+      'teams.0.events.0.rule.offsetDays',
+      'people.0.hoursPerWeek',
+      'settings.hoursPerWeek',
+    ])
+      expect(k).toContain(`${path} error.number.invalid`);
+    e.rule = { type: 'every-n-weeks', weekday: 1, n: 53, anchor: '2026-11-09' };
+    expect(keys(w)).toContain('teams.0.events.0.rule.n error.number.invalid');
+  });
+
+  it('rejects too many events in the whole workspace', () => {
+    const w = fixture();
+    const t = w.teams[0]!;
+    const e = t.events[0]!;
+    t.events = Array.from({ length: 501 }, (_, i) => ({ ...e, id: `e${i}` }));
+    expect(keys(w)).toContain('teams error.list.tooLong');
+    t.events.pop();
+    expect(validate(w).ok).toBe(true);
+  });
+
+  it('rejects too long lists and names', () => {
+    const w = fixture();
+    w.teams = Array.from({ length: 51 }, (_, i) => ({
+      ...structuredClone(w.teams[0]!),
+      id: `t${i}`,
+      events: [],
+    }));
+    w.roles[0]!.name = 'x'.repeat(201);
+    const k = keys(w);
+    expect(k).toContain('teams error.list.tooLong');
+    expect(k).toContain('roles.0.name error.text.tooLong');
+  });
+
+  it('accepts the built-in templates, the example and the fixture', () => {
+    expect(validate(fixture()).ok).toBe(true);
+  });
+});
+
+describe('loadWorkspace size limit (security #41)', () => {
+  it('rejects text above 5 MB before parsing it', () => {
+    const big = `{"x":"${'a'.repeat(5 * 1024 * 1024)}"}`;
+    const r = loadWorkspace(big);
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.errors).toEqual([{ path: '', key: 'error.file.tooLarge' }]);
+  });
+});
+
+describe('latestHorizonEnd', () => {
+  it('adds five years, 29 February becomes 1 March', () => {
+    expect(latestHorizonEnd('2026-11-07')).toBe('2031-11-07');
+    expect(latestHorizonEnd('2028-02-29')).toBe('2033-03-01');
   });
 });

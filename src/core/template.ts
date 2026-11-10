@@ -10,6 +10,7 @@ import {
   type Team,
   type Workspace,
 } from './model';
+import { LIMITS } from './limits';
 import { isValidId, validate, type Result, type ValidationError } from './validate';
 
 export interface Template {
@@ -57,6 +58,8 @@ export function validateTemplate(input: unknown): Result<Template> {
   if (value.description === undefined) errors.push({ path: 'description', key: 'error.required' });
   else if (typeof value.description !== 'string')
     errors.push({ path: 'description', key: 'error.type' });
+  else if (value.description.length > LIMITS.descriptionChars)
+    errors.push({ path: 'description', key: 'error.text.tooLong' });
 
   const base = emptyWorkspace('2000-01-01');
   const temp = {
@@ -85,6 +88,7 @@ export function validateTemplate(input: unknown): Result<Template> {
 }
 
 export function loadTemplate(text: string): Result<Template> {
+  if (text.length > LIMITS.fileChars) return fail([{ path: '', key: 'error.file.tooLarge' }]);
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
