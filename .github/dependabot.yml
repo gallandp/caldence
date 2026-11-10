@@ -14,6 +14,10 @@ updates:
       npm:
         patterns: ['*']
         update-types: ['minor', 'patch']
+    ignore:
+      # svelte-check supports only TypeScript 5 and 6 so far; remove once it accepts 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
