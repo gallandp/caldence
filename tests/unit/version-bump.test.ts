@@ -28,6 +28,23 @@ describe('releaseChangelog', () => {
     );
     expect(r.notes).toBe('- Added x');
   });
+  it('uses the fallback entries when Unreleased is empty (for example only Dependabot PRs)', () => {
+    const empty = '# Changelog\n\n## Unreleased\n\n## 0.1.0 – 2026-01-01\n\n- Old\n';
+    const r = releaseChangelog(empty, '0.1.1', '2026-11-10', '- Bump x (#5)');
+    expect(r.changelog).toBe(
+      '# Changelog\n\n## Unreleased\n\n## 0.1.1 – 2026-11-10\n\n### Changed\n\n- Bump x (#5)\n\n## 0.1.0 – 2026-01-01\n\n- Old\n',
+    );
+    expect(r.notes).toBe('### Changed\n\n- Bump x (#5)');
+  });
+  it('never writes an empty section, which Prettier would reject', () => {
+    const empty = '# Changelog\n\n## Unreleased\n\n## 0.1.0 – 2026-01-01\n\n- Old\n';
+    const r = releaseChangelog(empty, '0.1.1', '2026-11-10');
+    expect(r.changelog).not.toMatch(/\n\n\n/);
+    expect(r.notes).toBe('### Changed\n\n- Maintenance release without changes to the app.');
+  });
+  it('ignores the fallback when Unreleased has entries', () => {
+    expect(releaseChangelog(log, '0.2.0', '2026-11-07', '- Bump x (#5)').notes).toBe('- Added x');
+  });
 });
 
 describe('highestLabel (release PR collects several merged PRs)', () => {

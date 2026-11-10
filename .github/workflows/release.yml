@@ -75,6 +75,19 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Tags and history, to list the PRs merged since the last release.
+          fetch-depth: 0
+      - name: List the merged PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Used as the changelog entry when nobody wrote one (only Dependabot PRs, say).
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for sha in $(git rev-list --first-parent "v$version..HEAD"); do
+            gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" \
+              --jq '.[] | select([.labels[].name] | index("release:none") | not) | "- \(.title) (#\(.number))"'
+          done > release-changes.md
       - name: Bump version and changelog on release/next
         id: bump
         env:
