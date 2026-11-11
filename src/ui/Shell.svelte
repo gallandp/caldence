@@ -50,6 +50,8 @@
   };
 
   let active = $state<ViewId>('calendar');
+  /** Without teams the Calendar shows the start screen and the team bar steps aside. */
+  const noTeams = $derived($workspace.teams.length === 0);
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -150,7 +152,7 @@
    */
   async function fromEmptyState(action: Promise<void> | undefined) {
     await action;
-    if ($workspace.teams.length === 0) return;
+    if (noTeams) return;
     await tick();
     select(active, true);
   }
@@ -177,12 +179,11 @@
             </linearGradient>
           </defs>
           <rect width="32" height="32" rx="9" fill="url(#logo-g)" />
-          <path
-            d="M9 12h14M9 17h9M9 22h5"
-            stroke="#fff"
-            stroke-width="2.6"
-            stroke-linecap="round"
-          />
+          <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6.5" y="8.5" width="19" height="17" rx="3.5" stroke-width="2" />
+            <path d="M11.5 6v4.5M20.5 6v4.5" stroke-width="2" />
+            <path d="M9 18.5h3.2l1.6-3.5 2.4 6.5 2-4.6 1 1.6H23" stroke-width="1.9" />
+          </g>
         </svg>
         <h1>{$t('app.name')}</h1>
       </div>
@@ -221,7 +222,11 @@
   </aside>
 
   <div class="content">
-    <WorkspaceBar bind:this={bar} onPlan={() => planWizard?.show()} />
+    <WorkspaceBar
+      bind:this={bar}
+      start={active === 'calendar' && noTeams}
+      onPlan={() => planWizard?.show()}
+    />
     <SetupWizard
       bind:this={planWizard}
       oncreated={() => {
@@ -248,9 +253,11 @@
           tabindex="0"
           hidden={active !== id}
         >
-          <h2>{$t('view.' + id)}</h2>
+          <h2 class:sr-only={id === 'calendar' && noTeams}>
+            {$t('view.' + id)}
+          </h2>
           <svelte:boundary>
-            {#if id === 'calendar' && $workspace.teams.length === 0}
+            {#if id === 'calendar' && noTeams}
               <StartView
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
@@ -260,7 +267,7 @@
                   void tick().then(() => select('calendar', true));
                 }}
               />
-            {:else if (id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
+            {:else if (id === 'weeks' || id === 'load') && noTeams}
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>

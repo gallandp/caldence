@@ -21,8 +21,15 @@ test('a fresh start shows the welcome heading and the actions in order', async (
   await expect(panel.getByRole('heading', { level: 3, name: 'Welcome to Caldence' })).toBeVisible();
   for (const name of ['Plan new', 'Open a file…', 'Open the example', 'Read the manual'])
     await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
-  // Nothing to filter or save yet.
+  // Nothing to filter or save yet, and the start screen is the only way in.
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add team' })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Open a file…' })).toHaveAccessibleDescription(
+    'Continue a saved plan',
+  );
+  // The other views still offer the team bar.
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Add team' })).toBeVisible();
 });
 
 for (const template of ['Scrum', 'Kanban', 'SAFe']) {
@@ -207,4 +214,32 @@ test('the start screen fits 375 px without horizontal scroll and passes axe', as
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
   expect(results.violations).toEqual([]);
+});
+
+test('the whole tile opens the example, not only its label', async ({ page }) => {
+  await start(page);
+  // Click where the description is drawn; the button's overlay covers it, as it does for a user.
+  const box = await calendar(page)
+    .getByText('Explore a ready-made example with several teams')
+    .boundingBox();
+  if (!box) throw new Error('description not visible');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(calendar(page).getByRole('grid')).toBeVisible();
+});
+
+test('deleting the last team in the calendar returns to the start screen with focus kept', async ({
+  page,
+}) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Open the example' }).click();
+  await expect(calendar(page).getByRole('grid')).toBeVisible();
+  for (let left = await page.locator('.switcher select option').count(); left > 0; left--) {
+    await page.getByRole('button', { name: 'Delete team' }).click();
+    await page
+      .getByRole('dialog', { name: /^Delete / })
+      .getByRole('button', { name: 'Delete team' })
+      .click();
+  }
+  await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
+  await expect(page.locator('#main')).toBeFocused();
 });
