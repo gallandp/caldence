@@ -3,9 +3,10 @@
   import { addTeam, duplicateTeam, removeTeam, updateTeam } from '../core/edit';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
-  import SetupWizard from './setup/SetupWizard.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
 
+  /** Opens the setup wizard; it lives outside the bar so the bar's styles stay out of it. */
+  let { onPlan }: { onPlan?: () => void } = $props();
   const uid = $props.id();
 
   const teams = $derived($workspace.teams);
@@ -16,7 +17,6 @@
   let name = $state('');
   let error = $state('');
   let confirming = $state(false);
-  let wizard: SetupWizard | undefined = $state();
 
   async function openDialog(next: 'add' | 'rename') {
     mode = next;
@@ -87,7 +87,7 @@
 
   <div class="buttons">
     {#if active}
-      <button type="button" onclick={() => wizard?.show()}>{$t('setup.another')}</button>
+      <button type="button" onclick={() => onPlan?.()}>{$t('setup.another')}</button>
     {/if}
     <button type="button" id="{uid}-add" onclick={() => openDialog('add')}>{$t('team.add')}</button>
     {#if active}
@@ -136,8 +136,6 @@
   discard={false}
   onchoose={onConfirm}
 />
-
-<SetupWizard bind:this={wizard} />
 
 <style>
   .switcher {

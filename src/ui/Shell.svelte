@@ -7,6 +7,7 @@
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
   import SetupDone from './components/SetupDone.svelte';
+  import SetupWizard from './setup/SetupWizard.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import WeeksView from './views/WeeksView.svelte';
   import LoadView from './views/LoadView.svelte';
@@ -96,6 +97,7 @@
   }
 
   let bar: WorkspaceBar | undefined;
+  let planWizard: SetupWizard | undefined = $state();
   let fileInput: HTMLInputElement | undefined;
   $effect(() => (fileInput ? registerFileInput(fileInput) : undefined));
 
@@ -219,7 +221,14 @@
   </aside>
 
   <div class="content">
-    <WorkspaceBar bind:this={bar} />
+    <WorkspaceBar bind:this={bar} onPlan={() => planWizard?.show()} />
+    <SetupWizard
+      bind:this={planWizard}
+      oncreated={() => {
+        setupDone = true;
+        void tick().then(() => select('calendar', true));
+      }}
+    />
 
     <input
       bind:this={fileInput}
