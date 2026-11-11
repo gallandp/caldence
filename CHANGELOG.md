@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Fixed
+
+- Deployment: when the SFTP login fails, the log now says why (for example "Host key verification failed" or "Permission denied") instead of only "Connection closed".
+
+## 1.4.0 – 2026-11-11
+
+### Added
+
+- Imprint and privacy page: when the operator puts `imprint.html` or `privacy.html` next to the app, the sidebar shows a link to it. The pages are never part of the release (see `docs/deployment.md`, with a template).
+- Deployment: after each release, a separate workflow uploads it to caldence.de by SFTP once the maintainer approves the run. It checks the release's checksum and attestation, uploads the entry points last, keeps the previous release's files for one more deployment and deletes only files an earlier deployment uploaded, never touches the imprint or privacy page, and then runs the smoke test against the live site. It can be started by hand with any published version.
+
+## 1.3.0 – 2026-11-11
+
+### Fixed
+
+- Release: the release workflow approves the held CI runs of its release PR, and the release PR merges itself from that run. Before, the required check only counted after someone clicked "Approve workflows to run".
+
+## 1.2.0 – 2026-11-11
+
+### Changed
+
+- Release: the release PR is merged automatically as soon as CI is green on it, and the release is then published without a click. It is only merged when it holds nothing but the version commit of the release workflow.
+- CI: the main check runs in Playwright's container image with the browsers preinstalled, so it no longer spends minutes installing browsers.
+
 ## 1.1.1 – 2026-11-10
 
 ### Fixed

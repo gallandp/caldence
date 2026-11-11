@@ -1,0 +1,147 @@
+name: Deploy
+
+# Uploads a published release to caldence.de by SFTP. Started by release.yml after a release, or
+# by hand with any published version (rollback, re-deploy).
+#
+# The SFTP key is a secret of the environment "production": only main may use it, and every run
+# waits for the maintainer's approval before the deploy job starts. This job runs no npm and no
+# third-party action; it uploads the published ZIP after checking its checksum and attestation.
+# See docs/superpowers/specs/2026-11-11-secure-deploy-imprint-design.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to deploy, for example 1.2.0
+        required: true
+        type: string
+
+permissions: {}
+
+# One deployment at a time. While one waits for approval, the newest later run queues behind
+# it (GitHub cancels older queued runs), so the latest release is the one that ends up online.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://caldence.de/
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Not a version: $VERSION"
+            exit 1
+          fi
+      # Only for scripts/deploy-plan.mjs, at the commit of this run (main), before the key is
+      # written. It runs on the runner's preinstalled Node; nothing is downloaded or installed.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/deploy-plan.mjs
+          sparse-checkout-cone-mode: false
+      - name: Download and check the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          REPO: ${{ github.repository }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir release
+          cd release
+          gh release download "v$VERSION" --repo "$REPO" \
+            --pattern "caldence-$VERSION.zip" --pattern "caldence-$VERSION.zip.sha256"
+          sha256sum -c "caldence-$VERSION.zip.sha256"
+          # Only a ZIP that release.yml built on main passes.
+          gh attestation verify "caldence-$VERSION.zip" --repo "$REPO" \
+            --signer-workflow "$REPO/.github/workflows/release.yml" --source-ref refs/heads/main
+          unzip -q "caldence-$VERSION.zip" -d ../site
+      - name: Write the key and the pinned host key
+        env:
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+          # A secret because the line names the host.
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          if [ -z "$SFTP_PRIVATE_KEY" ] || [ -z "$SFTP_KNOWN_HOSTS" ]; then
+            echo "::error::The environment production lacks SFTP_PRIVATE_KEY or SFTP_KNOWN_HOSTS (see docs/deployment.md)."
+            exit 1
+          fi
+          umask 077
+          mkdir ssh
+          printf '%s\n' "$SFTP_PRIVATE_KEY" > ssh/key
+          printf '%s\n' "$SFTP_KNOWN_HOSTS" > ssh/known_hosts
+      - name: Upload
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          # Host and user are secrets, so they are masked in logs and not shown in the settings:
+          # nobody trying passwords on the host learns them here.
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PATH: ${{ vars.SFTP_PATH }}
+          PLAN: ${{ github.workspace }}/scripts/deploy-plan.mjs
+          VERSION: ${{ inputs.version }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          for name in SFTP_HOST SFTP_USER SFTP_PATH; do
+            if ! [[ "${!name}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+              echo "::error::$name of the environment production is missing or invalid (see docs/deployment.md)."
+              exit 1
+            fi
+          done
+          # LogLevel=ERROR instead of -q, so a failed login says why ("Host key verification
+          # failed", "Permission denied"). Host and user are secrets, so GitHub masks them.
+          ssh_opts=(-i "$RUNNER_TEMP/ssh/key" -o BatchMode=yes -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -o ConnectTimeout=30
+            -o LogLevel=ERROR)
+          target="$SFTP_USER@$SFTP_HOST"
+          # The list of files the last deployment uploaded; missing on the first one.
+          printf 'cd "%s"\n-get .caldence-deploy-files old-list\n' "$SFTP_PATH" \
+            | sftp -b - "${ssh_opts[@]}" "$target"
+          [ -f old-list ] || echo "No earlier file list on the server: nothing is deleted."
+          { printf 'cd "%s"\n' "$SFTP_PATH"; node "$PLAN" site old-list; } > batch.txt
+          cd site
+          sftp -b "$RUNNER_TEMP/batch.txt" "${ssh_opts[@]}" "$target"
+          echo "Deployed $VERSION ($(grep -c -v '^#' .caldence-deploy-files) files listed, including those kept from the previous release)."
+      - name: Delete the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ssh"
+
+  # No environment and no secrets: checks the live site like the CI smoke test does.
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # Keep in step with ci.yml.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
+      options: --user 1001
+    steps:
+      # The tests of the deployed version, so a rollback is checked against what it shipped.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ inputs.version }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      # No dependency needs an install script.
+      - run: npm ci --ignore-scripts
+      # Does nothing when the image matches the version's @playwright/test (see ci.yml).
+      - run: npx playwright install chromium
+      - run: npx playwright test -c playwright.deploy.config.ts
+        env:
+          DEPLOY_URLS: https://caldence.de/

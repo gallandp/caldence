@@ -73,7 +73,7 @@ for (const base of urls) {
 
     test('operator files are not served (#42)', async ({ request }) => {
       test.skip(!checkHeaders, 'plain servers serve every file');
-      for (const file of ['README.txt', 'web.config', '.htaccess'])
+      for (const file of ['README.txt', 'web.config', '.htaccess', '.caldence-deploy-files'])
         expect((await request.get(base + file)).status(), file).toBeGreaterThanOrEqual(400);
     });
 
