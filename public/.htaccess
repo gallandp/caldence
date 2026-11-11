@@ -25,7 +25,7 @@ AddType text/javascript .js .mjs
   </If>
 </IfModule>
 
-# Configuration and notes for operators are not part of the app (mod_alias, FileInfo is enough).
+# Configuration, notes for operators and the deploy file list are not part of the app (mod_alias, FileInfo is enough).
 <IfModule mod_alias.c>
-  RedirectMatch 404 (^|/)(README\.txt|web\.config)$
+  RedirectMatch 404 (^|/)(README\.txt|web\.config|\.caldence-deploy-files)$
 </IfModule>

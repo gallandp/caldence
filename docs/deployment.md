@@ -58,6 +58,70 @@ These depend on the domain, not on the app, so they are not in the ZIP. Set them
 
 Check the result with `curl -sI http://example.com/` (expect a redirect to `https://`) and `curl -sI https://example.com/` (expect `strict-transport-security`).
 
+## Imprint and privacy page
+
+Caldence never ships an imprint or a privacy page, because they belong to whoever runs the server. Put them next to the app yourself:
+
+- `imprint.html` (in Germany required for most public websites as "Impressum")
+- `privacy.html` (optional)
+
+When a file is there, the sidebar shows the link "Impressum" / "Imprint" or "Datenschutz" / "Privacy". The app checks at every start and shows no link offline. Updating the app never overwrites or deletes the two files, whether you upload by hand (just do not delete them) or with the automatic deployment below.
+
+A minimal template (replace every value in square brackets; check with a lawyer what your case needs):
+
+```html
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Impressum</title>
+  </head>
+  <body>
+    <h1>Impressum</h1>
+    <p>Angaben gemäß § 5 DDG</p>
+    <p>[Name]<br />[Straße Hausnummer]<br />[PLZ Ort]</p>
+    <h2>Kontakt</h2>
+    <p>E-Mail: [adresse@example.com]</p>
+    <h2>Verantwortlich für den Inhalt</h2>
+    <p>[Name, Anschrift wie oben]</p>
+    <p><a href="./">Zurück zu Caldence</a></p>
+  </body>
+</html>
+```
+
+The security headers of `.htaccess` also apply to these pages: no inline styles or scripts. Use a separate `.css` file next to them if you want styling.
+
+## Automatic deployment by SFTP (maintainers)
+
+The workflow `.github/workflows/deploy.yml` uploads a published release to a webspace by SFTP. `release.yml` starts it after every release; it can also be started by hand under Actions → Deploy → Run workflow with any published version, for a rollback.
+
+How the credentials stay private:
+
+- The private key is a secret of the GitHub environment `production`. Only the branch `main` may use it, and every run waits until a required reviewer approves it. Pull requests and forks never get it.
+- The deploy job runs no npm and no third-party action. It downloads the published ZIP, checks its checksum and build attestation, and uploads it with OpenSSH `sftp`.
+- The server's host key is pinned, so the connection fails if another server answers.
+
+What it does: it uploads all files, then `index.html`, `registerSW.js`, `sw.js` and `manifest.webmanifest`, then the list of uploaded files (`.caldence-deploy-files`, not served). Finally it deletes files that the previous deployment uploaded and the new release no longer has. Other files in the folder, including `imprint.html` and `privacy.html`, are never touched. A smoke test then checks the live site.
+
+### Setting it up
+
+1. Create a key pair just for deploying, without passphrase:
+   ```sh
+   ssh-keygen -t ed25519 -C "caldence-deploy" -f caldence-deploy -N ""
+   ```
+2. Add `caldence-deploy.pub` to the SFTP user of the webspace. At Hetzner: konsoleH → Settings → Login data → Public SFTP keys (keys work only for the main FTP user; if ed25519 is refused, create the key with `-t rsa -b 4096`).
+3. Test it: `sftp -i caldence-deploy <user>@<host>`, compare the fingerprint with the one the host shows, and run `ls`.
+4. Pin the host key: `ssh-keyscan -t ed25519 <host>` and check that its fingerprint (`ssh-keyscan -t ed25519 <host> | ssh-keygen -lf -`) matches step 3.
+5. In GitHub: Settings → Environments → New environment `production`:
+   - Deployment branches and tags: Selected branches, `main`.
+   - Required reviewers: yourself.
+   - Environment secret `SFTP_PRIVATE_KEY`: the whole content of `caldence-deploy`.
+   - Environment variables: `SFTP_HOST`, `SFTP_USER`, `SFTP_PATH` (the web folder, for example `public_html`) and `SFTP_KNOWN_HOSTS` (the line from step 4).
+6. Delete the private key file from your computer.
+
+If the key may have leaked, delete it at the host first, then create a new one.
+
 ## Local use
 
 Run `python3 -m http.server` in the unzipped folder and open `http://localhost:8000/`. Opening `index.html` from the file system does not work, because service workers need a web server.

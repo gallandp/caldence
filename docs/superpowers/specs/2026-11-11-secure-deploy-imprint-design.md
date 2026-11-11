@@ -37,9 +37,9 @@ Environment `production`:
 
 ## Workflow
 
-New reusable workflow `.github/workflows/deploy.yml`:
+New workflow `.github/workflows/deploy.yml`:
 
-- Triggers: `workflow_call` with input `version` (from `release.yml`) and `workflow_dispatch` with input `version` (rollback or re-deploy of any published release).
+- Trigger: `workflow_dispatch` with input `version`. The `publish` job of `release.yml` starts it after the release (a release made with `GITHUB_TOKEN` starts no workflow, a dispatch does). The maintainer can start it by hand for a rollback or re-deploy of any published release.
 - `permissions: {}` at the top; the job gets `contents: read` and `attestations: read`.
 - Job `deploy`, `if: github.ref == 'refs/heads/main'`, `environment: production` (the run waits for approval here), `concurrency: deploy` without cancelling.
   1. Check `version` matches `^[0-9]+\.[0-9]+\.[0-9]+$` (it is passed through `env`, never inlined into the script).
@@ -56,7 +56,7 @@ New reusable workflow `.github/workflows/deploy.yml`:
   6. Run the batch with `sftp -b - -i <key> -o StrictHostKeyChecking=yes -o UserKnownHostsFile=<file> -o BatchMode=yes <user>@<host>`, after `cd` into `SFTP_PATH`. Delete the key file in an `always()` step.
 - Job `smoke`, `needs: deploy`, no environment and no secrets: runs `tests/deploy` against `https://caldence.de/` in the pinned Playwright image used by CI.
 
-`release.yml` gets a job `deploy` after `publish`: `uses: ./.github/workflows/deploy.yml` with the version from `plan`. Environment secrets are available because the called job declares `environment: production`; nothing is passed with `secrets:`.
+The deployment is a separate run, not a job of `release.yml`: a run waiting for approval would otherwise hold the `release` concurrency group and stop the next release PR.
 
 The first deploy finds no file list, so it overwrites and deletes nothing. Files uploaded by hand before that stay until the maintainer removes them.
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
@@ -16,6 +16,7 @@
   import ExchangeView from './views/ExchangeView.svelte';
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
+  import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
@@ -50,6 +51,14 @@
   let active = $state<ViewId>('calendar');
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
+
+  // The operator's imprint and privacy page, if they are on the server next to the app.
+  let legal = $state<LegalPage[]>([]);
+  onMount(() => {
+    void Promise.all(LEGAL_PAGES.map((page) => hasLegalPage(page))).then((found) => {
+      legal = LEGAL_PAGES.filter((_, i) => found[i]);
+    });
+  });
   // A new, opened or restored workspace is not the one the card was about.
   const { version } = workspace;
   $effect(() => {
@@ -197,7 +206,16 @@
       {/each}
     </div>
 
-    <div class="side-foot"><LanguageSwitch /></div>
+    <div class="side-foot">
+      <LanguageSwitch />
+      {#if legal.length > 0}
+        <nav class="legal" aria-label={$t('legal.label')}>
+          {#each legal as page (page)}
+            <a href="./{page}.html">{$t('legal.' + page)}</a>
+          {/each}
+        </nav>
+      {/if}
+    </div>
   </aside>
 
   <div class="content">
@@ -444,6 +462,21 @@
   .side-foot {
     margin-top: auto;
     padding: 0 0.5rem;
+  }
+  .legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+  }
+  .legal a {
+    color: var(--side-text);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .legal a:hover {
+    color: #fff;
   }
   .side-foot :global(.lang) {
     color: var(--side-text);
