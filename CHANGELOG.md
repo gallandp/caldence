@@ -4,7 +4,7 @@
 
 ### Changed
 
-- CI: the main check runs in Playwright's container image with the browsers preinstalled and runs end-to-end tests on 4 workers, so it no longer spends minutes installing browsers.
+- CI: the main check runs in Playwright's container image with the browsers preinstalled so it no longer spends minutes installing browsers.
 
 ## 1.1.1 – 2026-11-10
 
