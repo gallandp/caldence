@@ -14,6 +14,13 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Playwright's image already holds the browsers and their system libraries, which
+    # `playwright install --with-deps` took 1 to 9 minutes to fetch, or hung when Ubuntu's mirrors were down. Keep the tag in step with
+    # @playwright/test in package.json; the install step below covers a mismatch.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
+      # Firefox refuses to start as root with a HOME it does not own.
+      options: --user 1001
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,7 +35,8 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
-      - run: npx playwright install --with-deps chromium firefox webkit
+      # Does nothing when the image matches @playwright/test; otherwise fetches the browsers.
+      - run: npx playwright install chromium firefox webkit
       - run: npm run e2e
       - run: npm run screenshots -- --out "$RUNNER_TEMP/shots"
       # All packages are devDependencies (the bundle is built from them), so --omit=dev would
@@ -75,12 +83,60 @@ jobs:
               sleep 1
             done
           done
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test -c playwright.deploy.config.ts
-        env:
-          DEPLOY_URLS: http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/
+      # In Playwright's image (see the check job), so no system packages are installed.
+      - name: Smoke test the served app
+        run: |
+          docker run --rm --network host --user 1001 -v "$PWD:/work" -w /work \
+            -e CI=true -e HOME=/tmp \
+            -e DEPLOY_URLS=http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/ \
+            mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d \
+            npx playwright test -c playwright.deploy.config.ts
       - name: Server logs
         if: failure()
         run: |
           docker logs apache
           docker logs nginx
+
+  # Merges the release PR, so a release needs no click. Runs only in the CI run that release.yml
+  # starts for release/next, after the checks passed. (A separate workflow on workflow_run does
+  # not work: a run started with GITHUB_TOKEN triggers no workflow_run.) It merges only if
+  # release/next is exactly main plus the version commit of github-actions[bot], then starts
+  # release.yml on main, because a merge made with GITHUB_TOKEN starts no push run.
+  # It never checks out or runs code; it only calls the GitHub API.
+  release-merge:
+    needs: [check, deploy-smoke]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release/next'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      # To start release.yml (see the last line).
+      actions: write
+    steps:
+      - name: Merge the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          number=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:release/next" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and .head.sha == env.HEAD_SHA)][0].number // empty')
+          if [ -z "$number" ]; then
+            echo "No open release PR at $HEAD_SHA (it moved on or was merged); nothing to do."
+            exit 0
+          fi
+          # Exactly one commit on top of main, made by the release workflow. If main moved on,
+          # release.yml rebuilds release/next and starts CI again, and that run merges.
+          read -r ahead behind author < <(gh api "repos/$REPO/compare/main...$HEAD_SHA" \
+            --jq '"\(.ahead_by) \(.behind_by) \(.commits[-1].author.login // "none")"')
+          if [ "$behind" != 0 ]; then
+            echo "release/next is $behind commits behind main; waiting for the rebuilt release PR."
+            exit 0
+          fi
+          if [ "$ahead" != 1 ] || [ "$author" != "github-actions[bot]" ]; then
+            echo "::error::release/next holds more than the version commit ($ahead commits, last by $author); merge it by hand after a look."
+            exit 1
+          fi
+          gh pr merge "$number" --repo "$REPO" --merge --match-head-commit "$HEAD_SHA"
+          gh workflow run release.yml --repo "$REPO" --ref main
