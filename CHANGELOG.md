@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- CI: the main check runs in Playwright's container image with the browsers preinstalled so it no longer spends minutes installing browsers.
+
 ## 1.1.1 – 2026-11-10
 
 ### Fixed
