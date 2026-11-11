@@ -213,6 +213,38 @@
 #app .filters {
   margin-left: auto;
 }
+/* Wide enough: the view title and "Show for" share one row. The filters stay in the bar above
+   <main> (one instance keeps their state); a negative margin pulls the title up beside them.
+   The bar's height matches the title's margin and line box, so both are centred on one line. */
+#app .content {
+  container-type: inline-size;
+}
+@container (min-width: 56rem) {
+  #app .content > .bar.context {
+    position: relative;
+    z-index: 1;
+    box-sizing: content-box;
+    height: 2.625rem;
+    padding: 1.25rem 2rem 0;
+    margin-bottom: -3.875rem;
+    flex-wrap: nowrap;
+    /* The bar spans the title's row; only its controls take clicks. */
+    pointer-events: none;
+  }
+  #app .content > .bar.context > * {
+    pointer-events: auto;
+  }
+  #app .bar.context .filters {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  #app .bar.context select {
+    max-width: 12rem;
+  }
+  #app .bar.context .scope {
+    white-space: nowrap;
+  }
+}
 
 /* ---------- Panels are cards ---------- */
 #app [role='tabpanel'] > :not(h2) {
