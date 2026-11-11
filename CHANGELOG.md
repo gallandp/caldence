@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.0 – 2026-11-11
+
 ### Changed
 
 - Release: the release PR is merged automatically as soon as CI is green on it, and the release is then published without a click. It is only merged when it holds nothing but the version commit of the release workflow.
