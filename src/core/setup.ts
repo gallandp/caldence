@@ -1,6 +1,6 @@
 import type { ISODate } from './date';
-import { addItem, addTeam } from './edit';
-import type { Workspace } from './model';
+import { addItem, addTeam, updateSettings } from './edit';
+import type { Settings, Workspace } from './model';
 import { applyTemplate, type Template } from './template';
 import { validate, type Result } from './validate';
 
@@ -16,6 +16,8 @@ export interface SetupInput {
   /** The cadence starts on this date, or on the next day with the template's start weekday. */
   start: ISODate;
   members: SetupMember[];
+  /** Workspace settings confirmed in the wizard, such as time zone, region and horizon. */
+  settings?: Partial<Settings>;
 }
 
 const norm = (s: string): string => s.trim().toLowerCase();
@@ -27,12 +29,13 @@ const norm = (s: string): string => s.trim().toLowerCase();
 export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, string]> {
   let out: Workspace;
   let teamId: string;
+  const base = input.settings ? updateSettings(ws, input.settings) : ws;
   if (input.template) {
-    const r = applyTemplate(ws, input.template, { name: input.name, today: input.start });
+    const r = applyTemplate(base, input.template, { name: input.name, today: input.start });
     if (!r.ok) return r;
     [out, teamId] = r.value;
   } else {
-    [out, teamId] = addTeam(ws, input.name, input.start);
+    [out, teamId] = addTeam(base, input.name, input.start);
   }
 
   // Template role ids map to workspace roles by name, as applyTemplate maps them.

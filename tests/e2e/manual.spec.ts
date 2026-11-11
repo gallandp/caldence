@@ -49,7 +49,7 @@ const fields: Record<
       await page.getByRole('dialog').getByLabel('Product Owner', { exact: true }).fill('Kim');
     },
   },
-  10: {
+  11: {
     labels: ['exchange.export.scope', 'exchange.scope.person', 'exchange.scope.pick.person'],
     run: async (page, c) => {
       const exchange = panel(page, c['view.exchange']!);

@@ -85,4 +85,28 @@ describe('setupTeam', () => {
     expect(r.value[0].teams[0]!.events).toEqual([]);
     expect(r.value[0].teams[0]!.name).toBe('Solo');
   });
+
+  it('applies the confirmed settings with the team', () => {
+    const r = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'A',
+      start: today,
+      members: [],
+      settings: { timezone: 'Europe/Vienna', horizon: { from: today, to: '2027-06-30' } },
+    });
+    if (!r.ok) throw new Error('setup failed');
+    expect(r.value[0].settings.timezone).toBe('Europe/Vienna');
+    expect(r.value[0].settings.horizon.to).toBe('2027-06-30');
+  });
+
+  it('refuses a horizon that ends before it starts', () => {
+    const r = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'A',
+      start: today,
+      members: [],
+      settings: { horizon: { from: '2027-06-30', to: today } },
+    });
+    expect(r.ok).toBe(false);
+  });
 });
