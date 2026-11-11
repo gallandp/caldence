@@ -117,7 +117,8 @@ What it does: it uploads all files, then `index.html`, `sw.js` and `manifest.web
    - Required reviewers: yourself.
    - Deployment branches and tags: Selected branches, `main`.
    - Environment secret `SFTP_PRIVATE_KEY`: the whole content of `caldence-deploy`.
-   - Environment variables: `SFTP_HOST`, `SFTP_USER`, `SFTP_PATH` (the web folder, for example `public_html`) and `SFTP_KNOWN_HOSTS` (the line from step 4).
+   - Environment secret `SFTP_USER`: the SFTP user name (not a credential, but GitHub then hides it in logs).
+   - Environment variables: `SFTP_HOST`, `SFTP_PATH` (the web folder, for example `public_html`) and `SFTP_KNOWN_HOSTS` (the line from step 4).
 6. Delete the private key file from your computer.
 
 If the key may have leaked, delete it at the host first, then create a new one.

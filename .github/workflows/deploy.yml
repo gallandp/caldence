@@ -84,7 +84,9 @@ jobs:
       - name: Upload
         env:
           SFTP_HOST: ${{ vars.SFTP_HOST }}
-          SFTP_USER: ${{ vars.SFTP_USER }}
+          # A secret, so it is masked in logs and not shown in the settings: one guess less for an
+          # attacker trying passwords on the host.
+          SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PATH: ${{ vars.SFTP_PATH }}
           PLAN: ${{ github.workspace }}/scripts/deploy-plan.mjs
           VERSION: ${{ inputs.version }}
@@ -92,7 +94,7 @@ jobs:
         run: |
           for name in SFTP_HOST SFTP_USER SFTP_PATH; do
             if ! [[ "${!name}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
-              echo "::error::The variable $name of the environment production is missing or invalid."
+              echo "::error::$name of the environment production is missing or invalid (see docs/deployment.md)."
               exit 1
             fi
           done

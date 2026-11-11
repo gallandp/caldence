@@ -33,7 +33,8 @@ Environment `production`:
 - Deployment branches: `main` only.
 - Required reviewer: the maintainer. "Prevent self-review" stays off, because the runs are started under his account.
 - Secret `SFTP_PRIVATE_KEY`: the private key (ed25519).
-- Variables (not secret): `SFTP_HOST` (for example `wwwNNN.your-server.de`), `SFTP_USER`, `SFTP_PATH` (the web folder, for example `public_html`), `SFTP_KNOWN_HOSTS` (the output of `ssh-keyscan -t ed25519 <host>`, checked against the fingerprint shown in konsoleH or at the first `sftp` login).
+- Secret `SFTP_USER`: the FTP user name. Not a credential, but kept out of logs and settings so nobody trying passwords on the host learns it here.
+- Variables (not secret): `SFTP_HOST` (for example `wwwNNN.your-server.de`), `SFTP_PATH` (the web folder, for example `public_html`), `SFTP_KNOWN_HOSTS` (the output of `ssh-keyscan -t ed25519 <host>`, checked against the fingerprint shown in konsoleH or at the first `sftp` login).
 
 ## Workflow
 
