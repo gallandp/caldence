@@ -4,7 +4,6 @@ on:
   pull_request:
   push:
     branches: [main]
-  # Started by the release workflow for its release PR (see release.yml).
   workflow_dispatch:
 
 permissions:
@@ -97,15 +96,19 @@ jobs:
           docker logs apache
           docker logs nginx
 
-  # Merges the release PR, so a release needs no click. Runs only in the CI run that release.yml
-  # starts for release/next, after the checks passed. (A separate workflow on workflow_run does
-  # not work: a run started with GITHUB_TOKEN triggers no workflow_run.) It merges only if
-  # release/next is exactly main plus the version commit of github-actions[bot], then starts
-  # release.yml on main, because a merge made with GITHUB_TOKEN starts no push run.
-  # It never checks out or runs code; it only calls the GitHub API.
+  # Merges the release PR, so a release needs no click. Runs only in the pull_request run of the
+  # release PR that github-actions[bot] opened on release/next in this repository (never for a
+  # fork), after the checks passed. It merges only if release/next is exactly main plus the
+  # version commit of github-actions[bot], then starts release.yml on main, because a merge made
+  # with GITHUB_TOKEN starts no push run. It never checks out or runs code; it only calls the
+  # GitHub API.
   release-merge:
     needs: [check, deploy-smoke]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/release/next'
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'release/next' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -118,7 +121,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           number=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:release/next" \
             --jq '[.[] | select(.user.login == "github-actions[bot]" and .head.sha == env.HEAD_SHA)][0].number // empty')
