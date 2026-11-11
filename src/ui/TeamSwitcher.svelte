@@ -3,6 +3,7 @@
   import { addTeam, duplicateTeam, removeTeam, updateTeam } from '../core/edit';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
+  import SetupWizard from './setup/SetupWizard.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
 
   const uid = $props.id();
@@ -15,6 +16,7 @@
   let name = $state('');
   let error = $state('');
   let confirming = $state(false);
+  let wizard: SetupWizard | undefined = $state();
 
   async function openDialog(next: 'add' | 'rename') {
     mode = next;
@@ -84,11 +86,16 @@
   {/if}
 
   <div class="buttons">
+    {#if active}
+      <button type="button" onclick={() => wizard?.show()}>{$t('setup.another')}</button>
+    {/if}
     <button type="button" id="{uid}-add" onclick={() => openDialog('add')}>{$t('team.add')}</button>
     {#if active}
       <button type="button" onclick={() => openDialog('rename')}>{$t('team.rename')}</button>
       <button type="button" onclick={duplicate}>{$t('team.duplicate')}</button>
-      <button type="button" onclick={() => (confirming = true)}>{$t('team.delete')}</button>
+      <button type="button" class="danger" onclick={() => (confirming = true)}
+        >{$t('team.delete')}</button
+      >
     {/if}
   </div>
 </div>
@@ -129,6 +136,8 @@
   discard={false}
   onchoose={onConfirm}
 />
+
+<SetupWizard bind:this={wizard} />
 
 <style>
   .switcher {

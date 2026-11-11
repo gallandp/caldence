@@ -43,6 +43,8 @@
   );
   const roles = $derived(template ? template.roles : $workspace.roles);
   const steps = $derived(withFrame ? 4 : 3);
+  /** People of the workspace; a name entered again is the same person. */
+  const known = $derived($workspace.people.map((p) => p.name));
   const zones = supportedZones();
   const zoneOptions = $derived(
     zones && timezone !== '' && !zones.includes(timezone) ? [timezone, ...zones] : zones,
@@ -211,13 +213,24 @@
       {#if roles.length === 0}
         <p class="hint">{$t('setup.people.none')}</p>
       {:else}
-        <p class="hint" id="{uid}-people-hint">{$t('setup.people.hint')}</p>
+        <p class="hint" id="{uid}-people-hint">
+          {$t('setup.people.hint')}
+          {#if known.length > 0}{$t('setup.people.known')}{/if}
+        </p>
+        {#if known.length > 0}
+          <datalist id="{uid}-known">
+            {#each known as person (person)}
+              <option value={person}></option>
+            {/each}
+          </datalist>
+        {/if}
         {#each roles as role (role.id)}
           <div class="field">
             <label for="{uid}-role-{role.id}">{role.name}</label>
             <input
               id="{uid}-role-{role.id}"
               type="text"
+              list={known.length > 0 ? `${uid}-known` : undefined}
               aria-describedby="{uid}-people-hint"
               bind:value={names[role.id]}
             />
@@ -232,7 +245,12 @@
             <div class="row">
               <div class="field">
                 <label for="{uid}-me-name">{$t('setup.me.name')}</label>
-                <input id="{uid}-me-name" type="text" bind:value={myName} />
+                <input
+                  id="{uid}-me-name"
+                  type="text"
+                  list={known.length > 0 ? `${uid}-known` : undefined}
+                  bind:value={myName}
+                />
               </div>
               <div class="field">
                 <label for="{uid}-me-role">{$t('setup.me.role')}</label>

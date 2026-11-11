@@ -84,6 +84,8 @@
   "setup.start": "Cadence starts on",
   "setup.people": "Who is in the team?",
   "setup.people.hint": "Enter names per role, separated by commas. You can leave this empty and add people later.",
+  "setup.another": "Plan another team",
+  "setup.people.known": "People who are already in the workspace are suggested and kept as the same person.",
   "setup.people.none": "This team has no roles yet. Add roles and people later in Settings and Team.",
   "setup.frame": "Time zone, holidays and horizon",
   "setup.frame.hint": "These apply to all teams. You can change them later in Settings.",
