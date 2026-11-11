@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.8.0 – 2026-11-11
+
+### Changed
+
+- View title and "Show for" filters in one row on wide screens (#88)
+
 ## 1.7.0 – 2026-11-11
 
 ### Changed
