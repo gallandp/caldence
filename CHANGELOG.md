@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.0 – 2026-11-11
+
 ### Fixed
 
 - Release: the release workflow approves the held CI runs of its release PR, and the release PR merges itself from that run. Before, the required check only counted after someone clicked "Approve workflows to run".
