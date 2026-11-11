@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Sidebar: the team is chosen at the top, its actions sit behind one button; views are grouped and "Team" is now "Members & cadence"
+- Save is highlighted only while there are unsaved changes; "Saved" shows in green
+- Footer with imprint, privacy and a link to the source code on GitHub
 - Start screen: a clearer welcome with one main action, "Plan new", and tiles to open a file or the example
 - New logo: a calendar with a heartbeat line
 

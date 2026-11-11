@@ -24,9 +24,7 @@ async function addTeam(page: Page, name: string) {
 }
 
 async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean) {
-  await page
-    .getByRole('combobox', { name: 'Team', exact: true })
-    .selectOption({ label: team });
+  await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
   await tab(page, 'Members & cadence').click();
   const teamPanel = panel(page, 'Members & cadence');
   await teamPanel.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
@@ -55,9 +53,7 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
 async function expectEverything(page: Page) {
   await tab(page, 'Meetings').click();
   for (const team of ['Team A', 'Team B']) {
-    await page
-      .getByRole('combobox', { name: 'Team', exact: true })
-      .selectOption({ label: team });
+    await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
     const table = panel(page, 'Meetings').getByRole('table', { name: `Meetings of ${team}` });
     await expect(table).toContainText(`Sync ${team}`);
     await expect(table).toContainText('Weekly on Wednesday');
@@ -78,9 +74,7 @@ async function expectEverything(page: Page) {
   await expect(page.getByLabel('Name of Developer')).toBeVisible();
   await expect(page.getByLabel('Hours per week of Kim')).toHaveValue('30');
   await tab(page, 'Members & cadence').click();
-  const options = page
-    .getByRole('combobox', { name: 'Team', exact: true })
-    .locator('option');
+  const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
   await expect(options).toHaveText(['Team A', 'Team B']);
 
   await tab(page, 'Load').click();

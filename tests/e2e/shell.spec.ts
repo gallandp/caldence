@@ -99,7 +99,18 @@ test('Save stands out only while there are unsaved changes', async ({ page }) =>
   await page.goto('/');
   await page.getByRole('button', { name: 'Open the example' }).click();
   const save = page.getByRole('button', { name: 'Save', exact: true });
-  await expect(save).toHaveClass(/primary/);
+  await expect(save).not.toHaveClass(/primary/);
   await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
-  await expect(page.getByRole('tablist').locator('.group')).toHaveCount(3);
+  const length = page.getByLabel('Length (weeks)');
+  await length.fill('3');
+  await length.blur();
+  await expect(page.getByText('● Unsaved changes')).toBeVisible();
+  await expect(save).toHaveClass(/primary/);
+});
+
+test('the views are grouped, with Help last', async ({ page }) => {
+  await page.goto('/');
+  const list = page.getByRole('tablist');
+  await expect(list.locator('.group')).toHaveText(['View', 'Plan', 'Workspace']);
+  await expect(list.getByRole('tab').last()).toHaveText('Help');
 });
