@@ -70,7 +70,8 @@ jobs:
       - name: Write the key and the pinned host key
         env:
           SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
-          SFTP_KNOWN_HOSTS: ${{ vars.SFTP_KNOWN_HOSTS }}
+          # A secret because the line names the host.
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
         working-directory: ${{ runner.temp }}
         run: |
           if [ -z "$SFTP_PRIVATE_KEY" ] || [ -z "$SFTP_KNOWN_HOSTS" ]; then
@@ -83,9 +84,9 @@ jobs:
           printf '%s\n' "$SFTP_KNOWN_HOSTS" > ssh/known_hosts
       - name: Upload
         env:
-          SFTP_HOST: ${{ vars.SFTP_HOST }}
-          # A secret, so it is masked in logs and not shown in the settings: one guess less for an
-          # attacker trying passwords on the host.
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          # Host and user are secrets, so they are masked in logs and not shown in the settings:
+          # nobody trying passwords on the host learns them here.
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PATH: ${{ vars.SFTP_PATH }}
           PLAN: ${{ github.workspace }}/scripts/deploy-plan.mjs
