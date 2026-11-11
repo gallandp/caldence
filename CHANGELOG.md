@@ -11,6 +11,7 @@
 - Footer with imprint, privacy and a link to the source code on GitHub
 - Start screen: a clearer welcome with one main action, "Plan new", and tiles to open a file or the example
 - New logo: a calendar with a heartbeat line
+- On wide screens the view title and the "Show for" filters share one row
 
 ## 1.6.1 – 2026-11-11
 

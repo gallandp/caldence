@@ -114,3 +114,26 @@ test('the views are grouped, with Help last', async ({ page }) => {
   await expect(list.locator('.group')).toHaveText(['View', 'Plan', 'Workspace']);
   await expect(list.getByRole('tab').last()).toHaveText('Help');
 });
+
+test('on wide screens the view title and the filters share one row', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  const centre = async (selector: string) => {
+    const box = (await page.locator(selector).first().boundingBox())!;
+    return box.y + box.height / 2;
+  };
+  const title = '#panel-calendar h2';
+  const role = page.getByRole('combobox', { name: 'Role' });
+  expect(Math.abs((await centre(title)) - (await centre('.bar.context select')))).toBeLessThan(4);
+  // The bar spans the title's row, but the filters still take clicks and keys.
+  await role.click();
+  await expect(role).toBeFocused();
+  await role.selectOption({ label: 'Product Owner' });
+  await expect(role).toHaveValue(/.+/);
+
+  // Narrow: the filters sit above the title again.
+  await page.setViewportSize({ width: 700, height: 900 });
+  const filtersBottom = (await page.locator('.bar.context').boundingBox())!;
+  const titleBox = (await page.locator(title).boundingBox())!;
+  expect(titleBox.y).toBeGreaterThanOrEqual(filtersBottom.y + filtersBottom.height);
+});
