@@ -5,6 +5,7 @@
 ### Changed
 
 - Release: the release PR is merged automatically as soon as CI is green on it, and the release is then published without a click. It is only merged when it holds nothing but the version commit of the release workflow.
+- CI: the main check runs in Playwright's container image with the browsers preinstalled, so it no longer spends minutes installing browsers.
 
 ## 1.1.1 – 2026-11-10
 
