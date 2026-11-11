@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.7.0 – 2026-11-11
+
 ### Changed
 
 - Sidebar: the team is chosen at the top, its actions sit behind one button; views are grouped and "Team" is now "Members & cadence"
