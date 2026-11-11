@@ -9,6 +9,7 @@
 - Footer with imprint, privacy and a link to the source code on GitHub
 - Start screen: a clearer welcome with one main action, "Plan new", and tiles to open a file or the example
 - New logo: a calendar with a heartbeat line
+- Meetings: each row shows when it takes place, the next date and the participants as role chips; actions are icons with tooltips, and a filter narrows the list
 
 ## 1.6.1 – 2026-11-11
 

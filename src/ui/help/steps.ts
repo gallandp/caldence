@@ -53,10 +53,9 @@ export const MANUAL_STEPS: ManualStep[] = [
     text: 'help.first.step.meetings',
     control: { role: 'tab', name: 'view.meetings' },
     labels: {
-      rule: 'meet.col.rule',
-      time: 'meet.col.time',
-      duration: 'meet.col.duration',
-      roles: 'meet.col.roles',
+      when: 'meet.col.when',
+      next: 'meet.col.next',
+      participants: 'meet.col.participants',
       edit: 'meet.edit',
     },
   },

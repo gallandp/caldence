@@ -58,7 +58,7 @@ async function expectEverything(page: Page) {
     await expect(table).toContainText(`Sync ${team}`);
     await expect(table).toContainText('Weekly on Wednesday');
     await expect(table).toContainText('10:00');
-    await expect(table).toContainText('Product Owner (100%)');
+    await expect(table).toContainText('Product Owner');
     await tab(page, 'Members & cadence').click();
     const members = panel(page, 'Members & cadence').getByRole('table', {
       name: `Members of ${team}`,

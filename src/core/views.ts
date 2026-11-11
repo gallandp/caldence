@@ -1,6 +1,6 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
 import { fte, occurrenceHours, weeklyBaseLoad } from './load';
-import type { Team, Workspace } from './model';
+import type { Settings, Team, Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
 import {
@@ -250,4 +250,29 @@ export function conflicts(
     }
   }
   return out;
+}
+
+/**
+ * The next date, on or after `today`, on which each of the team's events takes place inside
+ * the horizon. Occurrences dropped for a holiday don't count, nor do today's that ended by
+ * `minutes` (minutes since midnight). Events with no date left are absent.
+ */
+export function nextDates(
+  team: Team,
+  settings: Settings,
+  index: HolidayIndex,
+  today: ISODate,
+  minutes = 0,
+): Map<string, ISODate> {
+  // Days before today never count, so the expansion starts there.
+  const from = settings.horizon.from > today ? settings.horizon.from : today;
+  const upcoming = { ...settings, horizon: { ...settings.horizon, from } };
+  const next = new Map<string, ISODate>();
+  for (const o of occurrences(team, upcoming, index)) {
+    if (o.skippedHoliday || next.has(o.eventId)) continue;
+    if (o.date === today && toMinutes(o.start) + o.duration <= minutes) continue;
+    next.set(o.eventId, o.date);
+    if (next.size === team.events.length) break;
+  }
+  return next;
 }
