@@ -19,6 +19,8 @@
   let nameInput = $state<HTMLInputElement>();
   let step = $state(1);
   let choice = $state<BuiltinTemplateId | 'none'>('scrum');
+  /** The way of working the later steps were filled for; a different choice starts them afresh. */
+  let filledFor: BuiltinTemplateId | 'none' | null = null;
   let name = $state('');
   let start = $state('');
   let names = $state<Record<string, string>>({});
@@ -37,6 +39,7 @@
   export function show() {
     step = 1;
     choice = 'scrum';
+    filledFor = null;
     name = '';
     start = localToday();
     names = {};
@@ -53,8 +56,13 @@
   }
 
   async function go(next: number) {
-    if (step === 1 && next === 2 && name.trim() === '')
+    if (step === 1 && next === 2 && filledFor !== choice) {
+      // Names and roles of another template do not fit this one.
+      filledFor = choice;
       name = template ? template.name : get(t)('setup.defaultName');
+      names = {};
+      myRole = '';
+    }
     if (step === 2 && next === 3 && name.trim() === '') {
       nameError = true;
       nameInput?.focus();

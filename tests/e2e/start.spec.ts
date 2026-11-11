@@ -88,6 +88,18 @@ test('Open a file reads a workspace file', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Kalender', exact: true })).toBeFocused();
 });
 
+test('choosing another way of working starts the later steps afresh', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(dialog.getByLabel('Team name')).toHaveValue('Scrum');
+  await dialog.getByRole('button', { name: 'Back' }).click();
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(dialog.getByLabel('Team name')).toHaveValue('Kanban');
+});
+
 test('the manual link switches to Help', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Read the manual' }).click();
