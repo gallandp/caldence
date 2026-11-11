@@ -5,20 +5,10 @@
   import { exampleWorkspace } from '../data/examples';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import FilterBar from './FilterBar.svelte';
-  import TeamSwitcher from './TeamSwitcher.svelte';
   import { autosave } from './state/autosave';
   import { browserFileEnv, createFileService, isActivationError } from './state/files';
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
-
-  let {
-    onPlan,
-    start = false,
-  }: {
-    onPlan?: () => void;
-    /** The start screen is showing; it offers its own ways to begin, so the team bar steps aside. */
-    start?: boolean;
-  } = $props();
 
   const { dirty, fileName } = workspace;
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
@@ -147,11 +137,11 @@
   }
 </script>
 
-<div class="bar" class:empty>
+<div class="bar">
   <div class="buttons">
     <button type="button" onclick={newWorkspace}>{$t('file.new')}</button>
     <button type="button" onclick={open}>{$t('file.open')}</button>
-    <button type="button" onclick={save}>{$t('file.save')}</button>
+    <button type="button" class:primary={$dirty} onclick={save}>{$t('file.save')}</button>
     <button type="button" onclick={saveAs}>{$t('file.saveAs')}</button>
   </div>
   <p class="status">
@@ -159,7 +149,7 @@
     {#if $dirty}
       <span class="marker">{$t('file.unsaved')}</span>
     {:else if $fileName !== null}
-      <span class="marker">{$t('file.saved')}</span>
+      <span class="marker saved">{$t('file.saved')}</span>
     {/if}
   </p>
   <div role="status" class="notice">
@@ -173,10 +163,9 @@
   </div>
 </div>
 
-{#if !start}
+{#if !empty}
   <div class="bar context">
-    <TeamSwitcher {onPlan} />
-    {#if !empty}<FilterBar />{/if}
+    <FilterBar />
   </div>
 {/if}
 

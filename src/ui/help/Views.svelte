@@ -18,6 +18,8 @@
         save: 'file.save',
         saveAs: 'file.saveAs',
         team: 'team.switcher.label',
+        actions: 'team.actions',
+        plan: 'setup.another',
         addTeam: 'team.add',
         rename: 'team.rename',
         duplicate: 'team.duplicate',

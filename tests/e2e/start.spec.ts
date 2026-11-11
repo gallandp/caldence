@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback } from './helpers';
+import { useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -28,7 +28,7 @@ test('a fresh start shows the welcome heading and the actions in order', async (
     'Continue a saved plan',
   );
   // The other views still offer the team bar.
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Add team' })).toBeVisible();
 });
 
@@ -234,7 +234,7 @@ test('deleting the last team in the calendar returns to the start screen with fo
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
   for (let left = await page.locator('.switcher select option').count(); left > 0; left--) {
-    await page.getByRole('button', { name: 'Delete team' }).click();
+    await teamAction(page, 'Delete team');
     await page
       .getByRole('dialog', { name: /^Delete / })
       .getByRole('button', { name: 'Delete team' })

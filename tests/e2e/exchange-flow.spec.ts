@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback } from './helpers';
+import { useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -37,8 +37,8 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
   await tab(page, 'Workspace settings').click();
   await page.getByLabel('New person name').fill('Kim');
   await page.getByLabel('New person name').press('Enter');
-  await tab(page, 'Team').click();
-  const team = panel(page, 'Team');
+  await tab(page, 'Members & cadence').click();
+  const team = panel(page, 'Members & cadence');
   await team.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await team.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await team.getByRole('button', { name: 'Add member' }).click();
@@ -61,15 +61,15 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
     .getByRole('dialog', { name: 'Unsaved changes' })
     .getByRole('button', { name: 'Discard' })
     .click();
-  await tab(page, 'Team').click();
+  await tab(page, 'Members & cadence').click();
   await expect(page.getByText('There is no team yet.').first()).toBeVisible();
 
   // 5. A role, a category and an empty team, then import with that role.
   await tab(page, 'Workspace settings').click();
   await page.getByLabel('New role name').fill('Product Owner');
   await page.getByLabel('New role name').press('Enter');
-  await tab(page, 'Team').click();
-  await page.getByRole('button', { name: 'Add team' }).click();
+  await tab(page, 'Members & cadence').click();
+  await teamAction(page, 'Add team');
   const addTeam = page.getByRole('dialog', { name: 'Add team' });
   await addTeam.getByLabel('Team name').fill('Imported');
   await addTeam.getByRole('button', { name: 'Apply' }).click();

@@ -85,3 +85,32 @@ test.describe('imprint and privacy links', () => {
     await expect(legal.getByRole('link')).toHaveCount(1);
   });
 });
+
+test('the sidebar links to the source code in a new tab', async ({ page }) => {
+  await page.goto('/');
+  const link = page.getByRole('link', { name: /^GitHub/ });
+  await expect(link).toHaveAttribute('href', 'https://github.com/gallandp/caldence');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(link).toHaveAccessibleName('GitHub (source code, opens in a new tab)');
+});
+
+test('Save stands out only while there are unsaved changes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open the example' }).click();
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).not.toHaveClass(/primary/);
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  const length = page.getByLabel('Length (weeks)');
+  await length.fill('3');
+  await length.blur();
+  await expect(page.getByText('● Unsaved changes')).toBeVisible();
+  await expect(save).toHaveClass(/primary/);
+});
+
+test('the views are grouped, with Help last', async ({ page }) => {
+  await page.goto('/');
+  const list = page.getByRole('tablist');
+  await expect(list.locator('.group')).toHaveText(['View', 'Plan', 'Workspace']);
+  await expect(list.getByRole('tab').last()).toHaveText('Help');
+});

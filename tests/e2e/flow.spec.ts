@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback } from './helpers';
+import { useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -16,7 +16,7 @@ const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: t
 const panel = (page: Page, name: RegExp | string) => page.getByRole('tabpanel', { name });
 
 async function addTeam(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Add team' }).click();
+  await teamAction(page, 'Add team');
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill(name);
   await dialog.getByRole('button', { name: 'Apply' }).click();
@@ -25,8 +25,8 @@ async function addTeam(page: Page, name: string) {
 
 async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean) {
   await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
-  await tab(page, 'Team').click();
-  const teamPanel = panel(page, 'Team');
+  await tab(page, 'Members & cadence').click();
+  const teamPanel = panel(page, 'Members & cadence');
   await teamPanel.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await teamPanel.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await teamPanel.getByRole('button', { name: 'Add member' }).click();
@@ -59,8 +59,10 @@ async function expectEverything(page: Page) {
     await expect(table).toContainText('Weekly on Wednesday');
     await expect(table).toContainText('10:00');
     await expect(table).toContainText('Product Owner (100%)');
-    await tab(page, 'Team').click();
-    const members = panel(page, 'Team').getByRole('table', { name: `Members of ${team}` });
+    await tab(page, 'Members & cadence').click();
+    const members = panel(page, 'Members & cadence').getByRole('table', {
+      name: `Members of ${team}`,
+    });
     await expect(members.getByRole('row').filter({ hasText: 'Kim' })).toContainText(
       'Product Owner',
     );
@@ -71,7 +73,7 @@ async function expectEverything(page: Page) {
   await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
   await expect(page.getByLabel('Name of Developer')).toBeVisible();
   await expect(page.getByLabel('Hours per week of Kim')).toHaveValue('30');
-  await tab(page, 'Team').click();
+  await tab(page, 'Members & cadence').click();
   const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
   await expect(options).toHaveText(['Team A', 'Team B']);
 
@@ -107,7 +109,7 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await expect(hours).toHaveValue('30');
 
   // Two teams with Kim as Product Owner and one weekly meeting each.
-  await tab(page, 'Team').click();
+  await tab(page, 'Members & cadence').click();
   await addTeam(page, 'Team A');
   await addTeam(page, 'Team B');
   await addMemberAndMeeting(page, 'Team A', true);
@@ -156,7 +158,7 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await expectEverything(page);
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await tab(page, 'Team').click();
+  await tab(page, 'Members & cadence').click();
   await expect(page.getByText('There is no team yet.').first()).toBeVisible();
 
   const chooser = page.waitForEvent('filechooser');

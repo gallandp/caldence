@@ -124,7 +124,7 @@ test('a horizon that ends before it starts shows an error and is not committed',
   await expect(to).toHaveAttribute('aria-describedby', /.+/);
   await expect(to).toHaveValue('2026-01-01');
   // Leaving and returning shows what is really stored.
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
   await openSettings(page);
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
   await expect(page.getByText(/before its start/)).toHaveCount(0);

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openFixture, openTeamView, useFileFallback } from './helpers';
+import { openExample, openFixture, openTeamView, useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -8,10 +8,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 const teamSelect = (page: Page) => page.locator('.switcher select');
-const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Team' });
+const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Members & cadence' });
 
 async function addTeam(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Add team' }).click();
+  await teamAction(page, 'Add team');
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill(name);
   await dialog.getByRole('button', { name: 'Apply' }).click();
@@ -44,7 +44,7 @@ test('the team switcher changes what the team view shows', async ({ page }) => {
 test('duplicating a team copies its cadence', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
-  await page.getByRole('button', { name: 'Duplicate team' }).click();
+  await teamAction(page, 'Duplicate team');
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (copy)');
   await expect(panel(page).getByLabel('Type')).toHaveValue('sprint');
   await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
@@ -181,7 +181,7 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await openExample(page);
   await openTeamView(page);
   const before = await page.getByLabel('Person', { exact: true }).first().locator('option').count();
-  await page.getByRole('button', { name: 'Plan another team' }).click();
+  await teamAction(page, 'Plan another team');
   const dialog = page.getByRole('dialog', { name: 'Plan another team' });
   await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -208,18 +208,18 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
 test('deleting a team needs confirmation', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
-  await page.getByRole('button', { name: 'Delete team' }).click();
+  await teamAction(page, 'Delete team');
   const dialog = page.getByRole('dialog', { name: 'Delete Team Alpha?' });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
   await expect(teamSelect(page).locator('option')).toHaveCount(2);
 
-  await page.getByRole('button', { name: 'Delete team' }).click();
+  await teamAction(page, 'Delete team');
   await dialog.getByRole('button', { name: 'Delete team' }).click();
   await expect(teamSelect(page).locator('option')).toHaveCount(1);
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Beta');
 
-  await page.getByRole('button', { name: 'Delete team' }).click();
+  await teamAction(page, 'Delete team');
   await page
     .getByRole('dialog', { name: 'Delete Team Beta?' })
     .getByRole('button', { name: 'Delete team' })
@@ -232,24 +232,37 @@ test('deleting a team needs confirmation', async ({ page }) => {
 
 test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
   await page.getByRole('button', { name: 'Add team' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog').getByLabel('Team name')).toBeFocused();
   await page.keyboard.type('Keys');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Add team' })).toBeFocused();
+  // The new team's card replaces the button; focus lands on its actions.
+  const actions = page.getByRole('button', { name: 'Team actions' });
+  await expect(actions).toBeFocused();
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Keys');
 
+  // The actions open with Enter, the first one takes focus, Escape closes them again.
+  await page.keyboard.press('Enter');
+  await expect(actions).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', { name: 'Plan another team' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(actions).toHaveAttribute('aria-expanded', 'false');
+  await expect(actions).toBeFocused();
+
+  await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Rename team' }).focus();
   await page.keyboard.press('Space');
   await expect(page.getByLabel('Team name')).toHaveValue('Keys');
   await page.keyboard.type('Board');
   await page.keyboard.press('Enter');
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Board');
+  await expect(actions).toBeFocused();
 
   // Empty names are refused and Escape cancels.
+  await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Rename team' }).focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('Team name').fill('');
@@ -282,7 +295,7 @@ for (const locale of ['de', 'en'] as const) {
       .getByLabel(/Language|Sprache/)
       .selectOption(locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
-    await page.getByRole('tab', { name: 'Team', exact: true }).click();
+    await page.locator('#tab-team').click();
     const axe = () =>
       new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -300,8 +313,12 @@ for (const locale of ['de', 'en'] as const) {
       .getByLabel(/Person/)
       .selectOption({ index: 0 });
 
+    // The team actions, open.
+    await page.locator('.switcher .toggle').click();
+    expect((await axe()).violations).toEqual([]);
+
     // Name dialog, with an error shown.
-    await page.locator('.context .buttons button').nth(2).click();
+    await page.locator('.switcher .menu button').nth(2).click();
     await page.getByRole('dialog').getByRole('textbox').fill('');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog').getByRole('textbox')).toHaveAttribute(
@@ -312,7 +329,8 @@ for (const locale of ['de', 'en'] as const) {
     await page.keyboard.press('Escape');
 
     // Confirm dialog.
-    await page.locator('.context .buttons button').nth(4).click();
+    await page.locator('.switcher .toggle').click();
+    await page.locator('.switcher .menu button').nth(4).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await axe()).violations).toEqual([]);
     await page.keyboard.press('Escape');
@@ -368,6 +386,38 @@ test('a duplicated team is named in the UI language', async ({ page }) => {
     .getByRole('complementary')
     .getByLabel(/Language|Sprache/)
     .selectOption('de');
+  await page.getByRole('button', { name: 'Team-Aktionen' }).click();
   await page.getByRole('button', { name: 'Team duplizieren' }).click();
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (Kopie)');
+});
+
+test('team actions return focus to their button and close when focus leaves', async ({ page }) => {
+  await openExample(page);
+  const actions = page.getByRole('button', { name: 'Team actions' });
+  await actions.click();
+  await page.getByRole('button', { name: 'Duplicate team' }).click();
+  await expect(actions).toBeFocused();
+
+  await actions.click();
+  await page.getByRole('button', { name: 'Delete team' }).click();
+  await page
+    .getByRole('dialog', { name: /^Delete / })
+    .getByRole('button', { name: 'Cancel' })
+    .click();
+  await expect(actions).toBeFocused();
+
+  await actions.press('Enter');
+  await expect(actions).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Delete team' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(actions).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('the sidebar does not scroll past its content', async ({ page }) => {
+  // Tall enough for the whole sidebar; the drifting glow must not add a scroll area of its own.
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await openExample(page);
+  const sidebar = page.locator('.sidebar');
+  const overflow = await sidebar.evaluate((el) => el.scrollHeight - el.clientHeight);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
