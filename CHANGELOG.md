@@ -5,7 +5,7 @@
 ### Added
 
 - Imprint and privacy page: when the operator puts `imprint.html` or `privacy.html` next to the app, the sidebar shows a link to it. The pages are never part of the release (see `docs/deployment.md`, with a template).
-- Deployment: after each release, a separate workflow uploads it to caldence.de by SFTP once the maintainer approves the run. It checks the release's checksum and attestation, uploads the entry points last, deletes only files an earlier deployment uploaded, never touches the imprint or privacy page, and then runs the smoke test against the live site. It can be started by hand with any published version.
+- Deployment: after each release, a separate workflow uploads it to caldence.de by SFTP once the maintainer approves the run. It checks the release's checksum and attestation, uploads the entry points last, keeps the previous release's files for one more deployment and deletes only files an earlier deployment uploaded, never touches the imprint or privacy page, and then runs the smoke test against the live site. It can be started by hand with any published version.
 
 ## 1.2.0 – 2026-11-11
 

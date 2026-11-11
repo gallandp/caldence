@@ -99,10 +99,10 @@ The workflow `.github/workflows/deploy.yml` uploads a published release to a web
 How the credentials stay private:
 
 - The private key is a secret of the GitHub environment `production`. Only the branch `main` may use it, and every run waits until a required reviewer approves it. Pull requests and forks never get it.
-- The deploy job runs no npm and no third-party action. It downloads the published ZIP, checks its checksum and build attestation, and uploads it with OpenSSH `sftp`.
+- The deploy job runs no npm and no third-party action. It downloads the published ZIP, checks its checksum and that its build attestation comes from `release.yml` on `main`, and uploads it with OpenSSH `sftp`.
 - The server's host key is pinned, so the connection fails if another server answers.
 
-What it does: it uploads all files, then `index.html`, `registerSW.js`, `sw.js` and `manifest.webmanifest`, then the list of uploaded files (`.caldence-deploy-files`, not served). Finally it deletes files that the previous deployment uploaded and the new release no longer has. Other files in the folder, including `imprint.html` and `privacy.html`, are never touched. A smoke test then checks the live site.
+What it does: it uploads all files, then `index.html`, `sw.js` and `manifest.webmanifest`, then the list of uploaded files (`.caldence-deploy-files`, not served from this version on). Files of the previous release that the new one no longer has stay for one more deployment, so browsers still running the previous version keep working; the deployment after that deletes them. Other files in the folder, including `imprint.html` and `privacy.html`, are never touched. A smoke test with the tests of the deployed version then checks the live site.
 
 ### Setting it up
 
@@ -113,9 +113,9 @@ What it does: it uploads all files, then `index.html`, `registerSW.js`, `sw.js` 
 2. Add `caldence-deploy.pub` to the SFTP user of the webspace. At Hetzner: konsoleH → Settings → Login data → Public SFTP keys (keys work only for the main FTP user; if ed25519 is refused, create the key with `-t rsa -b 4096`).
 3. Test it: `sftp -i caldence-deploy <user>@<host>`, compare the fingerprint with the one the host shows, and run `ls`.
 4. Pin the host key: `ssh-keyscan -t ed25519 <host>` and check that its fingerprint (`ssh-keyscan -t ed25519 <host> | ssh-keygen -lf -`) matches step 3.
-5. In GitHub: Settings → Environments → New environment `production`:
-   - Deployment branches and tags: Selected branches, `main`.
+5. In GitHub: Settings → Environments → `production` (GitHub creates it without protection at the first deploy run; otherwise New environment). Set the protection first, then the secret:
    - Required reviewers: yourself.
+   - Deployment branches and tags: Selected branches, `main`.
    - Environment secret `SFTP_PRIVATE_KEY`: the whole content of `caldence-deploy`.
    - Environment variables: `SFTP_HOST`, `SFTP_USER`, `SFTP_PATH` (the web folder, for example `public_html`) and `SFTP_KNOWN_HOSTS` (the line from step 4).
 6. Delete the private key file from your computer.

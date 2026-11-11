@@ -60,23 +60,28 @@ test('every view runs under the Content Security Policy without violations (#42)
   expect(violations).toEqual([]);
 });
 
-test('imprint and privacy links appear only when the operator put the pages there', async ({
-  page,
-}) => {
-  // The preview server answers missing pages with the app itself: no links.
-  await page.goto('/');
-  await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Legal' })).toHaveCount(0);
+test.describe('imprint and privacy links', () => {
+  // page.route does not see requests that a service worker makes.
+  test.use({ serviceWorkers: 'block' });
 
-  await page.route('**/imprint.html', (route) =>
-    route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Imprint</h1>' }),
-  );
-  await page.route('**/privacy.html', (route) => route.fulfill({ status: 404, body: '' }));
-  await page.reload();
-  const legal = page.getByRole('navigation', { name: 'Legal' });
-  await expect(legal.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
-    'href',
-    './imprint.html',
-  );
-  await expect(legal.getByRole('link')).toHaveCount(1);
+  test('appear only when the operator put the pages there', async ({ page }) => {
+    // The preview server answers missing pages with the app itself: no links.
+    const checked = page.waitForResponse((r) => r.url().endsWith('/imprint.html'));
+    await page.goto('/');
+    await checked;
+    await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Legal' })).toHaveCount(0);
+
+    await page.route('**/imprint.html', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>Imprint</h1>' }),
+    );
+    await page.route('**/privacy.html', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.reload();
+    const legal = page.getByRole('navigation', { name: 'Legal' });
+    await expect(legal.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
+      'href',
+      './imprint.html',
+    );
+    await expect(legal.getByRole('link')).toHaveCount(1);
+  });
 });
