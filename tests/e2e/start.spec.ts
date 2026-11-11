@@ -215,3 +215,31 @@ test('the start screen fits 375 px without horizontal scroll and passes axe', as
     .analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('the whole tile opens the example, not only its label', async ({ page }) => {
+  await start(page);
+  // Click where the description is drawn; the button's overlay covers it, as it does for a user.
+  const box = await calendar(page)
+    .getByText('Explore a ready-made example with several teams')
+    .boundingBox();
+  if (!box) throw new Error('description not visible');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(calendar(page).getByRole('grid')).toBeVisible();
+});
+
+test('deleting the last team in the calendar returns to the start screen with focus kept', async ({
+  page,
+}) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Open the example' }).click();
+  await expect(calendar(page).getByRole('grid')).toBeVisible();
+  for (let left = await page.locator('.switcher select option').count(); left > 0; left--) {
+    await page.getByRole('button', { name: 'Delete team' }).click();
+    await page
+      .getByRole('dialog', { name: /^Delete / })
+      .getByRole('button', { name: 'Delete team' })
+      .click();
+  }
+  await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
+  await expect(page.locator('#main')).toBeFocused();
+});

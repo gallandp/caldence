@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Start screen: a clearer welcome with one main action, "Plan new", and tiles to open a file or the example
+- New logo: a calendar with a heartbeat line
+
 ## 1.6.1 – 2026-11-11
 
 ### Changed

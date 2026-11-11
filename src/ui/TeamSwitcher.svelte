@@ -65,7 +65,12 @@
     const id = active.id;
     workspace.apply((ws) => removeTeam(ws, id));
     await tick();
-    (document.getElementById(`${uid}-select`) ?? document.getElementById(`${uid}-add`))?.focus();
+    // Without teams the Calendar shows the start screen and this bar is gone; fall back to the main area.
+    (
+      document.getElementById(`${uid}-select`) ??
+      document.getElementById(`${uid}-add`) ??
+      document.getElementById('main')
+    )?.focus();
   }
 </script>
 

@@ -110,7 +110,7 @@
           </linearGradient>
         </defs>
         <path
-          d="M0 32h52l10-18 14 36 12-28 8 12h46l10-18 14 36 12-28 8 12h114"
+          d="M0 32h52l10-18 14 36 12-28 8 10h46l10-18 14 36 12-28 8 10h114"
           stroke="url(#{uid}-pulse)"
           pathLength="1"
         />
@@ -237,6 +237,9 @@
     font-size: 1rem;
     font-weight: 650;
     text-align: start;
+    /* The shared pressed style moves buttons by 1px; a transform would make the button the
+       containing block of ::after and shrink the click area mid-click. */
+    transform: none;
   }
   /* The whole tile is the click target. */
   .tile button::after {
@@ -245,12 +248,15 @@
     inset: 0;
     border-radius: inherit;
   }
-  :global(#app) .welcome .tile button:focus-visible {
-    outline: none;
-  }
-  .tile:has(button:focus-visible) {
-    outline: 3px solid var(--focus);
-    outline-offset: 2px;
+  /* The ring goes around the whole tile where :has() exists; elsewhere the button keeps its own. */
+  @supports selector(:has(*)) {
+    :global(#app) .welcome .tile button:focus-visible {
+      outline: none;
+    }
+    .tile:has(button:focus-visible) {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
   }
   .tile > svg {
     flex: none;
@@ -406,7 +412,6 @@
   @media (max-width: 64rem) {
     .welcome {
       grid-template-columns: minmax(0, 1fr);
-      min-height: 0;
     }
     .art {
       display: none;
