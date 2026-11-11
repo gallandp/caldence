@@ -159,7 +159,7 @@
 #app .content > .bar:not(.context) .buttons button:hover {
   background: var(--surface-2);
 }
-#app .content > .bar:not(.context) .buttons button:nth-child(3) {
+#app .content > .bar:not(.context):not(.empty) .buttons button:nth-child(3) {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);

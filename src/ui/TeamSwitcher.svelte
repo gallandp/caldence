@@ -81,8 +81,6 @@
         {/each}
       </select>
     </div>
-  {:else}
-    <p class="hint">{$t('team.none')}</p>
   {/if}
 
   <div class="buttons">
@@ -143,10 +141,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-  }
-  .hint {
-    margin: 0;
-    color: var(--text-muted);
   }
   .buttons {
     display: flex;
