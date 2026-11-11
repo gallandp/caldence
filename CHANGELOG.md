@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Deployment: when the SFTP login fails, the log now says why (for example "Host key verification failed" or "Permission denied") instead of only "Connection closed".
+
 ## 1.4.0 – 2026-11-11
 
 ### Added
