@@ -5,6 +5,7 @@
 ### Changed
 
 - Meetings: each row shows when it takes place, the next date and the participants as role chips; actions are icons with tooltips, and a filter narrows the list
+- Weeks: events are coloured tags in one column, weeks with a high load are named, the total has a bar, and quick filters show only weeks with a warning or a cadence start
 
 ## 1.8.0 – 2026-11-11
 

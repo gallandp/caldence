@@ -64,7 +64,15 @@
 
   <h4>{$t('view.weeks')}</h4>
   <p>
-    <Rich key="help.views.weeks" labels={{ total: 'weeks.col.total', current: 'weeks.current' }} />
+    <Rich
+      key="help.views.weeks"
+      labels={{
+        total: 'weeks.col.total',
+        current: 'weeks.current',
+        warn: 'weeks.show.warn',
+        cadence: 'weeks.show.cadence',
+      }}
+    />
   </p>
 
   <h4>{$t('view.load')}</h4>

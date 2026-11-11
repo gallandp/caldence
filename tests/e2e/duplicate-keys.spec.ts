@@ -32,7 +32,7 @@ test('two cycles with the same milestone name, id and day render in calendar and
   await expect(calendar.locator('td[data-date="2027-01-13"] .milestone')).toHaveCount(2);
   await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
   const weeks = page.getByRole('tabpanel', { name: 'Weeks' });
-  await expect(weeks.locator('span.item', { hasText: 'Review' })).toHaveCount(2);
+  await expect(weeks.locator('.tag.milestone', { hasText: 'Review' })).toHaveCount(2);
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(calendar.locator('td[data-date="2027-01-13"] .milestone')).toHaveCount(2);
   expect(errors).toEqual([]);

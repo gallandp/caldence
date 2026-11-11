@@ -187,7 +187,7 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #7b6bff, #22b5e0);
+    background: var(--brand-gradient);
   }
   .dot {
     display: inline-block;
