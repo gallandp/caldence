@@ -177,6 +177,32 @@ test('cycles and milestones can be edited; referenced ones cannot be dropped', a
   await expect(panel(page).getByRole('group', { name: 'Milestones of Q3' })).toHaveCount(0);
 });
 
+test('Plan another team runs the wizard and keeps known people', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const before = await page.getByLabel('Person', { exact: true }).first().locator('option').count();
+  await page.getByRole('button', { name: 'Plan another team' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Team name').fill('Team Gamma');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(dialog.getByText('Step 3 of 3')).toBeVisible();
+  await expect(dialog.getByText(/already in the workspace/)).toBeVisible();
+  const known = await page.evaluate(() =>
+    document.querySelector('dialog[open] datalist option')?.getAttribute('value'),
+  );
+  expect(known).toBeTruthy();
+  await dialog.locator('input[type="text"]').first().fill(known!);
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Gamma');
+  await expect(panel(page).getByRole('table')).toContainText(known!);
+  await expect(page.getByLabel('Person', { exact: true }).first().locator('option')).toHaveCount(
+    before,
+  );
+});
+
 test('deleting a team needs confirmation', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
@@ -272,7 +298,7 @@ for (const locale of ['de', 'en'] as const) {
       .selectOption({ index: 0 });
 
     // Name dialog, with an error shown.
-    await page.locator('.context .buttons button').nth(1).click();
+    await page.locator('.context .buttons button').nth(2).click();
     await page.getByRole('dialog').getByRole('textbox').fill('');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog').getByRole('textbox')).toHaveAttribute(
@@ -283,7 +309,7 @@ for (const locale of ['de', 'en'] as const) {
     await page.keyboard.press('Escape');
 
     // Confirm dialog.
-    await page.locator('.context .buttons button').nth(3).click();
+    await page.locator('.context .buttons button').nth(4).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await axe()).violations).toEqual([]);
     await page.keyboard.press('Escape');
