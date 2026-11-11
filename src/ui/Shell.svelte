@@ -178,6 +178,7 @@
 
 <div class="layout">
   <aside class="sidebar">
+    <div class="glow" aria-hidden="true"></div>
     <header>
       <div class="brand">
         <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
@@ -382,17 +383,24 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.1rem;
     padding: 1.25rem 0.875rem;
     box-sizing: border-box;
     isolation: isolate;
     background: var(--side-bg);
     color: var(--side-text);
     overflow-y: auto;
-    overflow-x: hidden;
   }
-  /* A soft glow that drifts slowly; it stands still for reduced motion. */
-  .sidebar::before {
+  /* A soft glow that drifts slowly; it stands still for reduced motion. The wrapper clips it, so
+     it never adds to the sidebar's scroll area. */
+  .glow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .glow::before {
     content: '';
     position: absolute;
     inset: -40%;
@@ -402,10 +410,9 @@
       radial-gradient(40% 24% at 40% 30%, rgb(139 123 255 / 0.3), transparent 72%),
       radial-gradient(34% 22% at 66% 58%, rgb(34 195 238 / 0.16), transparent 72%),
       radial-gradient(34% 20% at 38% 76%, rgb(124 92 255 / 0.14), transparent 72%);
-    filter: blur(8px);
     animation: glow 24s ease-in-out infinite alternate;
   }
-  .sidebar::after {
+  .glow::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -422,7 +429,7 @@
     }
   }
   .group {
-    padding: 0.9rem 0.75rem 0.3rem;
+    padding: 0.75rem 0.75rem 0.25rem;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -487,7 +494,7 @@
     background: transparent;
     border: 0;
     border-radius: 0.65rem;
-    padding: 0.6rem 0.75rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
     cursor: pointer;
     position: relative;
@@ -533,18 +540,21 @@
   }
   /* Forced colours drop the gradient and the shadow: mark the selected view with a border and an underline. */
   @media (forced-colors: active) {
-    .sidebar::before,
-    .sidebar::after {
+    .glow {
       display: none;
     }
-    /* The sidebar's light-on-dark colours are author colours; use the system's text colour. */
+    /* The sidebar's light-on-dark colours are author colours; use the system's text colour.
+       Links keep the system link colour. */
     .sidebar,
-    .sidebar :global(*) {
+    .sidebar :global(*:not(a)) {
       color: CanvasText;
+    }
+    .sidebar :global(a) {
+      color: LinkText;
     }
     [role='tab'][aria-selected='true'] {
       border: 2px solid Highlight;
-      padding: calc(0.6rem - 2px) calc(0.75rem - 2px);
+      padding: calc(0.5rem - 2px) calc(0.75rem - 2px);
       text-decoration: underline;
       text-underline-offset: 0.2em;
     }
@@ -605,6 +615,17 @@
   .legal a:hover {
     color: #fff;
   }
+  @media (forced-colors: active) {
+    .source a,
+    .source a:hover,
+    .legal a,
+    .legal a:hover {
+      color: LinkText;
+    }
+    .license {
+      color: CanvasText;
+    }
+  }
   .side-foot :global(.lang) {
     color: var(--side-text);
     font-size: 0.85rem;
@@ -651,8 +672,10 @@
       grid-template-columns: minmax(0, 1fr);
     }
     .sidebar {
-      /* Still the containing block of the glow. */
+      /* Still the containing block of the glow; the team actions may overlap the content. */
       position: relative;
+      overflow: visible;
+      z-index: 1;
       height: auto;
       gap: 0.75rem;
       padding: 0.75rem;

@@ -210,23 +210,6 @@
   box-shadow: var(--shadow);
   padding-right: 2rem;
 }
-#app .switcher .buttons button {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--text-muted);
-  padding: 0.4rem 0.6rem;
-}
-#app .switcher .buttons button:hover {
-  background: var(--surface);
-  color: var(--text);
-}
-#app .switcher .buttons button.danger {
-  color: var(--danger);
-}
-#app .switcher .buttons button.danger:hover {
-  background: var(--danger-soft);
-}
 #app .filters {
   margin-left: auto;
 }

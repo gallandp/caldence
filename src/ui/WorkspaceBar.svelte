@@ -137,7 +137,7 @@
   }
 </script>
 
-<div class="bar" class:empty>
+<div class="bar">
   <div class="buttons">
     <button type="button" onclick={newWorkspace}>{$t('file.new')}</button>
     <button type="button" onclick={open}>{$t('file.open')}</button>

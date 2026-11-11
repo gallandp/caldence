@@ -390,3 +390,34 @@ test('a duplicated team is named in the UI language', async ({ page }) => {
   await page.getByRole('button', { name: 'Team duplizieren' }).click();
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (Kopie)');
 });
+
+test('team actions return focus to their button and close when focus leaves', async ({ page }) => {
+  await openExample(page);
+  const actions = page.getByRole('button', { name: 'Team actions' });
+  await actions.click();
+  await page.getByRole('button', { name: 'Duplicate team' }).click();
+  await expect(actions).toBeFocused();
+
+  await actions.click();
+  await page.getByRole('button', { name: 'Delete team' }).click();
+  await page
+    .getByRole('dialog', { name: /^Delete / })
+    .getByRole('button', { name: 'Cancel' })
+    .click();
+  await expect(actions).toBeFocused();
+
+  await actions.press('Enter');
+  await expect(actions).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Delete team' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(actions).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('the sidebar does not scroll past its content', async ({ page }) => {
+  // Tall enough for the whole sidebar; the drifting glow must not add a scroll area of its own.
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await openExample(page);
+  const sidebar = page.locator('.sidebar');
+  const overflow = await sidebar.evaluate((el) => el.scrollHeight - el.clientHeight);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

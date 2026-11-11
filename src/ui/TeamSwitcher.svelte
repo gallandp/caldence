@@ -28,13 +28,20 @@
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
-      .map((w) => w[0]!.toUpperCase())
+      .map((w) => Array.from(w)[0]!.toUpperCase())
       .join(''),
   );
 
+  /** Focus goes back to the toggle first, so a dialog the action opens returns focus there. */
   function run(action: () => void) {
+    toggle?.focus();
     menuOpen = false;
     action();
+  }
+
+  function onMenuFocusout(event: FocusEvent) {
+    const next = event.relatedTarget as Node | null;
+    if (next && !menu?.contains(next) && !toggle?.contains(next)) menuOpen = false;
   }
 
   function onMenuKeydown(event: KeyboardEvent) {
@@ -100,10 +107,7 @@
 
   async function onConfirm(choice: Choice) {
     confirming = false;
-    if (choice !== 'save' || !active) {
-      toggle?.focus();
-      return;
-    }
+    if (choice !== 'save' || !active) return;
     const id = active.id;
     workspace.apply((ws) => removeTeam(ws, id));
     await tick();
@@ -147,7 +151,14 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>
     </button>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="menu" id="{uid}-menu" bind:this={menu} hidden={!menuOpen} onkeydown={onMenuKeydown}>
+    <div
+      class="menu"
+      id="{uid}-menu"
+      bind:this={menu}
+      hidden={!menuOpen}
+      onkeydown={onMenuKeydown}
+      onfocusout={onMenuFocusout}
+    >
       <button type="button" onclick={() => run(() => onPlan?.())}>{$t('setup.another')}</button>
       <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
         >{$t('team.add')}</button
@@ -259,7 +270,8 @@
   }
   :global(#app) .switcher select {
     width: 100%;
-    padding: 0 1.1rem 0 0;
+    /* The shared select style reserves room for its chevron with !important. */
+    padding: 0 1.1rem 0 0 !important;
     border: 0;
     background-color: transparent;
     background-position: right 0.1rem center;
@@ -375,15 +387,6 @@
     border-radius: var(--radius);
     padding: 0.4rem 0.5rem;
     min-width: 0;
-  }
-  .actions button {
-    font: inherit;
-    color: var(--text);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.9rem;
-    cursor: pointer;
   }
   dialog {
     min-width: min(24rem, calc(100vw - 2 * var(--space)));
