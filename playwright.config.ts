@@ -8,6 +8,8 @@ const executablePath = !process.env.CI && existsSync(localChromium) ? localChrom
 export default defineConfig({
   testDir: 'tests/e2e',
   forbidOnly: !!process.env.CI,
+  // GitHub's runners have 4 cores; Playwright would use only 2 by default.
+  workers: process.env.CI ? 4 : undefined,
   use: {
     baseURL: 'http://localhost:4173',
   },
