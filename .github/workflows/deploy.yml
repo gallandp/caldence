@@ -99,16 +99,19 @@ jobs:
               exit 1
             fi
           done
+          # LogLevel=ERROR instead of -q, so a failed login says why ("Host key verification
+          # failed", "Permission denied"). Host and user are secrets, so GitHub masks them.
           ssh_opts=(-i "$RUNNER_TEMP/ssh/key" -o BatchMode=yes -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -o ConnectTimeout=30)
+            -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -o ConnectTimeout=30
+            -o LogLevel=ERROR)
           target="$SFTP_USER@$SFTP_HOST"
           # The list of files the last deployment uploaded; missing on the first one.
           printf 'cd "%s"\n-get .caldence-deploy-files old-list\n' "$SFTP_PATH" \
-            | sftp -q -b - "${ssh_opts[@]}" "$target"
+            | sftp -b - "${ssh_opts[@]}" "$target"
           [ -f old-list ] || echo "No earlier file list on the server: nothing is deleted."
           { printf 'cd "%s"\n' "$SFTP_PATH"; node "$PLAN" site old-list; } > batch.txt
           cd site
-          sftp -q -b "$RUNNER_TEMP/batch.txt" "${ssh_opts[@]}" "$target"
+          sftp -b "$RUNNER_TEMP/batch.txt" "${ssh_opts[@]}" "$target"
           echo "Deployed $VERSION ($(grep -c -v '^#' .caldence-deploy-files) files listed, including those kept from the previous release)."
       - name: Delete the key
         if: always()
