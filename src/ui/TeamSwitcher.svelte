@@ -18,6 +18,45 @@
   let error = $state('');
   let confirming = $state(false);
 
+  /** The team actions are a disclosure: a button that shows or hides a short list. */
+  let menuOpen = $state(false);
+  let toggle: HTMLButtonElement | undefined = $state();
+  let menu: HTMLDivElement | undefined = $state();
+
+  const initials = $derived(
+    (active?.name ?? '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]!.toUpperCase())
+      .join(''),
+  );
+
+  function run(action: () => void) {
+    menuOpen = false;
+    action();
+  }
+
+  function onMenuKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    event.stopPropagation();
+    menuOpen = false;
+    toggle?.focus();
+  }
+
+  function onWindowPointer(event: PointerEvent) {
+    if (!menuOpen) return;
+    const target = event.target as Node;
+    if (!menu?.contains(target) && !toggle?.contains(target)) menuOpen = false;
+  }
+
+  async function openMenu() {
+    menuOpen = !menuOpen;
+    if (!menuOpen) return;
+    await tick();
+    menu?.querySelector('button')?.focus();
+  }
+
   async function openDialog(next: 'add' | 'rename') {
     mode = next;
     name = next === 'rename' ? (active?.name ?? '') : '';
@@ -61,21 +100,23 @@
 
   async function onConfirm(choice: Choice) {
     confirming = false;
-    if (choice !== 'save' || !active) return;
+    if (choice !== 'save' || !active) {
+      toggle?.focus();
+      return;
+    }
     const id = active.id;
     workspace.apply((ws) => removeTeam(ws, id));
     await tick();
     // Without teams the Calendar shows the start screen and this bar is gone; fall back to the main area.
-    (
-      document.getElementById(`${uid}-select`) ??
-      document.getElementById(`${uid}-add`) ??
-      document.getElementById('main')
-    )?.focus();
+    (toggle ?? document.getElementById(`${uid}-add`) ?? document.getElementById('main'))?.focus();
   }
 </script>
 
+<svelte:window onpointerdown={onWindowPointer} />
+
 <div class="switcher">
   {#if active}
+    <span class="avatar" aria-hidden="true">{initials}</span>
     <div class="field">
       <label for="{uid}-select">{$t('team.switcher.label')}</label>
       <select
@@ -87,28 +128,63 @@
           <option value={team.id}>{team.name}</option>
         {/each}
       </select>
+      <span class="meta">
+        {$t('team.switcher.meta', {
+          kind: $t('team.cadence.kind.' + active.cadence.kind),
+          weeks: active.cadence.lengthWeeks,
+        })}
+      </span>
     </div>
-  {/if}
-
-  <div class="buttons">
-    {#if active}
-      <button type="button" onclick={() => onPlan?.()}>{$t('setup.another')}</button>
-    {/if}
-    <button type="button" id="{uid}-add" onclick={() => openDialog('add')}>{$t('team.add')}</button>
-    {#if active}
-      <button type="button" onclick={() => openDialog('rename')}>{$t('team.rename')}</button>
-      <button type="button" onclick={duplicate}>{$t('team.duplicate')}</button>
-      <button type="button" class="danger" onclick={() => (confirming = true)}
+    <button
+      type="button"
+      class="toggle"
+      bind:this={toggle}
+      aria-expanded={menuOpen}
+      aria-controls="{uid}-menu"
+      aria-label={$t('team.actions')}
+      onclick={openMenu}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>
+    </button>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="menu" id="{uid}-menu" bind:this={menu} hidden={!menuOpen} onkeydown={onMenuKeydown}>
+      <button type="button" onclick={() => run(() => onPlan?.())}>{$t('setup.another')}</button>
+      <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
+        >{$t('team.add')}</button
+      >
+      <hr />
+      <button type="button" onclick={() => run(() => openDialog('rename'))}
+        >{$t('team.rename')}</button
+      >
+      <button type="button" onclick={() => run(duplicate)}>{$t('team.duplicate')}</button>
+      <hr />
+      <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
         >{$t('team.delete')}</button
       >
-    {/if}
-  </div>
+    </div>
+  {:else}
+    <p class="none">{$t('team.switcher.none')}</p>
+    <button type="button" class="add" id="{uid}-add" onclick={() => openDialog('add')}
+      >{$t('team.add')}</button
+    >
+  {/if}
 </div>
 
 <dialog
   bind:this={dialog}
   aria-labelledby="{uid}-title"
-  onclose={() => dialog?.querySelector('form')?.reset()}
+  onclose={() => {
+    dialog?.querySelector('form')?.reset();
+    // The menu button that opened the dialog is hidden again; give focus to its toggle.
+    const focused = document.activeElement;
+    if (
+      !focused ||
+      focused === document.body ||
+      dialog?.contains(focused) ||
+      menu?.contains(focused)
+    )
+      (toggle ?? document.getElementById(`${uid}-add`))?.focus();
+  }}
 >
   <form onsubmit={submit}>
     <h2 id="{uid}-title">{$t(mode === 'add' ? 'team.dialog.add' : 'team.dialog.rename')}</h2>
@@ -143,23 +219,154 @@
 />
 
 <style>
+  /* Lives on the dark sidebar. */
   .switcher {
+    position: relative;
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.5rem 1rem;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.35rem 0.5rem 0.5rem;
+    border-radius: 0.85rem;
+    background: rgb(255 255 255 / 0.06);
+    border: 1px solid rgb(255 255 255 / 0.1);
+    color: #fff;
   }
-  .field {
+  .avatar {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 0.6rem;
+    background: linear-gradient(135deg, #8b7bff, #22c3ee);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 750;
+  }
+  .switcher .field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .switcher label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :global(#app) .switcher select {
+    width: 100%;
+    padding: 0 1.1rem 0 0;
+    border: 0;
+    background-color: transparent;
+    background-position: right 0.1rem center;
+    box-shadow: none;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  :global(#app) .switcher option {
+    color: #000;
+  }
+  dialog .field {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
   }
-  .buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .meta {
+    font-size: 0.75rem;
+    color: var(--side-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  select,
+  :global(#app) .switcher button.toggle {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    box-shadow: none;
+    color: var(--side-text);
+  }
+  :global(#app) .switcher button.toggle:hover,
+  :global(#app) .switcher button.toggle[aria-expanded='true'] {
+    background: rgb(255 255 255 / 0.1);
+    color: #fff;
+  }
+  .toggle svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+  .menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem;
+    border-radius: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+  }
+  .menu[hidden] {
+    display: none;
+  }
+  :global(#app) .switcher .menu button {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text);
+    font-weight: 500;
+    text-align: start;
+  }
+  :global(#app) .switcher .menu button:hover {
+    background: var(--surface-2);
+  }
+  :global(#app) .switcher .menu button.danger {
+    color: var(--danger);
+  }
+  :global(#app) .switcher .menu button.danger:hover {
+    background: var(--danger-soft);
+  }
+  hr {
+    margin: 0.25rem 0.35rem;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  .none {
+    flex: 1;
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--side-text);
+  }
+  :global(#app) .switcher button.add {
+    padding: 0.35rem 0.7rem;
+    background: rgb(255 255 255 / 0.1);
+    border-color: rgb(255 255 255 / 0.25);
+    color: #fff;
+    font-size: 0.85rem;
+  }
   input[type='text'] {
     font: inherit;
     color: var(--text);
@@ -169,7 +376,7 @@
     padding: 0.4rem 0.5rem;
     min-width: 0;
   }
-  button {
+  .actions button {
     font: inherit;
     color: var(--text);
     background: var(--bg);
@@ -177,12 +384,6 @@
     border-radius: var(--radius);
     padding: 0.4rem 0.9rem;
     cursor: pointer;
-  }
-  button.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    font-weight: 600;
   }
   dialog {
     min-width: min(24rem, calc(100vw - 2 * var(--space)));

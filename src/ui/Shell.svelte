@@ -3,6 +3,7 @@
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
+  import TeamSwitcher from './TeamSwitcher.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -21,6 +22,7 @@
   import { workspace } from './state/workspace';
 
   const { dirty } = workspace;
+  const REPO_URL = 'https://github.com/gallandp/caldence';
 
   const views = [
     'calendar',
@@ -28,12 +30,18 @@
     'load',
     'meetings',
     'team',
-    'settings',
     'templates',
+    'settings',
     'exchange',
     'help',
   ] as const;
   type ViewId = (typeof views)[number];
+  /** A group heading is shown above these views; the list itself stays one tablist for the arrow keys. */
+  const groupBefore: Partial<Record<ViewId, string>> = {
+    calendar: 'nav.group.view',
+    meetings: 'nav.group.plan',
+    settings: 'nav.group.workspace',
+  };
 
   /** Simple line icons (24×24, stroke = currentColor). */
   const icons: Record<ViewId, string> = {
@@ -190,8 +198,15 @@
       <span class="version">{$t('app.version', { version: APP_VERSION })}</span>
     </header>
 
+    {#if !(active === 'calendar' && noTeams)}
+      <TeamSwitcher onPlan={() => planWizard?.show()} />
+    {/if}
+
     <div class="tabs" role="tablist" aria-orientation="vertical" aria-label={$t('nav.views')}>
       {#each views as id (id)}
+        {#if groupBefore[id]}
+          <div class="group" aria-hidden="true">{$t(groupBefore[id])}</div>
+        {/if}
         <button
           type="button"
           role="tab"
@@ -218,15 +233,20 @@
           {/each}
         </nav>
       {/if}
+      <p class="source">
+        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"
+            ><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg
+          >
+          {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
+        </a>
+        <span class="license">{$t('legal.license')}</span>
+      </p>
     </div>
   </aside>
 
   <div class="content">
-    <WorkspaceBar
-      bind:this={bar}
-      start={active === 'calendar' && noTeams}
-      onPlan={() => planWizard?.show()}
-    />
+    <WorkspaceBar bind:this={bar} />
     <SetupWizard
       bind:this={planWizard}
       oncreated={() => {
@@ -365,11 +385,52 @@
     gap: 1.5rem;
     padding: 1.25rem 0.875rem;
     box-sizing: border-box;
-    background:
-      radial-gradient(120% 60% at 0% 0%, rgb(139 123 255 / 0.22), transparent 60%),
-      radial-gradient(90% 50% at 100% 100%, rgb(34 195 238 / 0.14), transparent 60%), var(--side-bg);
+    isolation: isolate;
+    background: var(--side-bg);
     color: var(--side-text);
     overflow-y: auto;
+    overflow-x: hidden;
+  }
+  /* A soft glow that drifts slowly; it stands still for reduced motion. */
+  .sidebar::before {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 24% at 40% 30%, rgb(139 123 255 / 0.3), transparent 72%),
+      radial-gradient(34% 22% at 66% 58%, rgb(34 195 238 / 0.16), transparent 72%),
+      radial-gradient(34% 20% at 38% 76%, rgb(124 92 255 / 0.14), transparent 72%);
+    filter: blur(8px);
+    animation: glow 24s ease-in-out infinite alternate;
+  }
+  .sidebar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(180deg, transparent 55%, rgb(7 9 20 / 0.55));
+  }
+  @keyframes glow {
+    50% {
+      transform: translate(6%, -5%) rotate(8deg) scale(1.08);
+    }
+    100% {
+      transform: translate(-5%, 6%) rotate(-6deg) scale(1.04);
+    }
+  }
+  .group {
+    padding: 0.9rem 0.75rem 0.3rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(195 199 222 / 0.6);
+  }
+  .group:first-child {
+    padding-top: 0;
   }
   header {
     display: flex;
@@ -410,6 +471,10 @@
     flex-direction: column;
     gap: 0.15rem;
     padding: 0;
+  }
+  /* Help sits apart at the bottom of the list. */
+  #tab-help {
+    margin-top: 0.75rem;
   }
   [role='tab'] {
     display: flex;
@@ -468,6 +533,15 @@
   }
   /* Forced colours drop the gradient and the shadow: mark the selected view with a border and an underline. */
   @media (forced-colors: active) {
+    .sidebar::before,
+    .sidebar::after {
+      display: none;
+    }
+    /* The sidebar's light-on-dark colours are author colours; use the system's text colour. */
+    .sidebar,
+    .sidebar :global(*) {
+      color: CanvasText;
+    }
     [role='tab'][aria-selected='true'] {
       border: 2px solid Highlight;
       padding: calc(0.6rem - 2px) calc(0.75rem - 2px);
@@ -479,12 +553,49 @@
     margin-top: auto;
     padding: 0 0.5rem;
   }
-  .legal {
+  .legal,
+  .source {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    margin-top: 0.75rem;
+    align-items: center;
+    gap: 0.35rem 1rem;
+    margin: 0.75rem 0 0;
     font-size: 0.85rem;
+  }
+  .legal {
+    padding-top: 0.9rem;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+  }
+  .legal + .source {
+    margin-top: 0.5rem;
+  }
+  .source:not(.legal + .source) {
+    padding-top: 0.9rem;
+    border-top: 1px solid rgb(255 255 255 / 0.1);
+  }
+  .source a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--side-text);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .source a:hover {
+    color: #fff;
+  }
+  .source svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .license {
+    font-size: 0.75rem;
+    color: rgb(195 199 222 / 0.75);
   }
   .legal a {
     color: var(--side-text);
@@ -518,19 +629,10 @@
     outline: none;
   }
   h2 {
-    margin: 0.25rem 0 1.25rem;
+    margin: 1.25rem 0 1rem;
     font-size: 1.75rem;
-    font-weight: 750;
+    font-weight: 780;
     letter-spacing: -0.025em;
-  }
-  h2::after {
-    content: '';
-    display: block;
-    width: 2.5rem;
-    height: 4px;
-    margin-top: 0.4rem;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #7b6bff, #22b5e0);
   }
   .start {
     padding: 2.5rem;
@@ -549,7 +651,8 @@
       grid-template-columns: minmax(0, 1fr);
     }
     .sidebar {
-      position: static;
+      /* Still the containing block of the glow. */
+      position: relative;
       height: auto;
       gap: 0.75rem;
       padding: 0.75rem;
@@ -558,6 +661,12 @@
       flex-direction: row;
       overflow-x: auto;
       padding-bottom: 0.25rem;
+    }
+    .group {
+      display: none;
+    }
+    #tab-help {
+      margin-top: 0;
     }
     [role='tab'] {
       white-space: nowrap;

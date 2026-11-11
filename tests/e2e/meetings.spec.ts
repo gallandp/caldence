@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExample, useFileFallback } from './helpers';
+import { openExample, useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -291,8 +291,8 @@ test('a language change keeps the open draft and translates the heading', async 
 
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
-  const team = page.getByRole('tabpanel', { name: 'Team' });
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  const team = page.getByRole('tabpanel', { name: 'Members & cadence' });
   await team.getByLabel('New cycle name').fill('Q3');
   await team.getByRole('button', { name: 'Add cycle' }).click();
   const q3 = team.getByRole('group', { name: 'Milestones of Q3' });
@@ -337,8 +337,8 @@ test('other rows cannot start editing while a form is open', async ({ page }) =>
 
 test('a team without meetings explains what to do', async ({ page }) => {
   await openMeetings(page);
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
-  await page.getByRole('button', { name: 'Add team' }).click();
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await teamAction(page, 'Add team');
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill('Team B');
   await dialog.getByRole('button', { name: 'Apply' }).click();

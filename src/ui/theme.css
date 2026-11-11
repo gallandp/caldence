@@ -132,12 +132,9 @@
   background: var(--warn-soft);
   color: var(--warn);
 }
-#app .content > .bar:not(.context) .marker::before {
-  content: '';
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: currentColor;
+#app .content > .bar:not(.context) .marker.saved {
+  background: var(--ok-soft);
+  color: var(--ok);
 }
 #app .content > .bar:not(.context) .notice,
 #app .content > .bar:not(.context) .error {
@@ -159,7 +156,8 @@
 #app .content > .bar:not(.context) .buttons button:hover {
   background: var(--surface-2);
 }
-#app .content > .bar:not(.context):not(.empty) .buttons button:nth-child(3) {
+/* Save stands out only while there is something to save. */
+#app .content > .bar:not(.context) .buttons button.primary {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
@@ -191,15 +189,19 @@
 #app .content > .bar.context {
   background: transparent;
   border: 0;
-  padding: 1.5rem 2rem 0.5rem;
+  padding: 1rem 2rem 0;
   gap: 0.75rem 1.5rem;
-  align-items: flex-end;
+  align-items: center;
+}
+/* "Show for  Role [All]  Person [All]" reads as one line. */
+#app .bar.context .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
 }
 #app .bar.context label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 #app .bar.context select {

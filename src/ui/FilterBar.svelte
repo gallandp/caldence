@@ -26,6 +26,7 @@
 </script>
 
 <div class="filters">
+  <span class="for">{$t('filter.label')}</span>
   <div class="field">
     <label for="{uid}-role">{$t('filter.role')}</label>
     <select id="{uid}-role" bind:value={roleId} disabled={personId !== ''}>
@@ -60,6 +61,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+  .for {
+    padding-block: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
   }
   .scope {
     margin: 0;

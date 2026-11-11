@@ -85,3 +85,21 @@ test.describe('imprint and privacy links', () => {
     await expect(legal.getByRole('link')).toHaveCount(1);
   });
 });
+
+test('the sidebar links to the source code in a new tab', async ({ page }) => {
+  await page.goto('/');
+  const link = page.getByRole('link', { name: /^GitHub/ });
+  await expect(link).toHaveAttribute('href', 'https://github.com/gallandp/caldence');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(link).toHaveAccessibleName('GitHub (source code, opens in a new tab)');
+});
+
+test('Save stands out only while there are unsaved changes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open the example' }).click();
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toHaveClass(/primary/);
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await expect(page.getByRole('tablist').locator('.group')).toHaveCount(3);
+});

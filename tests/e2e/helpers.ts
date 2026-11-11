@@ -35,7 +35,7 @@ export async function openFixture(page: Page) {
 }
 
 export async function openTeamView(page: Page) {
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }
 
@@ -51,4 +51,11 @@ export async function openWorkspaceFile(page: Page, ws: unknown, name = 'test.ca
     buffer: Buffer.from(JSON.stringify(ws)),
   });
   await expect(page.getByText(name)).toBeVisible();
+}
+
+/** Runs a team action from the sidebar: the actions sit behind the "Team actions" button. */
+export async function teamAction(page: Page, name: string) {
+  const button = page.getByRole('button', { name, exact: true });
+  if (!(await button.isVisible())) await page.getByRole('button', { name: 'Team actions' }).click();
+  await button.click();
 }
