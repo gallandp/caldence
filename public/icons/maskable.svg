@@ -5,9 +5,13 @@
       <stop offset="1" stop-color="#22c3ee"/>
     </linearGradient>
   </defs>
-  <!-- Full bleed: the platform applies its own mask. The lines are scaled to stay in the safe zone. -->
+  <!-- Full bleed: the platform applies its own mask. The glyph is scaled to stay in the safe zone. -->
   <rect width="32" height="32" fill="url(#g)"/>
-  <g transform="translate(16 16) scale(0.75) translate(-16 -17)">
-    <path d="M9 12h14M9 17h9M9 22h5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  <g transform="translate(16 16) scale(0.75) translate(-16 -16)">
+    <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="6.5" y="8.5" width="19" height="17" rx="3.5" stroke-width="2"/>
+      <path d="M11.5 6v4.5M20.5 6v4.5" stroke-width="2"/>
+      <path d="M9 18.5h3.2l1.6-3.5 2.4 6.5 2-4.6 1 1.6H23" stroke-width="1.9"/>
+    </g>
   </g>
 </svg>

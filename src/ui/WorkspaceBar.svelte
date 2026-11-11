@@ -11,7 +11,15 @@
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
 
-  let { onPlan }: { onPlan?: () => void } = $props();
+  let {
+    onPlan,
+    start = false,
+  }: {
+    onPlan?: () => void;
+    /** The start screen is showing; it offers its own ways to begin, so the team bar steps aside. */
+    start?: boolean;
+  } = $props();
+
   const { dirty, fileName } = workspace;
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
@@ -165,10 +173,12 @@
   </div>
 </div>
 
-<div class="bar context">
-  <TeamSwitcher {onPlan} />
-  {#if !empty}<FilterBar />{/if}
-</div>
+{#if !start}
+  <div class="bar context">
+    <TeamSwitcher {onPlan} />
+    {#if !empty}<FilterBar />{/if}
+  </div>
+{/if}
 
 <ConfirmDialog
   open={askOpen}

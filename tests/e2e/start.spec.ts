@@ -21,8 +21,15 @@ test('a fresh start shows the welcome heading and the actions in order', async (
   await expect(panel.getByRole('heading', { level: 3, name: 'Welcome to Caldence' })).toBeVisible();
   for (const name of ['Plan new', 'Open a file…', 'Open the example', 'Read the manual'])
     await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
-  // Nothing to filter or save yet.
+  // Nothing to filter or save yet, and the start screen is the only way in.
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add team' })).toHaveCount(0);
+  await expect(panel.getByRole('button', { name: 'Open a file…' })).toHaveAccessibleDescription(
+    'Continue a saved plan',
+  );
+  // The other views still offer the team bar.
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Add team' })).toBeVisible();
 });
 
 for (const template of ['Scrum', 'Kanban', 'SAFe']) {
