@@ -218,7 +218,6 @@
               <StartView
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
-                onEmpty={() => select('team', true)}
                 onManual={() => select('help', true)}
                 onCreated={() => void tick().then(() => select('calendar', true))}
               />

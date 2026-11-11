@@ -12,6 +12,8 @@
   import { workspace } from './state/workspace';
 
   const { dirty, fileName } = workspace;
+  /** Without a team there is nothing to filter or save yet; the start screen leads. */
+  const empty = $derived($workspace.teams.length === 0);
   const autosaveOn = autosave.status;
 
   type Problem = { key: string; params?: Record<string, string | number>; more: number };
@@ -136,7 +138,7 @@
   }
 </script>
 
-<div class="bar">
+<div class="bar" class:empty>
   <div class="buttons">
     <button type="button" onclick={newWorkspace}>{$t('file.new')}</button>
     <button type="button" onclick={open}>{$t('file.open')}</button>
@@ -164,7 +166,7 @@
 
 <div class="bar context">
   <TeamSwitcher />
-  <FilterBar />
+  {#if !empty}<FilterBar />{/if}
 </div>
 
 <ConfirmDialog

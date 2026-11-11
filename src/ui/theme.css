@@ -159,7 +159,7 @@
 #app .content > .bar:not(.context) .buttons button:hover {
   background: var(--surface-2);
 }
-#app .content > .bar:not(.context) .buttons button:nth-child(3) {
+#app .content > .bar:not(.context):not(.empty) .buttons button:nth-child(3) {
   color: var(--on-accent);
   background: var(--accent);
   border-color: var(--accent);
@@ -219,10 +219,10 @@
   background: var(--surface);
   color: var(--text);
 }
-#app .switcher .buttons button:last-child {
+#app .switcher .buttons button:last-child:not(:first-child) {
   color: var(--danger);
 }
-#app .switcher .buttons button:last-child:hover {
+#app .switcher .buttons button:last-child:not(:first-child):hover {
   background: var(--danger-soft);
 }
 #app .filters {

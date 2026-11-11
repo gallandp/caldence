@@ -14,7 +14,7 @@ const panel = (page: Page, name: string) => page.getByRole('tabpanel', { name })
 
 interface Step {
   text: string;
-  role: 'button' | 'tab' | 'link' | null;
+  role: 'button' | 'tab' | 'link' | 'radio' | null;
   name: string | null;
 }
 
@@ -43,28 +43,10 @@ const fields: Record<
   number,
   { labels: string[]; run: (page: Page, c: Catalogue) => Promise<void> }
 > = {
-  4: {
-    labels: ['settings.people', 'settings.people.add', 'list.add'],
-    run: async (page, c) => {
-      const people = panel(page, c['view.settings']!).getByRole('region', {
-        name: c['settings.people'],
-        exact: true,
-      });
-      await people.getByLabel(c['settings.people.add']!, { exact: true }).fill('Kim');
-      await people.getByRole('button', { name: c['list.add'], exact: true }).click();
-      await expect(people.getByRole('textbox', { name: /Kim/ })).toBeVisible();
-    },
-  },
   5: {
-    labels: ['team.members', 'team.members.person', 'team.members.role'],
-    run: async (page, c) => {
-      const team = panel(page, c['view.team']!);
-      await team
-        .getByLabel(c['team.members.person']!, { exact: true })
-        .selectOption({ label: 'Kim' });
-      await team
-        .getByLabel(c['team.members.role']!, { exact: true })
-        .selectOption({ label: 'Product Owner' });
+    labels: ['setup.people'],
+    run: async (page) => {
+      await page.getByRole('dialog').getByLabel('Product Owner', { exact: true }).fill('Kim');
     },
   },
   10: {

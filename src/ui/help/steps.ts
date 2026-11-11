@@ -7,7 +7,7 @@
  * `control.name` may also be `template:<id>`: the name of that built-in template in the UI language.
  */
 export interface ManualControl {
-  role: 'button' | 'tab' | 'link';
+  role: 'button' | 'tab' | 'link' | 'radio';
   name: string;
 }
 
@@ -23,33 +23,27 @@ export const MANUAL_STEPS: ManualStep[] = [
     control: { role: 'tab', name: 'view.calendar' },
     labels: { title: 'start.title' },
   },
+  { text: 'help.first.step.open', control: { role: 'button', name: 'setup.open' } },
   {
     text: 'help.first.step.template',
-    control: { role: 'button', name: 'template:scrum' },
-    labels: { group: 'start.template' },
+    control: { role: 'radio', name: 'template:scrum' },
+    labels: { group: 'setup.way' },
+  },
+  { text: 'help.first.step.next', control: { role: 'button', name: 'setup.next' } },
+  {
+    text: 'help.first.step.team',
+    control: { role: 'button', name: 'setup.next' },
+    labels: { field: 'templates.teamName', start: 'setup.start' },
+  },
+  {
+    text: 'help.first.step.people',
+    control: null,
+    labels: { heading: 'setup.people' },
   },
   {
     text: 'help.first.step.create',
     control: { role: 'button', name: 'templates.create' },
-    labels: { field: 'templates.teamName' },
   },
-  { text: 'help.first.step.settings', control: { role: 'tab', name: 'view.settings' } },
-  {
-    text: 'help.first.step.person',
-    control: null,
-    labels: {
-      section: 'settings.people',
-      field: 'settings.people.add',
-      add: 'list.add',
-      hours: 'settings.people.hoursLabel',
-    },
-  },
-  {
-    text: 'help.first.step.team',
-    control: { role: 'tab', name: 'view.team' },
-    labels: { members: 'team.members', person: 'team.members.person', role: 'team.members.role' },
-  },
-  { text: 'help.first.step.member', control: { role: 'button', name: 'team.members.add' } },
   {
     text: 'help.first.step.meetings',
     control: { role: 'tab', name: 'view.meetings' },
