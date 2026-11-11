@@ -5,14 +5,16 @@
   import type { Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
   import { locale, translate as t } from '../../i18n';
+  import { resolveRegion } from '../../core/regions';
+  import { regionIds } from '../../data/regions';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
+  import { browserZone, FALLBACK_ZONES, supportedZones } from '../state/zones';
 
   /** Called once the team was created and the dialog is closed. */
   let { oncreated }: { oncreated?: (name: string) => void } = $props();
 
   const uid = $props.id();
   const ids = Object.keys(BUILTIN_TEMPLATES) as BuiltinTemplateId[];
-  const STEPS = 3;
 
   let dialog: HTMLDialogElement | undefined;
   let heading = $state<HTMLElement>();
@@ -27,6 +29,12 @@
   let me = $state(false);
   let myName = $state('');
   let myRole = $state('');
+  let timezone = $state('');
+  let region = $state('');
+  let from = $state('');
+  let to = $state('');
+  /** The first team also confirms the workspace frame: time zone, region and horizon. */
+  let withFrame = $state(true);
   let nameError = $state(false);
   let problem = $state<{ key: string; path?: string } | null>(null);
 
@@ -34,6 +42,16 @@
     choice === 'none' ? null : builtinTemplate(choice, $locale),
   );
   const roles = $derived(template ? template.roles : $workspace.roles);
+  const steps = $derived(withFrame ? 4 : 3);
+  const zones = supportedZones();
+  const zoneOptions = $derived(
+    zones && timezone !== '' && !zones.includes(timezone) ? [timezone, ...zones] : zones,
+  );
+  const regionOptions = $derived([
+    ...regionIds(),
+    ...$workspace.customRegions.map((r) => r.id).filter((id) => !regionIds().includes(id)),
+  ]);
+  const regionName = (id: string): string => resolveRegion($workspace, id)?.name[$locale] ?? id;
 
   /** Opens the wizard at its first step. */
   export function show() {
@@ -46,6 +64,12 @@
     me = false;
     myName = '';
     myRole = '';
+    const settings = get(workspace).settings;
+    withFrame = get(workspace).teams.length === 0;
+    timezone = browserZone() ?? settings.timezone;
+    region = settings.region;
+    from = settings.horizon.from;
+    to = settings.horizon.to;
     nameError = false;
     problem = null;
     dialog?.showModal();
@@ -84,12 +108,18 @@
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (step < STEPS) {
+    if (step < steps) {
       void go(step + 1);
       return;
     }
     const trimmed = name.trim();
-    const input = { template, name: trimmed, start: start || localToday(), members: members() };
+    const input = {
+      template,
+      name: trimmed,
+      start: start || localToday(),
+      members: members(),
+      ...(withFrame ? { settings: { timezone, region, horizon: { from, to } } } : {}),
+    };
     const result = workspace.apply((ws) => setupTeam(ws, input));
     if (!result.ok) {
       const first = result.errors[0];
@@ -112,7 +142,7 @@
   }}
 >
   <h2 id="{uid}-title">{$t('setup.title')}</h2>
-  <p class="progress" id="{uid}-progress">{$t('setup.progress', { n: step, total: STEPS })}</p>
+  <p class="progress" id="{uid}-progress">{$t('setup.progress', { n: step, total: steps })}</p>
   <form onsubmit={submit}>
     {#if step === 1}
       <fieldset>
@@ -176,7 +206,7 @@
         <label for="{uid}-start">{$t('setup.start')}</label>
         <input id="{uid}-start" type="date" bind:value={start} />
       </div>
-    {:else}
+    {:else if step === 3}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.people')}</h3>
       {#if roles.length === 0}
         <p class="hint">{$t('setup.people.none')}</p>
@@ -216,9 +246,47 @@
           {/if}
         </div>
       {/if}
-      {#if problem}
-        <p class="field-error" role="alert">{$t(problem.key, { path: problem.path ?? '' })}</p>
-      {/if}
+    {:else}
+      <h3 tabindex="-1" bind:this={heading}>{$t('setup.frame')}</h3>
+      <p class="hint">{$t('setup.frame.hint')}</p>
+      <div class="field">
+        <label for="{uid}-tz">{$t('settings.timezone')}</label>
+        {#if zoneOptions}
+          <select id="{uid}-tz" bind:value={timezone}>
+            {#each zoneOptions as zone (zone)}
+              <option value={zone}>{zone}</option>
+            {/each}
+          </select>
+        {:else}
+          <input id="{uid}-tz" type="text" list="{uid}-tz-list" bind:value={timezone} />
+          <datalist id="{uid}-tz-list">
+            {#each FALLBACK_ZONES as zone (zone)}
+              <option value={zone}></option>
+            {/each}
+          </datalist>
+        {/if}
+      </div>
+      <div class="field">
+        <label for="{uid}-region">{$t('settings.region')}</label>
+        <select id="{uid}-region" bind:value={region}>
+          {#each regionOptions as id (id)}
+            <option value={id}>{regionName(id)}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="{uid}-from">{$t('settings.horizon.from')}</label>
+          <input id="{uid}-from" type="date" bind:value={from} />
+        </div>
+        <div class="field">
+          <label for="{uid}-to">{$t('settings.horizon.to')}</label>
+          <input id="{uid}-to" type="date" bind:value={to} />
+        </div>
+      </div>
+    {/if}
+    {#if problem}
+      <p class="field-error" role="alert">{$t(problem.key, { path: problem.path ?? '' })}</p>
     {/if}
     <div class="steps-actions">
       {#if step > 1}
@@ -226,7 +294,7 @@
       {/if}
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
       <button type="submit" class="primary"
-        >{step < STEPS ? $t('setup.next') : $t('templates.create')}</button
+        >{step < steps ? $t('setup.next') : $t('templates.create')}</button
       >
     </div>
   </form>

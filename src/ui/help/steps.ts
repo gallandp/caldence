@@ -41,6 +41,11 @@ export const MANUAL_STEPS: ManualStep[] = [
     labels: { heading: 'setup.people' },
   },
   {
+    text: 'help.first.step.frame',
+    control: { role: 'button', name: 'setup.next' },
+    labels: { heading: 'setup.frame' },
+  },
+  {
     text: 'help.first.step.create',
     control: { role: 'button', name: 'templates.create' },
   },

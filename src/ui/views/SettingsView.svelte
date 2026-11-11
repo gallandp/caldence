@@ -14,6 +14,7 @@
   import { browserFileEnv, openTextFile } from '../state/files';
   import { fieldErrors } from '../state/form';
   import { pickFile } from '../state/picker';
+  import { FALLBACK_ZONES, supportedZones } from '../state/zones';
   import { index, workspace } from '../state/workspace';
 
   const settings = $derived($workspace.settings);
@@ -203,17 +204,6 @@
     });
   });
 
-  const FALLBACK_ZONES = ['Europe/Berlin', 'Europe/London', 'Europe/Vienna', 'UTC'];
-  function supportedZones(): string[] | null {
-    const intl = Intl as unknown as { supportedValuesOf?: (key: string) => string[] };
-    if (typeof intl.supportedValuesOf !== 'function') return null;
-    try {
-      const list = intl.supportedValuesOf('timeZone');
-      return Array.isArray(list) && list.length > 0 ? list : null;
-    } catch {
-      return null;
-    }
-  }
   const zones = supportedZones();
   const zoneOptions = $derived(
     zones && !zones.includes(settings.timezone) ? [settings.timezone, ...zones] : zones,

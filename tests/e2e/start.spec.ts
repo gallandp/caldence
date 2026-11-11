@@ -30,7 +30,7 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
     await start(page);
     await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Plan new' });
-    await expect(dialog.getByText('Step 1 of 3')).toBeVisible();
+    await expect(dialog.getByText('Step 1 of 4')).toBeVisible();
     await dialog.getByRole('radio', { name: template, exact: true }).check();
     await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.getByLabel('Team name')).toHaveValue(template);
@@ -39,6 +39,8 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
     await expect(dialog.getByRole('heading', { name: 'Who is in the team?' })).toBeFocused();
     await dialog.getByLabel('I take part myself').check();
     await dialog.getByLabel('Your name').fill('Kim');
+    await dialog.getByRole('button', { name: 'Next' }).click();
+    await expect(dialog.getByText('Step 4 of 4')).toBeVisible();
     await dialog.getByRole('button', { name: 'Create team' }).click();
     await expect(dialog).toBeHidden();
     await expect(calendar(page).getByRole('grid')).toBeVisible();
@@ -65,6 +67,7 @@ test('the wizard without a template creates an empty team', async ({ page }) => 
   await expect(dialog.getByText('The name must not be empty')).toBeVisible();
   await dialog.getByLabel('Team name').fill('Solo');
   await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(page.locator('.switcher select option:checked')).toHaveText('Solo');
 });
@@ -86,6 +89,26 @@ test('Open a file reads a workspace file', async ({ page }) => {
   // The start screen is gone: the focus moves to the Calendar tab, not to the page.
   // (The fixture is a German workspace.)
   await expect(page.getByRole('tab', { name: 'Kalender', exact: true })).toBeFocused();
+});
+
+test('the frame step sets time zone and horizon for the workspace', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(
+    dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
+  ).toBeFocused();
+  await dialog.getByLabel('Time zone').selectOption('Europe/Vienna');
+  await dialog.getByLabel('Horizon to').fill('2027-03-01');
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  await dialog.getByLabel('Horizon to').fill('2027-12-31');
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
+  await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
+  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
 
 test('choosing another way of working starts the later steps afresh', async ({ page }) => {
@@ -144,13 +167,9 @@ for (const locale of ['de', 'en'] as const) {
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       expect((await axe()).violations).toEqual([]);
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         await dialog.getByRole('button', { name: /Next|Weiter/ }).click();
-        await dialog
-          .getByRole('checkbox')
-          .or(dialog.getByLabel(/Team name|Teamname/))
-          .first()
-          .waitFor();
+        await expect(dialog.getByText(new RegExp(`(Step|Schritt) ${i + 2} `))).toBeVisible();
         expect((await axe()).violations).toEqual([]);
       }
     });
