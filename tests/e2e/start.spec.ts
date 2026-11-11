@@ -111,6 +111,25 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
 
+test('after the wizard a card offers the next steps once', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  const card = calendar(page).getByRole('region', { name: 'Your team is ready' });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('saved automatically');
+  await card.getByRole('button', { name: 'Share calendars' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Import / Export' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await expect(card).toHaveCount(0);
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(results.violations).toEqual([]);
+});
+
 test('choosing another way of working starts the later steps afresh', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();

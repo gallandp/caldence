@@ -6,6 +6,7 @@
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
+  import SetupDone from './components/SetupDone.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import WeeksView from './views/WeeksView.svelte';
   import LoadView from './views/LoadView.svelte';
@@ -47,6 +48,14 @@
   };
 
   let active = $state<ViewId>('calendar');
+  /** Shown once in the calendar right after the wizard created the first team. */
+  let setupDone = $state(false);
+  // A new, opened or restored workspace is not the one the card was about.
+  const { version } = workspace;
+  $effect(() => {
+    void $version;
+    setupDone = false;
+  });
   let tabs: Record<string, HTMLButtonElement | undefined> = {};
 
   function select(id: ViewId, focus = false) {
@@ -219,7 +228,10 @@
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
                 onManual={() => select('help', true)}
-                onCreated={() => void tick().then(() => select('calendar', true))}
+                onCreated={() => {
+                  setupDone = true;
+                  void tick().then(() => select('calendar', true));
+                }}
               />
             {:else if (id === 'weeks' || id === 'load') && $workspace.teams.length === 0}
               <section class="start">
@@ -230,6 +242,22 @@
                 >
               </section>
             {:else if id === 'calendar'}
+              {#if setupDone}
+                <SetupDone
+                  onMeetings={() => {
+                    setupDone = false;
+                    select('meetings', true);
+                  }}
+                  onShare={() => {
+                    setupDone = false;
+                    select('exchange', true);
+                  }}
+                  onClose={() => {
+                    setupDone = false;
+                    void tick().then(() => select('calendar', true));
+                  }}
+                />
+              {/if}
               {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
                 <CalendarView onOpenMeetings={() => select('meetings', true)} />
               {/key}
