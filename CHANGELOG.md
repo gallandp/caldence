@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.6.1 – 2026-11-11
+
+### Changed
+
+- Setup: fix styling and name suggestions in "Plan another team" (#83)
+
 ## 1.6.0 – 2026-11-11
 
 ### Changed
