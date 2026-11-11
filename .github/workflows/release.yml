@@ -5,12 +5,15 @@ name: Release
 # 1. A merged PR with a release:* label: `plan` sees unreleased changes, and `release-pr` opens
 #    or updates the PR "Release X.Y.Z" on the branch release/next (version and changelog), then
 #    starts CI for it (see there).
-# 2. That PR is merged by hand: `plan` sees a version without a tag, `build` builds the ZIP with
-#    a read-only token, and `publish` tags the merge commit and publishes the release.
+# 2. When CI is green on it, release-merge.yml merges that PR and starts this workflow on main:
+#    `plan` sees a version without a tag, `build` builds the ZIP with a read-only token, and
+#    `publish` tags the commit and publishes the release. A release PR merged by hand works too.
 
 on:
   push:
     branches: [main]
+  # Started by release-merge.yml: its merge, made with GITHUB_TOKEN, starts no push run.
+  workflow_dispatch:
 
 permissions: {}
 
@@ -20,6 +23,8 @@ concurrency:
 
 jobs:
   plan:
+    # Releases only ever come from main, also when started by hand.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

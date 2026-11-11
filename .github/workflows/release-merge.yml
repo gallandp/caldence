@@ -1,0 +1,61 @@
+name: Release merge
+
+# Merges the release PR by itself, so a release needs no click:
+#
+# 1. release.yml opens or updates the PR "Release X.Y.Z" on release/next and starts CI for it.
+# 2. When that CI run is green, this workflow merges the PR, but only if release/next is exactly
+#    main plus the one version commit of github-actions[bot].
+# 3. A merge made with GITHUB_TOKEN starts no push run, so it starts release.yml on main, which
+#    publishes the release.
+#
+# It never checks out or runs code; it only calls the GitHub API.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  merge:
+    # Only the CI run that release.yml started for release/next, never a PR from a fork.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch' &&
+      github.event.workflow_run.head_branch == 'release/next' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      # To start release.yml (see the last step).
+      actions: write
+    steps:
+      - name: Merge the release PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          number=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:release/next" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and .head.sha == env.HEAD_SHA)][0].number // empty')
+          if [ -z "$number" ]; then
+            echo "No open release PR at $HEAD_SHA (it moved on or was merged); nothing to do."
+            exit 0
+          fi
+          # Exactly one commit on top of main, made by the release workflow. If main moved on,
+          # release.yml rebuilds release/next and starts CI again, and that run merges.
+          read -r ahead behind author < <(gh api "repos/$REPO/compare/main...$HEAD_SHA" \
+            --jq '"\(.ahead_by) \(.behind_by) \(.commits[-1].author.login // "none")"')
+          if [ "$behind" != 0 ]; then
+            echo "release/next is $behind commits behind main; waiting for the rebuilt release PR."
+            exit 0
+          fi
+          if [ "$ahead" != 1 ] || [ "$author" != "github-actions[bot]" ]; then
+            echo "::error::release/next holds more than the version commit ($ahead commits, last by $author); merge it by hand after a look."
+            exit 1
+          fi
+          gh pr merge "$number" --repo "$REPO" --merge --match-head-commit "$HEAD_SHA"
+          gh workflow run release.yml --repo "$REPO" --ref main
