@@ -4,9 +4,9 @@ name: Release
 #
 # 1. A merged PR with a release:* label: `plan` sees unreleased changes, and `release-pr` opens
 #    or updates the PR "Release X.Y.Z" on the branch release/next (version and changelog), then
-#    starts CI for it (see there).
-# 2. When CI is green on it, the job release-merge in ci.yml merges that PR and starts this
-#    workflow on main:
+#    approves the held CI runs of that PR (see there).
+# 2. When CI is green on it, the job release-merge in ci.yml (in that PR run) merges the PR
+#    and starts this workflow on main:
 #    `plan` sees a version without a tag, `build` builds the ZIP with a read-only token, and
 #    `publish` tags the commit and publishes the release. A release PR merged by hand works too.
 
@@ -129,12 +129,32 @@ jobs:
           else
             gh pr edit "$number" --title "Release $VERSION" --body-file body.md
           fi
-      - name: Start CI for the release PR
+      - name: Approve the CI runs of the release PR
         env:
           GH_TOKEN: ${{ github.token }}
-        # Pushes and PRs made with GITHUB_TOKEN start no workflows; workflow_dispatch is the
-        # exception. The run reports the required check "check" on the PR's head commit.
-        run: gh workflow run ci.yml --ref release/next
+        # Runs for a PR opened or updated with GITHUB_TOKEN are held until someone clicks
+        # "Approve workflows to run". Only these pull_request runs report the required check
+        # "check" to the PR (a workflow_dispatch copy does not count), so this job approves them.
+        # They run the code of release/next: main plus the version commit made above.
+        run: |
+          sha=$(git rev-parse HEAD)
+          for i in $(seq 1 30); do
+            runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&event=pull_request" \
+              --jq '.workflow_runs[] | "\(.id) \(.path) \(.conclusion // .status)"')
+            echo "$runs" | while read -r id path state; do
+              if [ "$state" = action_required ]; then
+                gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/approve" && echo "Approved $path"
+              fi
+            done
+            # Done once the CI run exists and is no longer held.
+            if echo "$runs" | grep -q ' .github/workflows/ci.yml ' &&
+              ! echo "$runs" | grep ' .github/workflows/ci.yml ' | grep -q action_required; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::The CI run of the release PR did not appear or could not be approved."
+          exit 1
 
   # Runs npm and every dependency's build code, so it gets a read-only token that is not kept
   # on disk. The result is handed to the publish job as an artifact.
