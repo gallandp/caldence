@@ -9,6 +9,9 @@ name: Release
 #    and starts this workflow on main:
 #    `plan` sees a version without a tag, `build` builds the ZIP with a read-only token, and
 #    `publish` tags the commit and publishes the release. A release PR merged by hand works too.
+# 3. `publish` then starts deploy.yml, which uploads the release to caldence.de once the
+#    maintainer approves it for the environment "production". It is a separate run, so a
+#    deployment waiting for approval never holds up the next release PR.
 
 on:
   push:
@@ -202,6 +205,8 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      # To start deploy.yml (see the last step).
+      actions: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -226,3 +231,9 @@ jobs:
             "$RELEASE_DIR/caldence-$VERSION.zip" "$RELEASE_DIR/caldence-$VERSION.zip.sha256" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "Caldence $VERSION" --notes-file "$RELEASE_DIR/release-notes.md"
+      - name: Start the deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        # A release made with GITHUB_TOKEN starts no workflows; workflow_dispatch is the exception.
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f version="$VERSION"
