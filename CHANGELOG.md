@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.4.0 – 2026-11-11
+
 ### Added
 
 - Imprint and privacy page: when the operator puts `imprint.html` or `privacy.html` next to the app, the sidebar shows a link to it. The pages are never part of the release (see `docs/deployment.md`, with a template).
