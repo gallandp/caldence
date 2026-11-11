@@ -29,8 +29,6 @@
       labels={{
         example: 'start.example',
         file: 'start.file',
-        empty: 'start.empty',
-        team: 'view.team',
       }}
     />
   </p>

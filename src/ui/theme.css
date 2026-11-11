@@ -219,10 +219,10 @@
   background: var(--surface);
   color: var(--text);
 }
-#app .switcher .buttons button:last-child {
+#app .switcher .buttons button:last-child:not(:first-child) {
   color: var(--danger);
 }
-#app .switcher .buttons button:last-child:hover {
+#app .switcher .buttons button:last-child:not(:first-child):hover {
   background: var(--danger-soft);
 }
 #app .filters {
