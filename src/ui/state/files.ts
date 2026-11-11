@@ -4,7 +4,7 @@ import { loadWorkspace, type Result } from '../../core/validate';
 export const DEFAULT_FILE_NAME = 'workspace.caldence.json';
 
 export interface WritableLike {
-  write(data: string): Promise<void>;
+  write(data: string | Uint8Array<ArrayBuffer>): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -28,7 +28,7 @@ interface PickerOptions {
 export interface FileEnv {
   showOpenFilePicker?: (options?: PickerOptions) => Promise<FileHandleLike[]>;
   showSaveFilePicker?: (options?: PickerOptions) => Promise<FileHandleLike>;
-  download(name: string, text: string): void;
+  download(name: string, data: string | Uint8Array<ArrayBuffer>): void;
   /** `accept` is the value for the file input's accept attribute. */
   pickFile(accept?: string): Promise<File | null>;
 }
@@ -138,7 +138,7 @@ export async function openTextFile(
 export async function exportTextFile(
   env: FileEnv,
   name: string,
-  text: string,
+  text: string | Uint8Array<ArrayBuffer>,
   types: FilePickerType[],
 ): Promise<string | null> {
   if (env.showSaveFilePicker) {
@@ -232,10 +232,13 @@ export function browserFileEnv(pickFile: (accept?: string) => Promise<File | nul
     showOpenFilePicker: w.showOpenFilePicker?.bind(window),
     showSaveFilePicker: w.showSaveFilePicker?.bind(window),
     pickFile,
-    download(name, text) {
-      const url = URL.createObjectURL(
-        new Blob([text], { type: name.endsWith('.ics') ? 'text/calendar' : 'application/json' }),
-      );
+    download(name, data) {
+      const type = name.endsWith('.ics')
+        ? 'text/calendar'
+        : name.endsWith('.zip')
+          ? 'application/zip'
+          : 'application/json';
+      const url = URL.createObjectURL(new Blob([data], { type }));
       const a = document.createElement('a');
       a.href = url;
       a.download = name;

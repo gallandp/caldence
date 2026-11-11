@@ -49,6 +49,22 @@ test('exporting the example team downloads a file that matches the status', asyn
   expect(status).toContain('caldence-team-alpha.ics');
 });
 
+test('one file per person comes as a ZIP with a calendar for each person', async ({ page }) => {
+  await openExchange(page);
+  await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();
+  const download = page.waitForEvent('download');
+  await panel(page).getByRole('button', { name: 'One file per person (ZIP)…' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('caldence-people.zip');
+  const bytes = readFileSync((await file.path())!);
+  expect(bytes.readUInt32LE(0)).toBe(0x04034b50);
+  const text = bytes.toString('latin1');
+  const names = [...text.matchAll(/caldence-[a-z0-9-]+\.ics/g)].map((m) => m[0]);
+  expect(new Set(names).size).toBeGreaterThan(1);
+  expect(text).toContain('BEGIN:VCALENDAR');
+  await expect(panel(page).getByRole('status')).toContainText('caldence-people.zip saved with');
+});
+
 test('an inverted period shows an error and an empty period says so on export', async ({
   page,
 }) => {

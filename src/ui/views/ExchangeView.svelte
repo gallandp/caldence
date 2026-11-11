@@ -13,6 +13,7 @@
   import { slug } from '../../core/slug';
   import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
+  import { zip } from '../../core/zip';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
   import {
@@ -39,12 +40,15 @@
 
   let problem = $state<{ key: string; path?: string } | null>(null);
   let exported = $state<{ name: string; series: number; single: number } | null>(null);
+  /** The ZIP with one calendar per team, role or person, and how many files it holds. */
+  let sharedAll = $state<{ name: string; files: number } | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
   let exportEmpty = $state(false);
 
   /** Drops the outcome of an earlier export or import: the form changed or an error came up. */
   function clearStatus() {
     exported = null;
+    sharedAll = null;
     imported = null;
     exportEmpty = false;
   }
@@ -114,12 +118,10 @@
     !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
   );
 
-  async function exportFile(event: SubmitEvent) {
-    event.preventDefault();
-    if (!canExport || !chosen) return;
+  function build(filter: Filter) {
     const range = { ...ws.settings, horizon: { from, to } };
-    const built = exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
-      scope,
+    return exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
+      scope: filter,
       from,
       to,
       reminderMinutes: reminder === '' ? null : Number(reminder),
@@ -127,6 +129,57 @@
       now: new Date(),
       locale: $locale,
     });
+  }
+
+  const filterFor = (id: string): Filter =>
+    kind === 'team' ? { teamId: id } : kind === 'role' ? { roleId: id } : { personId: id };
+
+  /** One file per team, role or person in the archive, skipping those without meetings. */
+  const canShareAll = $derived(
+    !rangeInvalid &&
+      zoneKnown &&
+      choices.filter((c) => scopeHasEvents(ws, filterFor(c.id))).length > 1,
+  );
+
+  async function shareAll() {
+    if (!canShareAll) return;
+    const used: string[] = [];
+    const files = [];
+    for (const c of choices) {
+      if (!scopeHasEvents(ws, filterFor(c.id))) continue;
+      const built = build(filterFor(c.id));
+      if (built.series + built.single === 0) continue;
+      let base = `caldence-${slug(c.name)}`;
+      for (let n = 2; used.includes(base); n++) base = `caldence-${slug(c.name)}-${n}`;
+      used.push(base);
+      files.push({ name: `${base}.ics`, text: built.text });
+    }
+    if (files.length === 0) {
+      clearStatus();
+      problem = null;
+      exportEmpty = true;
+      return;
+    }
+    try {
+      const saved = await exportTextFile(
+        env,
+        `caldence-${$t('exchange.zip.' + kind)}.zip`,
+        zip(files, new Date()),
+        [{ description: $t('exchange.zip.type'), accept: { 'application/zip': ['.zip'] } }],
+      );
+      if (saved === null) return;
+      clearStatus();
+      problem = null;
+      sharedAll = { name: saved, files: files.length };
+    } catch {
+      fail('file.error.write');
+    }
+  }
+
+  async function exportFile(event: SubmitEvent) {
+    event.preventDefault();
+    if (!canExport || !chosen) return;
+    const built = build(scope);
     if (built.series + built.single === 0) {
       clearStatus();
       problem = null;
@@ -256,6 +309,8 @@
         series: exported.series,
         single: exported.single,
       })}
+    {:else if sharedAll}
+      {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
     {:else if exportEmpty}
       {$t('exchange.export.empty')}
     {/if}
@@ -377,6 +432,9 @@
             : noMeetings
               ? `${uid}-empty-hint`
               : undefined}>{$t('exchange.export.button')}</button
+        >
+        <button type="button" disabled={!canShareAll} onclick={shareAll}
+          >{$t('exchange.zip.button.' + kind)}</button
         >
       </div>
       {#if noMeetings}
