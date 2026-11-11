@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { mondayOf } from '../../core/date';
+  import { loadPerWeek, warnings } from '../../core/load';
+  import { record } from '../../core/record';
   import { schoolHolidayGap, scopeTeams, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
@@ -26,6 +28,44 @@
   const withTeam = (label: string, id: string): string =>
     several ? $t('cal.withTeam', { label, team: teamName(id) }) : label;
   const hours = (n: number): string => formatNumber($locale, n, 1);
+
+  /** Warnings depend on the workspace only; the filter just picks whose count. */
+  const allWarnings = $derived(warnings(loadPerWeek($workspace, $index), $workspace));
+  /** People whose warnings count: the filtered person, or members of the teams in scope. */
+  const watched = $derived.by(() => {
+    if ($filter.personId) return new Set([$filter.personId]);
+    return new Set(
+      teams.flatMap((team) =>
+        team.members
+          .filter((m) => !$filter.roleId || m.roleId === $filter.roleId)
+          .map((m) => m.personId),
+      ),
+    );
+  });
+  /** Ids of the people with a high load, by Monday. */
+  const warned = $derived.by(() => {
+    const byMonday = record<string[]>();
+    for (const w of allWarnings) {
+      if (!watched.has(w.personId)) continue;
+      const ids = (byMonday[w.monday] ??= []);
+      if (!ids.includes(w.personId)) ids.push(w.personId);
+    }
+    return new Map(Object.entries(byMonday));
+  });
+  const names = $derived(new Map($workspace.people.map((p) => [p.id, p.name])));
+  const list = $derived(new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }));
+  const people = (ids: string[]) => list.format(ids.map((id) => names.get(id) ?? id));
+
+  /** The longest bar is the busiest week in view. */
+  const peak = $derived(Math.max(0, ...rows.map((r) => r.total)));
+
+  type Show = 'all' | 'warn' | 'cadence';
+  let show = $state<Show>('all');
+  const shown = $derived(
+    rows.filter((row) =>
+      show === 'warn' ? warned.has(row.monday) : show === 'cadence' ? row.cadence.length > 0 : true,
+    ),
+  );
 
   /** The selected region's school holidays end before the planning horizon does. */
   const coverage = $derived.by(() => {
@@ -55,6 +95,17 @@
     </p>
   {/if}
 
+  <div class="toolbar">
+    <div class="segmented" role="group" aria-label={$t('weeks.show')}>
+      {#each [['all', 'weeks.show.all'], ['warn', 'weeks.show.warn'], ['cadence', 'weeks.show.cadence']] as const as [value, key] (value)}
+        <button type="button" aria-pressed={show === value} onclick={() => (show = value)}
+          >{$t(key)}</button
+        >
+      {/each}
+    </div>
+    <span class="unit">{$t('weeks.unit')}</span>
+  </div>
+
   <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
   <div class="scroll" role="region" aria-label={$t('weeks.region')} tabindex="0">
     <table bind:this={table}>
@@ -68,10 +119,7 @@
         <tr>
           <th scope="col">{$t('weeks.col.week')}</th>
           <th scope="col">{$t('weeks.col.monday')}</th>
-          <th scope="col">{$t('weeks.col.cadence')}</th>
-          <th scope="col">{$t('weeks.col.milestones')}</th>
-          <th scope="col">{$t('weeks.col.holidays')}</th>
-          <th scope="col">{$t('weeks.col.school')}</th>
+          <th scope="col">{$t('weeks.col.events')}</th>
           {#each roles as role (role.id)}
             <th scope="col" class="num">{role.name}</th>
           {/each}
@@ -79,8 +127,9 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row (row.monday)}
+        {#each shown as row (row.monday)}
           {@const isCurrent = row.monday === currentMonday}
+          {@const high = warned.get(row.monday)}
           <tr
             aria-current={isCurrent ? 'date' : undefined}
             class:current={isCurrent}
@@ -90,39 +139,55 @@
               {$t('weeks.week', { n: formatNumber($locale, row.week, 0) })}
               {#if isCurrent}<span class="badge">{$t('weeks.current')}</span>{/if}
             </th>
-            <td>{formatDisplayDate($locale, row.monday, 'short')}</td>
+            <td class="date">{formatDisplayDate($locale, row.monday, 'short')}</td>
             <td>
-              {#each row.cadence as c (c.teamId)}
-                <span class="item">
-                  {withTeam(
-                    $t(`cal.cadence.${kindOf(c.teamId)}`, {
-                      n: formatNumber($locale, c.number, 0),
-                    }),
-                    c.teamId,
-                  )}
-                </span>
-              {/each}
+              <span class="tags">
+                {#each row.cadence as c (c.teamId)}
+                  <span class="tag cadence">
+                    {withTeam(
+                      $t(`cal.cadence.${kindOf(c.teamId)}`, {
+                        n: formatNumber($locale, c.number, 0),
+                      }),
+                      c.teamId,
+                    )}
+                  </span>
+                {/each}
+                {#each row.milestones as m (JSON.stringify([m.teamId, m.cycleId, m.id]))}
+                  <span class="tag milestone">{withTeam(m.name, m.teamId)}</span>
+                {/each}
+                {#each row.holidays as h (h.date)}
+                  <span class="tag holiday">{h.name[$locale]}</span>
+                {/each}
+                {#if row.schoolHoliday}
+                  <span class="tag school">{row.schoolHoliday[$locale]}</span>
+                {/if}
+                {#if high}
+                  <span class="tag warn">{$t('weeks.warn', { people: people(high) })}</span>
+                {/if}
+              </span>
             </td>
-            <td>
-              {#each row.milestones as m (JSON.stringify([m.teamId, m.cycleId, m.id]))}
-                <span class="item">{withTeam(m.name, m.teamId)}</span>
-              {/each}
-            </td>
-            <td>
-              {#each row.holidays as h (h.date)}
-                <span class="item">{h.name[$locale]}</span>
-              {/each}
-            </td>
-            <td>{row.schoolHoliday?.[$locale] ?? ''}</td>
             {#each roles as role (role.id)}
               <td class="num">{hours(row.byRole[role.id] ?? 0)}</td>
             {/each}
-            <td class="num total">{hours(row.total)}</td>
+            <td class="num total">
+              <span class="load">
+                <span class="bar" aria-hidden="true"
+                  ><span
+                    class:high={!!high}
+                    style:width="{peak > 0 ? (row.total / peak) * 100 : 0}%"
+                  ></span></span
+                >
+                {hours(row.total)}
+              </span>
+            </td>
           </tr>
         {/each}
       </tbody>
     </table>
   </div>
+  <p class="none" role="status">
+    {show !== 'all' && rows.length > 0 && shown.length === 0 ? $t('weeks.none') : ''}
+  </p>
 </div>
 
 <style>
@@ -135,54 +200,104 @@
     border-radius: var(--radius);
     background: var(--surface);
   }
-  .hint button {
-    font: inherit;
-    color: var(--text);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.75rem;
-    cursor: pointer;
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .unit {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--text-muted);
   }
   .scroll {
+    position: relative;
     overflow-x: auto;
   }
   table {
-    border-collapse: collapse;
     width: 100%;
-    min-width: 52rem;
+    min-width: 44rem;
   }
   caption {
     text-align: left;
-    font-weight: 600;
-    padding-bottom: 0.25rem;
   }
   th,
   td {
-    border: 1px solid var(--border);
-    padding: 0.3rem 0.5rem;
     text-align: left;
-    vertical-align: top;
-  }
-  thead th {
-    background: var(--surface);
   }
   tbody th {
-    font-weight: 600;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .date {
+    color: var(--text-muted);
     white-space: nowrap;
   }
   .num {
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  .total {
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .tag {
+    padding: 0.05rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
     font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid transparent;
   }
-  .item {
+  .cadence {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .milestone {
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+  .holiday {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .school,
+  .warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  .warn {
+    border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  }
+  .total {
+    font-weight: 700;
+    width: 14rem;
+  }
+  .load {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+  .bar {
+    flex: 1;
+    max-width: 9rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .bar > span {
     display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-gradient);
   }
-  tr.current {
-    background: var(--surface);
+  .bar > span.high {
+    background: linear-gradient(90deg, var(--warn), var(--danger));
   }
   .badge {
     display: inline-block;
@@ -192,5 +307,22 @@
     border-radius: 999px;
     font-size: 0.8rem;
     font-weight: 600;
+  }
+  .none:empty {
+    margin: 0;
+  }
+  .none {
+    color: var(--text-muted);
+  }
+  @media (forced-colors: active) {
+    .tag {
+      border-color: CanvasText;
+    }
+    .bar {
+      border: 1px solid CanvasText;
+    }
+    .bar > span {
+      background: CanvasText;
+    }
   }
 </style>

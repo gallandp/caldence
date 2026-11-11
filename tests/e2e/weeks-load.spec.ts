@@ -51,22 +51,19 @@ test('the cadence start week shows Sprint 1 and the hours of the example', async
   await expect(panel.getByRole('columnheader')).toHaveText([
     'Week',
     'Monday',
-    'Cadence',
-    'Milestones',
-    'Holidays',
-    'School holidays',
+    'Events',
     ...ROLE_HOURS.map((r) => r.name),
     'Total',
   ]);
   const hours = Object.values(CADENCE_START_WEEK.byRole).map((h) => fmt('en', h));
-  await expect(row.getByRole('cell').nth(5)).toHaveText(hours[0]!);
-  await expect(row.getByRole('cell').nth(6)).toHaveText(hours[1]!);
-  await expect(row.getByRole('cell').nth(7)).toHaveText(fmt('en', CADENCE_START_WEEK.total));
+  await expect(row.getByRole('cell').nth(2)).toHaveText(hours[0]!);
+  await expect(row.getByRole('cell').nth(3)).toHaveText(hours[1]!);
+  await expect(row.getByRole('cell').nth(4)).toHaveText(fmt('en', CADENCE_START_WEEK.total));
   // The first row is the week of the horizon start with its holiday and school holiday.
   const first = weekRow(panel, '2026-12-28');
   await expect(first).toContainText("New Year's Day");
   await expect(first).toContainText('Christmas break');
-  await expect(weekRow(panel, '2027-06-28').getByRole('cell').nth(2)).toHaveText('Release');
+  await expect(weekRow(panel, '2027-06-28').getByRole('cell').nth(1)).toContainText('Release');
 });
 
 test('the person filter scopes cadence and milestones to the teams of the person', async ({
@@ -79,15 +76,64 @@ test('the person filter scopes cadence and milestones to the teams of the person
   await expect(row.getByRole('cell').nth(1)).toContainText('Period 1 (Team Beta)');
   // Alex only holds the Product Owner role.
   await expect(panel.getByRole('columnheader', { name: 'Scrum Master' })).toHaveCount(0);
-  await expect(row.getByRole('cell').nth(5)).toHaveText(
+  await expect(row.getByRole('cell').nth(2)).toHaveText(
     fmt('en', ALEX_START_WEEK.byRole['role-po']),
   );
-  await expect(row.getByRole('cell').nth(6)).toHaveText(fmt('en', ALEX_START_WEEK.total));
-  await expect(weekRow(panel, '2027-06-28').getByRole('cell').nth(2)).toHaveText(
+  await expect(row.getByRole('cell').nth(3)).toHaveText(fmt('en', ALEX_START_WEEK.total));
+  await expect(weekRow(panel, '2027-06-28').getByRole('cell').nth(1)).toContainText(
     'Release (Team Alpha)',
   );
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'All' });
   await expect(row.getByRole('cell').nth(1)).toHaveText('Sprint 1');
+});
+
+test('events are tags, high load is named, and the total has a bar', async ({ page }) => {
+  const panel = await openView(page, 'weeks');
+  const first = weekRow(panel, '2026-12-28').getByRole('cell').nth(1);
+  await expect(first.locator('.tag')).toHaveText(["New Year's Day", 'Christmas break']);
+  // Alex is above the usual load in week 5 (Sprint 3).
+  const busy = weekRow(panel, '2027-02-01');
+  await expect(busy.getByRole('cell').nth(1)).toContainText('High load: Alex');
+  await expect(busy.locator('.bar > span')).toHaveClass(/high/);
+  await expect(weekRow(panel, CADENCE_START_WEEK.monday).locator('.bar > span')).not.toHaveClass(
+    /high/,
+  );
+});
+
+test('the quick filters show weeks with a warning or a cadence start', async ({ page }) => {
+  const panel = await openView(page, 'weeks');
+  const all = await panel.locator('tbody tr').count();
+  const group = panel.getByRole('group', { name: 'Show' });
+  await expect(group.getByRole('button', { name: 'All weeks' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  await group.getByRole('button', { name: 'With warning' }).click();
+  await expect(group.getByRole('button', { name: 'With warning' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  const rows = panel.locator('tbody tr');
+  await expect.poll(() => rows.count()).toBeLessThan(all);
+  await expect(rows.filter({ hasNotText: 'High load' })).toHaveCount(0);
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  await group.getByRole('button', { name: 'Cadence start' }).click();
+  await expect(group.getByRole('button', { name: 'Cadence start' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(rows.filter({ hasNotText: /Sprint \d+/ })).toHaveCount(0);
+  expect(await rows.count()).toBeGreaterThan(0);
+  await expect(panel.getByRole('status')).toHaveText('');
+
+  // Nobody in Team Alpha is a Developer, so no week has a warning, and the status says so.
+  await group.getByRole('button', { name: 'With warning' }).click();
+  await page.getByLabel('Role', { exact: true }).selectOption({ label: 'Developer' });
+  await expect(panel.getByRole('status')).toHaveText('No week matches this choice.');
+  await group.getByRole('button', { name: 'All weeks' }).click();
+  await expect(panel.locator('tbody tr')).toHaveCount(all);
 });
 
 test('the current week is marked by text and attribute, scrolled into view, focus stays', async ({
@@ -115,7 +161,7 @@ test('German labels and number format in the weeks table', async ({ page }) => {
   const row = weekRow(panel, CADENCE_START_WEEK.monday);
   await expect(row.getByRole('rowheader')).toHaveText('KW 1');
   await expect(row.getByRole('cell').nth(1)).toHaveText('Sprint 1');
-  await expect(row.getByRole('cell').nth(7)).toHaveText(fmt('de', CADENCE_START_WEEK.total));
+  await expect(row.getByRole('cell').nth(4)).toHaveText(fmt('de', CADENCE_START_WEEK.total));
   await expect(weekRow(panel, '2026-12-28')).toContainText('Neujahr');
 });
 

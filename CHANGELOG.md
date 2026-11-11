@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Weeks: events are coloured tags in one column, weeks with a high load are named, the total has a bar, and quick filters show only weeks with a warning or a cadence start
+
 ## 1.9.0 – 2026-11-11
 
 ### Changed
