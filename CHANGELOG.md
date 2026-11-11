@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.6.0 – 2026-11-11
+
+### Changed
+
+- Team: plan another team with the wizard (#80)
+
 ## 1.5.0 – 2026-11-11
 
 ### Fixed
