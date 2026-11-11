@@ -88,7 +88,7 @@
   "setup.people": "Wer ist im Team?",
   "setup.people.hint": "Tragen Sie pro Rolle Namen ein, getrennt durch Kommas. Sie können das leer lassen und Personen später hinzufügen.",
   "setup.another": "Weiteres Team planen",
-  "setup.people.known": "Personen, die es im Arbeitsbereich schon gibt, werden vorgeschlagen und als dieselbe Person übernommen.",
+  "setup.people.known": "Schon im Arbeitsbereich: {names}. Geben Sie einen dieser Namen ein, um die Person zu übernehmen.",
   "setup.people.none": "Dieses Team hat noch keine Rollen. Legen Sie Rollen und Personen später unter Einstellungen und Team an.",
   "setup.frame": "Zeitzone, Feiertage und Zeitraum",
   "setup.frame.hint": "Das gilt für alle Teams. Sie können es später unter Einstellungen ändern.",

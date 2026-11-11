@@ -11,6 +11,7 @@
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
 
+  let { onPlan }: { onPlan?: () => void } = $props();
   const { dirty, fileName } = workspace;
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
@@ -165,7 +166,7 @@
 </div>
 
 <div class="bar context">
-  <TeamSwitcher />
+  <TeamSwitcher {onPlan} />
   {#if !empty}<FilterBar />{/if}
 </div>
 

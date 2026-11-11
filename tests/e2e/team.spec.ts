@@ -182,20 +182,22 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await openTeamView(page);
   const before = await page.getByLabel('Person', { exact: true }).first().locator('option').count();
   await page.getByRole('button', { name: 'Plan another team' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  const dialog = page.getByRole('dialog', { name: 'Plan another team' });
   await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByLabel('Team name').fill('Team Gamma');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByText('Step 3 of 3')).toBeVisible();
-  await expect(dialog.getByText(/already in the workspace/)).toBeVisible();
-  const known = await page.evaluate(() =>
-    document.querySelector('dialog[open] datalist option')?.getAttribute('value'),
-  );
+  const hint = await dialog.getByText(/Already in the workspace: /).textContent();
+  const known = /Already in the workspace: ([^,.]+)/.exec(hint ?? '')?.[1];
   expect(known).toBeTruthy();
+  // The wizard sits outside the context bar, so the bar's small uppercase labels stay out of it.
+  await expect(dialog.locator('label').first()).toHaveCSS('text-transform', 'none');
   await dialog.locator('input[type="text"]').first().fill(known!);
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Your team is ready' })).toBeVisible();
+  await openTeamView(page);
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Gamma');
   await expect(panel(page).getByRole('table')).toContainText(known!);
   await expect(page.getByLabel('Person', { exact: true }).first().locator('option')).toHaveCount(

@@ -44,7 +44,17 @@
   const roles = $derived(template ? template.roles : $workspace.roles);
   const steps = $derived(withFrame ? 4 : 3);
   /** People of the workspace; a name entered again is the same person. */
-  const known = $derived($workspace.people.map((p) => p.name));
+  const known = $derived.by(() => {
+    const seen: string[] = [];
+    const names: string[] = [];
+    for (const p of $workspace.people) {
+      const key = p.name.trim().toLowerCase();
+      if (key === '' || seen.includes(key)) continue;
+      seen.push(key);
+      names.push(p.name.trim());
+    }
+    return names;
+  });
   const zones = supportedZones();
   const zoneOptions = $derived(
     zones && timezone !== '' && !zones.includes(timezone) ? [timezone, ...zones] : zones,
@@ -143,7 +153,7 @@
     close();
   }}
 >
-  <h2 id="{uid}-title">{$t('setup.title')}</h2>
+  <h2 id="{uid}-title">{$t(withFrame ? 'setup.title' : 'setup.another')}</h2>
   <p class="progress" id="{uid}-progress">{$t('setup.progress', { n: step, total: steps })}</p>
   <form onsubmit={submit}>
     {#if step === 1}
@@ -215,22 +225,14 @@
       {:else}
         <p class="hint" id="{uid}-people-hint">
           {$t('setup.people.hint')}
-          {#if known.length > 0}{$t('setup.people.known')}{/if}
+          {#if known.length > 0}{$t('setup.people.known', { names: known.join(', ') })}{/if}
         </p>
-        {#if known.length > 0}
-          <datalist id="{uid}-known">
-            {#each known as person (person)}
-              <option value={person}></option>
-            {/each}
-          </datalist>
-        {/if}
         {#each roles as role (role.id)}
           <div class="field">
             <label for="{uid}-role-{role.id}">{role.name}</label>
             <input
               id="{uid}-role-{role.id}"
               type="text"
-              list={known.length > 0 ? `${uid}-known` : undefined}
               aria-describedby="{uid}-people-hint"
               bind:value={names[role.id]}
             />
@@ -245,12 +247,7 @@
             <div class="row">
               <div class="field">
                 <label for="{uid}-me-name">{$t('setup.me.name')}</label>
-                <input
-                  id="{uid}-me-name"
-                  type="text"
-                  list={known.length > 0 ? `${uid}-known` : undefined}
-                  bind:value={myName}
-                />
+                <input id="{uid}-me-name" type="text" bind:value={myName} />
               </div>
               <div class="field">
                 <label for="{uid}-me-role">{$t('setup.me.role')}</label>
