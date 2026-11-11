@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Playwright's image already holds the browsers and their system libraries, which
-    # `playwright install --with-deps` took 1 to 9 minutes to fetch. Keep the tag in step with
+    # `playwright install --with-deps` took 1 to 9 minutes to fetch, or hung when Ubuntu's mirrors were down. Keep the tag in step with
     # @playwright/test in package.json; the install step below covers a mismatch.
     container:
       image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d
@@ -83,10 +83,14 @@ jobs:
               sleep 1
             done
           done
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test -c playwright.deploy.config.ts
-        env:
-          DEPLOY_URLS: http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/
+      # In Playwright's image (see the check job), so no system packages are installed.
+      - name: Smoke test the served app
+        run: |
+          docker run --rm --network host --user 1001 -v "$PWD:/work" -w /work \
+            -e CI=true -e HOME=/tmp \
+            -e DEPLOY_URLS=http://localhost:8081/apps/caldence/,http://localhost:8082/apps/caldence/ \
+            mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d \
+            npx playwright test -c playwright.deploy.config.ts
       - name: Server logs
         if: failure()
         run: |
