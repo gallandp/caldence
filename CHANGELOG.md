@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Meetings: each row shows when it takes place, the next date and the participants as role chips; actions are icons with tooltips, and a filter narrows the list
+
 ## 1.8.0 – 2026-11-11
 
 ### Changed

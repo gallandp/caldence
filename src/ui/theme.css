@@ -51,6 +51,7 @@
 #app input[type='number'],
 #app input[type='date'],
 #app input[type='time'],
+#app input[type='search'],
 #app input:not([type]),
 #app textarea {
   font: inherit;
@@ -247,12 +248,19 @@
 }
 
 /* ---------- Panels are cards ---------- */
-#app [role='tabpanel'] > :not(h2) {
+#app [role='tabpanel'] > :not(h2, .stack),
+#app .stack > .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 1.5rem;
+}
+/* A view made of several cards: the wrapper itself stays plain. */
+#app [role='tabpanel'] > .stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 #app [role='tabpanel'] h3 {
   font-size: 1.05rem;
@@ -354,14 +362,6 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
-#app .meetings th,
-#app .meetings td {
-  padding-inline: 0.55rem !important;
-}
-#app .meetings .actions {
-  gap: 0;
-}
-
 /* ---------- A touch more colour ---------- */
 body {
   background:
@@ -369,10 +369,12 @@ body {
     radial-gradient(50rem 30rem at 15% 105%, rgb(34 181 224 / 0.07), transparent 70%), var(--bg);
   background-attachment: fixed;
 }
-#app [role='tabpanel'] > :not(h2) {
+#app [role='tabpanel'] > :not(h2, .stack),
+#app .stack > .card {
   position: relative;
 }
-#app [role='tabpanel'] > :not(h2)::before {
+#app [role='tabpanel'] > :not(h2, .stack)::before,
+#app .stack > .card:first-child::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;

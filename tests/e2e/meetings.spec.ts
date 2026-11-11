@@ -100,7 +100,7 @@ test('one meeting of each rule type is created by keyboard and summarised', asyn
     await expect(row(page, r.name)).toContainText(r.summary);
   }
   // The default participant is the first role, always present.
-  await expect(row(page, 'M weekly')).toContainText('Product Owner (100%)');
+  await expect(row(page, 'M weekly')).toContainText('Product Owner');
   await expect(row(page, 'M weekly')).toContainText('09:00');
   await expect(row(page, 'M weekly')).toContainText('60 min');
 });
@@ -149,6 +149,83 @@ test('selected weekdays show on those days only, and none selected is refused in
   await expect(g2).not.toHaveAttribute('aria-describedby', /.+/);
   await expect(g2).not.toHaveAttribute('aria-invalid', /.*/);
   await expect(again).toBeVisible();
+});
+
+test('the table shows when, the next date and the participants with their share', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2027-01-12T09:00:00'));
+  await openMeetings(page);
+  const headers = panel(page).getByRole('columnheader');
+  await expect(headers).toHaveText(['Meeting', 'When', 'Next', 'Participants', 'Actions']);
+  // Weekly Sync is on Tuesdays at 09:30: today (Tuesday, January 12) counts until it ends.
+  const sync = row(page, 'Weekly Sync');
+  await expect(sync.locator('time')).toHaveAttribute('datetime', '2027-01-12');
+  await expect(sync.getByRole('rowheader')).toContainText('Scrum events');
+  // The one-off kick-off on January 11 is over.
+  await expect(row(page, 'Kick-off Workshop')).toContainText('None left');
+  // A full share shows the role alone; a partial share adds the percentage.
+  const refinement = row(page, 'Backlog Refinement').getByRole('listitem');
+  await expect(refinement).toHaveText(['PO Product Owner', 'SM Scrum Master · 50%']);
+});
+
+test('the filter narrows the rows and says when nothing matches', async ({ page }) => {
+  await openMeetings(page);
+  const filter = panel(page).getByRole('searchbox', { name: 'Filter meetings' });
+  await filter.fill('stakeholders');
+  // Category names count: both Stakeholders meetings stay, others go.
+  await expect(row(page, 'Sprint Review')).toBeVisible();
+  await expect(row(page, 'Stakeholder Update')).toBeVisible();
+  await expect(row(page, 'Weekly Sync')).toHaveCount(0);
+  await filter.fill('zzz');
+  await expect(panel(page).getByRole('status')).toHaveText('No meeting matches “zzz”.');
+  await filter.fill('');
+  await expect(row(page, 'Weekly Sync')).toBeVisible();
+  await expect(panel(page).locator('[role="status"]')).toHaveText('');
+});
+
+test('row actions are icon buttons with a visible tooltip on focus', async ({ page }) => {
+  await openMeetings(page);
+  const edit = panel(page).getByRole('button', { name: 'Edit Weekly Sync' });
+  // Keyboard focus (focus-visible) shows the tooltip.
+  await edit.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(edit).toBeFocused();
+  await expect(edit).toHaveAttribute('data-tip', 'Edit');
+  await expect
+    .poll(() => edit.evaluate((el) => getComputedStyle(el, '::after').display))
+    .toBe('block');
+  expect(await edit.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('"Edit"');
+  // Without hover or focus the tooltip takes no room (no scroll area in the table).
+  await panel(page).getByRole('button', { name: 'Add meeting' }).focus();
+  await page.mouse.move(0, 0);
+  expect(await edit.evaluate((el) => getComputedStyle(el, '::after').display)).toBe('none');
+});
+
+test('deleting a row while a form is open keeps the focus on the next row', async ({ page }) => {
+  await openMeetings(page);
+  await panel(page).getByRole('button', { name: 'Edit Sprint Planning' }).click();
+  await panel(page).getByRole('button', { name: 'Delete Weekly Sync' }).click();
+  await expect(row(page, 'Weekly Sync')).toHaveCount(0);
+  // The next row's Edit is disabled while the form is open, so its Delete takes the focus.
+  await expect(
+    panel(page).getByRole('button', { name: 'Delete Backlog Refinement' }),
+  ).toBeFocused();
+});
+
+test('switching teams clears the filter', async ({ page }) => {
+  await openMeetings(page);
+  await panel(page).getByRole('searchbox', { name: 'Filter meetings' }).fill('sync');
+  await teamAction(page, 'Add team');
+  const dialog = page.getByRole('dialog', { name: 'Add team' });
+  await dialog.getByLabel('Team name').fill('Team B');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await page
+    .getByRole('combobox', { name: 'Team', exact: true })
+    .selectOption({ label: 'Team Alpha' });
+  await expect(panel(page).getByRole('searchbox', { name: 'Filter meetings' })).toHaveValue('');
+  await expect(row(page, 'Sprint Review')).toBeVisible();
 });
 
 test('the default weekdays summary is a range', async ({ page }) => {
@@ -231,7 +308,7 @@ test('a role listed twice is refused inline before saving', async ({ page }) => 
   await expect(form.getByText('This role is already listed.')).toHaveCount(0);
   await expect(roles.nth(0)).not.toHaveAttribute('aria-invalid', 'true');
   await form.getByRole('button', { name: 'Save' }).click();
-  await expect(row(page, 'Dup roles')).toContainText('Scrum Master (100%)');
+  await expect(row(page, 'Dup roles')).toContainText('Scrum Master');
 });
 
 test('deleting a category in use asks for a replacement', async ({ page }) => {

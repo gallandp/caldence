@@ -7,6 +7,7 @@ import {
   dayLoad,
   filteredOccurrences,
   loadSummary,
+  nextDates,
   schoolHolidayGap,
   scopeTeams,
   weekRows,
@@ -354,4 +355,44 @@ describe('ids that name Object.prototype members (security #40)', () => {
       expect(summary.byCategory.map((c) => c.hours)).toEqual([1]);
     },
   );
+});
+
+describe('nextDates', () => {
+  it('gives the first date on or after today for each event', () => {
+    const ws = twoTeams(
+      { ...ev('a', '09:00', 60), rule: { type: 'weekly', weekday: 3 } },
+      ev('b', '10:00', 30),
+    );
+    const team = ws.teams[0]!;
+    const next = nextDates(team, ws.settings, workspaceIndex(ws), '2026-12-03');
+    // 2026-12-03 is a Thursday; the next Wednesday is 2026-12-09.
+    expect(next.get('a')).toBe('2026-12-09');
+    expect(next.has('b')).toBe(false);
+  });
+  it('counts today itself and skips holidays that drop the meeting', () => {
+    const ws = base();
+    ws.settings.skipHolidays = true;
+    const team = ws.teams[0]!;
+    team.events = [{ ...ev('x', '09:00', 60), rule: { type: 'weekly', weekday: 5 } }];
+    const index = workspaceIndex(ws);
+    expect(nextDates(team, ws.settings, index, '2026-12-18').get('x')).toBe('2026-12-18');
+    // Fridays 2026-12-25 (Christmas) and 2027-01-01 (New Year) are skipped.
+    expect(nextDates(team, ws.settings, index, '2026-12-19').get('x')).toBe('2027-01-08');
+  });
+  it('skips a meeting today that has already ended', () => {
+    const ws = base();
+    const team = ws.teams[0]!;
+    team.events = [{ ...ev('x', '09:00', 60), rule: { type: 'weekly', weekday: 5 } }];
+    const index = workspaceIndex(ws);
+    // Friday 2026-12-18, 09:00-10:00: running at 09:30, over at 10:00.
+    expect(nextDates(team, ws.settings, index, '2026-12-18', 9 * 60 + 30).get('x')).toBe(
+      '2026-12-18',
+    );
+    expect(nextDates(team, ws.settings, index, '2026-12-18', 10 * 60).get('x')).toBe('2027-01-08');
+  });
+  it('has no entry when the horizon is over', () => {
+    const ws = base();
+    const team = ws.teams[0]!;
+    expect(nextDates(team, ws.settings, workspaceIndex(ws), '2999-01-01').size).toBe(0);
+  });
 });
