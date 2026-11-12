@@ -1,13 +1,16 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { costSummary, meetingCost } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import type { CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
-  import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { occurrencesPerWeek } from '../../core/load';
+  import { formatDisplayDate, formatEuro, formatNumber, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
+  import CostCard from '../components/CostCard.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { ruleSummary } from '../meetings/rules';
@@ -112,6 +115,14 @@
   );
   const nextLabel = (d: string) => short.format(new Date(d + 'T00:00:00Z'));
 
+  // ---------- costs: only with an hourly rate ----------
+
+  const rate = $derived($workspace.settings.hourlyRate);
+  const costs = $derived(
+    rate && team ? costSummary($workspace, $index, { teamId: team.id }, rate) : null,
+  );
+  const euro = (n: number) => formatEuro($locale, n);
+
   let query = $state('');
   const summaries = $derived(
     new Map(team?.events.map((e) => [e.id, ruleSummary(e.rule, team, $t, $locale)]) ?? []),
@@ -206,6 +217,9 @@
   {#if !team}
     <p class="empty card">{$t('meet.none')}</p>
   {:else}
+    {#if costs && rate}
+      <CostCard summary={costs} {rate} />
+    {/if}
     <div class="card">
       <div class="toolbar">
         <button
@@ -257,6 +271,9 @@
                 <th scope="col">{$t('meet.col.meeting')}</th>
                 <th scope="col">{$t('meet.col.when')}</th>
                 <th scope="col">{$t('meet.col.next')}</th>
+                {#if rate}
+                  <th scope="col" class="num">{$t('meet.col.cost')}</th>
+                {/if}
                 <th scope="col">{$t('meet.col.participants')}</th>
                 <th scope="col"><span class="sr-only">{$t('meet.col.actions')}</span></th>
               </tr>
@@ -265,6 +282,9 @@
               {#each visible as event, i (event.id)}
                 {@const category = categoryOf(event.categoryId)}
                 {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
+                {@const cost = rate
+                  ? meetingCost(team, event, effectiveDuration(event, team), rate)
+                  : 0}
                 {@const when = next?.get(event.id)}
                 <tr>
                   <th scope="row">
@@ -297,6 +317,19 @@
                       >
                     {/if}
                   </td>
+                  {#if rate}
+                    {@const perWeek = occurrencesPerWeek(event.rule, team)}
+                    <td class="num cost" data-cost={event.id}>
+                      {euro(cost)}
+                      {#if perWeek > 0}
+                        <span class="sub"
+                          >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
+                        >
+                      {:else if event.rule.type === 'once'}
+                        <span class="sub">{$t('meet.cost.once')}</span>
+                      {/if}
+                    </td>
+                  {/if}
                   <td>
                     <ul class="roles">
                       {#each event.participants as p, pi (pi)}
@@ -486,6 +519,17 @@
   .next {
     font-weight: 700;
     white-space: nowrap;
+  }
+  .num {
+    text-align: right;
+  }
+  .cost {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .cost .sub {
+    font-weight: 400;
   }
   .next .none {
     font-weight: 400;

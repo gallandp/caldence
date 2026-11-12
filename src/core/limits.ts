@@ -38,6 +38,8 @@ export const LIMITS = {
   assumptionValue: 10_000,
   warnFactor: 100,
   maxFte: 10,
+  /** Euros per person and hour. */
+  hourlyRate: 100_000,
 } as const;
 
 /** True when the year of a valid YYYY-MM-DD date is inside the supported range. */

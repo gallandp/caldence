@@ -29,6 +29,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, cyc
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
 | `thresholds` | `{ warnFactor, maxFte }` | Load warning limits, both above 0. |
+| `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Load show what meetings cost; without it, no costs are shown. |
 
 ### Team
 

@@ -64,6 +64,14 @@
     commit([path], { thresholds: { ...settings.thresholds, [key]: n } });
   }
 
+  /** An empty rate turns costs off. */
+  function onRate(event: Event) {
+    const text = (event.currentTarget as HTMLInputElement).value.trim();
+    const n = Number(text);
+    if (text !== '' && !Number.isFinite(n)) return fail('hourlyRate');
+    commit(['hourlyRate'], { hourlyRate: text === '' ? undefined : n });
+  }
+
   // ---------- horizon: from and to are checked together ----------
 
   // Drafts: reset only when the committed value changes, so an invalid draft stays on screen.
@@ -453,6 +461,28 @@
         </div>
       </div>
     </fieldset>
+
+    <fieldset>
+      <legend>{$t('settings.costs')}</legend>
+      <div class="field">
+        <label for="set-rate">{$t('settings.hourlyRate')}</label>
+        <span class="rate-row">
+          <input
+            id="set-rate"
+            type="number"
+            min="0"
+            step="1"
+            value={settings.hourlyRate ?? ''}
+            aria-invalid={errors.hourlyRate ? 'true' : undefined}
+            aria-describedby={['note-rate', describe('hourlyRate')].filter(Boolean).join(' ')}
+            onchange={onRate}
+          />
+          <span>{$t('settings.hourlyRate.unit')}</span>
+        </span>
+        {@render err('hourlyRate', $t('settings.hourlyRate'))}
+        <p class="help rate-help" id="note-rate">{$t('settings.hourlyRate.help')}</p>
+      </div>
+    </fieldset>
   </section>
 
   <ListEditor
@@ -574,6 +604,18 @@
   }
   .hours input {
     width: 5.5rem;
+  }
+  .rate-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .rate-row input {
+    width: 8rem;
+  }
+  .rate-help {
+    margin: 0;
   }
   .region-actions {
     display: flex;

@@ -13,6 +13,8 @@ export interface Settings {
   horizon: { from: ISODate; to: ISODate };
   skipHolidays: boolean;
   thresholds: { warnFactor: number; maxFte: number };
+  /** Optional euros per person and hour; without it no costs are shown. */
+  hourlyRate?: number;
 }
 
 export interface Role {
