@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.11.0 – 2026-11-12
+
 ### Changed
 
 - Load: summary tiles for the total, each role and the peak week, a chart of the hours per week with the average and warning weeks, and one warning line per person and kind of warning
