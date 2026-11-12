@@ -55,7 +55,7 @@ test('a skipped holiday meeting counts 0 h but is explained in the details', asy
   const details = panel(page).getByRole('region', { name: /May 6, 2027/ });
   await expect(details.getByText('Holiday: Ascension Day')).toBeVisible();
   await expect(details).toContainText('Replenishment');
-  await expect(details).toContainText('skipped because of a holiday');
+  await expect(details).toContainText('Skipped because of a holiday');
 });
 
 test('day hours equal dayLoad of the example (constants checked by a unit test)', async ({
@@ -287,4 +287,82 @@ test('today is exposed as the current date, not only by its colour', async ({ pa
   await openCalendar(page, '2027-03-17');
   await expect(cellOf(page, '2027-03-17')).toHaveAttribute('aria-current', 'date');
   await expect(panel(page).locator('td[aria-current]')).toHaveCount(1);
+});
+
+test('the day details show time, category and roles and open a meeting for editing', async ({
+  page,
+}) => {
+  await openCalendar(page, '2027-01-15');
+  const planning = example.teams[0]!.events.find((e) => e.name === 'Sprint Planning')!;
+  const category = example.categories.find((c) => c.id === planning.categoryId)!.name;
+  const roles = planning.participants.map(
+    (p) => example.roles.find((r) => r.id === p.roleId)!.name,
+  );
+  await cellOf(page, '2027-01-07').click();
+  const details = panel(page).getByRole('region', { name: /January 7, 2027/ });
+  const item = details.getByRole('listitem').filter({ hasText: 'Sprint Planning' });
+  await expect(item).toContainText(`${planning.time}–`);
+  await expect(item).toContainText(category);
+  await expect(item).toContainText(roles.join(', '));
+  // The details stand next to the selected day, not below the grid.
+  const box = (await details.boundingBox())!;
+  const cell = (await cellOf(page, '2027-01-07').boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(cell.x + cell.width);
+  expect(box.y).toBeLessThan(cell.y + cell.height);
+
+  await item.getByRole('button', { name: 'Edit Sprint Planning' }).click();
+  await expect(page.getByRole('tab', { name: 'Meetings', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Sprint Planning');
+  await expect(page.getByLabel('Name', { exact: true })).toBeFocused();
+  // Coming back to Meetings later does not open the form again.
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
+});
+
+test('Edit in the day details switches to the team of the meeting', async ({ page }) => {
+  // Alex is in both teams: with the person filter the calendar shows Team Beta's meetings
+  // while Team Alpha stays the active team.
+  await openCalendar(page, '2027-05-10');
+  const [alpha, beta] = example.teams;
+  const meeting = beta!.events.find((e) => e.name === 'Replenishment')!;
+  await expect(page.locator('.switcher select')).toHaveValue(alpha!.id);
+  await page.getByLabel('Person').selectOption({ label: 'Alex' });
+  await cellOf(page, '2027-05-13').click();
+  await panel(page)
+    .getByRole('button', { name: `Edit ${meeting.name}` })
+    .click();
+  await expect(page.locator('.switcher select')).toHaveValue(beta!.id);
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(meeting.name);
+});
+
+test('the day details close with Escape in the grid and with a click outside', async ({ page }) => {
+  await openCalendar(page, '2027-01-15');
+  const details = panel(page).getByRole('region', { name: /January 7, 2027/ });
+  await cellOf(page, '2027-01-07').click();
+  await expect(details).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(details).toHaveCount(0);
+  await cellOf(page, '2027-01-07').click();
+  await expect(details).toBeVisible();
+  await page.getByRole('heading', { level: 2, name: 'Calendar' }).click();
+  await expect(details).toHaveCount(0);
+});
+
+test('the legend names exactly the categories of the meetings shown in the month', async ({
+  page,
+}) => {
+  await openCalendar(page, '2027-01-15');
+  const legend = panel(page).getByRole('list', { name: 'Categories' });
+  const colours = await panel(page)
+    .locator('td .chip')
+    .evaluateAll((els) => [...new Set(els.map((el) => el.style.getPropertyValue('--c')))]);
+  const expected = example.categories.filter((c) => colours.includes(c.colour)).map((c) => c.name);
+  expect(expected.length).toBeGreaterThan(0);
+  await expect(legend.getByRole('listitem')).toHaveText(expected);
+  await expect(panel(page)).toContainText('= meeting hours of the day');
 });

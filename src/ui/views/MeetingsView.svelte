@@ -14,6 +14,14 @@
   import { fieldErrors } from '../state/form';
   import { activeTeamId, index, workspace } from '../state/workspace';
 
+  interface Props {
+    /** Id of a meeting of the active team to open for editing right away. */
+    edit?: string;
+    /** Called once that meeting is open, so that it is not opened again. */
+    onEditOpened?: () => void;
+  }
+  let { edit, onEditOpened }: Props = $props();
+
   const { canUndo } = workspace;
 
   const team = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
@@ -42,6 +50,11 @@
         query = '';
       }),
     ];
+    if (edit !== undefined) {
+      const event = team?.events.find((e) => e.id === edit);
+      if (event) open(event, event.id);
+      onEditOpened?.();
+    }
     // "Next" moves on as meetings end, also while the view stays open.
     const clock = setInterval(() => (now = new Date()), 60_000);
     return () => {

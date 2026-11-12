@@ -6,6 +6,12 @@
 
 - Members & cadence: two columns of cards; members show their initials in the role colour with a link to the settings, each cycle shows its milestones on the planning horizon, and add rows use quieter buttons
 
+## 1.12.0 – 2026-11-12
+
+### Changed
+
+- Calendar: icon buttons to page through the months, holidays, school holidays, the cadence and milestones as coloured tags, the day details open next to the day with time, rule and roles and an Edit button that opens the meeting, a legend of the categories, and the week view lists the meetings of each day side by side
+
 ## 1.11.0 – 2026-11-12
 
 ### Changed
