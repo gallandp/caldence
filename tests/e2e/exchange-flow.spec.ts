@@ -42,7 +42,7 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
   await team.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await team.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await team.getByRole('button', { name: 'Add member' }).click();
-  await expect(team.getByRole('table', { name: 'Members of Scrum' })).toContainText('Kim');
+  await expect(team.getByRole('list', { name: 'Members of Scrum' })).toContainText('Kim');
 
   // 3. Export that person as .ics.
   await tab(page, 'Import / Export').click();

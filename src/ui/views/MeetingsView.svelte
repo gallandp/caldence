@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import { contrastRatio } from '../../core/colour';
   import type { CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
@@ -88,16 +88,6 @@
   // ---------- table data ----------
 
   const roleOf = (id: string) => roles.find((r) => r.id === id);
-  /** Initials take the role's own colour, with dark or white text, whichever reads better. */
-  const inkOn = (colour: string) =>
-    contrastRatio(colour, '#ffffff') >= contrastRatio(colour, '#0f1426') ? '#ffffff' : '#0f1426';
-  const initials = (name: string) =>
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => Array.from(w)[0]!.toUpperCase())
-      .join('');
 
   let now = $state(new Date());
   const next = $derived.by(() => {

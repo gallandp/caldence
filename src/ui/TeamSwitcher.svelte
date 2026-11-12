@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addTeam, duplicateTeam, removeTeam, updateTeam } from '../core/edit';
+  import { initials as nameInitials } from './avatar';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
@@ -23,14 +24,7 @@
   let toggle: HTMLButtonElement | undefined = $state();
   let menu: HTMLDivElement | undefined = $state();
 
-  const initials = $derived(
-    (active?.name ?? '')
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => Array.from(w)[0]!.toUpperCase())
-      .join(''),
-  );
+  const initials = $derived(nameInitials(active?.name ?? ''));
 
   /** Focus goes back to the toggle first, so a dialog the action opens returns focus there. */
   function run(action: () => void) {
