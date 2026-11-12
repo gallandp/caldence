@@ -18,8 +18,9 @@
     overlaps: DayOverlap[];
     holiday?: string;
     onclose: () => void;
+    onedit?: (item: DayItem) => void;
   }
-  let { date, items, overlaps, holiday, onclose }: Props = $props();
+  let { date, items, overlaps, holiday, onclose, onedit }: Props = $props();
 
   const uid = $props.id();
   let heading: HTMLElement | undefined = $state();
@@ -41,7 +42,9 @@
     <h3 id="{uid}-title" tabindex="-1" bind:this={heading}>
       {formatDisplayDate($locale, date, 'long')}
     </h3>
-    <button type="button" onclick={onclose}>{$t('cal.day.close')}</button>
+    <button type="button" class="close" aria-label={$t('cal.day.close')} onclick={onclose}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
   </div>
   {#if holiday}
     <p class="holiday">{$t('cal.holiday', { name: holiday })}</p>
@@ -55,41 +58,64 @@
   {#if items.length === 0}
     <p class="none">{$t('cal.day.none')}</p>
   {:else}
-    <DayItemList {items} />
+    <DayItemList {items} {onedit} />
   {/if}
 </section>
 
 <style>
   .details {
-    position: sticky;
-    top: 1rem;
-    margin-top: 0;
-    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--surface-2);
-  }
-  h3 {
-    font-size: 1rem;
+    background: var(--surface);
   }
   .head {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
   }
   h3 {
     margin: 0;
+    font-size: 1rem;
   }
-  button {
-    font: inherit;
+  h3:focus {
+    outline: none;
+  }
+  :global(#app) .close {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 0;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  :global(#app) .close:hover {
     color: var(--text);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 0.4rem 0.75rem;
-    cursor: pointer;
+    background: var(--surface-2);
+  }
+  .close svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  p {
+    margin: 0;
+  }
+  .holiday {
+    font-weight: 650;
+    color: var(--danger);
   }
   .overlap {
     font-weight: 600;
@@ -97,7 +123,9 @@
   .none {
     color: var(--text-muted);
   }
-  h3:focus {
-    outline: none;
+  @media (forced-colors: active) {
+    .details {
+      border: 2px solid CanvasText;
+    }
   }
 </style>

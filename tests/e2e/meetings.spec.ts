@@ -131,6 +131,9 @@ test('selected weekdays show on those days only, and none selected is refused in
     const details = cal.getByRole('region', { name: /March \d+, 2027/ });
     if (has) await expect(details).toContainText('M days');
     else await expect(details).not.toContainText('M days');
+    // The details float over the neighbouring days; Escape closes them.
+    await page.keyboard.press('Escape');
+    await expect(details).toHaveCount(0);
   }
 
   await page.getByRole('tab', { name: 'Meetings', exact: true }).click();

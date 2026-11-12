@@ -1,7 +1,16 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
+  import {
+    addDays,
+    diffDays,
+    fromMinutes,
+    isoWeek,
+    mondayOf,
+    toMinutes,
+    weekday,
+    type ISODate,
+  } from '../../core/date';
   import {
     cadenceNumber,
     conflicts,
@@ -13,13 +22,18 @@
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
+  import type { CalEvent, Category, Team } from '../../core/model';
+  import { record } from '../../core/record';
+  import { ruleSummary } from '../meetings/rules';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
     /** Switches to the Meetings view (empty-state hint). */
     onOpenMeetings: () => void;
+    /** Opens a meeting in the Meetings view (Edit in the day details). */
+    onEditMeeting?: (teamId: string, eventId: string) => void;
   }
-  let { onOpenMeetings }: Props = $props();
+  let { onOpenMeetings, onEditMeeting }: Props = $props();
 
   const horizon = $derived($workspace.settings.horizon);
   const inHorizon = (d: ISODate): boolean => d >= horizon.from && d <= horizon.to;
@@ -111,33 +125,71 @@
     return map;
   });
 
+  const severalTeams = $derived($workspace.teams.length > 1);
+
+  /** Team, meeting and category of every meeting, by `teamId/eventId`. */
+  const lookup = $derived.by(() => {
+    const categories = record<Category>();
+    for (const c of $workspace.categories) categories[c.id] = c;
+    const map = record<{ team: Team; event: CalEvent; category?: Category }>();
+    for (const team of $workspace.teams)
+      for (const event of team.events)
+        map[`${team.id}/${event.id}`] = { team, event, category: categories[event.categoryId] };
+    return map;
+  });
+  const infoOf = (o: { teamId: string; eventId: string }) => lookup[`${o.teamId}/${o.eventId}`];
+
   function itemsOf(date: ISODate): DayItem[] {
     return (byDate[date] ?? []).map((o) => {
-      const team = $workspace.teams.find((x) => x.id === o.teamId);
-      const event = team?.events.find((e) => e.id === o.eventId);
+      const { team, event, category } = infoOf(o) ?? {};
+      const end = toMinutes(o.start) + o.duration;
+      const about = [
+        category?.name ?? event?.categoryId,
+        event && team ? ruleSummary(event.rule, team, $t, $locale) : undefined,
+        severalTeams ? (team?.name ?? o.teamId) : undefined,
+      ].filter(Boolean);
+      const roles = (event?.participants ?? []).map(
+        (p) => $workspace.roles.find((r) => r.id === p.roleId)?.name ?? p.roleId,
+      );
       return {
         key: `${o.teamId}/${o.eventId}`,
+        teamId: o.teamId,
+        eventId: o.eventId,
         start: o.start,
+        end: fromMinutes(end % (24 * 60)),
+        nextDay: end >= 24 * 60,
         name: event?.name ?? o.eventId,
-        category:
-          $workspace.categories.find((c) => c.id === event?.categoryId)?.name ??
-          event?.categoryId ??
-          '',
-        team: team?.name ?? o.teamId,
-        colour: $workspace.categories.find((c) => c.id === event?.categoryId)?.colour,
+        about: about.join(' · '),
+        roles: roles.join($t('cal.list.sep')),
+        colour: category?.colour,
         hours: o.hours,
         skipped: o.skippedHoliday !== undefined,
       };
     });
   }
 
+  /** Explains the hours at the top of a day, with an example value. */
+  const hoursKey = $derived(
+    $t('cal.legend.hours', { hours: $t('cal.hours', { hours: formatNumber($locale, 1.5, 1) }) }),
+  );
+
+  /** Categories of the meetings shown in the month, in the order of the category list. */
+  const legend = $derived.by(() => {
+    const used: Record<string, true> = {};
+    for (const days of weeks)
+      for (const date of days)
+        if (inHorizon(date))
+          for (const o of byDate[date] ?? []) {
+            const id = infoOf(o)?.event.categoryId;
+            if (!o.skippedHoliday && id) used[id] = true;
+          }
+    return $workspace.categories.filter((c) => used[c.id]);
+  });
+
   function overlapsOf(date: ISODate): DayOverlap[] {
     const name = (o: { teamId: string; eventId: string }) => {
-      const team = $workspace.teams.find((x) => x.id === o.teamId);
-      return {
-        event: team?.events.find((e) => e.id === o.eventId)?.name ?? o.eventId,
-        team: team?.name ?? o.teamId,
-      };
+      const info = infoOf(o);
+      return { event: info?.event.name ?? o.eventId, team: info?.team.name ?? o.teamId };
     };
     return (overlapsByDate[date] ?? []).map(({ a, b }) => {
       const x = name(a);
@@ -185,11 +237,14 @@
     const chips = occs
       .filter((o) => !o.skippedHoliday)
       .map((o) => {
-        const team = $workspace.teams.find((x) => x.id === o.teamId);
-        const event = team?.events.find((e) => e.id === o.eventId);
-        const colour =
-          $workspace.categories.find((c) => c.id === event?.categoryId)?.colour ?? '#64748b';
-        return { key: `${o.teamId}/${o.eventId}`, start: o.start, name: event?.name ?? '', colour };
+        const info = infoOf(o);
+        const colour = info?.category?.colour ?? '#64748b';
+        return {
+          key: `${o.teamId}/${o.eventId}`,
+          start: o.start,
+          name: info?.event.name ?? '',
+          colour,
+        };
       });
     const today = date === localToday();
     const overlap = inside && date in overlapsByDate;
@@ -261,6 +316,59 @@
     selected = null;
   }
 
+  function edit(item: DayItem) {
+    onEditMeeting?.(item.teamId, item.eventId);
+  }
+
+  // ---------- day details next to the selected day ----------
+
+  let board: HTMLDivElement | undefined = $state();
+  let boardWidth = $state(0);
+  let popWidth = $state(0);
+  let popHeight = $state(0);
+  let place = $state<{ left: number; top: number; height: number } | null>(null);
+  /** Counts size changes of the grid: a filter or an edit can move the selected day. */
+  let layout = $state(0);
+  $effect(() => {
+    if (!grid) return;
+    const observer = new ResizeObserver(() => layout++);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  });
+  /** Beside the grid only when the whole month fits; otherwise the details follow below it. */
+  const floating = $derived(boardWidth >= 44 * 16);
+
+  $effect(() => {
+    void [selected, cursor, boardWidth, popWidth, popHeight, layout];
+    if (!floating || selected === null || !board || !grid) {
+      place = null;
+      return;
+    }
+    const cell = grid.querySelector<HTMLElement>(`td[data-date="${selected}"]`);
+    if (!cell) {
+      place = null;
+      return;
+    }
+    const b = board.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    const gap = 8;
+    // Right of the day, else left of it, else over its column.
+    let left = c.right - b.left + gap;
+    if (left + popWidth > b.width) left = c.left - b.left - popWidth - gap;
+    if (left < 0) left = Math.max(0, Math.min(c.left - b.left, b.width - popWidth));
+    // Never taller than the grid: a long day scrolls inside the details.
+    const top = Math.max(0, Math.min(c.top - b.top, b.height - popHeight));
+    place = { left, top, height: b.height };
+  });
+
+  /** A click outside the details and the grid closes them, as with any popover. */
+  function onWindowClick(event: MouseEvent) {
+    if (selected === null || !board || !(event.target instanceof Node)) return;
+    // Hidden behind another view, or the click was on the calendar itself.
+    if (board.offsetParent === null || board.contains(event.target)) return;
+    selected = null;
+  }
+
   function onGridKeydown(event: KeyboardEvent, date: ISODate) {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
     let target: ISODate | undefined;
@@ -289,6 +397,11 @@
       case 'PageDown':
         target = addMonths(date, 1);
         break;
+      case 'Escape':
+        if (selected === null) return;
+        event.preventDefault();
+        selected = null;
+        return;
       case 'Enter':
       case ' ':
         event.preventDefault();
@@ -302,6 +415,8 @@
   }
 </script>
 
+<svelte:window onclick={onWindowClick} />
+
 <div class="calendar">
   {#if !hasEvents}
     <p class="hint">
@@ -311,16 +426,31 @@
   {/if}
 
   <div class="toolbar">
-    <div class="group" role="group" aria-label={$t('cal.nav')}>
-      <button type="button" onclick={() => setCursor(step(-1))}>
-        {$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
+    <div class="nav" role="group" aria-label={$t('cal.nav')}>
+      <button
+        type="button"
+        class="step"
+        aria-label={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
+        title={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
+        onclick={() => setCursor(step(-1))}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
       </button>
-      <button type="button" onclick={() => setCursor(clampToHorizon())}>{$t('cal.today')}</button>
-      <button type="button" onclick={() => setCursor(step(1))}>
-        {$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
+      <button
+        type="button"
+        class="step"
+        aria-label={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
+        title={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
+        onclick={() => setCursor(step(1))}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
       </button>
+      <button type="button" class="today" onclick={() => setCursor(clampToHorizon())}
+        >{$t('cal.today')}</button
+      >
     </div>
-    <div class="group" role="group" aria-label={$t('cal.mode')}>
+    <p class="period" aria-live="polite">{periodLabel}</p>
+    <div class="segmented" role="group" aria-label={$t('cal.mode')}>
       <button type="button" aria-pressed={mode === 'month'} onclick={() => setMode('month')}>
         {$t('cal.mode.month')}
       </button>
@@ -328,124 +458,152 @@
         {$t('cal.mode.week')}
       </button>
     </div>
-    <p class="period" aria-live="polite">{periodLabel}</p>
   </div>
 
   {#if mode === 'month'}
     <p id="{uid}-hint" class="sr-only">{$t('cal.grid.hint')}</p>
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
-    <div class="scroll" role="region" aria-label={$t('cal.grid.region')} tabindex="0">
-      <table role="grid" bind:this={grid} aria-describedby="{uid}-hint">
-        <caption>{formatMonth(cursor)}</caption>
-        <thead>
-          <tr>
-            <th scope="col" class="weekcol">{$t('cal.week')}</th>
-            {#each [1, 2, 3, 4, 5, 6, 7] as n (n)}
-              <th scope="col">{weekdayShort(n)}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each weeks as days (days[0])}
+    <div class="board" bind:this={board} bind:clientWidth={boardWidth}>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+      <div class="scroll" role="region" aria-label={$t('cal.grid.region')} tabindex="0">
+        <table role="grid" bind:this={grid} aria-describedby="{uid}-hint">
+          <caption>{formatMonth(cursor)}</caption>
+          <thead>
             <tr>
-              <th scope="row" class="weekcol">{formatNumber($locale, isoWeek(days[0]!), 0)}</th>
-              {#each days as date (date)}
-                {@const c = cell(date)}
-                <td
-                  role="gridcell"
-                  data-date={date}
-                  class:other={date.slice(0, 7) !== cursor.slice(0, 7)}
-                  class:muted={!c.inside || c.nonWork}
-                  class:selected={selected === date}
-                  class:today={c.today}
-                  class:school={c.school !== undefined}
-                  tabindex={date === cursor ? 0 : -1}
-                  aria-selected={selected === date}
-                  aria-current={c.today ? 'date' : undefined}
-                  onclick={() => select(date)}
-                  onkeydown={(e) => onGridKeydown(e, date)}
-                >
-                  <!-- The visible text is repeated in full for assistive technology. -->
-                  <span class="sr-only">{c.label}</span>
-                  <span class="top">
-                    <span class="day" aria-hidden="true">{Number(date.slice(8, 10))}</span>
-                    {#if c.overlap}
-                      <span class="warn" role="img" aria-label={$t('cal.overlap.mark')}>!</span>
-                    {/if}
-                  </span>
-                  <span class="visual" aria-hidden="true">
-                    {#if c.showLoad && c.chips.length > 0}<span class="load">{c.hours}</span>{/if}
-                    {#if c.holiday}<span class="holiday">{c.holiday}</span>{/if}
-                    {#if c.school}<span class="schoolname">{c.school}</span>{/if}
-                    {#each c.cadence as label, i (i)}<span class="cadence">{label}</span>{/each}
-                    {#each c.milestones as name, i (i)}<span class="milestone">◆ {name}</span
-                      >{/each}
-                    {#each c.chips.slice(0, 3) as chip (chip.key)}
-                      <span class="chip" style:--c={chip.colour}
-                        ><span class="t">{chip.start}</span>{chip.name}</span
-                      >
-                    {/each}
-                    {#if c.chips.length > 3}<span class="more">+{c.chips.length - 3}</span>{/if}
-                  </span>
-                </td>
+              <th scope="col" class="weekcol">{$t('cal.week')}</th>
+              {#each [1, 2, 3, 4, 5, 6, 7] as n (n)}
+                <th scope="col">{weekdayShort(n)}</th>
               {/each}
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each weeks as days (days[0])}
+              <tr>
+                <th scope="row" class="weekcol">{formatNumber($locale, isoWeek(days[0]!), 0)}</th>
+                {#each days as date (date)}
+                  {@const c = cell(date)}
+                  <td
+                    role="gridcell"
+                    data-date={date}
+                    class:other={date.slice(0, 7) !== cursor.slice(0, 7)}
+                    class:outside={!c.inside}
+                    class:nonwork={c.nonWork}
+                    class:selected={selected === date}
+                    class:today={c.today}
+                    tabindex={date === cursor ? 0 : -1}
+                    aria-selected={selected === date}
+                    aria-current={c.today ? 'date' : undefined}
+                    onclick={() => select(date)}
+                    onkeydown={(e) => onGridKeydown(e, date)}
+                  >
+                    <!-- The visible text is repeated in full for assistive technology. -->
+                    <span class="sr-only">{c.label}</span>
+                    <span class="top">
+                      <span class="day" aria-hidden="true">{Number(date.slice(8, 10))}</span>
+                      {#if c.overlap}
+                        <span class="warn" role="img" aria-label={$t('cal.overlap.mark')}>!</span>
+                      {/if}
+                      {#if c.showLoad && c.chips.length > 0}<span class="load" aria-hidden="true"
+                          >{c.hours}</span
+                        >{/if}
+                    </span>
+                    <span class="visual" aria-hidden="true">
+                      {#if c.holiday}<span class="tag holiday">{c.holiday}</span>{/if}
+                      {#if c.school}<span class="tag school">{c.school}</span>{/if}
+                      {#each c.cadence as label, i (i)}<span class="tag cadence">{label}</span
+                        >{/each}
+                      {#each c.milestones as name, i (i)}<span class="tag milestone"
+                          ><span class="diamond"></span>{name}</span
+                        >{/each}
+                      {#each c.chips.slice(0, 3) as chip (chip.key)}
+                        <span class="chip" style:--c={chip.colour}
+                          ><span class="t">{chip.start}</span>{chip.name}</span
+                        >
+                      {/each}
+                      {#if c.chips.length > 3}<span class="more">+{c.chips.length - 3}</span>{/if}
+                    </span>
+                  </td>
+                {/each}
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      {#if selected !== null}
+        <div
+          class="pop"
+          class:floating
+          style:left={place ? `${place.left}px` : undefined}
+          style:top={place ? `${place.top}px` : undefined}
+          style:max-height={place ? `${place.height}px` : undefined}
+          style:visibility={floating && !place ? 'hidden' : undefined}
+          bind:clientWidth={popWidth}
+          bind:clientHeight={popHeight}
+        >
+          <DayDetails
+            bind:this={details}
+            date={selected}
+            items={itemsOf(selected)}
+            overlaps={overlapsOf(selected)}
+            holiday={inHorizon(selected) ? $index.holidays.get(selected)?.[$locale] : undefined}
+            onclose={closeDetails}
+            onedit={onEditMeeting ? edit : undefined}
+          />
+        </div>
+      {/if}
     </div>
-    {#if selected !== null}
-      <DayDetails
-        bind:this={details}
-        date={selected}
-        items={itemsOf(selected)}
-        overlaps={overlapsOf(selected)}
-        holiday={inHorizon(selected) ? $index.holidays.get(selected)?.[$locale] : undefined}
-        onclose={closeDetails}
-      />
-    {/if}
+    <div class="legend">
+      {#if legend.length > 0}
+        <ul aria-label={$t('cal.legend')}>
+          {#each legend as category (category.id)}
+            <li><i style:--c={category.colour} aria-hidden="true"></i>{category.name}</li>
+          {/each}
+        </ul>
+      {/if}
+      <p>
+        {hoursKey}
+      </p>
+    </div>
   {:else}
-    {#each weekDays as date (date)}
-      {@const items = inHorizon(date) ? itemsOf(date) : []}
-      <section class="weekday">
-        <h3>{formatDisplayDate($locale, date, 'long')}</h3>
-        {#if inHorizon(date)}
-          {#if $index.holidays.get(date)}
-            <p class="note">{$t('cal.holiday', { name: $index.holidays.get(date)![$locale] })}</p>
-          {/if}
-          {#if !$workspace.settings.workdays.includes(weekday(date))}
-            <p class="note">{$t('cal.nonwork')}</p>
-          {/if}
-        {/if}
-        {#if !inHorizon(date)}
-          <p class="muted-text">{$t('cal.outside')}</p>
-        {:else if items.length === 0}
-          <p class="muted-text">{$t('cal.day.none')}</p>
-        {:else}
-          <DayItemList {items} />
-        {/if}
-      </section>
-    {/each}
+    <div class="week">
+      {#each weekDays as date (date)}
+        {@const items = inHorizon(date) ? itemsOf(date) : []}
+        <section class="weekday" class:today={date === localToday()}>
+          <div class="when">
+            <h3>{formatDisplayDate($locale, date, 'long')}</h3>
+            {#if items.some((i) => !i.skipped)}
+              <span class="sum"
+                >{$t('cal.hours', { hours: formatNumber($locale, loads.get(date) ?? 0, 1) })}</span
+              >
+            {/if}
+          </div>
+          <div class="items">
+            {#if inHorizon(date)}
+              {#if $index.holidays.get(date)}
+                <p class="note">
+                  {$t('cal.holiday', { name: $index.holidays.get(date)![$locale] })}
+                </p>
+              {/if}
+              {#if !$workspace.settings.workdays.includes(weekday(date))}
+                <p class="note">{$t('cal.nonwork')}</p>
+              {/if}
+            {/if}
+            {#if !inHorizon(date)}
+              <p class="muted-text">{$t('cal.outside')}</p>
+            {:else if items.length === 0}
+              <p class="muted-text">{$t('cal.day.none')}</p>
+            {:else}
+              <DayItemList {items} onedit={onEditMeeting ? edit : undefined} />
+            {/if}
+          </div>
+        </section>
+      {/each}
+    </div>
   {/if}
 </div>
 
 <style>
   .calendar {
     min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0 1.5rem;
-    align-items: start;
-  }
-  .calendar:has(> :global(.details)) {
-    grid-template-columns: minmax(0, 1fr) 17rem;
-  }
-  /* Beside the day details the grid may be narrower, so all seven days stay visible on a laptop screen. */
-  .calendar:has(> :global(.details)) table {
-    min-width: 36rem;
-  }
-  .calendar > :not(.scroll):not(:global(.details)) {
-    grid-column: 1 / -1;
   }
   .hint {
     display: flex;
@@ -464,43 +622,39 @@
     gap: 0.75rem 1rem;
     margin-bottom: 1.25rem;
   }
-  .group {
+  .nav {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.4rem;
   }
-  .group:first-child {
-    order: 2;
-    margin-left: auto;
+  :global(#app) .nav .step {
+    display: inline-grid;
+    place-items: center;
+    width: 2.5rem;
+    padding: 0;
   }
-  .group:nth-child(2) {
-    order: 3;
-    gap: 0;
-    padding: 0.2rem;
-    border-radius: calc(var(--radius) + 0.2rem);
-    background: var(--surface-2);
-  }
-  .group:nth-child(2) button {
-    border-color: transparent !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-  /* The pressed mode has an accent border: the lighter pill alone is too faint (WCAG 1.4.11). */
-  .group:nth-child(2) button[aria-pressed='true'] {
-    background: var(--surface) !important;
-    border-color: var(--accent) !important;
-    color: var(--accent-text) !important;
-    box-shadow: 0 1px 3px rgb(15 20 38 / 0.15) !important;
+  .step svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .period {
-    order: 1;
-    margin: 0;
+    flex: 1;
+    margin: 0 0 0 0.25rem;
     font-size: 1.5rem;
     font-weight: 750;
     letter-spacing: -0.02em;
   }
+  .board {
+    position: relative;
+  }
   .scroll {
+    position: relative;
     overflow-x: auto;
+    border-radius: var(--radius-lg);
   }
   table {
     border-collapse: separate;
@@ -536,21 +690,20 @@
     border-bottom: 0;
   }
   thead th {
-    background: var(--accent-soft);
-    color: var(--accent-text) !important;
+    padding: 0.6rem;
+    background: var(--surface-2);
+    color: var(--text-muted);
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-muted);
-    padding: 0.6rem 0.6rem;
   }
   .weekcol {
     width: 3rem;
     text-align: center;
     color: var(--text-muted);
     font-size: 0.78rem;
-    font-weight: 700;
+    font-weight: 600;
     background: var(--surface-2);
   }
   td {
@@ -558,17 +711,18 @@
     font-size: 0.8rem;
     cursor: pointer;
     position: relative;
+    container-type: inline-size;
     background: var(--surface);
     transition: background-color 0.12s;
   }
-  td:hover {
-    background: var(--surface-2);
+  td.nonwork {
+    background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
   }
-  td.school {
-    background: var(--school);
+  td.other .day {
+    color: var(--text-muted);
+    font-weight: 600;
   }
-  td.muted,
-  td.other {
+  td.outside {
     background:
       repeating-linear-gradient(
         -45deg,
@@ -577,8 +731,8 @@
       ),
       var(--surface-2);
   }
-  td.other .day {
-    color: var(--text-muted);
+  td:hover {
+    background: var(--accent-soft);
   }
   td.selected {
     box-shadow: inset 0 0 0 2px var(--accent);
@@ -596,6 +750,7 @@
     place-items: center;
     min-width: 1.75rem;
     height: 1.75rem;
+    padding: 0 0.3rem;
     border-radius: 999px;
     font-size: 0.85rem;
     font-weight: 700;
@@ -605,23 +760,6 @@
     background: linear-gradient(135deg, #7b6bff, #5340e6);
     box-shadow: 0 4px 10px -2px rgb(83 64 230 / 0.55);
   }
-  /* Forced colours drop shadows and gradients: draw the states with borders and an underline. */
-  @media (forced-colors: active) {
-    .group:nth-child(2) button[aria-pressed='true'] {
-      text-decoration: underline;
-      text-underline-offset: 0.2em;
-    }
-    td.selected::after {
-      content: '';
-      position: absolute;
-      inset: 3px;
-      border: 2px solid Highlight;
-      pointer-events: none;
-    }
-    td.today .day {
-      border: 2px solid CanvasText;
-    }
-  }
   .warn {
     padding: 0 0.4rem;
     border-radius: 999px;
@@ -629,55 +767,70 @@
     color: var(--danger);
     background: var(--danger-soft);
   }
-  .visual {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    margin-top: 0.2rem;
-  }
-  .visual > span {
-    line-height: 1.3;
-  }
   .load {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.5rem;
-    font-size: 0.7rem;
-    font-weight: 700;
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
   }
-  .holiday {
-    font-weight: 700;
-    color: var(--danger);
+  .visual {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
   }
-  .schoolname {
-    font-size: 0.72rem;
-    color: var(--warn);
-    font-weight: 600;
+  .visual > span {
+    max-width: 100%;
+    line-height: 1.3;
   }
-  .cadence {
-    align-self: flex-start;
-    font-size: 0.7rem;
-    font-weight: 700;
+  .tag {
     padding: 0.05rem 0.5rem;
     border-radius: 999px;
-    color: #fff;
-    background: linear-gradient(90deg, #6f5ef9, #22a6d6);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border: 1px solid transparent;
   }
-  .milestone {
-    font-weight: 700;
+  .holiday {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .school {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+  .cadence {
+    background: var(--accent-soft);
     color: var(--accent-text);
   }
+  .milestone {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+  .diamond {
+    flex: none;
+    width: 0.45rem;
+    height: 0.45rem;
+    rotate: 45deg;
+    background: currentColor;
+  }
   .chip {
+    align-self: stretch;
     display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: 0.12rem 0.4rem;
+    padding: 0.15rem 0.45rem;
     border-radius: 0.35rem;
     border-left: 3px solid var(--c);
-    background: color-mix(in srgb, var(--c) 18%, var(--surface));
+    background: color-mix(in srgb, var(--c) 16%, var(--surface));
     color: var(--text);
     font-weight: 550;
   }
@@ -693,19 +846,92 @@
       display: inline;
     }
   }
-  td {
-    container-type: inline-size;
-  }
   .more {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted);
   }
+  .pop {
+    margin-top: 1rem;
+  }
+  .pop.floating {
+    position: absolute;
+    z-index: 3;
+    width: 21rem;
+    margin: 0;
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 18px 40px -12px rgb(15 20 38 / 0.28),
+      0 2px 6px rgb(15 20 38 / 0.08);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+    margin-top: 0.9rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .legend ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .legend i {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--c);
+  }
+  .legend p {
+    margin: 0 0 0 auto;
+  }
+  .week {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
   .weekday {
-    margin-bottom: var(--space);
+    display: grid;
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+    gap: 0.5rem 1.25rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .weekday:last-child {
+    border-bottom: 0;
+  }
+  .sum {
+    font-size: 0.85rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+  }
+  .items :global(ul) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  }
+  .weekday.today h3 {
+    color: var(--accent-text);
   }
   .weekday h3 {
-    margin: 0 0 0.25rem;
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
   .muted-text {
     margin: 0;
@@ -715,9 +941,28 @@
     margin: 0;
     font-weight: 600;
   }
-  @media (max-width: 75rem) {
-    .calendar:has(> :global(.details)) {
+  @media (max-width: 40rem) {
+    .weekday {
       grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  /* Forced colours drop shadows and gradients: draw the states with borders and an underline. */
+  @media (forced-colors: active) {
+    td.selected::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border: 2px solid Highlight;
+      pointer-events: none;
+    }
+    td.today .day {
+      border: 2px solid CanvasText;
+    }
+    .tag {
+      border-color: CanvasText;
+    }
+    .legend i {
+      background: CanvasText;
     }
   }
 </style>

@@ -19,7 +19,7 @@
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
-  import { workspace } from './state/workspace';
+  import { activeTeamId, workspace } from './state/workspace';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -77,6 +77,15 @@
     setupDone = false;
   });
   let tabs: Record<string, HTMLButtonElement | undefined> = {};
+
+  /** A meeting the Meetings view opens for editing once it is shown (Edit in the calendar). */
+  let editRequest = $state<string | undefined>();
+
+  function editMeeting(teamId: string, eventId: string) {
+    activeTeamId.set(teamId);
+    editRequest = eventId;
+    select('meetings');
+  }
 
   function select(id: ViewId, focus = false) {
     active = id;
@@ -314,7 +323,10 @@
                 />
               {/if}
               {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
-                <CalendarView onOpenMeetings={() => select('meetings', true)} />
+                <CalendarView
+                  onOpenMeetings={() => select('meetings', true)}
+                  onEditMeeting={editMeeting}
+                />
               {/key}
             {:else if id === 'weeks'}
               {#if active === 'weeks'}<WeeksView
@@ -323,7 +335,10 @@
             {:else if id === 'load'}
               {#if active === 'load'}<LoadView />{/if}
             {:else if id === 'meetings'}
-              {#if active === 'meetings'}<MeetingsView />{/if}
+              {#if active === 'meetings'}<MeetingsView
+                  edit={editRequest}
+                  onEditOpened={() => (editRequest = undefined)}
+                />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}
             {:else if id === 'settings'}
