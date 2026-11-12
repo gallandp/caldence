@@ -14,7 +14,7 @@
     prep: 'meet.prep',
     skip: 'settings.skipHolidays',
     baseTable: 'load.table.base',
-    roleTable: 'load.table.role',
+    roleTable: 'load.summary',
     personTable: 'load.table.person',
     hpw: 'settings.hoursPerWeek',
     hours: 'settings.people.hoursLabel',

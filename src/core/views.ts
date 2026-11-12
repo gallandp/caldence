@@ -1,5 +1,5 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
-import { fte, occurrenceHours, weeklyBaseLoad } from './load';
+import { fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import type { Settings, Team, Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
@@ -53,6 +53,35 @@ export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
   }
   if (!filter.teamId) return ws.teams;
   return ws.teams.filter((t) => t.id === filter.teamId);
+}
+
+/** The people a filter is about: the selected person, or the members of the teams in scope. */
+export function scopePeople(ws: Workspace, filter: Filter): Set<string> {
+  if (filter.personId) return new Set([filter.personId]);
+  return new Set(
+    scopeTeams(ws, filter).flatMap((team) =>
+      team.members
+        .filter((m) => !filter.roleId || m.roleId === filter.roleId)
+        .map((m) => m.personId),
+    ),
+  );
+}
+
+/** Ids of the people in scope with a load warning, by Monday (each person once per week). */
+export function warnedWeeks(
+  ws: Workspace,
+  all: LoadWarning[],
+  filter: Filter,
+): Map<ISODate, string[]> {
+  const people = scopePeople(ws, filter);
+  const byMonday = new Map<ISODate, string[]>();
+  for (const w of all) {
+    if (!people.has(w.personId)) continue;
+    const ids = byMonday.get(w.monday) ?? [];
+    if (!ids.includes(w.personId)) ids.push(w.personId);
+    byMonday.set(w.monday, ids);
+  }
+  return byMonday;
 }
 
 type Attributed = { occ: Occurrence; byRole: Record<string, number> };
