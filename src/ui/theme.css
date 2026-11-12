@@ -249,7 +249,7 @@
 
 /* ---------- Panels are cards ---------- */
 #app [role='tabpanel'] > :not(h2, .stack),
-#app .stack > .card {
+#app .stack .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -404,7 +404,7 @@ body {
   background-attachment: fixed;
 }
 #app [role='tabpanel'] > :not(h2, .stack),
-#app .stack > .card {
+#app .stack .card {
   position: relative;
 }
 #app [role='tabpanel'] > :not(h2, .stack)::before,

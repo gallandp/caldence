@@ -8,6 +8,8 @@ import {
   filteredOccurrences,
   loadSummary,
   nextDates,
+  scopePeople,
+  warnedWeeks,
   schoolHolidayGap,
   scopeTeams,
   weekRows,
@@ -394,5 +396,45 @@ describe('nextDates', () => {
     const ws = base();
     const team = ws.teams[0]!;
     expect(nextDates(team, ws.settings, workspaceIndex(ws), '2999-01-01').size).toBe(0);
+  });
+});
+
+describe('scopePeople and warnedWeeks', () => {
+  const ws = (): Workspace => {
+    const w = base();
+    w.people = [
+      { id: 'p1', name: 'A', hoursPerWeek: 40 },
+      { id: 'p2', name: 'B', hoursPerWeek: 40 },
+      { id: 'p3', name: 'C', hoursPerWeek: 40 },
+    ] as Workspace['people'];
+    const t1 = w.teams[0]!;
+    t1.members = [
+      { personId: 'p1', roleId: 'r1' },
+      { personId: 'p2', roleId: 'r2' },
+    ];
+    w.teams.push({ ...structuredClone(t1), id: 't2', members: [{ personId: 'p3', roleId: 'r1' }] });
+    return w;
+  };
+  it('scopes to the person, else to the members of the teams in scope, narrowed by role', () => {
+    const w = ws();
+    const t1 = w.teams[0]!.id;
+    expect([...scopePeople(w, { personId: 'p3' })]).toEqual(['p3']);
+    expect([...scopePeople(w, { teamId: t1 })].sort()).toEqual(['p1', 'p2']);
+    expect([...scopePeople(w, { teamId: t1, roleId: 'r1' })]).toEqual(['p1']);
+    expect([...scopePeople(w, {})].sort()).toEqual(['p1', 'p2', 'p3']);
+  });
+  it('groups warnings of people in scope by Monday, each person once', () => {
+    const w = ws();
+    const t1 = w.teams[0]!.id;
+    const all = [
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-average' as const },
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' as const },
+      { monday: '2027-01-04', personId: 'p3', kind: 'above-average' as const },
+      { monday: '2027-01-11', personId: 'p2', kind: 'above-fte' as const },
+    ];
+    const byMonday = warnedWeeks(w, all, { teamId: t1 });
+    expect(byMonday.get('2027-01-04')).toEqual(['p1']);
+    expect(byMonday.get('2027-01-11')).toEqual(['p2']);
+    expect(warnedWeeks(w, all, { teamId: t1, roleId: 'r2' }).has('2027-01-04')).toBe(false);
   });
 });

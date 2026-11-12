@@ -6,6 +6,12 @@
 
 - Calendar: icon buttons to page through the months, holidays, school holidays, the cadence and milestones as coloured tags, the day details open next to the day with time, rule and roles and an Edit button that opens the meeting, a legend of the categories, and the week view lists the meetings of each day side by side
 
+## 1.11.0 – 2026-11-12
+
+### Changed
+
+- Load: summary tiles for the total, each role and the peak week, a chart of the hours per week with the average and warning weeks, and one warning line per person and kind of warning
+
 ## 1.10.0 – 2026-11-11
 
 ### Changed
