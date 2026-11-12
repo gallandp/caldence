@@ -30,7 +30,7 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
   await teamPanel.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await teamPanel.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await teamPanel.getByRole('button', { name: 'Add member' }).click();
-  await expect(teamPanel.getByRole('table', { name: `Members of ${team}` })).toContainText('Kim');
+  await expect(teamPanel.getByRole('list', { name: `Members of ${team}` })).toContainText('Kim');
 
   await tab(page, 'Meetings').click();
   const meetings = panel(page, 'Meetings');
@@ -60,10 +60,10 @@ async function expectEverything(page: Page) {
     await expect(table).toContainText('10:00');
     await expect(table).toContainText('Product Owner');
     await tab(page, 'Members & cadence').click();
-    const members = panel(page, 'Members & cadence').getByRole('table', {
+    const members = panel(page, 'Members & cadence').getByRole('list', {
       name: `Members of ${team}`,
     });
-    await expect(members.getByRole('row').filter({ hasText: 'Kim' })).toContainText(
+    await expect(members.getByRole('listitem').filter({ hasText: 'Kim' })).toContainText(
       'Product Owner',
     );
     await tab(page, 'Meetings').click();

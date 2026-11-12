@@ -325,7 +325,9 @@
             {:else if id === 'meetings'}
               {#if active === 'meetings'}<MeetingsView />{/if}
             {:else if id === 'team'}
-              {#if active === 'team'}<TeamView />{/if}
+              {#if active === 'team'}<TeamView
+                  onOpenSettings={() => select('settings', true)}
+                />{/if}
             {:else if id === 'settings'}
               {#if active === 'settings'}<SettingsView />{/if}
             {:else if id === 'templates'}

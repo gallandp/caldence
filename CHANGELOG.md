@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Members & cadence: two columns of cards; members show their initials in the role colour with a link to the settings, each cycle shows its milestones on the planning horizon, and add rows use quieter buttons
+
 ## 1.11.0 – 2026-11-12
 
 ### Changed

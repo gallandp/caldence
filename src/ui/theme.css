@@ -44,6 +44,34 @@
 #app button[type='submit']:hover {
   background: var(--accent-hover);
 }
+/* Quieter variants: an outlined button (also for a submit that is not the main action) and a
+   borderless icon button for removing a row. Both come after the submit rule on purpose. */
+#app button.secondary {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 2px rgb(15 20 38 / 0.06);
+  font-weight: 600;
+}
+#app button.secondary:hover {
+  background: var(--surface-2);
+}
+#app button.icon-button {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+#app button.icon-button:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
 
 /* ---------- Fields ---------- */
 #app select,

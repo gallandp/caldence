@@ -25,7 +25,7 @@ test('a new team is selected and shows an empty members list with a hint', async
   await expect(teamSelect(page)).toHaveValue(/.+/);
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team B');
   await expect(panel(page).getByText('No members yet')).toBeVisible();
-  await expect(panel(page).getByRole('table')).toHaveCount(0);
+  await expect(panel(page).getByRole('list', { name: /^Members of/ })).toHaveCount(0);
   await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
 });
 
@@ -34,11 +34,11 @@ test('the team switcher changes what the team view shows', async ({ page }) => {
   await openTeamView(page);
   await expect(panel(page).getByLabel('Type')).toHaveValue('sprint');
   await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
-  await expect(panel(page).getByRole('table', { name: 'Members of Team Alpha' })).toBeVisible();
+  await expect(panel(page).getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await teamSelect(page).selectOption({ label: 'Team Beta' });
   await expect(panel(page).getByLabel('Type')).toHaveValue('flow');
   await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('1');
-  await expect(panel(page).getByRole('table', { name: 'Members of Team Beta' })).toBeVisible();
+  await expect(panel(page).getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
 });
 
 test('duplicating a team copies its cadence', async ({ page }) => {
@@ -58,7 +58,7 @@ test('selecting a person states that all teams are shown', async ({ page }) => {
   await panel(page).getByLabel('Person').selectOption({ label: 'Alex' });
   await panel(page).getByLabel('Role').selectOption({ label: 'Product Owner' });
   await panel(page).getByRole('button', { name: 'Add member' }).click();
-  await expect(panel(page).getByRole('table')).toContainText('Alex');
+  await expect(panel(page).getByRole('list', { name: /^Members of/ })).toContainText('Alex');
 
   await expect(page.getByText('All teams')).toHaveCount(0);
   const bar = page.locator('.context');
@@ -80,7 +80,9 @@ test('a member that already exists is refused inline', async ({ page }) => {
   await expect(person).toHaveAttribute('aria-describedby', /.+/);
   await panel(page).getByRole('button', { name: 'Remove Alex (Product Owner)' }).click();
   await expect(panel(page).getByText('already has this role')).toHaveCount(0);
-  await expect(panel(page).getByRole('table')).not.toContainText('Product Owner');
+  await expect(panel(page).getByRole('list', { name: /^Members of/ })).not.toContainText(
+    'Product Owner',
+  );
 });
 
 test('cadence length is validated inline and the draft is kept', async ({ page }) => {
@@ -199,7 +201,7 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await expect(page.getByRole('region', { name: 'Your team is ready' })).toBeVisible();
   await openTeamView(page);
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Gamma');
-  await expect(panel(page).getByRole('table')).toContainText(known!);
+  await expect(panel(page).getByRole('list', { name: /^Members of/ })).toContainText(known!);
   await expect(page.getByLabel('Person', { exact: true }).first().locator('option')).toHaveCount(
     before,
   );
@@ -420,4 +422,28 @@ test('the sidebar does not scroll past its content', async ({ page }) => {
   const sidebar = page.locator('.sidebar');
   const overflow = await sidebar.evaluate((el) => el.scrollHeight - el.clientHeight);
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('the members card leads to the settings, where people and roles are created', async ({
+  page,
+}) => {
+  await openExample(page);
+  await openTeamView(page);
+  await panel(page).getByRole('button', { name: 'Open settings' }).click();
+  await expect(page.getByRole('tab', { name: 'Workspace settings', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: 'Workspace settings', exact: true })).toBeFocused();
+});
+
+test('each cycle names its number of milestones', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const cycle = panel(page)
+    .getByRole('listitem')
+    .filter({
+      has: page.getByRole('textbox', { name: 'Name of cycle Release 1' }),
+    });
+  await expect(cycle).toContainText('1 milestone');
 });
