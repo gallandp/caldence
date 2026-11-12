@@ -66,9 +66,11 @@
 
   /** An empty rate turns costs off. */
   function onRate(event: Event) {
-    const text = (event.currentTarget as HTMLInputElement).value.trim();
+    const input = event.currentTarget as HTMLInputElement;
+    const text = input.value.trim();
     const n = Number(text);
-    if (text !== '' && !Number.isFinite(n)) return fail('hourlyRate');
+    // Unparseable text also reads as '': that is a typo, not a cleared field.
+    if (input.validity.badInput || (text !== '' && !Number.isFinite(n))) return fail('hourlyRate');
     commit(['hourlyRate'], { hourlyRate: text === '' ? undefined : n });
   }
 
@@ -471,7 +473,7 @@
             id="set-rate"
             type="number"
             min="0"
-            step="1"
+            step="any"
             value={settings.hourlyRate ?? ''}
             aria-invalid={errors.hourlyRate ? 'true' : undefined}
             aria-describedby={['note-rate', describe('hourlyRate')].filter(Boolean).join(' ')}

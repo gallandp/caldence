@@ -327,6 +327,8 @@
                         >
                       {:else if event.rule.type === 'once'}
                         <span class="sub">{$t('meet.cost.once')}</span>
+                      {:else if event.rule.type === 'cycle-milestone'}
+                        <span class="sub">{$t('meet.cost.milestone')}</span>
                       {/if}
                     </td>
                   {/if}

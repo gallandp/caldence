@@ -49,6 +49,7 @@ export function formatEuro(locale: Locale, n: number): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'EUR',
+    minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(n);
 }
