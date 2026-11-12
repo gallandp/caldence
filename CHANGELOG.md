@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Appearance switch below the language: match the system (default), light or dark, remembered in this browser
+
 ## 1.13.0 – 2026-11-12
 
 ### Changed

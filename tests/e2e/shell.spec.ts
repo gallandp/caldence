@@ -137,3 +137,33 @@ test('on wide screens the view title and the filters share one row', async ({ pa
   const titleBox = (await page.locator(title).boundingBox())!;
   expect(titleBox.y).toBeGreaterThanOrEqual(filtersBottom.y + filtersBottom.height);
 });
+
+test('appearance overrides the system scheme and is remembered', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const group = page.getByRole('radiogroup', { name: 'Appearance' });
+  await expect(group.getByRole('radio', { name: 'Match system' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  const systemDark = await bg();
+
+  await group.getByRole('radio', { name: 'Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  const light = await bg();
+  expect(light).not.toBe(systemDark);
+
+  await page.reload();
+  await expect(group.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+  expect(await bg()).toBe(light);
+
+  // Arrow keys move through the options; back to the system scheme drops the override.
+  await group.getByRole('radio', { name: 'Light' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.keyboard.press('ArrowRight');
+  await expect(group.getByRole('radio', { name: 'Match system' })).toBeFocused();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
+  expect(await bg()).toBe(systemDark);
+});
