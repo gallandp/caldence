@@ -44,6 +44,16 @@ export function formatNumber(locale: Locale, n: number, digits: number): string 
   }).format(n);
 }
 
+/** Euros without cents, in the locale's notation (1.234 € or €1,234). */
+export function formatEuro(locale: Locale, n: number): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
 /** Percent of a fraction (0.5 -> 50%) without decimals, in the locale's notation. */
 export function formatPercent(locale: Locale, fraction: number): string {
   return new Intl.NumberFormat(locale, {

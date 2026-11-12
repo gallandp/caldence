@@ -363,10 +363,10 @@ export function importEvents(
 // ---------- settings ----------
 
 export function updateSettings(ws: Workspace, patch: Partial<Settings>): Workspace {
-  return {
-    ...structuredClone(ws),
-    settings: { ...structuredClone(ws.settings), ...structuredClone(patch) },
-  };
+  const settings = { ...structuredClone(ws.settings), ...structuredClone(patch) };
+  // An emptied hourly rate turns costs off: the key goes, rather than staying as undefined.
+  if (settings.hourlyRate === undefined) delete settings.hourlyRate;
+  return { ...structuredClone(ws), settings };
 }
 
 // ---------- imported regions ----------

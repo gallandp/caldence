@@ -371,6 +371,13 @@ describe('settings', () => {
     expect(ws.settings.hoursPerWeek).toBe(40);
     valid(w);
   });
+
+  it('sets and removes the optional hourly rate', () => {
+    const w = updateSettings(base(), { hourlyRate: 85 });
+    expect(w.settings.hourlyRate).toBe(85);
+    valid(w);
+    expect('hourlyRate' in updateSettings(w, { hourlyRate: undefined }).settings).toBe(false);
+  });
 });
 
 describe('imported regions', () => {

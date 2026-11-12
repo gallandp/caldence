@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import { fte, loadPerWeek, warnings } from '../../core/load';
   import { record } from '../../core/record';
@@ -10,6 +11,7 @@
     locale,
     translate as t,
   } from '../../i18n';
+  import CostCard from '../components/CostCard.svelte';
   import { filter, index, workspace } from '../state/workspace';
 
   const summary = $derived(loadSummary($workspace, $filter));
@@ -106,6 +108,9 @@
         })
       : '',
   );
+
+  const rate = $derived($workspace.settings.hourlyRate);
+  const costs = $derived(rate ? costSummary($workspace, $index, $filter, rate) : null);
 
   const uid = $props.id();
 </script>
@@ -248,6 +253,9 @@
       <div class="card">{@render region('base', $t('load.table.base'), baseBody)}</div>
     </div>
     <div class="col">
+      {#if costs && rate}
+        <CostCard summary={costs} {rate} />
+      {/if}
       {#if $workspace.people.length > 0}
         <div class="card">{@render region('person', $t('load.table.person'), personBody)}</div>
       {/if}

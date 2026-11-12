@@ -422,6 +422,17 @@ describe('limits (security #41)', () => {
     expect(keys(w)).toContain('teams.0.events.0.rule.n error.number.invalid');
   });
 
+  it('accepts no hourly rate and rejects one that is zero, negative or too high', () => {
+    const w = fixture();
+    expect(validate(w).ok).toBe(true);
+    for (const bad of [0, -5, 100_001, '85'] as unknown as number[]) {
+      w.settings.hourlyRate = bad;
+      expect(keys(w)).toContain('settings.hourlyRate error.number.invalid');
+    }
+    w.settings.hourlyRate = 85.5;
+    expect(validate(w).ok).toBe(true);
+  });
+
   it('rejects too many events in the whole workspace', () => {
     const w = fixture();
     const t = w.teams[0]!;
