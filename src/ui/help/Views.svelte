@@ -81,7 +81,8 @@
       key="help.views.load"
       labels={{
         base: 'load.table.base',
-        role: 'load.table.role',
+        role: 'load.summary',
+        chart: 'load.chart',
         hpw: 'settings.hoursPerWeek',
         person: 'load.table.person',
         warnings: 'load.warnings',

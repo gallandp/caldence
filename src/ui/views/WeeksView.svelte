@@ -2,8 +2,7 @@
   import { onMount } from 'svelte';
   import { mondayOf } from '../../core/date';
   import { loadPerWeek, warnings } from '../../core/load';
-  import { record } from '../../core/record';
-  import { schoolHolidayGap, scopeTeams, weekRows } from '../../core/views';
+  import { schoolHolidayGap, scopeTeams, warnedWeeks, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
@@ -31,27 +30,8 @@
 
   /** Warnings depend on the workspace only; the filter just picks whose count. */
   const allWarnings = $derived(warnings(loadPerWeek($workspace, $index), $workspace));
-  /** People whose warnings count: the filtered person, or members of the teams in scope. */
-  const watched = $derived.by(() => {
-    if ($filter.personId) return new Set([$filter.personId]);
-    return new Set(
-      teams.flatMap((team) =>
-        team.members
-          .filter((m) => !$filter.roleId || m.roleId === $filter.roleId)
-          .map((m) => m.personId),
-      ),
-    );
-  });
-  /** Ids of the people with a high load, by Monday. */
-  const warned = $derived.by(() => {
-    const byMonday = record<string[]>();
-    for (const w of allWarnings) {
-      if (!watched.has(w.personId)) continue;
-      const ids = (byMonday[w.monday] ??= []);
-      if (!ids.includes(w.personId)) ids.push(w.personId);
-    }
-    return new Map(Object.entries(byMonday));
-  });
+  /** People in scope with a high load, by Monday. */
+  const warned = $derived(warnedWeeks($workspace, allWarnings, $filter));
   const names = $derived(new Map($workspace.people.map((p) => [p.id, p.name])));
   const list = $derived(new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }));
   const people = (ids: string[]) => list.format(ids.map((id) => names.get(id) ?? id));
@@ -297,7 +277,7 @@
     background: var(--brand-gradient);
   }
   .bar > span.high {
-    background: linear-gradient(90deg, var(--warn), var(--danger));
+    background: var(--hot);
   }
   .badge {
     display: inline-block;

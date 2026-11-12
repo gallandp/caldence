@@ -80,8 +80,11 @@ async function expectEverything(page: Page) {
   await tab(page, 'Load').click();
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await expect(
-    panel(page, 'Load').getByRole('table', { name: 'Per role' }).locator('tr[data-role]').first(),
-  ).toContainText('2.0');
+    panel(page, 'Load')
+      .getByRole('list', { name: 'Summary' })
+      .locator('[data-role] .hours')
+      .first(),
+  ).toHaveText('2.0');
   await tab(page, 'Calendar').click();
   const calendar = panel(page, 'Calendar');
   await calendar.locator(`td[data-date="${MEETING_DAY}"]`).click();
@@ -121,12 +124,7 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   const load = panel(page, 'Load');
   // Both meetings count one hour of Product Owner each week.
   await expect(
-    load
-      .getByRole('table', { name: 'Per role' })
-      .locator('tr[data-role]')
-      .first()
-      .getByRole('cell')
-      .first(),
+    load.getByRole('list', { name: 'Summary' }).locator('[data-role] .hours').first(),
   ).toHaveText('2.0');
   const kim = load.getByRole('table', { name: 'Per person' }).locator('tr[data-person]');
   await expect(kim).toHaveCount(1);
