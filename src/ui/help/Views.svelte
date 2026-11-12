@@ -57,9 +57,13 @@
         nextWeek: 'cal.next.week',
       }}
     />
+    {$t('help.views.calendar.legend')}
   </p>
   <p>
-    <Rich key="help.views.day" labels={{ skip: 'settings.skipHolidays', close: 'cal.day.close' }} />
+    <Rich
+      key="help.views.day"
+      labels={{ skip: 'settings.skipHolidays', close: 'cal.day.close', edit: 'meet.edit' }}
+    />
   </p>
 
   <h4>{$t('view.weeks')}</h4>
