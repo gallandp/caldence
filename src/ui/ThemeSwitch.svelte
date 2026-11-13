@@ -22,7 +22,7 @@
 </script>
 
 <div class="theme">
-  <span id="theme-label">{$t('theme.label')}</span>
+  <span id="theme-label" class="sr-only">{$t('theme.label')}</span>
   <div class="options" role="radiogroup" aria-labelledby="theme-label">
     {#each THEMES as option, i (option)}
       <button

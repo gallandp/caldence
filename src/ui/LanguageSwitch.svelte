@@ -12,7 +12,7 @@
 </script>
 
 <label class="lang">
-  <span>{$t('lang.label')}</span>
+  <span class="sr-only">{$t('lang.label')}</span>
   <select value={$locale} onchange={onChange}>
     {#each options as option (option)}
       <option value={option} lang={option}>{$t('lang.name.' + option)}</option>
