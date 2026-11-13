@@ -361,3 +361,12 @@ describe('text files', () => {
     expect(exported.writes).toEqual(['X']);
   });
 });
+
+describe('exampleWorkspace', () => {
+  it('names the categories in the UI language', () => {
+    const names = (locale?: string) => exampleWorkspace(locale).categories.map((c) => c.name);
+    expect(names()).toEqual(['Scrum events', 'Alignment', 'Stakeholders']);
+    expect(names('en')).toEqual(['Scrum events', 'Alignment', 'Stakeholders']);
+    expect(names('de')).toEqual(['Scrum-Events', 'Abstimmung', 'Stakeholder']);
+  });
+});

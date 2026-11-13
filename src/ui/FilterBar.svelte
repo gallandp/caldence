@@ -25,7 +25,7 @@
   });
 </script>
 
-<div class="filters">
+<div class="filters" role="region" aria-label={$t('filter.label')}>
   <span class="for">{$t('filter.label')}</span>
   <div class="field">
     <label for="{uid}-role">{$t('filter.role')}</label>

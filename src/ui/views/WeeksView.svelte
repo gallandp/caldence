@@ -200,6 +200,18 @@
     width: 100%;
     min-width: 44rem;
   }
+  /* Wide enough for the whole table: no inner scroll box, so the column headings can stay at
+     the top of the window while the 53 weeks scroll past. */
+  @media (min-width: 75rem) {
+    .scroll {
+      overflow-x: visible;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+  }
   caption {
     text-align: left;
   }
