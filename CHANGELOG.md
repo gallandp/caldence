@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Calmer sidebar: thin dividers instead of the three group headings, and language and appearance side by side in one row
+
 ## 1.16.0 – 2026-11-13
 
 ### Changed
