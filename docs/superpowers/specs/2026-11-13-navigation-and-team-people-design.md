@@ -58,7 +58,7 @@ ARBEITSBEREICH  Einstellungen
 Hilfe
 ```
 
-Mockups: project files `design/navigation/` (nav.png, detail.png; index.html is the source). The detail mockup's "Personen & Rollen" person list showing a single h/Woche value per person is outdated by the per-team hours decision: hours show per team row.
+Mockups: project files `design/navigation/` (nav.png, detail.png; index.html is the source). The Team card in detail.png shows per-team hours and people without a team.
 
 ## Views
 
