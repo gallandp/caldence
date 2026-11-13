@@ -36,6 +36,7 @@ function team(events: CalEvent[]): Team {
       { personId: 'b', roleId: 'dev' },
       { personId: 'c', roleId: 'dev' },
     ],
+    memberHours: {},
     assumptions: {},
     cycles: [],
     events,

@@ -37,7 +37,7 @@ const valid = (ws: Workspace) => expect(validate(ws).ok).toBe(true);
 function rich(): Workspace {
   const ws = base();
   ws.roles.push({ id: 'r2', name: 'Tester', colour: '#00aa00' });
-  ws.people.push({ id: 'p2', name: 'Bo', hoursPerWeek: 20 });
+  ws.people.push({ id: 'p2', name: 'Bo' });
   ws.categories.push({ id: 'c2', name: 'Review', colour: '#0000ff' });
   const team = ws.teams[0]!;
   team.members.push({ personId: 'p2', roleId: 'r2' });
@@ -80,7 +80,7 @@ describe('list items', () => {
   });
 
   it('uses prefixes p and c', () => {
-    const [w, p] = addItem(base(), 'people', { name: 'X', hoursPerWeek: 10 });
+    const [w, p] = addItem(base(), 'people', { name: 'X' });
     const [, c] = addItem(w, 'categories', { name: 'Y', colour: '#ffffff' });
     expect([p, c]).toEqual(['p2', 'c2']);
   });
@@ -94,6 +94,31 @@ describe('list items', () => {
 });
 
 describe('removeItem', () => {
+  it('drops the weekly hours of a removed person', () => {
+    const ws = rich();
+    ws.teams[0]!.memberHours = { p1: 32, p2: 20 };
+    const out = ok(removeItem(ws, 'people', 'p2'));
+    expect(out.teams[0]!.memberHours).toEqual({ p1: 32 });
+    valid(out);
+  });
+
+  it('moves the hours of a replaced person unless the replacement is already a member', () => {
+    const ws = rich();
+    ws.people.push({ id: 'p3', name: 'Cy' });
+    ws.teams[0]!.memberHours = { p2: 20 };
+    expect(ok(removeItem(ws, 'people', 'p2', 'p3')).teams[0]!.memberHours).toEqual({ p3: 20 });
+    // p1 is a member on the default hours and keeps them.
+    expect(ok(removeItem(ws, 'people', 'p2', 'p1')).teams[0]!.memberHours).toEqual({});
+    ws.teams[0]!.memberHours = { p1: 32, p2: 20 };
+    expect(ok(removeItem(ws, 'people', 'p2', 'p1')).teams[0]!.memberHours).toEqual({ p1: 32 });
+  });
+
+  it('refuses hours for an unknown person or above 168', () => {
+    for (const memberHours of [{ nobody: 10 }, { p1: 169 }] as Record<string, number>[])
+      expect(updateTeam(base(), 't1', { memberHours }).ok).toBe(false);
+    expect(updateTeam(base(), 't1', { memberHours: { p1: 20 } }).ok).toBe(true);
+  });
+
   it('refuses a role in use without replacement', () => {
     const ws = base();
     const before = structuredClone(ws);
@@ -170,6 +195,7 @@ describe('teams', () => {
       name: 'New',
       cadence: { kind: 'sprint', lengthWeeks: 2, start: '2026-11-09' },
       members: [],
+      memberHours: {},
       assumptions: {},
       cycles: [],
       events: [],

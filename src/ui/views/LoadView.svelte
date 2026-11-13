@@ -1,7 +1,7 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
-  import { fte, loadPerWeek, warnings } from '../../core/load';
+  import { capacity, fte, loadPerWeek, warnings } from '../../core/load';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -26,26 +26,32 @@
   const weekLabel = (monday: string): string =>
     $t('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
 
+  /** With a team filter the person table shows that team's members and their hours in it. */
+  const teamId = $derived($filter.personId ? undefined : $filter.teamId);
   const people = $derived(
     $filter.personId
       ? $workspace.people.filter((p) => p.id === $filter.personId)
-      : $workspace.people,
+      : teamId
+        ? $workspace.people.filter((p) => scopePeople($workspace, { teamId }).has(p.id))
+        : $workspace.people,
   );
 
   const perPerson = $derived(
     people.map((person) => {
-      const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
+      const of = (w: (typeof weeks)[number]): number =>
+        (teamId ? w.byTeamPerson[teamId]?.[person.id] : w.byPerson[person.id]) ?? 0;
+      const total = weeks.reduce((sum, w) => sum + of(w), 0);
       const average = weeks.length > 0 ? total / weeks.length : 0;
       let peak: { monday: string; hours: number } | undefined;
       for (const w of weeks) {
-        const h = w.byPerson[person.id] ?? 0;
+        const h = of(w);
         if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
-      return { person, average, fte: fte(average, person.hoursPerWeek), peak };
+      return { person, average, fte: fte(average, capacity($workspace, person.id, teamId)), peak };
     }),
   );
 
-  const allWarnings = $derived(warnings(weeks, $workspace));
+  const allWarnings = $derived(warnings(weeks, $workspace, $filter));
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -75,7 +81,15 @@
         .map((kind) => {
           const mondays = g.kinds[kind]!;
           const named = label(mondays);
-          const most = Math.max(...mondays.map((m) => byMonday.get(m)?.byPerson[g.personId] ?? 0));
+          const hoursIn = (m: string): number => {
+            const w = byMonday.get(m);
+            return (
+              (kind === 'above-fte' && teamId
+                ? w?.byTeamPerson[teamId]?.[g.personId]
+                : w?.byPerson[g.personId]) ?? 0
+            );
+          };
+          const most = Math.max(...mondays.map(hoursIn));
           return $t(`load.warn.${kind}`, {
             factor: formatNumber($locale, warnFactor, 1),
             fte: formatNumber($locale, maxFte, 2),

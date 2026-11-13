@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 const teamSelect = (page: Page) => page.locator('.switcher select');
-const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Members & cadence' });
+const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Team' });
 
 async function addTeam(page: Page, name: string) {
   await teamAction(page, 'Add team');
@@ -55,8 +55,8 @@ test('selecting a person states that all teams are shown', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
   await addTeam(page, 'Team B');
-  await panel(page).getByLabel('Person').selectOption({ label: 'Alex' });
-  await panel(page).getByLabel('Role').selectOption({ label: 'Product Owner' });
+  await panel(page).getByLabel('Person', { exact: true }).fill('Alex');
+  await panel(page).getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await panel(page).getByRole('button', { name: 'Add member' }).click();
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).toContainText('Alex');
 
@@ -74,9 +74,9 @@ test('selecting a person states that all teams are shown', async ({ page }) => {
 test('a member that already exists is refused inline', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
-  const person = panel(page).getByLabel('Person');
-  await person.selectOption({ label: 'Alex' });
-  await panel(page).getByLabel('Role').selectOption({ label: 'Product Owner' });
+  const person = panel(page).getByLabel('Person', { exact: true });
+  await person.fill('Alex');
+  await panel(page).getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
   await panel(page).getByRole('button', { name: 'Add member' }).click();
   await expect(panel(page).getByText('already has this role')).toBeVisible();
   await expect(person).toHaveAttribute('aria-invalid', 'true');
@@ -119,7 +119,7 @@ test('removing or renaming the assumption used by scaling shows an inline error'
   await key.fill('tickets');
   await key.blur();
   await expect(panel(page).getByLabel('Key of assumption tickets')).toBeFocused();
-  await expect(panel(page).getByText('Still in use')).toHaveCount(0);
+  await expect(panel(page).locator('.field-error', { hasText: 'Still in use' })).toHaveCount(0);
   await panel(page).getByRole('button', { name: 'Remove assumption tickets' }).click();
   await expect(panel(page).getByText('Still in use: tickets')).toBeVisible();
 });
@@ -237,7 +237,7 @@ test('deleting a team needs confirmation', async ({ page }) => {
 
 test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await page.getByRole('button', { name: 'Add team' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog').getByLabel('Team name')).toBeFocused();
@@ -286,7 +286,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
 test('a role filter is reset when the role is replaced and deleted', async ({ page }) => {
   await openExample(page);
   await page.locator('.context').getByLabel('Role').selectOption({ label: 'Developer' });
-  await page.getByRole('tab', { name: 'Workspace settings' }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await page.getByRole('button', { name: 'Delete Developer' }).click();
   await page
     .getByRole('dialog', { name: 'Replace Developer' })
@@ -333,7 +333,7 @@ for (const locale of ['de', 'en'] as const) {
     await page.keyboard.press('Escape');
 
     // Inline errors in the panel.
-    await page.locator('#panel-team input[type="number"]').first().fill('0');
+    await page.locator('#panel-team input[type="number"]').first().fill('-1');
     await page.locator('#panel-team input[type="number"]').first().blur();
     await expect(page.locator('#panel-team .field-error').first()).toBeVisible();
     expect((await axe()).violations).toEqual([]);
@@ -418,17 +418,20 @@ test('the sidebar does not scroll past its content', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('the members card leads to the settings, where people and roles are created', async ({
-  page,
-}) => {
+test('people and roles are created in the team view, hours count per team', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
-  await panel(page).getByRole('button', { name: 'Open settings' }).click();
-  await expect(page.getByRole('tab', { name: 'Workspace settings', exact: true })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
-  await expect(page.getByRole('tab', { name: 'Workspace settings', exact: true })).toBeFocused();
+  const team = panel(page);
+  await team.getByLabel('New person name').fill('Kim');
+  await team.getByLabel('New person name').press('Enter');
+  await expect(team.getByText('not in a team yet')).toBeVisible();
+  await team.getByLabel('Person', { exact: true }).fill('Kim');
+  await team.getByLabel('Hrs/week in team').fill('12');
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await expect(team.getByLabel('Weekly hours of Kim in Team Alpha')).toHaveValue('12');
+  await expect(team.getByText('Team Alpha 12 h', { exact: true })).toBeVisible();
+  // Alex is in both example teams with 16 h each.
+  await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
 });
 
 test('each cycle names its number of milestones', async ({ page }) => {

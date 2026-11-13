@@ -1,17 +1,22 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { diffDays } from '../../core/date';
-  import { newId, removeCycle, renameAssumption, updateTeam, upsertCycle } from '../../core/edit';
+  import {
+    addItem,
+    newId,
+    removeCycle,
+    renameAssumption,
+    updateTeam,
+    upsertCycle,
+  } from '../../core/edit';
+  import { capacity } from '../../core/load';
+  import { record } from '../../core/record';
+  import ColourField, { PALETTE } from '../components/ColourField.svelte';
+  import ListEditor from '../components/ListEditor.svelte';
   import type { Cadence, Cycle } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { activeTeamId, localToday, workspace, type Change } from '../state/workspace';
-
-  interface Props {
-    /** Switches to the Settings view, where people and roles are created. */
-    onOpenSettings?: () => void;
-  }
-  let { onOpenSettings }: Props = $props();
 
   const uid = $props.id();
 
@@ -86,32 +91,110 @@
 
   const people = $derived($workspace.people);
   const roles = $derived($workspace.roles);
-  let addPerson = $state('');
+  const defaultHours = $derived($workspace.settings.hoursPerWeek);
+  /** The team's members, one entry per person with their roles in member order. */
+  const grouped = $derived.by(() => {
+    const out: { personId: string; roleIds: string[] }[] = [];
+    for (const m of team?.members ?? []) {
+      const entry = out.find((x) => x.personId === m.personId);
+      if (entry) entry.roleIds.push(m.roleId);
+      else out.push({ personId: m.personId, roleIds: [m.roleId] });
+    }
+    return out;
+  });
+  const hoursOf = (personId: string): number => capacity($workspace, personId, team?.id);
+
+  let addName = $state('');
   let addRole = $state('');
-  const personChoice = $derived(
-    people.some((p) => p.id === addPerson) ? addPerson : (people[0]?.id ?? ''),
-  );
+  let addHours = $state<number | null>(null);
   const roleChoice = $derived(roles.some((r) => r.id === addRole) ? addRole : (roles[0]?.id ?? ''));
+  /** People who are not in this team yet, offered while typing a name. */
+  const others = $derived(people.filter((p) => !grouped.some((g) => g.personId === p.id)));
+
+  function withHours(hours: Record<string, number>, personId: string, h: number) {
+    return Object.assign(record<number>(), hours, { [personId]: h });
+  }
 
   function addMember(event: Event) {
     event.preventDefault();
-    if (!team || personChoice === '' || roleChoice === '') return;
-    const { id, members } = team;
-    if (members.some((m) => m.personId === personChoice && m.roleId === roleChoice))
+    if (!team || roleChoice === '') return;
+    const name = addName.trim();
+    if (name === '') return fail('member-add', 'error.required', $t('team.members.person'));
+    // A blank field keeps the person's hours in this team, or leaves a new member on the
+    // workspace default (no entry, so they follow it).
+    const hours = addHours;
+    if (hours !== null && (!Number.isFinite(hours) || hours < 0))
+      return fail('member-add', 'error.number.invalid', $t('team.members.hours'));
+    const { id, members, memberHours } = team;
+    const known = people.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
+    if (known && members.some((m) => m.personId === known.id && m.roleId === roleChoice))
       return fail('member-add', 'team.members.duplicate', '');
-    commit('member-add', '', (ws) =>
-      updateTeam(ws, id, { members: [...members, { personId: personChoice, roleId: roleChoice }] }),
+    const done = commit('member-add', $t('team.members.hours'), (ws) => {
+      let next = ws;
+      let personId = known?.id;
+      if (personId === undefined) [next, personId] = addItem(next, 'people', { name });
+      return updateTeam(next, id, {
+        members: [...members, { personId, roleId: roleChoice }],
+        memberHours: hours === null ? memberHours : withHours(memberHours, personId, hours),
+      });
+    });
+    if (done) {
+      addName = '';
+      addHours = null;
+      void focusSoon('[data-member-add]');
+    }
+  }
+
+  function removeMember(personId: string, roleId: string) {
+    if (!team) return;
+    const { id, members, memberHours } = team;
+    clearError('member-add');
+    const rest = members.filter((m) => !(m.personId === personId && m.roleId === roleId));
+    const hours = Object.assign(record<number>(), memberHours);
+    // The person's hours in this team go with their last role.
+    if (!rest.some((m) => m.personId === personId)) delete hours[personId];
+    const done = commit('member-remove', '', (ws) =>
+      updateTeam(ws, id, { members: rest, memberHours: hours }),
+    );
+    if (done) void focusSoon('[data-member-add]');
+  }
+
+  function setHours(personId: string, event: Event) {
+    if (!team) return;
+    const input = event.currentTarget as HTMLInputElement;
+    const n = Number(input.value);
+    const label = $t('team.members.hoursOf', { name: personName(personId), team: team.name });
+    if (input.value.trim() === '' || !Number.isFinite(n))
+      return fail(`hours-${personId}`, 'error.number.invalid', label);
+    const { id, memberHours } = team;
+    commit(`hours-${personId}`, label, (ws) =>
+      updateTeam(ws, id, { memberHours: withHours(memberHours, personId, n) }),
     );
   }
 
-  function removeMember(index: number) {
-    if (!team) return;
-    const { id, members } = team;
-    clearError('member-add');
-    const done = commit('member-remove', '', (ws) =>
-      updateTeam(ws, id, { members: members.filter((_, i) => i !== index) }),
-    );
-    if (done) void focusSoon('[data-member-add]');
+  /** "Alpha 20 h · Beta 18 h · Σ 38 h", or that the person is in no team. */
+  function teamsOf(personId: string): string {
+    const parts = $workspace.teams
+      .filter((x) => x.members.some((m) => m.personId === personId))
+      .map((x) => ({ name: x.name, h: capacity($workspace, personId, x.id) }));
+    if (parts.length === 0) return $t('team.people.noTeam');
+    const list = parts.map((x) => $t('team.people.inTeam', { team: x.name, hours: hours(x.h) }));
+    if (parts.length > 1)
+      list.push($t('team.people.sum', { hours: hours(parts.reduce((s, x) => s + x.h, 0)) }));
+    return list.join(' · ');
+  }
+  const hours = (n: number): string =>
+    new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
+
+  function confirmPerson(person: { id: string; name: string }) {
+    const count = $workspace.teams.filter((x) =>
+      x.members.some((m) => m.personId === person.id),
+    ).length;
+    if (count === 0) return null;
+    return {
+      title: $t('settings.people.confirm.title', { name: person.name }),
+      message: $t('settings.people.confirm.message', { name: person.name, count }),
+    };
   }
 
   // ---------- cadence ----------
@@ -329,12 +412,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"
       ><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" /></svg
     >
-    <p>
-      {$t('team.help')}
-      {#if onOpenSettings}
-        <button type="button" class="link" onclick={onOpenSettings}>{$t('team.help.open')}</button>
-      {/if}
-    </p>
+    <p>{$t('team.help')}</p>
   </div>
 {/snippet}
 
@@ -359,57 +437,78 @@
           <section class="card" aria-labelledby="{uid}-members-h">
             <h3 id="{uid}-members-h">{$t('team.members')}</h3>
             {@render info()}
-            {#if team.members.length === 0}
+            {#if grouped.length === 0}
               <p class="empty">{$t('team.members.empty')}</p>
             {:else}
               <ul class="members" aria-label={$t('team.members.caption', { team: team.name })}>
-                {#each team.members as member, i (JSON.stringify([member.personId, member.roleId]))}
-                  {@const colour = roleColour(member.roleId)}
+                {#each grouped as member (member.personId)}
+                  {@const colour = roleColour(member.roleIds[0]!)}
+                  {@const name = personName(member.personId)}
                   <li>
                     <span class="avatar" style:background={colour} style:color={inkOn(colour)}
-                      >{initials(personName(member.personId))}</span
+                      >{initials(name)}</span
                     >
                     <span class="who">
-                      <span class="name">{personName(member.personId)}</span>
-                      <span class="role">{roleName(member.roleId)}</span>
+                      <span class="name">{name}</span>
+                      <span class="chips">
+                        {#each member.roleIds as roleId (roleId)}
+                          <span class="chip" style:--c={roleColour(roleId)}
+                            >{roleName(roleId)}<button
+                              type="button"
+                              class="chip-remove"
+                              aria-describedby={describe('member-remove')}
+                              onclick={() => removeMember(member.personId, roleId)}
+                              aria-label={$t('team.members.remove', {
+                                person: name,
+                                role: roleName(roleId),
+                              })}>{@render cross()}</button
+                            ></span
+                          >
+                        {/each}
+                      </span>
                     </span>
-                    <button
-                      type="button"
-                      class="icon-button"
-                      aria-describedby={describe('member-remove')}
-                      onclick={() => removeMember(i)}
-                      aria-label={$t('team.members.remove', {
-                        person: personName(member.personId),
-                        role: roleName(member.roleId),
-                      })}>{@render cross()}</button
-                    >
+                    <label class="hours">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={hoursOf(member.personId)}
+                        aria-label={$t('team.members.hoursOf', { name, team: team.name })}
+                        aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
+                        aria-describedby={describe(`hours-${member.personId}`)}
+                        onchange={(e) => setHours(member.personId, e)}
+                      />
+                      <span aria-hidden="true">{$t('settings.people.unit')}</span>
+                    </label>
+                    {@render err(`hours-${member.personId}`)}
                   </li>
                 {/each}
               </ul>
             {/if}
             {@render err('member-remove')}
 
-            {#if people.length === 0 || roles.length === 0}
+            {#if roles.length === 0}
               <p class="empty">{$t('team.members.needs')}</p>
             {:else}
               <form class="row add-row" onsubmit={addMember}>
                 <div class="field grow">
                   <label for="{uid}-add-person">{$t('team.members.person')}</label>
-                  <select
+                  <input
                     id="{uid}-add-person"
                     data-member-add
-                    value={personChoice}
+                    list="{uid}-people"
+                    autocomplete="off"
+                    placeholder={$t('team.members.person.placeholder')}
+                    bind:value={addName}
                     aria-invalid={errors['member-add'] ? 'true' : undefined}
                     aria-describedby={describe('member-add')}
-                    onchange={(e) => {
-                      addPerson = e.currentTarget.value;
-                      clearError('member-add');
-                    }}
-                  >
-                    {#each people as person (person.id)}
-                      <option value={person.id}>{person.name}</option>
+                    oninput={() => clearError('member-add')}
+                  />
+                  <datalist id="{uid}-people">
+                    {#each others as person (person.id)}
+                      <option value={person.name}></option>
                     {/each}
-                  </select>
+                  </datalist>
                 </div>
                 <div class="field grow">
                   <label for="{uid}-add-role">{$t('team.members.role')}</label>
@@ -427,6 +526,21 @@
                       <option value={role.id}>{role.name}</option>
                     {/each}
                   </select>
+                </div>
+                <div class="field hours-field">
+                  <label for="{uid}-add-hours">{$t('team.members.hours')}</label>
+                  <input
+                    id="{uid}-add-hours"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder={String(defaultHours)}
+                    value={addHours ?? ''}
+                    oninput={(e) => {
+                      const v = e.currentTarget.value;
+                      addHours = v.trim() === '' ? null : Number(v);
+                    }}
+                  />
                 </div>
                 <button type="submit" class="secondary add"
                   >{@render plus()}{$t('team.members.add')}</button
@@ -730,6 +844,43 @@
         </div>
       </div>
     {/key}
+    <!-- Outside the key block: the lists keep focus while they change the workspace. -->
+    <section class="card shared" aria-labelledby="{uid}-shared-h">
+      <h3 id="{uid}-shared-h">{$t('team.shared')}</h3>
+      <p class="hint">{$t('team.shared.hint')}</p>
+      <div class="lists">
+        <ListEditor
+          kind="people"
+          items={$workspace.people}
+          heading={$t('settings.people')}
+          addLabel={$t('settings.people.add')}
+          create={(name) => ({ name })}
+          confirmRemove={confirmPerson}
+        >
+          {#snippet extra(person)}
+            <span class="teams-of">{teamsOf(person.id)}</span>
+          {/snippet}
+        </ListEditor>
+        <ListEditor
+          kind="roles"
+          items={$workspace.roles}
+          heading={$t('settings.roles')}
+          addLabel={$t('settings.roles.add')}
+          create={(name) => ({
+            name,
+            colour: PALETTE[$workspace.roles.length % PALETTE.length]!.hex,
+          })}
+        >
+          {#snippet extra(role, ctx)}
+            <ColourField
+              value={role.colour}
+              label={$t('colour.of', { name: role.name })}
+              onchange={(colour) => ctx.update({ colour })}
+            />
+          {/snippet}
+        </ListEditor>
+      </div>
+    </section>
   {/if}
 </div>
 
@@ -779,17 +930,6 @@
     stroke-width: 2;
     stroke-linecap: round;
   }
-  :global(#app) .info .link {
-    display: inline;
-    padding: 0;
-    border: 0;
-    background: none;
-    box-shadow: none;
-    color: inherit;
-    font-weight: 650;
-    text-decoration: underline;
-    text-underline-offset: 0.15em;
-  }
   .members,
   .cycles,
   .assumptions {
@@ -799,6 +939,7 @@
   }
   .members li {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     padding: 0.6rem 0;
@@ -823,8 +964,76 @@
   .name {
     font-weight: 650;
   }
-  .role {
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.05rem 0.2rem 0.05rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--c) 14%, transparent);
+    color: var(--text);
+  }
+  :global(#app) .chip-remove {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    box-shadow: none;
+    color: var(--text-muted);
+  }
+  .chip-remove svg {
+    width: 0.8rem;
+    height: 0.8rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+  }
+  .hours {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .hours input {
+    width: 4.5rem;
+  }
+  .hours-field {
+    width: 9.5rem;
+  }
+  .teams-of {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .members li .field-error {
+    flex-basis: 100%;
+    margin: 0;
+  }
+  .shared {
+    margin-top: var(--space, 1rem);
+  }
+  .lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .shared .hint {
+    margin-top: 0;
     color: var(--text-muted);
   }
   .row {

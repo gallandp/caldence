@@ -25,7 +25,7 @@ const workspaceJson = JSON.stringify({
     thresholds: { warnFactor: 1.5, maxFte: 0.6 },
   },
   roles: [{ id: 'r1', name: 'Developer', colour: '#336699' }],
-  people: [{ id: 'p1', name: 'Pat', hoursPerWeek: 40 }],
+  people: [{ id: 'p1', name: 'Pat' }],
   categories: [{ id: 'c1', name: 'Ceremonies', colour: '#993366' }],
   teams: [
     {
@@ -33,6 +33,7 @@ const workspaceJson = JSON.stringify({
       name: 'Team',
       cadence: { kind: 'sprint', lengthWeeks: 2, start: START },
       members: [{ personId: 'p1', roleId: 'r1' }],
+      memberHours: { p1: 40 },
       assumptions: {},
       cycles: [],
       events: [

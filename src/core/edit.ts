@@ -1,6 +1,7 @@
 import { mondayOf, type ISODate } from './date';
 import type { CalEvent, Category, Cycle, Person, Role, Settings, Team, Workspace } from './model';
 import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
+import { record } from './record';
 import { isBuiltinRegion, type Region } from './regions';
 import { validate, type Result, type ValidationError } from './validate';
 
@@ -119,10 +120,16 @@ export function removeItem(
 
   if (kind === 'people') {
     for (const t of out.teams) {
+      // A replacement that is already a member keeps its own hours (an entry or the default).
+      const wasMember = t.members.some((m) => m.personId === replacementId);
       t.members = t.members.flatMap((m) =>
         m.personId !== id ? [m] : replacementId ? [{ ...m, personId: replacementId }] : [],
       );
       t.members = uniqueBy(t.members, (m) => `${m.personId}\u0000${m.roleId}`);
+      const hours = Object.hasOwn(t.memberHours, id) ? t.memberHours[id] : undefined;
+      delete t.memberHours[id];
+      if (replacementId && hours !== undefined && !wasMember)
+        t.memberHours = Object.assign(record<number>(), t.memberHours, { [replacementId]: hours });
     }
     return { ok: true, value: out };
   }
@@ -164,6 +171,7 @@ export function addTeam(ws: Workspace, name: string, today: ISODate): [Workspace
     name,
     cadence: { kind: 'sprint', lengthWeeks: 2, start: mondayOf(today) },
     members: [],
+    memberHours: {},
     assumptions: {},
     cycles: [],
     events: [],
@@ -174,7 +182,7 @@ export function addTeam(ws: Workspace, name: string, today: ISODate): [Workspace
 export function updateTeam(
   ws: Workspace,
   teamId: string,
-  patch: Partial<Pick<Team, 'name' | 'cadence' | 'members' | 'assumptions'>>,
+  patch: Partial<Pick<Team, 'name' | 'cadence' | 'members' | 'memberHours' | 'assumptions'>>,
 ): Result<Workspace> {
   const ti = ws.teams.findIndex((t) => t.id === teamId);
   if (ti < 0) return fail(`teams.${teamId}`, 'error.ref.unknown');

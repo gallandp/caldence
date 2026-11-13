@@ -28,7 +28,7 @@ test('a fresh start shows the welcome heading and the actions in order', async (
     'Continue a saved plan',
   );
   // The other views still offer the team bar.
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Add team' })).toBeVisible();
 });
 

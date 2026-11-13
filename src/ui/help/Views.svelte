@@ -131,6 +131,10 @@
       key="help.views.team"
       labels={{
         members: 'team.members',
+        hours: 'team.members.hours',
+        shared: 'team.shared',
+        people: 'settings.people',
+        roles: 'settings.roles',
         cadence: 'team.cadence',
         sprint: 'team.cadence.kind.sprint',
         flow: 'team.cadence.kind.flow',
@@ -155,9 +159,6 @@
         horizon: 'settings.horizon',
         skip: 'settings.skipHolidays',
         thresholds: 'settings.thresholds',
-        roles: 'settings.roles',
-        people: 'settings.people',
-        hours: 'settings.people.hoursLabel',
       }}
     />
   </p>

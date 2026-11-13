@@ -21,7 +21,7 @@ export interface Template {
   description: string;
   roles: Role[];
   categories: Category[];
-  team: Omit<Team, 'id' | 'members' | 'templateId'>;
+  team: Omit<Team, 'id' | 'members' | 'memberHours' | 'templateId'>;
 }
 
 const fail = <T>(errors: ValidationError[]): Result<T> => ({ ok: false, errors });
@@ -34,7 +34,7 @@ export function validateTemplate(input: unknown): Result<Template> {
   }
   const team = input.team;
   if ('people' in input) return fail([{ path: 'people', key: 'template.error.personal' }]);
-  if (isObj(team) && 'members' in team)
+  if (isObj(team) && ('members' in team || 'memberHours' in team))
     return fail([{ path: 'team.members', key: 'template.error.personal' }]);
   // Regions belong to a workspace, never to a template.
   if ('customRegions' in input)
@@ -72,7 +72,7 @@ export function validateTemplate(input: unknown): Result<Template> {
     teams:
       value.team === undefined
         ? undefined
-        : [{ ...(value.team as object), id: 'team', members: [] }],
+        : [{ ...(value.team as object), id: 'team', members: [], memberHours: {} }],
     customRegions: [],
   };
   const r = validate(temp);
@@ -156,6 +156,7 @@ export function applyTemplate(
     name: opts.name,
     templateId: tpl.id,
     members: [],
+    memberHours: {},
     cadence: { ...tpl.team.cadence, start: newStart },
     cycles: tpl.team.cycles.map((c) => ({
       ...c,
@@ -193,6 +194,7 @@ export function teamToTemplate(
   const rest = structuredClone(team) as unknown as Record<string, unknown>;
   delete rest.id;
   delete rest.members;
+  delete rest.memberHours;
   delete rest.templateId;
   return {
     kind: 'caldence-template',

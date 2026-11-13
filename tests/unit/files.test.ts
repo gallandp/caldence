@@ -36,7 +36,7 @@ describe('serialize', () => {
   it('uses 2-space indent and a trailing newline, and round-trips', () => {
     const text = serialize(ws);
     expect(text.endsWith('}\n')).toBe(true);
-    expect(text).toContain('\n  "schemaVersion": 3');
+    expect(text).toContain('\n  "schemaVersion": 4');
     const back = loadWorkspace(text);
     expect(back.ok && back.value).toEqual(ws);
   });

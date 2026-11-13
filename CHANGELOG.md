@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- People and roles are created in the Team view, where they are assigned; a new person can be added while assigning them
+- Weekly hours are set per team: a person can work 20 h in one team and 18 h in another. Workspaces from earlier versions split a person's hours evenly across their teams (schema 4)
+
 ## 1.20.1 – 2026-11-13
 
 ### Fixed

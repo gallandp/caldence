@@ -13,6 +13,7 @@ const team: Team = {
   name: 'T',
   cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' },
   members: [],
+  memberHours: {},
   assumptions: {},
   cycles: [{ id: 'cy1', name: 'C', milestones: [{ id: 'm1', name: 'M', date: '2027-02-01' }] }],
   events: [],

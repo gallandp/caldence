@@ -2,7 +2,7 @@ import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 3;
+export const CURRENT_SCHEMA = 4;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -26,7 +26,6 @@ export interface Role {
 export interface Person {
   id: string;
   name: string;
-  hoursPerWeek: number;
 }
 
 export interface Category {
@@ -78,6 +77,8 @@ export interface Team {
   templateId?: string;
   cadence: Cadence;
   members: { personId: string; roleId: string }[];
+  /** Weekly hours of a person in this team; a missing entry means settings.hoursPerWeek. */
+  memberHours: Record<string, number>;
   assumptions: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];

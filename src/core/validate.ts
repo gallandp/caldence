@@ -312,6 +312,15 @@ function checkTeam(
     LIMITS.membersPerTeam,
   );
 
+  const mh = c.obj(t.memberHours, `${p}.memberHours`);
+  if (mh) {
+    for (const personId of Object.keys(mh)) {
+      const hp = `${p}.memberHours.${personId}`;
+      if (!personIds.has(personId)) c.err(hp, 'error.ref.unknown');
+      else c.num(mh, personId, `${p}.memberHours`, { min: 0, max: LIMITS.hoursPerWeek });
+    }
+  }
+
   const a = c.obj(t.assumptions, `${p}.assumptions`);
   if (a) {
     const entries = Object.entries(a);
@@ -391,7 +400,6 @@ export function validate(input: unknown): Result<Workspace> {
   const personIds = c.ids(people, 'people');
   c.each(people, 'people', (o, p) => {
     c.str(o, 'name', p);
-    c.num(o, 'hoursPerWeek', p, { min: 0, max: LIMITS.hoursPerWeek });
   });
 
   const cats = c.arr(w.categories, 'categories', LIMITS.categories) ?? [];

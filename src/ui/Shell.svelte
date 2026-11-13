@@ -376,9 +376,7 @@
                   onEditOpened={() => (editRequest = undefined)}
                 />{/if}
             {:else if id === 'team'}
-              {#if active === 'team'}<TeamView
-                  onOpenSettings={() => select('settings', true)}
-                />{/if}
+              {#if active === 'team'}<TeamView />{/if}
             {:else if id === 'settings'}
               {#if active === 'settings'}<SettingsView />{/if}
             {:else if id === 'templates'}
