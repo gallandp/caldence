@@ -72,11 +72,11 @@ describe('constants of the weeks and load e2e tests', () => {
     expect(peak).toBeCloseTo(ALEX.peakHours, 9);
     expect(isoWeek(weeks[hours.indexOf(peak)]!.monday)).toBe(ALEX.peakWeek);
     const mine = warnings(weeks, ws).filter((w) => w.personId === 'person-alex');
-    expect(mine.every((w) => w.kind === 'above-average')).toBe(true);
+    expect(mine.every((w) => w.kind === 'above-usual')).toBe(true);
     expect(
       mine.map((w) => [
         isoWeek(w.monday),
-        weeks.find((x) => x.monday === w.monday)!.byPerson['person-alex'],
+        Number(weeks.find((x) => x.monday === w.monday)!.byPerson['person-alex']!.toFixed(3)),
       ]),
     ).toEqual(ALEX.warnings);
   });

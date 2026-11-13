@@ -130,7 +130,7 @@
           "categoryId": "cat-align",
           "rule": { "type": "once", "date": "2027-01-11" },
           "time": "10:00",
-          "duration": 180,
+          "duration": 240,
           "participants": [
             { "roleId": "role-po", "share": 1 },
             { "roleId": "role-sm", "share": 1 }

@@ -427,9 +427,9 @@ describe('scopePeople and warnedWeeks', () => {
     const w = ws();
     const t1 = w.teams[0]!.id;
     const all = [
-      { monday: '2027-01-04', personId: 'p1', kind: 'above-average' as const },
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-usual' as const },
       { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' as const },
-      { monday: '2027-01-04', personId: 'p3', kind: 'above-average' as const },
+      { monday: '2027-01-04', personId: 'p3', kind: 'above-usual' as const },
       { monday: '2027-01-11', personId: 'p2', kind: 'above-fte' as const },
     ];
     const byMonday = warnedWeeks(w, all, { teamId: t1 });

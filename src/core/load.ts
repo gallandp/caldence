@@ -12,13 +12,15 @@ export interface BaseLoad {
 export interface WeekLoad {
   monday: ISODate;
   byPerson: Record<string, number>;
+  /** Hours per person from recurring meetings only: the load that comes back with the cadence. */
+  regularByPerson: Record<string, number>;
   byTeamRole: Record<string, Record<string, number>>;
 }
 
 export interface LoadWarning {
   monday: ISODate;
   personId: string;
-  kind: 'above-average' | 'above-fte';
+  kind: 'above-usual' | 'above-fte';
 }
 
 /** Average occurrences per week of a recurring rule; one-off rules count 0. */
@@ -63,6 +65,9 @@ export function weeklyBaseLoad(team: Team): BaseLoad {
   return { byRole, byCategory };
 }
 
+/** Rules that do not come back every few weeks: one-offs and cycle milestones. */
+const IRREGULAR = new Set<Rule['type']>(['once', 'cycle-milestone']);
+
 /** Hours per week for every Monday of the horizon, holidays excluded, all teams summed. */
 export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
   const first = mondayOf(ws.settings.horizon.from);
@@ -71,8 +76,9 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
   const weeks: WeekLoad[] = [];
   for (let i = 0; i < count; i++) {
     const byPerson = record<number>();
-    for (const person of ws.people) byPerson[person.id] = 0;
-    weeks.push({ monday: addDays(first, i * 7), byPerson, byTeamRole: record() });
+    const regularByPerson = record<number>();
+    for (const person of ws.people) byPerson[person.id] = regularByPerson[person.id] = 0;
+    weeks.push({ monday: addDays(first, i * 7), byPerson, regularByPerson, byTeamRole: record() });
   }
 
   for (const team of ws.teams) {
@@ -82,6 +88,7 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
       const event = events.get(occ.eventId);
       const week = weeks[diffDays(mondayOf(occ.date), first) / 7];
       if (!event || !week) continue;
+      const regular = !IRREGULAR.has(event.rule.type);
       for (const p of event.participants) {
         const hours = occurrenceHours(event, occ.duration, p.share);
         const roles = (week.byTeamRole[team.id] ??= record());
@@ -89,6 +96,8 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
         for (const m of team.members) {
           if (m.roleId === p.roleId) {
             week.byPerson[m.personId] = (week.byPerson[m.personId] ?? 0) + hours;
+            if (regular)
+              week.regularByPerson[m.personId] = (week.regularByPerson[m.personId] ?? 0) + hours;
           }
         }
       }
@@ -101,7 +110,12 @@ export function fte(hours: number, hoursPerWeek: number): number {
   return hoursPerWeek > 0 ? hours / hoursPerWeek : 0;
 }
 
-/** Flags weeks above warnFactor x personal average and weeks above maxFte. */
+/**
+ * Flags weeks above warnFactor x the person's usual load and weeks above maxFte. The usual load
+ * of a week is the person's average, or their recurring meetings that week if that is more, so
+ * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
+ * and cycle milestones on top of them are.
+ */
 export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
   const { warnFactor, maxFte } = ws.settings.thresholds;
   const result: LoadWarning[] = [];
@@ -110,8 +124,9 @@ export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
     const average = weeks.length > 0 ? total / weeks.length : 0;
     for (const week of weeks) {
       const hours = week.byPerson[person.id] ?? 0;
-      if (average > 0 && hours > warnFactor * average) {
-        result.push({ monday: week.monday, personId: person.id, kind: 'above-average' });
+      const usual = Math.max(average, week.regularByPerson[person.id] ?? 0);
+      if (average > 0 && hours > warnFactor * usual) {
+        result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
       if (fte(hours, person.hoursPerWeek) > maxFte) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });

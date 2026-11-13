@@ -47,36 +47,54 @@
 
   const allWarnings = $derived(warnings(weeks, $workspace));
 
-  /** One line per person and kind, listing its weeks and the highest hours among them. */
+  /** Up to this many weeks are named; more are summed up as a span. */
+  const NAMED_WEEKS = 4;
+
+  /** One line per person: for each kind of warning its weeks and the most hours among them. */
   const warningItems = $derived.by(() => {
     const byMonday = new Map(weeks.map((w) => [w.monday, w]));
-    const people = scopePeople($workspace, $filter);
-    const groups = record<{ personId: string; kind: string; mondays: string[]; max: number }>();
+    const inScope = scopePeople($workspace, $filter);
+    const groups = record<{ personId: string; kinds: Record<string, string[]> }>();
     for (const w of allWarnings) {
-      if (!people.has(w.personId)) continue;
-      const group = (groups[`${w.personId}/${w.kind}`] ??= {
-        personId: w.personId,
-        kind: w.kind,
-        mondays: [],
-        max: 0,
-      });
-      group.mondays.push(w.monday);
-      group.max = Math.max(group.max, byMonday.get(w.monday)?.byPerson[w.personId] ?? 0);
+      if (!inScope.has(w.personId)) continue;
+      const group = (groups[w.personId] ??= { personId: w.personId, kinds: record() });
+      (group.kinds[w.kind] ??= []).push(w.monday);
     }
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
-    return Object.entries(groups).map(([key, g]) => {
+    const { warnFactor, maxFte } = $workspace.settings.thresholds;
+    const label = (mondays: string[]): string[] => {
       // Week numbers repeat on horizons longer than a year: then the Mondays are named instead.
-      const labels = g.mondays.map(weekLabel);
-      const named =
-        new Set(labels).size === labels.length
-          ? labels
-          : g.mondays.map((m) => formatDisplayDate($locale, m, 'short'));
+      const labels = mondays.map(weekLabel);
+      return new Set(labels).size === labels.length
+        ? labels
+        : mondays.map((m) => formatDisplayDate($locale, m, 'short'));
+    };
+    return Object.values(groups).map((g) => {
+      const parts = (['above-usual', 'above-fte'] as const)
+        .filter((kind) => g.kinds[kind])
+        .map((kind) => {
+          const mondays = g.kinds[kind]!;
+          const named = label(mondays);
+          const most = Math.max(...mondays.map((m) => byMonday.get(m)?.byPerson[g.personId] ?? 0));
+          return $t(`load.warn.${kind}`, {
+            factor: formatNumber($locale, warnFactor, 1),
+            fte: formatNumber($locale, maxFte, 2),
+            weeks:
+              named.length > NAMED_WEEKS
+                ? $t('load.warn.span', {
+                    count: formatNumber($locale, named.length, 0),
+                    first: named[0]!,
+                    last: named[named.length - 1]!,
+                  })
+                : list.format(named),
+            hours: hours(most),
+          });
+        });
       return {
-        key,
-        text: $t(`load.warn.${g.kind}`, {
-          weeks: list.format(named),
+        key: g.personId,
+        text: $t('load.warn.person', {
           person: $workspace.people.find((p) => p.id === g.personId)?.name ?? g.personId,
-          hours: hours(g.max),
+          parts: parts.join('; '),
         }),
       };
     });
@@ -224,32 +242,54 @@
     </li>
   </ul>
 
+  {#if peak}
+    <section class="card" aria-labelledby="{uid}-chart">
+      <h3 id="{uid}-chart">{$t('load.chart')}</h3>
+      <p class="note">{$t('load.chart.hint')}</p>
+      <div class="chart" role="img" aria-label={chartLabel}>
+        <div class="avg" style:bottom="{(average / peak.total) * 100}%">
+          <span>{$t('load.chart.avg', { hours: hours(average) })}</span>
+        </div>
+        <div class="bars">
+          {#each rows as row (row.monday)}
+            <i class:high={warned.has(row.monday)} style:height="{(row.total / peak.total) * 100}%"
+            ></i>
+          {/each}
+        </div>
+      </div>
+      <div class="axis" aria-hidden="true">
+        <span>{weekLabel(rows[0]!.monday)}</span>
+        <span>{weekLabel(rows[Math.floor(rows.length / 2)]!.monday)}</span>
+        <span>{weekLabel(rows[rows.length - 1]!.monday)}</span>
+      </div>
+    </section>
+  {/if}
+  <section class="card" aria-labelledby="{uid}-warn">
+    <h3 id="{uid}-warn">
+      {$t('load.warnings')}
+      {#if warningItems.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length}</span
+        >{/if}
+    </h3>
+    <p class="note">
+      {$t('load.warnings.rule', {
+        factor: formatNumber($locale, $workspace.settings.thresholds.warnFactor, 1),
+        fte: formatNumber($locale, $workspace.settings.thresholds.maxFte, 2),
+      })}
+    </p>
+    {#if warningItems.length === 0}
+      <p class="note">{$t('load.warnings.none')}</p>
+    {:else}
+      <ul class="warnings">
+        {#each warningItems as w (w.key)}
+          <li class="warning">{w.text}</li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+
   <div class="grid">
     <div class="col">
-      {#if peak}
-        <section class="card" aria-labelledby="{uid}-chart">
-          <h3 id="{uid}-chart">{$t('load.chart')}</h3>
-          <p class="note">{$t('load.chart.hint')}</p>
-          <div class="chart" role="img" aria-label={chartLabel}>
-            <div class="avg" style:bottom="{(average / peak.total) * 100}%">
-              <span>{$t('load.chart.avg', { hours: hours(average) })}</span>
-            </div>
-            <div class="bars">
-              {#each rows as row (row.monday)}
-                <i
-                  class:high={warned.has(row.monday)}
-                  style:height="{(row.total / peak.total) * 100}%"
-                ></i>
-              {/each}
-            </div>
-          </div>
-          <div class="axis" aria-hidden="true">
-            <span>{weekLabel(rows[0]!.monday)}</span>
-            <span>{weekLabel(rows[Math.floor(rows.length / 2)]!.monday)}</span>
-            <span>{weekLabel(rows[rows.length - 1]!.monday)}</span>
-          </div>
-        </section>
-      {/if}
       <div class="card">{@render region('base', $t('load.table.base'), baseBody)}</div>
     </div>
     <div class="col">
@@ -262,23 +302,6 @@
           {#if !$filter.personId}<p class="note below">{$t('load.table.person.note')}</p>{/if}
         </div>
       {/if}
-      <section class="card" aria-labelledby="{uid}-warn">
-        <h3 id="{uid}-warn">
-          {$t('load.warnings')}
-          {#if warningItems.length > 0}<span class="count" aria-hidden="true"
-              >{warningItems.length}</span
-            >{/if}
-        </h3>
-        {#if warningItems.length === 0}
-          <p class="note">{$t('load.warnings.none')}</p>
-        {:else}
-          <ul class="warnings">
-            {#each warningItems as w (w.key)}
-              <li class="warning">{w.text}</li>
-            {/each}
-          </ul>
-        {/if}
-      </section>
     </div>
   </div>
 </div>

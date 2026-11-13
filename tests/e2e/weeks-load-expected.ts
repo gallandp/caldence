@@ -34,19 +34,15 @@ export const ALEX_START_WEEK = { byRole: { 'role-po': 5.1 }, total: 5.1 };
 export const ALEX = {
   /** Base load of Alex's Product Owner role (`loadSummary` with the person filter). */
   roleHours: 4.438461538461539,
-  average: 4.343867924528298,
-  fte: 4.343867924528298 / 32,
+  average: 4.3627358490566,
+  fte: 4.3627358490566 / 32,
   peakWeek: 25,
   peakHours: 7.475,
-  /** Warnings in week order: [ISO week, hours]; all `above-average`. */
-  warnings: [
-    [5, 6.85],
-    [9, 6.85],
-    [13, 6.85],
-    [25, 7.475],
-    [31, 6.85],
-    [35, 6.85],
-  ] as [number, number][],
+  /**
+   * Warnings in week order: [ISO week, hours]; all `above-usual`. Only the kick-off week: the
+   * sprint starts and the release readiness week are peaks Alex has every few weeks.
+   */
+  warnings: [[2, 6.7]] as [number, number][],
 };
 
 export const fmt = (locale: 'de' | 'en', n: number, digits = 1): string =>
