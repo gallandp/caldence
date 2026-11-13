@@ -284,6 +284,13 @@
   box-shadow: var(--shadow);
   padding: 1.5rem;
 }
+/* Content starts at the card's padding: no extra margin above the first heading or paragraph. */
+#app [role='tabpanel'] > :not(h2, .stack) > :first-child,
+#app [role='tabpanel'] > :not(h2, .stack) > :first-child > :first-child,
+#app .stack .card > :first-child,
+#app .stack .card > :first-child > :first-child {
+  margin-top: 0;
+}
 /* A view made of several cards: the wrapper itself stays plain. */
 #app [role='tabpanel'] > .stack {
   display: flex;
@@ -431,19 +438,10 @@ body {
     radial-gradient(50rem 30rem at 15% 105%, rgb(34 181 224 / 0.07), transparent 70%), var(--bg);
   background-attachment: fixed;
 }
+/* Cards anchor their positioned children (tooltips, live regions). */
 #app [role='tabpanel'] > :not(h2, .stack),
 #app .stack .card {
   position: relative;
-}
-#app [role='tabpanel'] > :not(h2, .stack)::before,
-#app .stack > .card:first-child::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: var(--brand-gradient);
-  opacity: 0.85;
 }
 #app table:not([role='grid']) thead th {
   background: var(--accent-soft);

@@ -265,9 +265,6 @@
 <ApplyDialog bind:this={applyDialog} oncreated={onApplied} />
 
 <style>
-  .templates {
-    max-width: 48rem;
-  }
   .help,
   .empty {
     color: var(--text-muted);
@@ -324,6 +321,10 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem 1rem;
+  }
+  /* An empty live region takes no room; it stays in the tree so its message is announced. */
+  .notice:empty {
+    min-height: 0;
   }
   .error,
   .field-error {

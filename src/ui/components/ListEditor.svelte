@@ -253,7 +253,11 @@
         <p class="field-error" id="{uid}-new-err">{$t(addError, { path: addLabel })}</p>
       {/if}
     </div>
-    <button type="submit" class="primary">{$t('list.add')}</button>
+    <button type="submit" class="secondary add-button"
+      ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
+        'list.add',
+      )}</button
+    >
   </form>
 </section>
 
@@ -355,11 +359,19 @@
     opacity: 0.5;
     cursor: default;
   }
-  button.primary {
-    background: var(--accent);
-    color: var(--bg);
-    border-color: var(--accent);
-    font-weight: 600;
+  /* Same outlined "+ Add" button as on Members & cadence. */
+  .add-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .add-button svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
   }
   .empty {
     color: var(--text-muted);

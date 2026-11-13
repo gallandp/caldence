@@ -34,7 +34,6 @@
 
 <style>
   .help {
-    max-width: 48rem;
     min-width: 0;
   }
   nav {
