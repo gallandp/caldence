@@ -6,6 +6,12 @@
 
 - The example's categories are named in the UI language, Meetings lists meetings in the order they next take place, the Weeks table keeps its column headings in view on wide screens, and the settings point to Members & cadence by its name
 
+## 1.16.0 – 2026-11-13
+
+### Changed
+
+- Consistent cards, widths and spacing (#109)
+
 ## 1.15.0 – 2026-11-13
 
 ### Added
