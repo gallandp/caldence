@@ -4,15 +4,19 @@ import { contrastRatio } from '../../src/core/colour';
 
 const css = readFileSync('src/ui/tokens.css', 'utf8');
 
-function tokens(block: string): Record<string, string> {
+// Tokens are written as `--name: light-dark(#light, #dark);` or as a single colour for both schemes.
+function tokens(scheme: 0 | 1): Record<string, string> {
   return Object.fromEntries(
-    [...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{3,6})\s*;/gi)].map((m) => [m[1]!, m[2]!]),
+    [
+      ...css.matchAll(
+        /--([\w-]+):\s*(?:light-dark\((#[0-9a-f]{3,6}),\s*(#[0-9a-f]{3,6})\)|(#[0-9a-f]{3,6}))\s*;/gi,
+      ),
+    ].map((m) => [m[1]!, (m[4] ?? m[2 + scheme])!]),
   );
 }
 
-const darkStart = css.indexOf('prefers-color-scheme: dark');
-const light = tokens(css.slice(0, darkStart));
-const dark = { ...light, ...tokens(css.slice(darkStart)) };
+const light = tokens(0);
+const dark = tokens(1);
 
 for (const [name, t] of [
   ['light', light],

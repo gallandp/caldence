@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bump, highestLabel, releaseChangelog, versionNotes } from '../../scripts/version-bump.mjs';
+import {
+  bump,
+  escapeRegExp,
+  highestLabel,
+  releaseChangelog,
+  versionNotes,
+} from '../../scripts/version-bump.mjs';
 
 describe('bump', () => {
   it('raises the minor version and resets the hotfix', () => {
@@ -70,5 +76,13 @@ describe('versionNotes', () => {
   });
   it('throws for a version without section', () => {
     expect(() => versionNotes(log, '9.9.9')).toThrow();
+  });
+});
+
+describe('escapeRegExp', () => {
+  it('makes every regex special character literal', () => {
+    const s = '1.2.3+build(1)[x]*?^$|{}\\';
+    expect(new RegExp(`^${escapeRegExp(s)}$`).test(s)).toBe(true);
+    expect(new RegExp(`^${escapeRegExp('1.2.3')}$`).test('1x2x3')).toBe(false);
   });
 });

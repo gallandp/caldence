@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Appearance switch below the language: match the system (default), light or dark, remembered in this browser
+
 ### Changed
 
 - The role and person filters appear only above Calendar, Weeks and Load, where they apply; Load explains that the per-person table covers all teams

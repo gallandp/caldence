@@ -3,6 +3,7 @@
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
+  import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
@@ -238,6 +239,7 @@
 
     <div class="side-foot">
       <LanguageSwitch />
+      <ThemeSwitch />
       {#if legal.length > 0}
         <nav class="legal" aria-label={$t('legal.label')}>
           {#each legal as page (page)}
