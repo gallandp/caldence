@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.20.0 – 2026-11-13
+
+### Changed
+
+- Small UI and copy fixes from the UI scan (#114)
+
 ## 1.19.0 – 2026-11-13
 
 ### Changed
