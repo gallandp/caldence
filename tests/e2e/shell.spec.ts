@@ -141,6 +141,23 @@ test('on wide screens the view title and the filters share one row', async ({ pa
   expect(titleBox.y).toBeGreaterThanOrEqual(filtersBottom.y + filtersBottom.height);
 });
 
+test('the role and person filters show only where they apply', async ({ page }) => {
+  await openExample(page);
+  const filters = page.locator('.bar.context');
+  for (const name of ['Calendar', 'Weeks', 'Load']) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    await expect(filters).toBeVisible();
+  }
+  await page.getByRole('combobox', { name: 'Role' }).selectOption({ label: 'Product Owner' });
+  for (const name of ['Meetings', 'Members & cadence', 'Templates', 'Workspace settings', 'Help']) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    await expect(filters).toBeHidden();
+  }
+  // Hidden, not reset: the choice is still there on return.
+  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Role' })).not.toHaveValue('');
+});
+
 test('appearance overrides the system scheme and is remembered', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');

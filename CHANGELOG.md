@@ -6,6 +6,12 @@
 
 - Calmer sidebar: thin dividers instead of the three group headings, and language and appearance side by side in one row
 
+## 1.17.0 – 2026-11-13
+
+### Changed
+
+- The role and person filters appear only above Calendar, Weeks and Load, where they apply; Load explains that the per-person table covers all teams
+
 ## 1.16.0 – 2026-11-13
 
 ### Changed

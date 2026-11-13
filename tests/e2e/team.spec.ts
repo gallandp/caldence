@@ -60,6 +60,9 @@ test('selecting a person states that all teams are shown', async ({ page }) => {
   await panel(page).getByRole('button', { name: 'Add member' }).click();
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).toContainText('Alex');
 
+  // The filters live above Calendar, Weeks and Load only.
+  await expect(page.locator('.context')).toBeHidden();
+  await page.getByRole('tab', { name: 'Calendar' }).click();
   await expect(page.getByText('All teams')).toHaveCount(0);
   const bar = page.locator('.context');
   await bar.getByLabel('Person').selectOption({ label: 'Alex' });
@@ -278,7 +281,6 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
 
 test('a role filter is reset when the role is replaced and deleted', async ({ page }) => {
   await openExample(page);
-  await openTeamView(page);
   await page.locator('.context').getByLabel('Role').selectOption({ label: 'Developer' });
   await page.getByRole('tab', { name: 'Workspace settings' }).click();
   await page.getByRole('button', { name: 'Delete Developer' }).click();
@@ -303,17 +305,6 @@ for (const locale of ['de', 'en'] as const) {
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
         .analyze();
     expect((await axe()).violations).toEqual([]);
-
-    // With the person filter on (shows "All teams").
-    await page
-      .locator('.context')
-      .getByLabel(/Person|Person/)
-      .selectOption({ index: 1 });
-    expect((await axe()).violations).toEqual([]);
-    await page
-      .locator('.context')
-      .getByLabel(/Person/)
-      .selectOption({ index: 0 });
 
     // The team actions, open.
     await page.locator('.switcher .toggle').click();
@@ -372,7 +363,6 @@ test('a refused removal keeps focus and links its error to the button', async ({
 
 test('the filter follows the active team', async ({ page }) => {
   await openExample(page);
-  await openTeamView(page);
   await teamSelect(page).selectOption({ label: 'Team Beta' });
   await expect(page.getByText('All teams')).toHaveCount(0);
   await expect(page.locator('.context').getByLabel('Person')).toHaveValue('');

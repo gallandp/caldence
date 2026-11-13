@@ -119,8 +119,8 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await addMemberAndMeeting(page, 'Team B', false);
 
   // The person filter combines both teams.
-  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await tab(page, 'Load').click();
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   const load = panel(page, 'Load');
   // Both meetings count one hour of Product Owner each week.
   await expect(
