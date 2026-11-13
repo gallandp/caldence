@@ -276,6 +276,8 @@ for (const lang of ['de', 'en'] as const) {
 }
 
 test('meetings appear as chips in their category colour and today is marked', async ({ page }) => {
+  // Tall enough for the roomy rows that show every meeting of 7 January.
+  await page.setViewportSize({ width: 1280, height: 1100 });
   await openCalendar(page, '2027-01-15');
   const planning = example.teams[0]!.events.find((e) => e.name === 'Sprint Planning')!;
   const colour = example.categories.find((c) => c.id === planning.categoryId)!.colour;
@@ -284,6 +286,29 @@ test('meetings appear as chips in their category colour and today is marked', as
   expect(await chip.evaluate((el) => el.style.getPropertyValue('--c'))).toBe(colour);
   await expect(cellOf(page, '2027-01-15')).toHaveClass(/\btoday\b/);
   await expect(cellOf(page, '2027-01-14')).not.toHaveClass(/\btoday\b/);
+});
+
+test('the month fits a laptop screen and keeps its roomy rows on large ones', async ({ page }) => {
+  // May 2027 spans six weeks: the longest month grid.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openCalendar(page, '2027-05-12');
+  const legend = panel(page).locator('.legend');
+  await expect
+    .poll(async () => {
+      const box = (await legend.boundingBox())!;
+      return box.y + box.height;
+    })
+    .toBeLessThanOrEqual(800);
+  // A day with a cadence tag and a meeting keeps the tag; the hours still show the meeting.
+  await expect(cellOf(page, '2027-05-13').locator('.tag')).toHaveText('Sprint 10');
+  await expect(cellOf(page, '2027-05-13').locator('.chip')).toHaveCount(0);
+  await expect(cellOf(page, '2027-05-13')).toContainText('5.0 h');
+
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  const row = panel(page).locator('tbody tr').first();
+  await expect.poll(async () => (await row.boundingBox())!.height).toBeGreaterThan(130);
+  await expect(cellOf(page, '2027-05-13').locator('.chip')).toHaveCount(1);
+  await expect(cellOf(page, '2027-05-13').locator('.more')).toHaveCount(0);
 });
 
 test('today is exposed as the current date, not only by its colour', async ({ page }) => {
