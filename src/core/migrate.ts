@@ -39,8 +39,6 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
         }
         return { ...t, memberHours };
       });
-    if (ws.team !== null && typeof ws.team === 'object' && !Array.isArray(ws.team))
-      out.team = { ...(ws.team as object), memberHours: {} };
     return out;
   },
 };

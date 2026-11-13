@@ -120,13 +120,15 @@ export function removeItem(
 
   if (kind === 'people') {
     for (const t of out.teams) {
+      // A replacement that is already a member keeps its own hours (an entry or the default).
+      const wasMember = t.members.some((m) => m.personId === replacementId);
       t.members = t.members.flatMap((m) =>
         m.personId !== id ? [m] : replacementId ? [{ ...m, personId: replacementId }] : [],
       );
       t.members = uniqueBy(t.members, (m) => `${m.personId}\u0000${m.roleId}`);
       const hours = Object.hasOwn(t.memberHours, id) ? t.memberHours[id] : undefined;
       delete t.memberHours[id];
-      if (replacementId && hours !== undefined && !Object.hasOwn(t.memberHours, replacementId))
+      if (replacementId && hours !== undefined && !wasMember)
         t.memberHours = Object.assign(record<number>(), t.memberHours, { [replacementId]: hours });
     }
     return { ok: true, value: out };

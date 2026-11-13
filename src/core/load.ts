@@ -154,6 +154,7 @@ export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}):
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
     const average = weeks.length > 0 ? total / weeks.length : 0;
+    const hoursPerWeek = capacity(ws, person.id, teamId);
     for (const week of weeks) {
       const hours = week.byPerson[person.id] ?? 0;
       const usual = Math.max(average, week.regularByPerson[person.id] ?? 0);
@@ -161,7 +162,9 @@ export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}):
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
       const fteHours = teamId ? (week.byTeamPerson[teamId]?.[person.id] ?? 0) : hours;
-      if (fteHours > 0 && fte(fteHours, capacity(ws, person.id, teamId)) > maxFte) {
+      // Meetings without any weekly hours in the team are always too many.
+      const over = hoursPerWeek > 0 ? fte(fteHours, hoursPerWeek) > maxFte : fteHours > 0;
+      if (fteHours > 0 && over) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
       }
     }

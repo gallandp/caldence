@@ -9,6 +9,7 @@
     updateTeam,
     upsertCycle,
   } from '../../core/edit';
+  import { capacity } from '../../core/load';
   import { record } from '../../core/record';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import ListEditor from '../components/ListEditor.svelte';
@@ -101,8 +102,7 @@
     }
     return out;
   });
-  const hoursOf = (personId: string): number =>
-    team && Object.hasOwn(team.memberHours, personId) ? team.memberHours[personId]! : defaultHours;
+  const hoursOf = (personId: string): number => capacity($workspace, personId, team?.id);
 
   let addName = $state('');
   let addRole = $state('');
@@ -120,8 +120,10 @@
     if (!team || roleChoice === '') return;
     const name = addName.trim();
     if (name === '') return fail('member-add', 'error.required', $t('team.members.person'));
-    const hours = addHours ?? defaultHours;
-    if (!Number.isFinite(hours) || hours < 0)
+    // A blank field keeps the person's hours in this team, or leaves a new member on the
+    // workspace default (no entry, so they follow it).
+    const hours = addHours;
+    if (hours !== null && (!Number.isFinite(hours) || hours < 0))
       return fail('member-add', 'error.number.invalid', $t('team.members.hours'));
     const { id, members, memberHours } = team;
     const known = people.find((p) => p.name.trim().toLowerCase() === name.toLowerCase());
@@ -133,7 +135,7 @@
       if (personId === undefined) [next, personId] = addItem(next, 'people', { name });
       return updateTeam(next, id, {
         members: [...members, { personId, roleId: roleChoice }],
-        memberHours: withHours(memberHours, personId, hours),
+        memberHours: hours === null ? memberHours : withHours(memberHours, personId, hours),
       });
     });
     if (done) {
@@ -174,10 +176,7 @@
   function teamsOf(personId: string): string {
     const parts = $workspace.teams
       .filter((x) => x.members.some((m) => m.personId === personId))
-      .map((x) => ({
-        name: x.name,
-        h: Object.hasOwn(x.memberHours, personId) ? x.memberHours[personId]! : defaultHours,
-      }));
+      .map((x) => ({ name: x.name, h: capacity($workspace, personId, x.id) }));
     if (parts.length === 0) return $t('team.people.noTeam');
     const list = parts.map((x) => $t('team.people.inTeam', { team: x.name, hours: hours(x.h) }));
     if (parts.length > 1)

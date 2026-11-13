@@ -32,11 +32,7 @@
     $filter.personId
       ? $workspace.people.filter((p) => p.id === $filter.personId)
       : teamId
-        ? $workspace.people.filter((p) =>
-            $workspace.teams.some(
-              (t) => t.id === teamId && t.members.some((m) => m.personId === p.id),
-            ),
-          )
+        ? $workspace.people.filter((p) => scopePeople($workspace, { teamId }).has(p.id))
         : $workspace.people,
   );
 

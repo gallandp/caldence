@@ -282,6 +282,14 @@ describe('hours per team', () => {
     expect(warnings(weeks, ws, { personId: 'p1' })).toEqual([]);
     expect(warnings(weeks, ws, { teamId: 'beta' })).toEqual([]);
   });
+
+  it('flags meetings in a team where the person has 0 hours', () => {
+    const ws = twoTeams();
+    ws.teams[0]!.memberHours = { p1: 0 };
+    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'alpha' })).toEqual([
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
+    ]);
+  });
 });
 
 describe('ids that name Object.prototype members (security #40)', () => {

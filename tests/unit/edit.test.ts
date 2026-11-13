@@ -102,10 +102,13 @@ describe('removeItem', () => {
     valid(out);
   });
 
-  it('moves the hours of a replaced person unless the replacement has its own', () => {
+  it('moves the hours of a replaced person unless the replacement is already a member', () => {
     const ws = rich();
+    ws.people.push({ id: 'p3', name: 'Cy' });
     ws.teams[0]!.memberHours = { p2: 20 };
-    expect(ok(removeItem(ws, 'people', 'p2', 'p1')).teams[0]!.memberHours).toEqual({ p1: 20 });
+    expect(ok(removeItem(ws, 'people', 'p2', 'p3')).teams[0]!.memberHours).toEqual({ p3: 20 });
+    // p1 is a member on the default hours and keeps them.
+    expect(ok(removeItem(ws, 'people', 'p2', 'p1')).teams[0]!.memberHours).toEqual({});
     ws.teams[0]!.memberHours = { p1: 32, p2: 20 };
     expect(ok(removeItem(ws, 'people', 'p2', 'p1')).teams[0]!.memberHours).toEqual({ p1: 32 });
   });
