@@ -37,12 +37,9 @@
     'help',
   ] as const;
   type ViewId = (typeof views)[number];
-  /** A group heading is shown above these views; the list itself stays one tablist for the arrow keys. */
-  const groupBefore: Partial<Record<ViewId, string>> = {
-    calendar: 'nav.group.view',
-    meetings: 'nav.group.plan',
-    settings: 'nav.group.workspace',
-  };
+  /** A thin divider starts a new group above these views (planning, workspace, help); the list
+      itself stays one tablist for the arrow keys. */
+  const groupBefore: ReadonlySet<ViewId> = new Set(['meetings', 'settings', 'help']);
 
   /** Simple line icons (24×24, stroke = currentColor). */
   const icons: Record<ViewId, string> = {
@@ -216,8 +213,8 @@
 
     <div class="tabs" role="tablist" aria-orientation="vertical" aria-label={$t('nav.views')}>
       {#each views as id (id)}
-        {#if groupBefore[id]}
-          <div class="group" aria-hidden="true">{$t(groupBefore[id])}</div>
+        {#if groupBefore.has(id)}
+          <div class="group" aria-hidden="true"></div>
         {/if}
         <button
           type="button"
@@ -237,8 +234,10 @@
     </div>
 
     <div class="side-foot">
-      <LanguageSwitch />
-      <ThemeSwitch />
+      <div class="prefs">
+        <LanguageSwitch />
+        <ThemeSwitch />
+      </div>
       {#if legal.length > 0}
         <nav class="legal" aria-label={$t('legal.label')}>
           {#each legal as page (page)}
@@ -450,15 +449,9 @@
     }
   }
   .group {
-    padding: 0.75rem 0.75rem 0.25rem;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgb(195 199 222 / 0.6);
-  }
-  .group:first-child {
-    padding-top: 0;
+    height: 1px;
+    margin: 0.5rem 0.75rem;
+    background: rgb(255 255 255 / 0.1);
   }
   header {
     display: flex;
@@ -490,10 +483,6 @@
     flex-direction: column;
     gap: 0.15rem;
     padding: 0;
-  }
-  /* Help sits apart at the bottom of the list. */
-  #tab-help {
-    margin-top: 0.75rem;
   }
   [role='tab'] {
     display: flex;
@@ -574,6 +563,28 @@
   .side-foot {
     margin-top: auto;
     padding: 0 0.5rem;
+  }
+  /* Language and appearance share one quiet row; their labels are for screen readers. */
+  .prefs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  :global(#app) .prefs :global(.options button) {
+    width: 1.8rem;
+  }
+  .prefs :global(.theme) {
+    margin-top: 0;
+  }
+  :global(:root #app) .prefs :global(select) {
+    font-size: 0.85rem;
+    min-height: 2rem;
+    padding: 0.2rem 1.8rem 0.2rem 0.65rem !important;
+    border-radius: 999px;
+    background-position: right 0.6rem center;
+    background-size: 0.85rem;
   }
   .legal,
   .source {
@@ -700,9 +711,6 @@
     }
     .group {
       display: none;
-    }
-    #tab-help {
-      margin-top: 0;
     }
     [role='tab'] {
       white-space: nowrap;
