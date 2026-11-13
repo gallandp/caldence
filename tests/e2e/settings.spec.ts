@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openWorkspaceFile } from './helpers';
+import { openWorkspaceFile, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -19,15 +19,16 @@ async function openSettings(page: Page) {
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }
 
-async function openExample(page: Page) {
+async function openExample(page: Page, view: 'settings' | 'team' = 'settings') {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open the example' }).click();
   await expect(page.getByText('Untitled')).toBeVisible();
-  await openSettings(page);
+  if (view === 'settings') await openSettings(page);
+  else await page.getByRole('tab', { name: 'Team', exact: true }).click();
 }
 
 const roleNames = (page: Page) =>
-  page.getByRole('region', { name: 'Roles' }).locator('input[type="text"][data-name]');
+  page.getByRole('region', { name: 'Roles', exact: true }).locator('input[type="text"][data-name]');
 
 /** Members of the first team, as stored by autosave. */
 async function storedMembers(page: Page): Promise<string[]> {
@@ -53,7 +54,12 @@ async function storedMembers(page: Page): Promise<string[]> {
 
 test('roles are added and reordered by keyboard in a new workspace', async ({ page }) => {
   await page.goto('/');
-  await openSettings(page);
+  // People and roles live in the Team view, which needs a team.
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await teamAction(page, 'Add team');
+  const dialog = page.getByRole('dialog', { name: 'Add team' });
+  await dialog.getByLabel('Team name').fill('Alpha');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
   const add = page.getByLabel('New role name');
   await add.focus();
   await page.keyboard.type('Product Owner');
@@ -78,7 +84,7 @@ test('roles are added and reordered by keyboard in a new workspace', async ({ pa
 });
 
 test('deleting a role in use asks for a replacement', async ({ page }) => {
-  await openExample(page);
+  await openExample(page, 'team');
   await page.getByRole('button', { name: 'Delete Scrum Master' }).click();
   const dialog = page.getByRole('dialog', { name: 'Replace Scrum Master' });
   await expect(dialog).toBeVisible();
@@ -92,7 +98,7 @@ test('deleting a role in use asks for a replacement', async ({ page }) => {
 });
 
 test('cancelling the replace dialog keeps the role', async ({ page }) => {
-  await openExample(page);
+  await openExample(page, 'team');
   await page.getByRole('button', { name: 'Delete Product Owner' }).click();
   const dialog = page.getByRole('dialog', { name: 'Replace Product Owner' });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -102,7 +108,7 @@ test('cancelling the replace dialog keeps the role', async ({ page }) => {
 });
 
 test('deleting a person in a team asks for confirmation', async ({ page }) => {
-  await openExample(page);
+  await openExample(page, 'team');
   await page.getByRole('button', { name: 'Delete Alex' }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete Alex?' });
   await expect(dialog).toContainText('member of 2 team(s)');
@@ -124,14 +130,14 @@ test('a horizon that ends before it starts shows an error and is not committed',
   await expect(to).toHaveAttribute('aria-describedby', /.+/);
   await expect(to).toHaveValue('2026-01-01');
   // Leaving and returning shows what is really stored.
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await openSettings(page);
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
   await expect(page.getByText(/before its start/)).toHaveCount(0);
 });
 
 test('a colour with too little contrast shows a warning', async ({ page }) => {
-  await openExample(page);
+  await openExample(page, 'team');
   const group = page.getByRole('group', { name: 'Colour of Product Owner' });
   await expect(group.getByRole('radio', { name: 'Blue' })).toBeChecked();
   await expect(group.getByText(/too little contrast/)).toHaveCount(0);
@@ -147,9 +153,9 @@ test('the language field switches the whole UI', async ({ page }) => {
   await page.getByRole('tabpanel').getByLabel('Language').selectOption('de');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByRole('tab', { name: 'Einstellungen' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Rollen' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Allgemein' })).toBeVisible();
   await expect(page.getByLabel('Zeitzone')).toBeVisible();
-  await expect(page.getByText(/Team-spezifische Werte/)).toBeVisible();
+  await expect(page.getByText(/Gilt für den ganzen Arbeitsbereich/)).toBeVisible();
 });
 
 /** Imports a region file through the file input (fallback path). */
@@ -308,10 +314,6 @@ for (const locale of ['de', 'en'] as const) {
       .getByLabel(/Language|Sprache/)
       .selectOption(locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
-    await page
-      .getByLabel(/Custom colour|Eigene Farbe/)
-      .first()
-      .fill('#ffff00');
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
@@ -331,9 +333,9 @@ test('the last workday cannot be unchecked and the box stays checked', async ({ 
   await expect(monday).toBeChecked();
 });
 
-test('invalid person hours show an inline error', async ({ page }) => {
-  await openExample(page);
-  const hours = page.getByLabel('Hours per week of Alex');
+test('invalid member hours show an inline error', async ({ page }) => {
+  await openExample(page, 'team');
+  const hours = page.getByLabel('Weekly hours of Alex in Team Alpha');
   await hours.fill('-3');
   await hours.blur();
   await expect(hours).toHaveAttribute('aria-invalid', 'true');
@@ -348,11 +350,11 @@ test('invalid person hours show an inline error', async ({ page }) => {
 });
 
 test('rows have visible labels', async ({ page }) => {
-  await openExample(page);
-  const roles = page.getByRole('region', { name: 'Roles' });
+  await openExample(page, 'team');
+  const roles = page.getByRole('region', { name: 'Roles', exact: true });
   await expect(roles.getByText('Name', { exact: true }).first()).toBeVisible();
-  const people = page.getByRole('region', { name: 'People' });
-  await expect(people.getByText('Hours per week', { exact: true }).first()).toBeVisible();
+  const people = page.getByRole('region', { name: 'People', exact: true });
+  await expect(people.getByText('Name', { exact: true }).first()).toBeVisible();
 });
 
 test('a stale error and draft disappear when the workspace changes elsewhere', async ({ page }) => {
@@ -366,7 +368,7 @@ test('a stale error and draft disappear when the workspace changes elsewhere', a
 });
 
 test('colour radios can be chosen with the arrow keys', async ({ page }) => {
-  await openExample(page);
+  await openExample(page, 'team');
   const group = page.getByRole('group', { name: 'Colour of Product Owner' });
   await group.getByRole('radio', { name: 'Blue' }).focus();
   await page.keyboard.press('ArrowRight');

@@ -149,8 +149,10 @@
 
   // ---------- form ----------
 
+  /** A new meeting invites every role the team's members have, or the first role without members. */
   function blankEvent(): CalEvent {
     const first = roles[0];
+    const memberRoles = roles.filter((r) => team?.members.some((m) => m.roleId === r.id));
     return {
       id: '',
       name: '',
@@ -158,7 +160,12 @@
       rule: { type: 'weekly', weekday: 1 },
       time: '09:00',
       duration: 60,
-      participants: first ? [{ roleId: first.id, share: 1 }] : [],
+      participants:
+        memberRoles.length > 0
+          ? memberRoles.map((r) => ({ roleId: r.id, share: 1 }))
+          : first
+            ? [{ roleId: first.id, share: 1 }]
+            : [],
       preparation: 0,
     };
   }

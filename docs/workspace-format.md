@@ -1,16 +1,16 @@
 # Workspace format
 
-A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams and their meetings. The current schema version is `3`.
+A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams and their meetings. The current schema version is `4`.
 
 ## Fields
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | integer | Schema version of the file (`3`). |
+| `schemaVersion` | integer | Schema version of the file (`4`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
 | `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
-| `people` | list of `{ id, name, hoursPerWeek }` | People; `hoursPerWeek` is not negative. |
+| `people` | list of `{ id, name }` | People. A person can be a member of several teams. |
 | `categories` | list of `{ id, name, colour }` | Event categories. |
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
@@ -25,7 +25,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, cyc
 | `region` | string | Id of a built-in or imported region. An unknown id still loads, but then no holidays are used. |
 | `timezone` | string | IANA time zone, for example `Europe/Berlin`. |
 | `workdays` | list of 1-7 | Working weekdays, Monday is 1, Sunday is 7. Not empty, no duplicates. |
-| `hoursPerWeek` | number | Default working hours per week, above 0. |
+| `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. |
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
 | `thresholds` | `{ warnFactor, maxFte }` | Load warning limits, both above 0. |
@@ -39,6 +39,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, cyc
 | `templateId` | string, optional | Id of the template the team was created from. |
 | `cadence` | `{ kind, lengthWeeks, start }` | `kind` is `sprint`, `flow` or `pi`; `lengthWeeks` is an integer from 1; `start` is a date. |
 | `members` | list of `{ personId, roleId }` | A person in a role. The same pair must not appear twice. |
+| `memberHours` | object | Weekly working hours of a person in this team, by person id, from 0 to 168. A member without an entry has `settings.hoursPerWeek`. |
 | `assumptions` | object of numbers | Named values (for example `devs`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
@@ -95,7 +96,7 @@ A file that goes beyond these limits is rejected with a message naming the field
 
 If a stored workspace ever keeps the app from starting, open it with `?reset` at the end of the address (for example `https://caldence.de/?reset`). The app then starts with an empty workspace; the stored one is kept in the browser as a backup (`current.bak`) until the next reset or unreadable start.
 
-Older files (schema 1 and 2) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
+Older files (schema 1 to 3) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each). The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
 
 ## Privacy
 
@@ -105,7 +106,7 @@ A workspace file contains names of people, their working hours and your meeting 
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "6f1c1d52-4b0e-4f0a-9a43-0c2f6a1d8e11",
   "settings": {
     "locale": "en",
@@ -118,7 +119,7 @@ A workspace file contains names of people, their working hours and your meeting 
     "thresholds": { "warnFactor": 1.5, "maxFte": 0.6 }
   },
   "roles": [{ "id": "r1", "name": "Scrum Master", "colour": "#1d4ed8" }],
-  "people": [{ "id": "p1", "name": "Alex", "hoursPerWeek": 40 }],
+  "people": [{ "id": "p1", "name": "Alex" }],
   "categories": [{ "id": "c1", "name": "Meetings", "colour": "#15803d" }],
   "customRegions": [],
   "teams": [
@@ -127,6 +128,7 @@ A workspace file contains names of people, their working hours and your meeting 
       "name": "Team A",
       "cadence": { "kind": "sprint", "lengthWeeks": 2, "start": "2027-01-04" },
       "members": [{ "personId": "p1", "roleId": "r1" }],
+      "memberHours": { "p1": 40 },
       "assumptions": {},
       "cycles": [],
       "events": [

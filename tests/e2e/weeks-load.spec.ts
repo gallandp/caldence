@@ -291,11 +291,13 @@ test('the chart summarises the hours per week and marks weeks with a warning', a
 
 test('a person without meetings shows no peak week', async ({ page }) => {
   const panel = await openView(page, 'load');
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
-  const people = page.getByRole('region', { name: 'People' });
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const people = page.getByRole('region', { name: 'People', exact: true });
   await people.getByLabel('New person name').fill('Robin');
   await people.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  // Robin is in no team yet: the person filter shows them.
+  await page.locator('.context').getByLabel('Person').selectOption({ label: 'Robin' });
   const cells = panel.locator('tr[data-person]').filter({ hasText: 'Robin' }).getByRole('cell');
   await expect(cells).toHaveText([fmt('en', 0), fmt('en', 0, 2), '–']);
 });

@@ -294,7 +294,8 @@ test('a role listed twice is refused inline before saving', async ({ page }) => 
   const form = await startNew(page, 'Dup roles');
   await form.getByRole('button', { name: 'Add participant' }).click();
   const roles = form.getByLabel('Role', { exact: true });
-  await expect(roles).toHaveCount(2);
+  // Product Owner and Scrum Master (the roles of the members) plus the added one.
+  await expect(roles).toHaveCount(3);
   await roles.nth(1).selectOption({ label: 'Product Owner' });
   await expect(roles.nth(1)).toHaveAttribute('aria-invalid', 'true');
   await expect(roles.nth(0)).toHaveAttribute('aria-invalid', 'true');
@@ -371,8 +372,8 @@ test('a language change keeps the open draft and translates the heading', async 
 
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
-  const team = page.getByRole('tabpanel', { name: 'Members & cadence' });
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const team = page.getByRole('tabpanel', { name: 'Team' });
   await team.getByLabel('New cycle name').fill('Q3');
   await team.getByRole('button', { name: 'Add cycle' }).click();
   const q3 = team.getByRole('group', { name: 'Milestones of Q3' });
@@ -417,7 +418,7 @@ test('other rows cannot start editing while a form is open', async ({ page }) =>
 
 test('a team without meetings explains what to do', async ({ page }) => {
   await openMeetings(page);
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await teamAction(page, 'Add team');
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill('Team B');

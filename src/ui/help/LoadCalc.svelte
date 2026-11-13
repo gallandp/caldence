@@ -17,7 +17,7 @@
     roleTable: 'load.summary',
     personTable: 'load.table.person',
     hpw: 'settings.hoursPerWeek',
-    hours: 'settings.people.hoursLabel',
+    hours: 'team.members.hours',
     fte: 'load.col.fte',
     warnings: 'load.warnings',
     warnFactor: 'settings.warnFactor',

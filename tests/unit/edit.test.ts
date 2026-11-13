@@ -111,7 +111,7 @@ describe('removeItem', () => {
   });
 
   it('refuses hours for an unknown person or above 168', () => {
-    for (const memberHours of [{ nobody: 10 }, { p1: 169 }])
+    for (const memberHours of [{ nobody: 10 }, { p1: 169 }] as Record<string, number>[])
       expect(updateTeam(base(), 't1', { memberHours }).ok).toBe(false);
     expect(updateTeam(base(), 't1', { memberHours: { p1: 20 } }).ok).toBe(true);
   });

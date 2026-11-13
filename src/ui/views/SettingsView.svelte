@@ -9,8 +9,6 @@
   import { isKnownZone } from '../../core/zone';
   import { regionIds } from '../../data/regions';
   import { formatDisplayDate, translate as t, locale, type Locale } from '../../i18n';
-  import ColourField, { PALETTE } from '../components/ColourField.svelte';
-  import ListEditor from '../components/ListEditor.svelte';
   import { browserFileEnv, openTextFile } from '../state/files';
   import { fieldErrors } from '../state/form';
   import { pickFile } from '../state/picker';
@@ -230,17 +228,6 @@
 
   function describe(key: string): string | undefined {
     return errors[key] ? `err-${key}` : undefined;
-  }
-
-  function confirmPerson(person: { id: string; name: string }) {
-    const count = $workspace.teams.filter((team) =>
-      team.members.some((m) => m.personId === person.id),
-    ).length;
-    if (count === 0) return null;
-    return {
-      title: $t('settings.people.confirm.title', { name: person.name }),
-      message: $t('settings.people.confirm.message', { name: person.name, count }),
-    };
   }
 
   const lang = (event: Event) =>
@@ -486,60 +473,6 @@
       </div>
     </fieldset>
   </section>
-
-  <ListEditor
-    kind="roles"
-    items={$workspace.roles}
-    heading={$t('settings.roles')}
-    addLabel={$t('settings.roles.add')}
-    create={(name) => ({ name, colour: PALETTE[$workspace.roles.length % PALETTE.length]!.hex })}
-  >
-    {#snippet extra(role, ctx)}
-      <ColourField
-        value={role.colour}
-        label={$t('colour.of', { name: role.name })}
-        onchange={(colour) => ctx.update({ colour })}
-      />
-    {/snippet}
-  </ListEditor>
-
-  <ListEditor
-    kind="people"
-    items={$workspace.people}
-    heading={$t('settings.people')}
-    addLabel={$t('settings.people.add')}
-    create={(name) => ({ name, hoursPerWeek: settings.hoursPerWeek })}
-    confirmRemove={confirmPerson}
-  >
-    {#snippet extra(person, ctx)}
-      <label class="hours">
-        <span class="hours-label">{$t('settings.people.hoursLabel')}</span>
-        <span class="hours-row">
-          <input
-            type="number"
-            min="0"
-            step="0.5"
-            value={person.hoursPerWeek}
-            aria-label={$t('settings.people.hours', { name: person.name })}
-            aria-invalid={ctx.errors.hoursPerWeek ? 'true' : undefined}
-            aria-describedby={ctx.errors.hoursPerWeek ? `err-hours-${person.id}` : undefined}
-            onchange={(e) => {
-              const n = Number(e.currentTarget.value);
-              if (e.currentTarget.value.trim() === '' || !Number.isFinite(n))
-                return ctx.fail('hoursPerWeek', 'error.number.invalid');
-              ctx.update({ hoursPerWeek: n });
-            }}
-          />
-          <span>{$t('settings.people.unit')}</span>
-        </span>
-      </label>
-      {#if ctx.errors.hoursPerWeek}
-        <p class="field-error" id="err-hours-{person.id}">
-          {$t(ctx.errors.hoursPerWeek, { path: person.name })}
-        </p>
-      {/if}
-    {/snippet}
-  </ListEditor>
 </div>
 
 <style>
@@ -588,21 +521,6 @@
   }
   .holidays {
     margin-bottom: var(--space);
-  }
-  .hours {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    color: var(--text-muted);
-  }
-  .hours-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: var(--text);
-  }
-  .hours input {
-    width: 5.5rem;
   }
   .rate-row {
     display: flex;

@@ -44,7 +44,7 @@ test('applying Scrum takes two clicks and a confirmed name', async ({ page }) =>
   await expect(panel(page).getByRole('button', { name: 'Open team' })).toBeFocused();
   await panel(page).getByRole('button', { name: 'Open team' }).click();
 
-  const team = page.getByRole('tabpanel', { name: 'Members & cadence' });
+  const team = page.getByRole('tabpanel', { name: 'Team' });
   await expect(team.getByLabel('Type')).toHaveValue('sprint');
   await expect(team.getByLabel('Length (weeks)')).toHaveValue('2');
   await expect(page.locator('.switcher select option:checked')).toHaveText('Scrum');
@@ -63,9 +63,9 @@ test('undo removes the applied team', async ({ page }) => {
     .click();
   await page.getByRole('dialog').getByRole('button', { name: 'Create team' }).click();
   await expect(panel(page).getByRole('status')).toContainText('Kanban');
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await expect(page.locator('.switcher select option:checked')).toHaveText('Kanban');
-  await page.getByRole('heading', { level: 2, name: 'Members & cadence' }).click();
+  await page.getByRole('heading', { level: 2, name: 'Team' }).click();
   await page.keyboard.press('Control+z');
   await expect(page.locator('.switcher select')).toHaveCount(0);
 });

@@ -25,10 +25,11 @@ async function addTeam(page: Page, name: string) {
 
 async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean) {
   await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
-  await tab(page, 'Members & cadence').click();
-  const teamPanel = panel(page, 'Members & cadence');
-  await teamPanel.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
+  await tab(page, 'Team').click();
+  const teamPanel = panel(page, 'Team');
+  await teamPanel.getByLabel('Person', { exact: true }).fill('Kim');
   await teamPanel.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
+  await teamPanel.getByLabel('Hrs/week in team').fill(firstTeam ? '20' : '10');
   await teamPanel.getByRole('button', { name: 'Add member' }).click();
   await expect(teamPanel.getByRole('list', { name: `Members of ${team}` })).toContainText('Kim');
 
@@ -59,21 +60,23 @@ async function expectEverything(page: Page) {
     await expect(table).toContainText('Weekly on Wednesday');
     await expect(table).toContainText('10:00');
     await expect(table).toContainText('Product Owner');
-    await tab(page, 'Members & cadence').click();
-    const members = panel(page, 'Members & cadence').getByRole('list', {
+    await tab(page, 'Team').click();
+    const members = panel(page, 'Team').getByRole('list', {
       name: `Members of ${team}`,
     });
     await expect(members.getByRole('listitem').filter({ hasText: 'Kim' })).toContainText(
       'Product Owner',
     );
+    await expect(page.getByLabel(`Weekly hours of Kim in ${team}`)).toHaveValue(
+      team === 'Team A' ? '20' : '10',
+    );
+    await expect(page.getByLabel('Name of Kim')).toBeVisible();
+    await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
+    await expect(page.getByLabel('Name of Developer')).toBeVisible();
+    await expect(page.getByText('Team A 20 h · Team B 10 h · Σ 30 h')).toBeVisible();
     await tab(page, 'Meetings').click();
   }
-  await tab(page, 'Workspace settings').click();
-  await expect(page.getByLabel('Name of Kim')).toBeVisible();
-  await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
-  await expect(page.getByLabel('Name of Developer')).toBeVisible();
-  await expect(page.getByLabel('Hours per week of Kim')).toHaveValue('30');
-  await tab(page, 'Members & cadence').click();
+  await tab(page, 'Team').click();
   const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
   await expect(options).toHaveText(['Team A', 'Team B']);
 
@@ -98,23 +101,16 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Open the example' }).first()).toBeVisible();
 
-  // Roles and a person in the workspace settings.
-  await tab(page, 'Workspace settings').click();
+  // Two teams, then roles in the Team view; Kim is created while assigning her to Team A.
+  await tab(page, 'Team').click();
+  await addTeam(page, 'Team A');
+  await addTeam(page, 'Team B');
   for (const role of ['Product Owner', 'Developer']) {
     await page.getByLabel('New role name').fill(role);
     await page.getByLabel('New role name').press('Enter');
   }
-  await page.getByLabel('New person name').fill('Kim');
-  await page.getByLabel('New person name').press('Enter');
-  const hours = page.getByLabel('Hours per week of Kim');
-  await hours.fill('30');
-  await hours.blur();
-  await expect(hours).toHaveValue('30');
 
-  // Two teams with Kim as Product Owner and one weekly meeting each.
-  await tab(page, 'Members & cadence').click();
-  await addTeam(page, 'Team A');
-  await addTeam(page, 'Team B');
+  // Kim is Product Owner in both teams (20 h and 10 h) with one weekly meeting each.
   await addMemberAndMeeting(page, 'Team A', true);
   await addMemberAndMeeting(page, 'Team B', false);
 
@@ -156,7 +152,7 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await expectEverything(page);
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  await tab(page, 'Members & cadence').click();
+  await tab(page, 'Team').click();
   await expect(page.getByText('There is no team yet.').first()).toBeVisible();
 
   const chooser = page.waitForEvent('filechooser');

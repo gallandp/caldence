@@ -16,14 +16,15 @@ test('page has the app title and a language', async ({ page }) => {
 test('Ctrl+S saves a value that is still being edited', async ({ page }) => {
   await useFileFallback(page);
   await openExample(page);
-  await page.getByRole('tab', { name: 'Workspace settings' }).click();
-  const hours = page.getByLabel('Hours per week of Alex');
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const hours = page.getByLabel('Weekly hours of Alex in Team Alpha');
   await hours.fill('17');
   const download = page.waitForEvent('download');
   await page.keyboard.press('ControlOrMeta+s');
   const path = await (await download).path();
   const saved = JSON.parse(readFileSync(path, 'utf8')) as Workspace;
-  expect(saved.people.find((p) => p.name === 'Alex')?.hoursPerWeek).toBe(17);
+  const alex = saved.people.find((p) => p.name === 'Alex')!.id;
+  expect(saved.teams[0]!.memberHours[alex]).toBe(17);
 });
 
 test('the vertical view list also follows ArrowDown and ArrowUp', async ({ page }) => {
@@ -100,7 +101,7 @@ test('Save stands out only while there are unsaved changes', async ({ page }) =>
   await page.getByRole('button', { name: 'Open the example' }).click();
   const save = page.getByRole('button', { name: 'Save', exact: true });
   await expect(save).not.toHaveClass(/primary/);
-  await page.getByRole('tab', { name: 'Members & cadence', exact: true }).click();
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
   const length = page.getByLabel('Length (weeks)');
   await length.fill('3');
   await length.blur();
@@ -149,7 +150,7 @@ test('the role and person filters show only where they apply', async ({ page }) 
     await expect(filters).toBeVisible();
   }
   await page.getByRole('combobox', { name: 'Role' }).selectOption({ label: 'Product Owner' });
-  for (const name of ['Meetings', 'Members & cadence', 'Templates', 'Workspace settings', 'Help']) {
+  for (const name of ['Meetings', 'Team', 'Templates', 'Workspace settings', 'Help']) {
     await page.getByRole('tab', { name, exact: true }).click();
     await expect(filters).toBeHidden();
   }
