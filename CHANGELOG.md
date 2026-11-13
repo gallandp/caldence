@@ -6,6 +6,12 @@
 
 - The example's categories are named in the UI language, Meetings lists meetings in the order they next take place, the Weeks table keeps its column headings in view on wide screens, and the settings point to Members & cadence by its name
 
+## 1.17.0 – 2026-11-13
+
+### Changed
+
+- The role and person filters appear only above Calendar, Weeks and Load, where they apply; Load explains that the per-person table covers all teams
+
 ## 1.16.0 – 2026-11-13
 
 ### Changed

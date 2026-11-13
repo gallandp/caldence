@@ -10,6 +10,10 @@
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
 
+  /** Only Calendar, Weeks and Load follow the role/person filter; elsewhere it stays hidden.
+      It is hidden, not removed, so its choice is kept when the user comes back. */
+  let { filters = true }: { filters?: boolean } = $props();
+
   const { dirty, fileName } = workspace;
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
@@ -167,7 +171,7 @@
 </header>
 
 {#if !empty}
-  <div class="bar context">
+  <div class="bar context" class:off={!filters}>
     <FilterBar />
   </div>
 {/if}
@@ -191,6 +195,9 @@
   }
   .context {
     gap: 0.75rem 2rem;
+  }
+  .context.off {
+    display: none !important;
   }
   .buttons {
     display: flex;
