@@ -4,6 +4,10 @@
 
 ## 1.23.0 – 2026-11-13
 
+### Changed
+
+- The Weeks view is now the calendar's third level: Week · Month · Horizon (Woche · Monat · Zeitraum). Horizon shows one row per week of the planning horizon, as the Weeks view did; the sidebar has 8 entries
+
 ### Fixed
 
 - The team actions menu keeps focus when it is opened by keyboard right after renaming a team
