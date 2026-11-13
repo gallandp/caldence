@@ -13,6 +13,7 @@ import {
   vtimezone,
   type IcsExportOptions,
 } from '../../src/core/ics';
+import { escapeRegExp } from '../../scripts/version-bump.mjs';
 import type { CalEvent, Rule, Workspace } from '../../src/core/model';
 import { occurrences } from '../../src/core/recurrence';
 import { applyTemplate } from '../../src/core/template';
@@ -243,7 +244,7 @@ describe('exportIcs rules (independent parse with ical.js)', () => {
           .map((o) => `${o.date} ${o.start}`);
         expect(expected.length).toBeGreaterThan(0);
         const uid = `${event.id}.${team.id}.${ws.id}`;
-        const single = new RegExp(`^${uid.replace(/[.]/g, '\\.')}-\\d{4}-\\d{2}-\\d{2}@caldence$`);
+        const single = new RegExp(`^${escapeRegExp(uid)}-\\d{4}-\\d{2}-\\d{2}@caldence$`);
         const got = [...expanded.entries()]
           .filter(([k]) => k === `${uid}@caldence` || single.test(k))
           .flatMap(([, v]) => v.local)

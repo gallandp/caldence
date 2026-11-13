@@ -55,9 +55,14 @@ export function highestLabel(labels) {
   return ORDER[best];
 }
 
+/** Escapes every regex special character, so a string matches literally. */
+export function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** The changelog section of a released version, without its heading. */
 export function versionNotes(changelog, version) {
-  const m = new RegExp(`\\n## ${version.replace(/\./g, '\\.')} [^\\n]*\\n`).exec(changelog);
+  const m = new RegExp(`\\n## ${escapeRegExp(version)} [^\\n]*\\n`).exec(changelog);
   if (!m) throw new Error(`CHANGELOG.md has no section for ${version}`);
   const start = m.index + m[0].length;
   const next = changelog.indexOf('\n## ', start);
