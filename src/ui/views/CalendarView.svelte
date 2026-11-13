@@ -22,6 +22,7 @@
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
+  import WeeksView from './WeeksView.svelte';
   import type { CalEvent, Category, Team } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
@@ -45,7 +46,10 @@
     return today >= from && today <= to ? today : from;
   }
 
-  let mode = $state<'month' | 'week'>('month');
+  type Mode = 'week' | 'month' | 'range';
+  /** Week and month page through the horizon; range shows all of its weeks as one table. */
+  let mode = $state<Mode>('month');
+  const modes: readonly Mode[] = ['week', 'month', 'range'];
   let cursor = $state<ISODate>(clampToHorizon());
   let selected = $state<ISODate | null>(null);
   let grid: HTMLTableElement | undefined = $state();
@@ -311,9 +315,17 @@
     focusCell(cursor);
   }
 
-  function setMode(next: 'month' | 'week') {
+  async function setMode(next: Mode) {
+    // The switch moves between toolbars to and from the range level; keep focus on it.
+    const focused = root?.querySelector('.levels')?.contains(document.activeElement) ?? false;
     mode = next;
     selected = null;
+    if (!focused) return;
+    await tick();
+    // Without scrolling: the range level scrolls its current week into view.
+    root
+      ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
+      ?.focus({ preventScroll: true });
   }
 
   function edit(item: DayItem) {
@@ -468,40 +480,45 @@
     </p>
   {/if}
 
-  <div class="toolbar">
-    <div class="nav" role="group" aria-label={$t('cal.nav')}>
-      <button
-        type="button"
-        class="step"
-        aria-label={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
-        title={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
-        onclick={() => setCursor(step(-1))}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
-      </button>
-      <button
-        type="button"
-        class="step"
-        aria-label={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
-        title={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
-        onclick={() => setCursor(step(1))}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-      </button>
-      <button type="button" class="today" onclick={() => setCursor(clampToHorizon())}
-        >{$t('cal.today')}</button
-      >
+  {#snippet levels()}
+    <div class="segmented levels" role="group" aria-label={$t('cal.mode')}>
+      {#each modes as m (m)}
+        <button type="button" aria-pressed={mode === m} onclick={() => setMode(m)}>
+          {$t('cal.mode.' + m)}
+        </button>
+      {/each}
     </div>
-    <p class="period" aria-live="polite">{periodLabel}</p>
-    <div class="segmented" role="group" aria-label={$t('cal.mode')}>
-      <button type="button" aria-pressed={mode === 'month'} onclick={() => setMode('month')}>
-        {$t('cal.mode.month')}
-      </button>
-      <button type="button" aria-pressed={mode === 'week'} onclick={() => setMode('week')}>
-        {$t('cal.mode.week')}
-      </button>
+  {/snippet}
+
+  {#if mode !== 'range'}
+    <div class="toolbar">
+      <div class="nav" role="group" aria-label={$t('cal.nav')}>
+        <button
+          type="button"
+          class="step"
+          aria-label={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
+          title={$t(mode === 'month' ? 'cal.prev.month' : 'cal.prev.week')}
+          onclick={() => setCursor(step(-1))}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+        </button>
+        <button
+          type="button"
+          class="step"
+          aria-label={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
+          title={$t(mode === 'month' ? 'cal.next.month' : 'cal.next.week')}
+          onclick={() => setCursor(step(1))}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+        <button type="button" class="today" onclick={() => setCursor(clampToHorizon())}
+          >{$t('cal.today')}</button
+        >
+      </div>
+      <p class="period" aria-live="polite">{periodLabel}</p>
+      {@render levels()}
     </div>
-  </div>
+  {/if}
 
   {#if mode === 'month'}
     <p id="{uid}-hint" class="sr-only">{$t('cal.grid.hint')}</p>
@@ -612,7 +629,7 @@
         {hoursKey}
       </p>
     </div>
-  {:else}
+  {:else if mode === 'week'}
     <div class="week">
       {#each weekDays as date (date)}
         {@const items = inHorizon(date) ? itemsOf(date) : []}
@@ -647,6 +664,8 @@
         </section>
       {/each}
     </div>
+  {:else}
+    <WeeksView {onOpenMeetings} embedded {levels} />
   {/if}
 </div>
 

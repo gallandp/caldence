@@ -34,7 +34,6 @@
       key="help.views.filters"
       labels={{
         calendar: 'view.calendar',
-        weeks: 'view.weeks',
         load: 'view.load',
         role: 'filter.role',
         person: 'filter.person',
@@ -50,6 +49,7 @@
       labels={{
         month: 'cal.mode.month',
         week: 'cal.mode.week',
+        range: 'cal.mode.range',
         today: 'cal.today',
         prev: 'cal.prev.month',
         next: 'cal.next.month',
@@ -66,11 +66,11 @@
     />
   </p>
 
-  <h4>{$t('view.weeks')}</h4>
   <p>
     <Rich
       key="help.views.weeks"
       labels={{
+        range: 'cal.mode.range',
         total: 'weeks.col.total',
         current: 'weeks.current',
         warn: 'weeks.show.warn',
@@ -174,7 +174,7 @@
           remove: { key: 'settings.region.remove', params: { name: '…' } },
           horizon: 'settings.horizon',
           settings: 'view.settings',
-          weeks: 'view.weeks',
+          weeks: 'cal.mode.range',
         }}
         keys={{ undo: $shortcut('undo') }}
       />

@@ -11,7 +11,6 @@
   import SetupDone from './components/SetupDone.svelte';
   import SetupWizard from './setup/SetupWizard.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
-  import WeeksView from './views/WeeksView.svelte';
   import LoadView from './views/LoadView.svelte';
   import TeamView from './views/TeamView.svelte';
   import SettingsView from './views/SettingsView.svelte';
@@ -27,7 +26,6 @@
 
   const views = [
     'calendar',
-    'weeks',
     'load',
     'meetings',
     'team',
@@ -45,7 +43,6 @@
   const icons: Record<ViewId, string> = {
     calendar:
       'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4',
-    weeks: 'M4 5h16M4 10h16M4 15h16M4 20h10',
     load: 'M5 20V11M10 20V5M15 20v-7M20 20V8',
     meetings: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
     team: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7.5M22 21v-1a6 6 0 0 0-4-5.6',
@@ -56,7 +53,7 @@
   };
 
   /** Views that follow the role/person filter; the others hide it. */
-  const FILTERED: readonly ViewId[] = ['calendar', 'weeks', 'load'];
+  const FILTERED: readonly ViewId[] = ['calendar', 'load'];
   let active = $state<ViewId>('calendar');
   /** Without teams the Calendar shows the start screen and the team bar steps aside. */
   const noTeams = $derived($workspace.teams.length === 0);
@@ -333,7 +330,7 @@
                   void tick().then(() => select('calendar', true));
                 }}
               />
-            {:else if (id === 'weeks' || id === 'load') && noTeams}
+            {:else if id === 'load' && noTeams}
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
@@ -364,10 +361,6 @@
                   onEditMeeting={editMeeting}
                 />
               {/key}
-            {:else if id === 'weeks'}
-              {#if active === 'weeks'}<WeeksView
-                  onOpenMeetings={() => select('meetings', true)}
-                />{/if}
             {:else if id === 'load'}
               {#if active === 'load'}<LoadView />{/if}
             {:else if id === 'meetings'}

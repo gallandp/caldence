@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { mondayOf } from '../../core/date';
   import { loadPerWeek, warnings } from '../../core/load';
   import { schoolHolidayGap, scopeTeams, warnedWeeks, weekRows } from '../../core/views';
@@ -9,8 +9,12 @@
   interface Props {
     /** Switches to the Meetings view (empty-state hint). */
     onOpenMeetings: () => void;
+    /** Inside the calendar, which shows the empty-state hint itself. */
+    embedded?: boolean;
+    /** The calendar's level switch, at the end of this toolbar. */
+    levels?: Snippet;
   }
-  let { onOpenMeetings }: Props = $props();
+  let { onOpenMeetings, embedded = false, levels }: Props = $props();
 
   const settings = $derived($workspace.settings);
   const rows = $derived(weekRows($workspace, $index, $filter));
@@ -68,7 +72,7 @@
   {#if coverage}
     <p class="hint">{coverage}</p>
   {/if}
-  {#if !hasEvents}
+  {#if !hasEvents && !embedded}
     <p class="hint">
       {$t('cal.noevents.text')}
       <button type="button" onclick={onOpenMeetings}>{$t('cal.noevents.button')}</button>
@@ -84,6 +88,7 @@
       {/each}
     </div>
     <span class="unit">{$t('weeks.unit')}</span>
+    {@render levels?.()}
   </div>
 
   <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->

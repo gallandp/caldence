@@ -49,7 +49,7 @@ Templates never contain regions: a template with `customRegions` is refused.
 
 ## Coverage warning
 
-When the planning horizon ends after `schoolHolidaysKnownUntil` of the selected region, Settings (below the horizon) and the Weeks view say that school holidays are known only until that date. Public holidays are computed from rules and need no such warning.
+When the planning horizon ends after `schoolHolidaysKnownUntil` of the selected region, Settings (below the horizon) and the calendar's Horizon level say that school holidays are known only until that date. Public holidays are computed from rules and need no such warning.
 
 ## Saxony (`de-sn`) sources
 

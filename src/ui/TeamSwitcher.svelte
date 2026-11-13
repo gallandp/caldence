@@ -228,6 +228,7 @@
   .switcher {
     position: relative;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 0.35rem 0.5rem 0.5rem;
@@ -317,12 +318,10 @@
     stroke-width: 3;
     stroke-linecap: round;
   }
+  /* In the flow, not over the views below: a half-covered view tab is hard to hit. */
   .menu {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 0.4rem);
-    left: 0;
-    right: 0;
+    flex-basis: 100%;
+    margin: 0.15rem -0.2rem 0 -0.35rem;
     display: flex;
     flex-direction: column;
     padding: 0.35rem;
