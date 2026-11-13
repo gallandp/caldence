@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.19.0 – 2026-11-13
+
+### Changed
+
+- Load warnings that mean something (#119)
+
 ## 1.18.0 – 2026-11-13
 
 ### Changed
