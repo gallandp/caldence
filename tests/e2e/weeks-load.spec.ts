@@ -191,8 +191,12 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
   await page.getByLabel('Horizon from').fill('2026-06-01');
   await page.getByLabel('Horizon to').fill('2026-12-31');
   await expect(page.getByLabel('Horizon to')).not.toHaveAttribute('aria-invalid', 'true');
-  // A new horizon starts the calendar again at the month.
-  await showRange(page);
+  // The calendar keeps its Horizon level while the horizon changes.
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Horizon', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(panel.locator('caption')).toHaveText('Weeks 06/01/2026–12/31/2026');
   expect(await panel.locator('tbody tr').count()).toBeGreaterThan(20);
   await expect(panel.getByText(/Sprint|Period/)).toHaveCount(0);

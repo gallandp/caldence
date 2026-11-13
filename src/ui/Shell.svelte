@@ -358,6 +358,7 @@
               {#key $workspace.settings.horizon.from + $workspace.settings.horizon.to}
                 <CalendarView
                   onOpenMeetings={() => select('meetings', true)}
+                  shown={active === 'calendar'}
                   onEditMeeting={editMeeting}
                 />
               {/key}

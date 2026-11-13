@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  /** The level outlives the view, which is rebuilt when the planning horizon changes. */
+  let lastMode: Mode = 'month';
+</script>
+
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
@@ -33,8 +38,10 @@
     onOpenMeetings: () => void;
     /** Opens a meeting in the Meetings view (Edit in the day details). */
     onEditMeeting?: (teamId: string, eventId: string) => void;
+    /** Whether the calendar is the open view; the hidden Horizon table is not kept up to date. */
+    shown?: boolean;
   }
-  let { onOpenMeetings, onEditMeeting }: Props = $props();
+  let { onOpenMeetings, onEditMeeting, shown = true }: Props = $props();
 
   const horizon = $derived($workspace.settings.horizon);
   const inHorizon = (d: ISODate): boolean => d >= horizon.from && d <= horizon.to;
@@ -48,7 +55,7 @@
 
   type Mode = 'week' | 'month' | 'range';
   /** Week and month page through the horizon; range shows all of its weeks as one table. */
-  let mode = $state<Mode>('month');
+  let mode = $state<Mode>(lastMode);
   const modes: readonly Mode[] = ['week', 'month', 'range'];
   let cursor = $state<ISODate>(clampToHorizon());
   let selected = $state<ISODate | null>(null);
@@ -318,14 +325,14 @@
   async function setMode(next: Mode) {
     // The switch moves between toolbars to and from the range level; keep focus on it.
     const focused = root?.querySelector('.levels')?.contains(document.activeElement) ?? false;
-    mode = next;
+    mode = lastMode = next;
     selected = null;
     if (!focused) return;
     await tick();
-    // Without scrolling: the range level scrolls its current week into view.
+    // Into the range level without scrolling: it scrolls its current week into view itself.
     root
       ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
-      ?.focus({ preventScroll: true });
+      ?.focus({ preventScroll: next === 'range' });
   }
 
   function edit(item: DayItem) {
@@ -664,8 +671,8 @@
         </section>
       {/each}
     </div>
-  {:else}
-    <WeeksView {onOpenMeetings} embedded {levels} />
+  {:else if shown}
+    <WeeksView {levels} />
   {/if}
 </div>
 

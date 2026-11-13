@@ -6,21 +6,17 @@
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
+  /** The calendar's Horizon level; the calendar shows the empty-state hint. */
   interface Props {
-    /** Switches to the Meetings view (empty-state hint). */
-    onOpenMeetings: () => void;
-    /** Inside the calendar, which shows the empty-state hint itself. */
-    embedded?: boolean;
     /** The calendar's level switch, at the end of this toolbar. */
     levels?: Snippet;
   }
-  let { onOpenMeetings, embedded = false, levels }: Props = $props();
+  let { levels }: Props = $props();
 
   const settings = $derived($workspace.settings);
   const rows = $derived(weekRows($workspace, $index, $filter));
   const teams = $derived(scopeTeams($workspace, $filter));
   const several = $derived(teams.length > 1);
-  const hasEvents = $derived($workspace.teams.some((x) => x.events.length > 0));
   /** Roles in workspace order that carry hours in at least one row. */
   const roles = $derived($workspace.roles.filter((r) => rows.some((row) => r.id in row.byRole)));
   const currentMonday = mondayOf(localToday());
@@ -71,12 +67,6 @@
 <div class="weeks">
   {#if coverage}
     <p class="hint">{coverage}</p>
-  {/if}
-  {#if !hasEvents && !embedded}
-    <p class="hint">
-      {$t('cal.noevents.text')}
-      <button type="button" onclick={onOpenMeetings}>{$t('cal.noevents.button')}</button>
-    </p>
   {/if}
 
   <div class="toolbar">

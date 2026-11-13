@@ -17,13 +17,13 @@ mkdirSync(out, { recursive: true });
 const NOW = new Date('2027-01-13T09:00:00');
 const tabNames = {
   calendar: { en: 'Calendar', de: 'Kalender' },
-  weeks: { en: 'Weeks', de: 'Wochen' },
   load: { en: 'Load', de: 'Auslastung' },
   meetings: { en: 'Meetings & cadence', de: 'Termine & Takt' },
   templates: { en: 'Templates', de: 'Vorlagen' },
   exchange: { en: 'Import / Export', de: 'Import / Export' },
   help: { en: 'Help', de: 'Hilfe' },
 };
+const horizon = { en: 'Horizon', de: 'Zeitraum' };
 const openExample = { en: 'Open the example', de: 'Das Beispiel öffnen' };
 const person = { en: 'Person', de: 'Person' };
 
@@ -95,7 +95,14 @@ const shots = [
       await page.locator('td[data-date="2027-01-13"]').click();
     }),
   },
-  { view: 'weeks', steps: withExample('weeks', (page) => page.getByRole('table').waitFor()) },
+  {
+    // The calendar's Horizon level: one row per week.
+    view: 'weeks',
+    steps: withExample('calendar', async (page, l) => {
+      await page.getByRole('button', { name: horizon[l], exact: true }).click();
+      await page.getByRole('table').waitFor();
+    }),
+  },
   {
     view: 'load',
     steps: withExample('load', async (page, l) => {
