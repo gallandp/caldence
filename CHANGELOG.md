@@ -8,6 +8,7 @@
 
 - Narrow screens: the views, language, appearance and links open from a menu button that shows the current view, instead of a sideways-scrolling row that hid most views
 - Calmer sidebar: thin dividers instead of the three group headings, and language and appearance side by side in one row
+- Load warnings ignore peaks that come back with the cadence, such as every sprint start, show one line per person with the threshold explained, and sit at full width below the chart; Weeks calls them “Load warning” too. The example's kick-off workshop now takes 4 hours
 
 ## 1.17.0 – 2026-11-13
 

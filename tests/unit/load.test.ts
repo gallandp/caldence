@@ -169,6 +169,17 @@ describe('loadPerWeek', () => {
     expect(at(weeks, 0).byPerson.p1).toBe(0);
     expect(at(weeks, 1).byPerson.p1).toBeCloseTo(1);
   });
+
+  it('counts recurring meetings as regular load, one-offs and milestones not', () => {
+    const t = team([
+      event({ type: 'weekly', weekday: 2 }),
+      event({ type: 'once', date: '2027-01-13' }, { id: 'e2', duration: 120 }),
+    ]);
+    const weeks = loadPerWeek(workspace([t]), noIndex());
+    expect(at(weeks, 1).byPerson.p1).toBeCloseTo(3);
+    expect(at(weeks, 1).regularByPerson.p1).toBeCloseTo(1);
+    expect(at(weeks, 0).regularByPerson.p1).toBeCloseTo(1);
+  });
 });
 
 describe('fte', () => {
@@ -182,18 +193,39 @@ describe('fte', () => {
 });
 
 describe('warnings', () => {
-  const week = (monday: string, p1: number, p2 = 0) => ({
+  /** `regular` is the part of p1's hours from recurring meetings. */
+  const week = (monday: string, p1: number, p2 = 0, regular = 0) => ({
     monday,
     byPerson: { p1, p2 },
+    regularByPerson: { p1: regular, p2: 0 },
     byTeamRole: {},
   });
 
-  it('flags a week above warnFactor x average as above-average', () => {
+  it('flags a week above warnFactor x average as above-usual', () => {
     const ws = workspace([]);
     ws.settings.thresholds = { warnFactor: 1.5, maxFte: 10 };
     const weeks = [week('2027-01-04', 1), week('2027-01-11', 1), week('2027-01-18', 7)];
     expect(warnings(weeks, ws)).toEqual([
-      { monday: '2027-01-18', personId: 'p1', kind: 'above-average' },
+      { monday: '2027-01-18', personId: 'p1', kind: 'above-usual' },
+    ]);
+  });
+
+  it('does not flag a peak of recurring meetings that comes back with the cadence', () => {
+    const ws = workspace([]);
+    ws.settings.thresholds = { warnFactor: 1.5, maxFte: 10 };
+    const weeks = [week('2027-01-04', 7, 0, 7), week('2027-01-11', 1, 0, 1)];
+    weeks.push(week('2027-01-18', 7, 0, 7), week('2027-01-25', 1, 0, 1));
+    expect(warnings(weeks, ws)).toEqual([]);
+  });
+
+  it('flags a one-off meeting on top of a recurring peak', () => {
+    const ws = workspace([]);
+    ws.settings.thresholds = { warnFactor: 1.5, maxFte: 10 };
+    // Usual load of week 3 is its 4 recurring hours (the average is 3); 7 > 1.5 x 4.
+    const weeks = [week('2027-01-04', 1, 0, 1), week('2027-01-11', 1, 0, 1)];
+    weeks.push(week('2027-01-18', 7, 0, 4));
+    expect(warnings(weeks, ws)).toEqual([
+      { monday: '2027-01-18', personId: 'p1', kind: 'above-usual' },
     ]);
   });
 
