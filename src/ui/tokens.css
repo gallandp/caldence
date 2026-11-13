@@ -1,63 +1,46 @@
-/* Design tokens. Every text/background pair is at least 4.5:1, focus ring at least 3:1. */
+/* Design tokens as light-dark(light, dark). Every text/background pair is at least 4.5:1, focus ring
+   at least 3:1. The scheme follows the system unless the user picked one (data-theme on <html>). */
 :root {
   color-scheme: light dark;
-  --bg: #f4f5fb;
-  --surface: #ffffff;
-  --surface-2: #f1f2f9;
-  --text: #0f1426;
-  --text-muted: #555d74;
-  --border: #e2e5f0;
-  --border-strong: #7a8197;
-  --accent: #5340e6;
-  --accent-hover: #4431d1;
-  --accent-soft: #efedff;
-  --accent-text: #4a37d6;
-  --on-accent: #ffffff;
-  --focus: #5340e6;
-  --danger: #c0262d;
-  --danger-soft: #fdecec;
-  --warn: #9a5b00;
-  --warn-soft: #fff5e1;
-  --hot: #ea580c;
-  --ok: #0b6b47;
-  --ok-soft: #e3f5ec;
-  --side-bg: #0e1124;
-  --side-text: #c3c7de;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+:root {
+  --bg: light-dark(#f4f5fb, #0a0c18);
+  --surface: light-dark(#ffffff, #12152a);
+  --surface-2: light-dark(#f1f2f9, #191d36);
+  --text: light-dark(#0f1426, #eceefa);
+  --text-muted: light-dark(#555d74, #a8aec8);
+  --border: light-dark(#e2e5f0, #262b49);
+  --border-strong: light-dark(#7a8197, #6f7699);
+  --accent: light-dark(#5340e6, #a99dff);
+  --accent-hover: light-dark(#4431d1, #c2b9ff);
+  --accent-soft: light-dark(#efedff, #26214d);
+  --accent-text: light-dark(#4a37d6, #bdb3ff);
+  --on-accent: light-dark(#ffffff, #120e33);
+  --focus: light-dark(#5340e6, #a99dff);
+  --danger: light-dark(#c0262d, #ff9b9b);
+  --danger-soft: light-dark(#fdecec, #3a1820);
+  --warn: light-dark(#9a5b00, #ffc670);
+  --warn-soft: light-dark(#fff5e1, #33270f);
+  --hot: light-dark(#ea580c, #fb923c);
+  --ok: light-dark(#0b6b47, #6fdcaa);
+  --ok-soft: light-dark(#e3f5ec, #10301f);
+  --side-bg: light-dark(#0e1124, #070914);
+  --side-text: light-dark(#c3c7de, #b4b9d4);
   --brand-gradient: linear-gradient(90deg, #7b6bff, #22b5e0);
   --space: 1rem;
   --radius: 0.6rem;
   --radius-lg: 1rem;
-  --shadow: 0 1px 2px rgb(15 20 38 / 0.04), 0 8px 24px -8px rgb(15 20 38 / 0.1);
+  --shadow:
+    0 1px 2px light-dark(rgb(15 20 38 / 0.04), rgb(0 0 0 / 0.5)),
+    0 8px 24px -8px light-dark(rgb(15 20 38 / 0.1), rgb(0 0 0 / 0.5));
   --shadow-lg: 0 24px 64px -16px rgb(15 20 38 / 0.35);
   --font: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', Roboto, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0c18;
-    --surface: #12152a;
-    --surface-2: #191d36;
-    --text: #eceefa;
-    --text-muted: #a8aec8;
-    --border: #262b49;
-    --border-strong: #6f7699;
-    --accent: #a99dff;
-    --accent-hover: #c2b9ff;
-    --accent-soft: #26214d;
-    --accent-text: #bdb3ff;
-    --on-accent: #120e33;
-    --focus: #a99dff;
-    --danger: #ff9b9b;
-    --danger-soft: #3a1820;
-    --warn: #ffc670;
-    --warn-soft: #33270f;
-    --hot: #fb923c;
-    --ok: #6fdcaa;
-    --ok-soft: #10301f;
-    --side-bg: #070914;
-    --side-text: #b4b9d4;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 8px 24px -8px rgb(0 0 0 / 0.5);
-  }
 }
 
 /* Forced colours: text on the accent uses the system button text. Chromium keeps the authored colour
