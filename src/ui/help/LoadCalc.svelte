@@ -24,6 +24,8 @@
     maxFte: 'settings.maxFte',
     thresholds: 'settings.thresholds',
     settings: 'view.settings',
+    hourlyRate: 'settings.hourlyRate',
+    costs: 'cost.title',
   };
   const parts = [
     'duration',
@@ -34,6 +36,7 @@
     'average',
     'fte',
     'warn',
+    'cost',
   ] as const;
 </script>
 

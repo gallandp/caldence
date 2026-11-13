@@ -173,6 +173,8 @@ function checkSettings(c: Checker, v: unknown): void {
     });
     c.num(t, 'maxFte', 'settings.thresholds', { min: 0, exclusive: true, max: LIMITS.maxFte });
   }
+  if (s.hourlyRate !== undefined)
+    c.num(s, 'hourlyRate', p, { min: 0, exclusive: true, max: LIMITS.hourlyRate });
 }
 
 function checkRule(

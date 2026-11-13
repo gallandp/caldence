@@ -22,7 +22,7 @@ export interface LoadWarning {
 }
 
 /** Average occurrences per week of a recurring rule; one-off rules count 0. */
-function occurrencesPerWeek(rule: Rule, team: Team): number {
+export function occurrencesPerWeek(rule: Rule, team: Team): number {
   switch (rule.type) {
     case 'weekly':
       return 1;

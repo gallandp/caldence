@@ -469,6 +469,7 @@
   "help.calc.average": "Average: {personTable} adds up the hours of every week of the planning horizon, across all teams, and divides them by the number of weeks.",
   "help.calc.fte": "{fte}: meeting hours per week ÷ the {hours} of the person. 1.0 is the whole working week.",
   "help.calc.warn": "{warnings}: a week is listed when a person has more than {warnFactor} × their average hours, or when its FTE is above {maxFte}. Both are under {thresholds} in {settings}.",
+  "help.calc.cost": "Costs: when {hourlyRate} in {settings} is filled in, Meetings and Load show the {costs} card. A meeting costs its hours (with share and preparation) × the number of members in the role × the rate; a role without members counts as one person. Per week follows the typical week, “in the horizon” adds up all meetings of the planning horizon without holidays. Without a rate, no costs are shown.",
   "help.calc.example": "Example: a 60-minute meeting with 50 % preparation and share 1 counts 1.5 hours. For a person with 40 hours per week, 8 such meetings a week are 12 hours, or 0.30 FTE.",
   "help.where.title": "Settings or assumptions?",
   "help.where.caption": "Where each value is edited",
@@ -646,5 +647,18 @@
   "update.available": "A new version of Caldence is available.",
   "update.reload": "Reload",
   "update.later": "Later",
-  "update.offline": "Caldence now also works offline."
+  "update.offline": "Caldence now also works offline.",
+  "settings.costs": "Costs",
+  "settings.hourlyRate": "Hourly rate (optional)",
+  "settings.hourlyRate.unit": "€ per hour and person",
+  "settings.hourlyRate.help": "With a rate, Caldence shows what meetings cost in Meetings and Load. Leave it empty to show no costs.",
+  "meet.col.cost": "Cost",
+  "meet.cost.week": "Ø {amount} / week",
+  "meet.cost.once": "one-off",
+  "meet.cost.milestone": "per milestone",
+  "cost.title": "Costs",
+  "cost.hint": "At {rate} per hour and person, preparation included.",
+  "cost.perWeek": "/ week",
+  "cost.horizon": "in the horizon",
+  "cost.byCategory": "Cost per week by category"
 }

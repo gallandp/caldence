@@ -6,6 +6,12 @@
 
 - Appearance switch below the language: match the system (default), light or dark, remembered in this browser
 
+## 1.14.0 – 2026-11-12
+
+### Added
+
+- Optional hourly rate in the settings: with it, Meetings shows a cost column and a costs card, and Load shows the costs card with the weekly and horizon totals and the cost per category; without it, no costs are shown
+
 ## 1.13.0 – 2026-11-12
 
 ### Changed
