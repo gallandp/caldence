@@ -359,7 +359,7 @@
     opacity: 0.5;
     cursor: default;
   }
-  /* Same outlined "+ Add" button as on Members & cadence. */
+  /* Same outlined "+ Add" button as in the Team view. */
   .add-button {
     display: inline-flex;
     align-items: center;

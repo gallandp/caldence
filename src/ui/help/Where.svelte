@@ -16,9 +16,9 @@
     { label: 'team.members.hours', view: 'team' },
     { label: 'settings.people', view: 'team' },
     { label: 'settings.roles', view: 'team' },
-    { label: 'team.cadence', view: 'team' },
-    { label: 'team.cycles', view: 'team' },
     { label: 'team.assumptions', view: 'team' },
+    { label: 'team.cadence', view: 'meetings' },
+    { label: 'team.cycles', view: 'meetings' },
     { label: 'meet.categories', view: 'meetings' },
   ];
 </script>

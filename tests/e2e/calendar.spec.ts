@@ -227,11 +227,11 @@ test('teams without meetings show a hint that leads to the Meetings view', async
   await expect(panel(page).getByText('There are no meetings yet')).toBeVisible();
   await expect(panel(page).getByRole('grid')).toBeVisible();
   await panel(page).getByRole('button', { name: 'Go to Meetings' }).click();
-  await expect(page.getByRole('tab', { name: 'Meetings', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  await expect(page.getByRole('tab', { name: 'Meetings', exact: true })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence', exact: true })).toBeFocused();
 });
 
 test('no horizontal page scroll at 375 px', async ({ page }) => {
@@ -339,7 +339,7 @@ test('the day details show time, category and roles and open a meeting for editi
   expect(box.y).toBeLessThan(cell.y + cell.height);
 
   await item.getByRole('button', { name: 'Edit Sprint Planning' }).click();
-  await expect(page.getByRole('tab', { name: 'Meetings', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
@@ -348,7 +348,7 @@ test('the day details show time, category and roles and open a meeting for editi
   // Coming back to Meetings later does not open the form again.
   await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
 });
 

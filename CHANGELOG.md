@@ -6,6 +6,10 @@
 
 ### Changed
 
+- The cadence and the cycles with their milestones moved from Team to the meetings view, now called Meetings & cadence. The cadence shows as one line above the meetings and opens with Change; changing it keeps an open meeting form
+
+### Changed
+
 - People and roles are created in the Team view, where they are assigned; a new person can be added while assigning them
 - Weekly hours are set per team: a person can work 20 h in one team and 18 h in another. Workspaces from earlier versions split a person's hours evenly across their teams (schema 4)
 

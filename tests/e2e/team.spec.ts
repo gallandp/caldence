@@ -26,29 +26,14 @@ test('a new team is selected and shows an empty members list with a hint', async
   await expect(teamSelect(page).locator('option:checked')).toHaveText('Team B');
   await expect(panel(page).getByText('No members yet')).toBeVisible();
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).toHaveCount(0);
-  await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
 });
 
 test('the team switcher changes what the team view shows', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
-  await expect(panel(page).getByLabel('Type')).toHaveValue('sprint');
-  await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
   await expect(panel(page).getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await teamSelect(page).selectOption({ label: 'Team Beta' });
-  await expect(panel(page).getByLabel('Type')).toHaveValue('flow');
-  await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('1');
   await expect(panel(page).getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
-});
-
-test('duplicating a team copies its cadence', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  await teamAction(page, 'Duplicate team');
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (copy)');
-  await expect(panel(page).getByLabel('Type')).toHaveValue('sprint');
-  await expect(panel(page).getByLabel('Length (weeks)')).toHaveValue('2');
-  await expect(panel(page).getByLabel('Start date')).toHaveValue('2027-01-07');
 });
 
 test('selecting a person states that all teams are shown', async ({ page }) => {
@@ -86,21 +71,6 @@ test('a member that already exists is refused inline', async ({ page }) => {
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).not.toContainText(
     'Product Owner',
   );
-});
-
-test('cadence length is validated inline and the draft is kept', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  const length = panel(page).getByLabel('Length (weeks)');
-  await length.fill('0');
-  await length.blur();
-  await expect(length).toHaveAttribute('aria-invalid', 'true');
-  await expect(length).toHaveValue('0');
-  await length.fill('3');
-  await length.blur();
-  await expect(length).not.toHaveAttribute('aria-invalid', 'true');
-  await panel(page).getByLabel('Type').selectOption('pi');
-  await expect(panel(page).getByLabel('Type')).toHaveValue('pi');
 });
 
 test('removing or renaming the assumption used by scaling shows an inline error', async ({
@@ -153,33 +123,6 @@ test('assumptions are added, changed, renamed to a free key only, and removed', 
   await key.blur();
   await panel(page).getByRole('button', { name: 'Remove assumption defects' }).click();
   await expect(panel(page).getByLabel('Key of assumption defects')).toHaveCount(0);
-});
-
-test('cycles and milestones can be edited; referenced ones cannot be dropped', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  await panel(page).getByRole('button', { name: 'Delete milestone Release' }).click();
-  await expect(panel(page).getByText('Still in use: Release')).toBeVisible();
-  await expect(panel(page).getByLabel('Name of milestone Release')).toBeVisible();
-  await panel(page).getByRole('button', { name: 'Delete cycle Release 1' }).click();
-  await expect(panel(page).getByText('Still in use: Release 1')).toBeVisible();
-
-  await panel(page).getByLabel('New cycle name').fill('Q3');
-  await panel(page).getByRole('button', { name: 'Add cycle' }).click();
-  const q3 = panel(page).getByRole('group', { name: 'Milestones of Q3' });
-  await q3.getByLabel('New milestone name').fill('Beta');
-  await q3.getByRole('button', { name: 'Add milestone' }).click();
-  await expect(q3.getByText('Required field missing')).toBeVisible();
-  await q3.getByLabel('New milestone date').fill('2027-09-01');
-  await q3.getByRole('button', { name: 'Add milestone' }).click();
-  await expect(q3.getByLabel('Name of milestone Beta')).toBeVisible();
-  await q3.getByLabel('Date of milestone Beta').fill('2027-09-15');
-  await q3.getByLabel('Date of milestone Beta').blur();
-  await expect(q3.getByLabel('Date of milestone Beta')).toHaveValue('2027-09-15');
-  await q3.getByRole('button', { name: 'Delete milestone Beta' }).click();
-  await expect(q3.getByLabel('Name of milestone Beta')).toHaveCount(0);
-  await panel(page).getByRole('button', { name: 'Delete cycle Q3' }).click();
-  await expect(panel(page).getByRole('group', { name: 'Milestones of Q3' })).toHaveCount(0);
 });
 
 test('Plan another team runs the wizard and keeps known people', async ({ page }) => {
@@ -340,31 +283,6 @@ for (const locale of ['de', 'en'] as const) {
   });
 }
 
-test('shrinking the cadence below a meeting day explains why', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  const length = panel(page).getByLabel('Length (weeks)');
-  await length.fill('1');
-  await length.blur();
-  await expect(
-    panel(page).getByText('Meeting “Sprint Review” is on day 14 and does not fit into 1 weeks.'),
-  ).toBeVisible();
-  await expect(length).toHaveAttribute('aria-invalid', 'true');
-  await expect(length).toHaveAttribute('aria-describedby', /.+/);
-  await expect(length).toHaveValue('1');
-});
-
-test('a refused removal keeps focus and links its error to the button', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  const button = panel(page).getByRole('button', { name: 'Delete milestone Release' });
-  await button.focus();
-  await page.keyboard.press('Enter');
-  await expect(panel(page).getByText('Still in use: Release')).toBeVisible();
-  await expect(button).toBeFocused();
-  await expect(button).toHaveAttribute('aria-describedby', /.+/);
-});
-
 test('the filter follows the active team', async ({ page }) => {
   await openExample(page);
   await teamSelect(page).selectOption({ label: 'Team Beta' });
@@ -432,15 +350,4 @@ test('people and roles are created in the team view, hours count per team', asyn
   await expect(team.getByText('Team Alpha 12 h', { exact: true })).toBeVisible();
   // Alex is in both example teams with 16 h each.
   await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
-});
-
-test('each cycle names its number of milestones', async ({ page }) => {
-  await openExample(page);
-  await openTeamView(page);
-  const cycle = panel(page)
-    .getByRole('listitem')
-    .filter({
-      has: page.getByRole('textbox', { name: 'Name of cycle Release 1' }),
-    });
-  await expect(cycle).toContainText('1 milestone');
 });

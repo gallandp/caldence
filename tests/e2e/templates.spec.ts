@@ -44,10 +44,14 @@ test('applying Scrum takes two clicks and a confirmed name', async ({ page }) =>
   await expect(panel(page).getByRole('button', { name: 'Open team' })).toBeFocused();
   await panel(page).getByRole('button', { name: 'Open team' }).click();
 
-  const team = page.getByRole('tabpanel', { name: 'Team' });
-  await expect(team.getByLabel('Type')).toHaveValue('sprint');
-  await expect(team.getByLabel('Length (weeks)')).toHaveValue('2');
+  await expect(page.getByRole('tabpanel', { name: 'Team' })).toBeVisible();
   await expect(page.locator('.switcher select option:checked')).toHaveText('Scrum');
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await expect(
+    page
+      .getByRole('tabpanel', { name: 'Meetings & cadence' })
+      .getByRole('region', { name: 'Cadence' }),
+  ).toContainText('Sprint · 2 weeks');
 
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   const cal = page.getByRole('tabpanel', { name: 'Calendar' });

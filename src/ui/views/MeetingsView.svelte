@@ -10,11 +10,14 @@
   import { formatDisplayDate, formatEuro, formatNumber, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
+  import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
+  import CyclesCard from '../components/CyclesCard.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { ruleSummary } from '../meetings/rules';
   import { fieldErrors } from '../state/form';
+  import { applyOwn, isOwnChange } from '../state/problems.svelte';
   import { activeTeamId, index, workspace } from '../state/workspace';
 
   interface Props {
@@ -38,14 +41,14 @@
   let root: HTMLElement | undefined;
 
   // The form edits a draft; a foreign change to teams, categories or roles (undo, open, new)
-  // makes it stale, so it is closed. Settings-only changes (language, ...) keep it.
-  let own = false;
+  // makes it stale, so it is closed. Settings-only changes (language, ...) and changes from this
+  // view's cards (cadence, cycles) keep it.
   let signature = '';
   onMount(() => {
     const stop = [
       workspace.subscribe((ws) => {
         const next = JSON.stringify([ws.teams, ws.categories, ws.roles]);
-        if (!own && next !== signature) editing = null;
+        if (!isOwnChange() && next !== signature) editing = null;
         signature = next;
       }),
       activeTeamId.subscribe(() => {
@@ -66,14 +69,7 @@
     };
   });
 
-  function commit(change: Parameters<typeof workspace.apply>[0]) {
-    own = true;
-    try {
-      return workspace.apply(change);
-    } finally {
-      own = false;
-    }
-  }
+  const commit = applyOwn;
 
   async function focusSoon(selector: string, fallback = '[data-add]') {
     await tick();
@@ -230,6 +226,7 @@
   {#if !team}
     <p class="empty card">{$t('meet.none')}</p>
   {:else}
+    <CadenceCard {team} />
     {#if costs && rate}
       <CostCard summary={costs} {rate} />
     {/if}
@@ -420,6 +417,7 @@
         </p>
       {/if}
     </div>
+    <CyclesCard {team} />
   {/if}
 
   <div class="card">

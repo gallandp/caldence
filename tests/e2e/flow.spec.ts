@@ -33,8 +33,8 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
   await teamPanel.getByRole('button', { name: 'Add member' }).click();
   await expect(teamPanel.getByRole('list', { name: `Members of ${team}` })).toContainText('Kim');
 
-  await tab(page, 'Meetings').click();
-  const meetings = panel(page, 'Meetings');
+  await tab(page, 'Meetings & cadence').click();
+  const meetings = panel(page, 'Meetings & cadence');
   if (firstTeam) {
     await meetings.getByLabel('New category name').fill('Planning');
     await meetings.getByLabel('New category name').press('Enter');
@@ -52,10 +52,12 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
 }
 
 async function expectEverything(page: Page) {
-  await tab(page, 'Meetings').click();
+  await tab(page, 'Meetings & cadence').click();
   for (const team of ['Team A', 'Team B']) {
     await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
-    const table = panel(page, 'Meetings').getByRole('table', { name: `Meetings of ${team}` });
+    const table = panel(page, 'Meetings & cadence').getByRole('table', {
+      name: `Meetings of ${team}`,
+    });
     await expect(table).toContainText(`Sync ${team}`);
     await expect(table).toContainText('Weekly on Wednesday');
     await expect(table).toContainText('10:00');
@@ -74,7 +76,7 @@ async function expectEverything(page: Page) {
     await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
     await expect(page.getByLabel('Name of Developer')).toBeVisible();
     await expect(page.getByText('Team A 20 h · Team B 10 h · Σ 30 h')).toBeVisible();
-    await tab(page, 'Meetings').click();
+    await tab(page, 'Meetings & cadence').click();
   }
   await tab(page, 'Team').click();
   const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
