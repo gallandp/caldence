@@ -257,7 +257,10 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await expect(actions).toHaveAttribute('aria-expanded', 'false');
   await expect(actions).toBeFocused();
 
+  // Wait until the opened menu has focused its first item, or that focus move can come
+  // after ours and Enter or Space would then press "Plan another team".
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Plan another team' })).toBeFocused();
   await page.getByRole('button', { name: 'Rename team' }).focus();
   await page.keyboard.press('Space');
   await expect(page.getByLabel('Team name')).toHaveValue('Keys');
@@ -268,6 +271,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
 
   // Empty names are refused and Escape cancels.
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Plan another team' })).toBeFocused();
   await page.getByRole('button', { name: 'Rename team' }).focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('Team name').fill('');
