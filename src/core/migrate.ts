@@ -23,7 +23,12 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
     for (const t of teams) for (const id of ids(t)) teamCount.set(id, (teamCount.get(id) ?? 0) + 1);
     const hours = new Map<unknown, unknown>(people.map((p) => [p.id, p.hoursPerWeek]));
     const out: Record<string, unknown> = { ...ws };
-    if (Array.isArray(ws.people)) out.people = people.map(({ hoursPerWeek: _, ...rest }) => rest);
+    if (Array.isArray(ws.people))
+      out.people = people.map((p) => {
+        const rest = { ...p };
+        delete rest.hoursPerWeek;
+        return rest;
+      });
     if (Array.isArray(ws.teams))
       out.teams = teams.map((t) => {
         const memberHours = record<number>();
