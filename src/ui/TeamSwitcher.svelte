@@ -181,12 +181,13 @@
   onclose={() => {
     dialog?.querySelector('form')?.reset();
     // The menu button that opened the dialog is hidden again; give focus to its toggle.
+    // The close event can come late: a menu the user opened since then keeps its focus.
     const focused = document.activeElement;
     if (
       !focused ||
       focused === document.body ||
       dialog?.contains(focused) ||
-      menu?.contains(focused)
+      (!menuOpen && menu?.contains(focused))
     )
       (toggle ?? document.getElementById(`${uid}-add`))?.focus();
   }}
