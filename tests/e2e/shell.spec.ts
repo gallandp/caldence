@@ -153,6 +153,7 @@ test('the role and person filters show only where they apply', async ({ page }) 
   // Hidden, not reset: the choice is still there on return.
   await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Role' })).not.toHaveValue('');
+});
 
 test('appearance overrides the system scheme and is remembered', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
