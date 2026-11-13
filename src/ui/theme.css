@@ -374,8 +374,15 @@
 #app table:not([role='grid']) tbody tr:last-child > * {
   border-bottom: 0;
 }
-#app tr.current > * {
-  background: var(--accent-soft) !important;
+/* The current row keeps the plain row colour, so it never reads as part of the tinted header;
+   a bar on its left edge and its badge mark it. */
+#app tr.current > :first-child {
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+/* A gap below the rounded header, so a tinted first row does not meet its corners. */
+#app table:not([role='grid']) thead + tbody tr:first-child > * {
+  border-top: 0.25rem solid transparent;
+  background-clip: padding-box;
 }
 #app .actions {
   display: flex;

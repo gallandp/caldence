@@ -5,6 +5,7 @@
 ### Fixed
 
 - The team actions menu keeps focus when it is opened by keyboard right after renaming a team
+- Tables: the current week no longer shares the header's tint (a bar on its left edge marks it), and a small gap keeps a row from touching the rounded header corners
 
 ## 1.22.0 – 2026-11-13
 
