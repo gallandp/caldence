@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.16.0 – 2026-11-13
+
+### Changed
+
+- Consistent cards, widths and spacing (#109)
+
 ## 1.15.0 – 2026-11-13
 
 ### Added
