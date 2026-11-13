@@ -57,6 +57,8 @@
     help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
   };
 
+  /** Views that follow the role/person filter; the others hide it. */
+  const FILTERED: readonly ViewId[] = ['calendar', 'weeks', 'load'];
   let active = $state<ViewId>('calendar');
   /** Without teams the Calendar shows the start screen and the team bar steps aside. */
   const noTeams = $derived($workspace.teams.length === 0);
@@ -256,7 +258,7 @@
   </aside>
 
   <div class="content">
-    <WorkspaceBar bind:this={bar} />
+    <WorkspaceBar bind:this={bar} filters={FILTERED.includes(active)} />
     <SetupWizard
       bind:this={planWizard}
       oncreated={() => {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The role and person filters appear only above Calendar, Weeks and Load, where they apply; Load explains that the per-person table covers all teams
+
 ## 1.14.0 – 2026-11-12
 
 ### Added

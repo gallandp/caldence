@@ -257,7 +257,10 @@
         <CostCard summary={costs} {rate} />
       {/if}
       {#if $workspace.people.length > 0}
-        <div class="card">{@render region('person', $t('load.table.person'), personBody)}</div>
+        <div class="card">
+          {@render region('person', $t('load.table.person'), personBody)}
+          {#if !$filter.personId}<p class="note below">{$t('load.table.person.note')}</p>{/if}
+        </div>
       {/if}
       <section class="card" aria-labelledby="{uid}-warn">
         <h3 id="{uid}-warn">
@@ -372,6 +375,9 @@
     color: var(--warn);
     font-size: 0.8rem;
     font-weight: 700;
+  }
+  .note.below {
+    margin: 0.75rem 0 0;
   }
   .note {
     margin: 0 0 1rem;
