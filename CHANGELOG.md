@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.21.0 – 2026-11-13
+
 ### Changed
 
 - People and roles are created in the Team view, where they are assigned; a new person can be added while assigning them
