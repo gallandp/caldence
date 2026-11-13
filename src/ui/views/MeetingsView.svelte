@@ -127,11 +127,17 @@
   const summaries = $derived(
     new Map(team?.events.map((e) => [e.id, ruleSummary(e.rule, team, $t, $locale)]) ?? []),
   );
+  /** Meetings in the order they next take place; those without a next date come last. */
+  const ordered = $derived.by(() => {
+    if (!team) return [];
+    const at = (e: CalEvent) => next?.get(e.id) ?? '9999-12-31';
+    return [...team.events].sort((a, b) => at(a).localeCompare(at(b)));
+  });
   const visible = $derived.by(() => {
     if (!team) return [];
     const q = query.trim().toLocaleLowerCase($locale);
-    if (!q) return team.events;
-    return team.events.filter((e) =>
+    if (!q) return ordered;
+    return ordered.filter((e) =>
       [
         e.name,
         categoryOf(e.categoryId)?.name ?? '',

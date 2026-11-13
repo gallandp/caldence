@@ -137,11 +137,14 @@
   }
 
   export function openExample(): Promise<void> {
-    return exclusive(() => replaceWith(exampleWorkspace), undefined);
+    return exclusive(
+      () => replaceWith(() => exampleWorkspace(get(workspace).settings.locale)),
+      undefined,
+    );
   }
 </script>
 
-<div class="bar">
+<header class="bar">
   <div class="buttons">
     <button type="button" onclick={newWorkspace}>{$t('file.new')}</button>
     <button type="button" onclick={open}>{$t('file.open')}</button>
@@ -165,7 +168,7 @@
       {error.more > 0 ? $t('file.error.more', { message, count: error.more }) : message}
     {/if}
   </div>
-</div>
+</header>
 
 {#if !empty}
   <div class="bar context" class:off={!filters}>
