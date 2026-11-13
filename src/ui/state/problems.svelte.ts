@@ -33,17 +33,20 @@ export class Problems {
   constructor(uid: string) {
     this.#uid = uid;
     onMount(() => {
+      // A store calls back once right away; only later calls are changes.
+      let ready = false;
+      const reset = () => {
+        if (!ready) return;
+        this.errors = {};
+        this.epoch++;
+      };
       const stop = [
         workspace.subscribe(() => {
-          if (isOwnChange()) return;
-          this.errors = {};
-          this.epoch++;
+          if (!isOwnChange()) reset();
         }),
-        activeTeamId.subscribe(() => {
-          this.errors = {};
-          this.epoch++;
-        }),
+        activeTeamId.subscribe(reset),
       ];
+      ready = true;
       return () => stop.forEach((fn) => fn());
     });
   }

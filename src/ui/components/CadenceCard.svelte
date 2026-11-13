@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { updateTeam } from '../../core/edit';
   import type { Cadence, Team } from '../../core/model';
   import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { Problems } from '../state/problems.svelte';
+  import { activeTeamId } from '../state/workspace';
   import FieldError from './FieldError.svelte';
 
   let { team }: { team: Team } = $props();
@@ -13,6 +15,8 @@
 
   /** The fields stay open while one of them shows an error. */
   let open = $state(false);
+  // Another team starts with its cadence as one line.
+  onMount(() => activeTeamId.subscribe(() => (open = false)));
   const showFields = $derived(open || Object.keys(problems.errors).length > 0);
 
   /** Closing drops errors and unsaved drafts; the saved cadence stays. */

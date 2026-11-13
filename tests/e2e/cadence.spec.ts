@@ -169,3 +169,15 @@ for (const lang of ['de', 'en'] as const) {
     expect(result.violations).toEqual([]);
   });
 }
+
+test('another team starts with its cadence closed and no drafts of the first team', async ({
+  page,
+}) => {
+  await openMeetings(page);
+  await editCadence(page);
+  await panel(page).getByLabel('New cycle name').fill('Draft');
+  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await expect(cadence(page).getByRole('button', { name: 'Change cadence' })).toBeVisible();
+  await expect(cadence(page).getByLabel('Length (weeks)')).toBeHidden();
+  await expect(panel(page).getByLabel('New cycle name')).toHaveValue('');
+});

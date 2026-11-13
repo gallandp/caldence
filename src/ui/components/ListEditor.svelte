@@ -19,6 +19,7 @@
   import type { Workspace } from '../../core/model';
   import { translate as t } from '../../i18n';
   import { fieldErrors } from '../state/form';
+  import { applyOwn } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
   import ConfirmDialog, { type Choice } from './ConfirmDialog.svelte';
   import ReplaceDialog from './ReplaceDialog.svelte';
@@ -79,7 +80,7 @@
 
   function update(id: string, patch: Record<string, unknown>): boolean {
     const index = items.findIndex((i) => i.id === id);
-    const result = run(() => workspace.apply((ws) => (updateItem as Mutable)(ws, kind, id, patch)));
+    const result = run(() => applyOwn((ws) => (updateItem as Mutable)(ws, kind, id, patch)));
     if (result.ok) {
       rowErrors[id] = {};
       return true;
@@ -121,7 +122,7 @@
       addError = 'list.error.empty';
       return;
     }
-    const result = run(() => workspace.apply((ws) => addItem(ws, kind, create(name) as never)));
+    const result = run(() => applyOwn((ws) => addItem(ws, kind, create(name) as never)));
     if (!result.ok) {
       addError = result.errors[0]?.key ?? 'error.type';
       return;
@@ -131,7 +132,7 @@
   }
 
   function move(item: T, delta: -1 | 1) {
-    run(() => workspace.apply((ws) => moveItem(ws, kind, item.id, delta)));
+    run(() => applyOwn((ws) => moveItem(ws, kind, item.id, delta)));
     const same = delta < 0 ? 'up' : 'down';
     const other = delta < 0 ? 'down' : 'up';
     void focusSoon(`[data-move="${item.id}:${same}"]`, `[data-move="${item.id}:${other}"]`);
@@ -151,7 +152,7 @@
   function tryRemove(item: T, replacementId?: string) {
     const index = items.findIndex((i) => i.id === item.id);
     const neighbour = items[index + 1] ?? items[index - 1];
-    const result = run(() => workspace.apply((ws) => removeItem(ws, kind, item.id, replacementId)));
+    const result = run(() => applyOwn((ws) => removeItem(ws, kind, item.id, replacementId)));
     if (result.ok) {
       replacing = null;
       void focusSoon(

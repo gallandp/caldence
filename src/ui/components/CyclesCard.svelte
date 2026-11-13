@@ -5,7 +5,7 @@
   import type { Cycle, Team } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { Problems } from '../state/problems.svelte';
-  import { localToday, workspace } from '../state/workspace';
+  import { activeTeamId, localToday, workspace } from '../state/workspace';
   import FieldError from './FieldError.svelte';
 
   let { team }: { team: Team } = $props();
@@ -21,6 +21,8 @@
   }
 
   let newCycle = $state('');
+  // A new cycle's name belongs to the team it was typed for.
+  onMount(() => activeTeamId.subscribe(() => (newCycle = '')));
 
   function saveCycle(errorId: string, label: string, cycle: Cycle): boolean {
     const teamId = team.id;
@@ -48,8 +50,12 @@
   }
 
   type Draft = { name: string; date: string };
+  /** New-milestone drafts by team and cycle: cycle ids repeat across teams. */
   let drafts = $state<Record<string, Draft>>({});
-  const draftOf = (cycleId: string): Draft => drafts[cycleId] ?? { name: '', date: '' };
+  const draftKey = (cycleId: string) => `${team.id}/${cycleId}`;
+  const draftOf = (cycleId: string): Draft => drafts[draftKey(cycleId)] ?? { name: '', date: '' };
+  const setDraft = (cycleId: string, patch: Partial<Draft>) =>
+    (drafts[draftKey(cycleId)] = { ...draftOf(cycleId), ...patch });
 
   function addMilestone(cycle: Cycle, event: Event) {
     event.preventDefault();
@@ -64,7 +70,7 @@
     );
     const milestones = [...cycle.milestones, { id, name, date: draft.date }];
     if (saveCycle(errorId, name, { ...cycle, milestones }))
-      drafts[cycle.id] = { name: '', date: '' };
+      setDraft(cycle.id, { name: '', date: '' });
   }
 
   function editMilestone(cycle: Cycle, id: string, patch: Partial<{ name: string; date: string }>) {
@@ -225,8 +231,7 @@
                     value={draftOf(cycle.id).name}
                     aria-invalid={invalid(`ms-add-${cycle.id}`)}
                     aria-describedby={describe(`ms-add-${cycle.id}`)}
-                    oninput={(e) =>
-                      (drafts[cycle.id] = { ...draftOf(cycle.id), name: e.currentTarget.value })}
+                    oninput={(e) => setDraft(cycle.id, { name: e.currentTarget.value })}
                   />
                 </div>
                 <div class="field">
@@ -237,8 +242,7 @@
                     value={draftOf(cycle.id).date}
                     aria-invalid={invalid(`ms-add-${cycle.id}`)}
                     aria-describedby={describe(`ms-add-${cycle.id}`)}
-                    oninput={(e) =>
-                      (drafts[cycle.id] = { ...draftOf(cycle.id), date: e.currentTarget.value })}
+                    oninput={(e) => setDraft(cycle.id, { date: e.currentTarget.value })}
                   />
                 </div>
                 <button type="submit" class="secondary add"
