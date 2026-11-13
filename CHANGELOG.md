@@ -8,6 +8,11 @@
 
 - Appearance switch below the language: match the system (default), light or dark, remembered in this browser
 
+### Changed
+
+- Calmer cards: no accent line on top, every view uses the full width, no extra space above the first heading or below an empty status line, load tiles line up their values, and the version moved from the sidebar header to its footer
+- "+ Add" buttons and colour labels look the same in all lists
+
 ## 1.14.0 – 2026-11-12
 
 ### Added

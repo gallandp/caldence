@@ -64,8 +64,12 @@
     padding: 0;
     min-width: 0;
   }
-  legend {
+  /* Reads like the "Name" label beside it, not like a section heading. */
+  :global(#app) legend {
     padding: 0;
+    margin-bottom: 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 550;
     color: var(--text-muted);
   }
   .row {

@@ -429,9 +429,6 @@
 </div>
 
 <style>
-  .meetings {
-    max-width: 72rem;
-  }
   .empty {
     color: var(--text-muted);
   }
