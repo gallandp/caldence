@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openWorkspaceFile, useFileFallback } from './helpers';
+import { openExample, openMenuIfNarrow, openWorkspaceFile, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -15,6 +15,7 @@ const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Import / Expor
 async function openExchange(page: Page) {
   await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
   await openExample(page);
+  await openMenuIfNarrow(page);
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
   await expect(panel(page)).toBeVisible();
 }

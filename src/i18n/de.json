@@ -41,6 +41,7 @@
   "legal.source": "GitHub",
   "legal.license": "Open Source, AGPL-3.0",
   "legal.source.hint": "(Quellcode, öffnet in neuem Tab)",
+  "nav.menu": "Menü",
   "nav.views": "Ansichten",
   "view.failed": "Diese Ansicht konnte nicht angezeigt werden. Ihre Daten sind unverändert. Wechseln Sie die Ansicht oder versuchen Sie es erneut.",
   "view.retry": "Erneut versuchen",

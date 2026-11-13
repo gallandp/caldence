@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Narrow screens: the views, language, appearance and links open from a menu button that shows the current view, instead of a sideways-scrolling row that hid most views
 - Calmer sidebar: thin dividers instead of the three group headings, and language and appearance side by side in one row
 
 ## 1.17.0 – 2026-11-13
