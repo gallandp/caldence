@@ -121,7 +121,7 @@ describe('autosave', () => {
     delete old.id;
     kv.data.set('current', { ws: old, fileName: 'old.json', dirty: true });
     const restored = await createAutosave(kv).restore();
-    expect(restored?.ws.schemaVersion).toBe(3);
+    expect(restored?.ws.schemaVersion).toBe(4);
     expect(restored?.ws.customRegions).toEqual([]);
     expect(restored?.ws.id).toMatch(/^[0-9a-f-]{36}$/);
   });

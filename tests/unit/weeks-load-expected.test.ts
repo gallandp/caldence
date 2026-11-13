@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isoWeek } from '../../src/core/date';
-import { loadPerWeek, warnings } from '../../src/core/load';
+import { capacity, loadPerWeek, warnings } from '../../src/core/load';
 import type { Workspace } from '../../src/core/model';
 import { loadSummary, weekRows, workspaceIndex } from '../../src/core/views';
 import {
@@ -64,10 +64,7 @@ describe('constants of the weeks and load e2e tests', () => {
     const hours = weeks.map((w) => w.byPerson['person-alex']!);
     const average = hours.reduce((a, b) => a + b, 0) / hours.length;
     expect(average).toBeCloseTo(ALEX.average, 9);
-    expect(average / ws.people.find((p) => p.id === 'person-alex')!.hoursPerWeek).toBeCloseTo(
-      ALEX.fte,
-      9,
-    );
+    expect(average / capacity(ws, 'person-alex')).toBeCloseTo(ALEX.fte, 9);
     const peak = Math.max(...hours);
     expect(peak).toBeCloseTo(ALEX.peakHours, 9);
     expect(isoWeek(weeks[hours.indexOf(peak)]!.monday)).toBe(ALEX.peakWeek);

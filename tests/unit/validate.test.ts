@@ -407,14 +407,14 @@ describe('limits (security #41)', () => {
     const e = t.events[0]!;
     e.duration = 1441;
     e.rule = { type: 'cycle-milestone', cycleId: 'cy1', milestoneId: 'm1', offsetDays: 367 };
-    w.people[0]!.hoursPerWeek = 169;
+    t.memberHours[w.people[0]!.id] = 169;
     w.settings.hoursPerWeek = 169;
     const k = keys(w);
     for (const path of [
       'teams.0.cadence.lengthWeeks',
       'teams.0.events.0.duration',
       'teams.0.events.0.rule.offsetDays',
-      'people.0.hoursPerWeek',
+      `teams.0.memberHours.${w.people[0]!.id}`,
       'settings.hoursPerWeek',
     ])
       expect(k).toContain(`${path} error.number.invalid`);

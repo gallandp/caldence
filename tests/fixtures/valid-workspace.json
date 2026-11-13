@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "0b8f5c1e-6d3a-4e2b-9a47-5c1d2e3f4a60",
   "settings": {
     "locale": "de",
@@ -12,7 +12,7 @@
     "thresholds": { "warnFactor": 1.5, "maxFte": 0.6 }
   },
   "roles": [{ "id": "r1", "name": "Developer", "colour": "#3366cc" }],
-  "people": [{ "id": "p1", "name": "Alex", "hoursPerWeek": 32 }],
+  "people": [{ "id": "p1", "name": "Alex" }],
   "categories": [{ "id": "c1", "name": "Planning", "colour": "#cc6633" }],
   "teams": [
     {
@@ -20,6 +20,7 @@
       "name": "Team A",
       "cadence": { "kind": "sprint", "lengthWeeks": 2, "start": "2026-11-09" },
       "members": [{ "personId": "p1", "roleId": "r1" }],
+      "memberHours": { "p1": 32 },
       "assumptions": { "stories": 8 },
       "cycles": [
         {

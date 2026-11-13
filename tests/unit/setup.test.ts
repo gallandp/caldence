@@ -25,7 +25,7 @@ describe('setupTeam', () => {
     const team = out.teams.find((t) => t.id === teamId)!;
     expect(team.name).toBe('Alpha');
     expect(out.people.map((p) => p.name)).toEqual(['Anna', 'Ben']);
-    expect(out.people[0]!.hoursPerWeek).toBe(ws.settings.hoursPerWeek);
+    expect(team.memberHours).toEqual({});
     const roleName = (id: string) => out.roles.find((x) => x.id === id)!.name;
     expect(
       team.members.map((m) => [

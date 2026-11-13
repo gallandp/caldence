@@ -35,6 +35,7 @@ function team(events: CalEvent[], extra: Partial<Team> = {}): Team {
     name: 'Team',
     cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-07' },
     members: [],
+    memberHours: {},
     assumptions: {},
     cycles: [],
     events,

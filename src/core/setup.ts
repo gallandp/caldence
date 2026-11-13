@@ -51,7 +51,7 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     if (name === '' || roleId === undefined) continue;
     let personId = out.people.find((p) => norm(p.name) === norm(name))?.id;
     if (personId === undefined) {
-      [out, personId] = addItem(out, 'people', { name, hoursPerWeek: out.settings.hoursPerWeek });
+      [out, personId] = addItem(out, 'people', { name });
     }
     const team = out.teams.find((t) => t.id === teamId)!;
     if (team.members.some((m) => m.personId === personId && m.roleId === roleId)) continue;

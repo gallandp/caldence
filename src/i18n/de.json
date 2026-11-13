@@ -395,7 +395,7 @@
   "weeks.none": "Keine Woche passt zu dieser Auswahl.",
   "load.table.base": "Grundlast pro Woche",
   "load.table.person": "Pro Person",
-  "load.table.person.note": "Über alle Teams, in denen die Person Mitglied ist. Die Kacheln oben zeigen nur das gewählte Team.",
+  "load.table.person.note": "Stunden in diesem Team, gemessen an den Wochenstunden der Person in diesem Team. Wählen Sie oben eine Person, um alle ihre Teams zusammen zu sehen.",
   "load.summary": "Überblick",
   "load.kpi.total": "Gesamt",
   "load.kpi.unit": "h / Woche",

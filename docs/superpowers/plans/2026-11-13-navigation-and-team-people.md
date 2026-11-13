@@ -4,7 +4,7 @@
 
 **Goal:** People and roles are managed in the Team view, weekly hours are per person per team, Takt and cycles live with the meetings, and the Weeks view becomes the calendar's "Zeitraum" level.
 
-**Architecture:** Three PRs in order. PR 1 changes the data model (schema 4: `Person` loses `hoursPerWeek`, `Team` gains `memberHours`), load/FTE and the Team/Settings views. PR 2 moves the cadence and cycles cards from TeamView to MeetingsView. PR 3 folds WeeksView into CalendarView as a third level and trims the sidebar to 8 entries.
+**Architecture:** Three PRs in order. The sidebar keeps its slim look (divider lines, no group headings, Philipp 2026-11-13); only its entries change. PR 1 changes the data model (schema 4: `Person` loses `hoursPerWeek`, `Team` gains `memberHours`), load/FTE and the Team/Settings views. PR 2 moves the cadence and cycles cards from TeamView to MeetingsView. PR 3 folds WeeksView into CalendarView as a third level and trims the sidebar to 8 entries.
 
 **Tech Stack:** Svelte 5, TypeScript, Vite, Vitest, Playwright.
 

@@ -201,7 +201,7 @@ describe('weekRows', () => {
   });
   it('scopes cadence and milestones to the teams of the person filter', () => {
     const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:00', 60));
-    ws.people.push({ id: 'p2', name: 'Other', hoursPerWeek: 40 });
+    ws.people.push({ id: 'p2', name: 'Other' });
     const [t1, t2] = ws.teams as [Team, Team];
     t1.members = [{ personId: 'p1', roleId: 'r1' }];
     t1.cycles = structuredClone(valid.teams[0]!.cycles) as Team['cycles'];
@@ -403,9 +403,9 @@ describe('scopePeople and warnedWeeks', () => {
   const ws = (): Workspace => {
     const w = base();
     w.people = [
-      { id: 'p1', name: 'A', hoursPerWeek: 40 },
-      { id: 'p2', name: 'B', hoursPerWeek: 40 },
-      { id: 'p3', name: 'C', hoursPerWeek: 40 },
+      { id: 'p1', name: 'A' },
+      { id: 'p2', name: 'B' },
+      { id: 'p3', name: 'C' },
     ] as Workspace['people'];
     const t1 = w.teams[0]!;
     t1.members = [

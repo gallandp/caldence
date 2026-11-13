@@ -67,6 +67,7 @@ describe('applyTemplate', () => {
     expect(team.templateId).toBe('scrum');
     expect(team.events).toHaveLength(5);
     expect(team.members).toEqual([]);
+    expect(team.memberHours).toEqual({});
     expect(team.cadence.start).toBe('2027-02-15');
   });
 
@@ -167,6 +168,7 @@ describe('teamToTemplate', () => {
     for (const p of example.people) expect(json).not.toContain(p.name);
     expect(t).not.toHaveProperty('people');
     expect(t.team).not.toHaveProperty('members');
+    expect(t.team).not.toHaveProperty('memberHours');
     expect(t.team).not.toHaveProperty('id');
     expect(validateTemplate(structuredClone(t)).ok).toBe(true);
     const usedCats = new Set(example.teams[0]!.events.map((e) => e.categoryId));

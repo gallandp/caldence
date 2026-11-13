@@ -395,7 +395,7 @@
   "weeks.none": "No week matches this choice.",
   "load.table.base": "Base load per week",
   "load.table.person": "Per person",
-  "load.table.person.note": "Across all teams the person belongs to. The tiles above show the selected team only.",
+  "load.table.person.note": "Hours in this team, measured against the person's weekly hours in this team. Choose a person above to see all their teams together.",
   "load.summary": "Summary",
   "load.kpi.total": "Total",
   "load.kpi.unit": "h / week",

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "0b8f5c1e-6d3a-4e2b-9a47-5c1d2e3f4a60",
   "settings": {
     "locale": "de",
@@ -17,8 +17,8 @@
     { "id": "role-dev", "name": "Developer", "colour": "#b45309" }
   ],
   "people": [
-    { "id": "person-alex", "name": "Alex", "hoursPerWeek": 32 },
-    { "id": "person-sam", "name": "Sam", "hoursPerWeek": 40 }
+    { "id": "person-alex", "name": "Alex" },
+    { "id": "person-sam", "name": "Sam" }
   ],
   "categories": [
     { "id": "cat-events", "name": "Scrum events", "colour": "#1d4ed8" },
@@ -34,6 +34,7 @@
         { "personId": "person-alex", "roleId": "role-po" },
         { "personId": "person-sam", "roleId": "role-sm" }
       ],
+      "memberHours": { "person-alex": 16, "person-sam": 20 },
       "assumptions": { "stakeholders": 6 },
       "cycles": [
         {
@@ -147,6 +148,7 @@
         { "personId": "person-alex", "roleId": "role-po" },
         { "personId": "person-sam", "roleId": "role-dev" }
       ],
+      "memberHours": { "person-alex": 16, "person-sam": 20 },
       "assumptions": {},
       "cycles": [],
       "events": [

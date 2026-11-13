@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fte, loadPerWeek, warnings, weeklyBaseLoad } from '../../src/core/load';
+import { capacity, fte, loadPerWeek, warnings, weeklyBaseLoad } from '../../src/core/load';
 import {
   emptyWorkspace,
   type CalEvent,
@@ -35,6 +35,7 @@ function team(events: CalEvent[], extra: Partial<Team> = {}): Team {
     name: 'Team',
     cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' },
     members: [{ personId: 'p1', roleId: 'r1' }],
+    memberHours: {},
     assumptions: {},
     cycles: [],
     events,
@@ -47,8 +48,8 @@ function workspace(teams: Team[], from = '2027-01-04', to = '2027-01-24'): Works
   ws.settings.horizon = { from, to };
   ws.settings.skipHolidays = true;
   ws.people = [
-    { id: 'p1', name: 'Pat', hoursPerWeek: 40 },
-    { id: 'p2', name: 'Sam', hoursPerWeek: 40 },
+    { id: 'p1', name: 'Pat' },
+    { id: 'p2', name: 'Sam' },
   ];
   ws.teams = teams;
   return ws;
@@ -199,6 +200,7 @@ describe('warnings', () => {
     byPerson: { p1, p2 },
     regularByPerson: { p1: regular, p2: 0 },
     byTeamRole: {},
+    byTeamPerson: {},
   });
 
   it('flags a week above warnFactor x average as above-usual', () => {
@@ -246,6 +248,42 @@ describe('warnings', () => {
   });
 });
 
+describe('hours per team', () => {
+  // Pat: 20 h in Alpha, 18 h in Beta; 12 h of meetings a week, all in Alpha.
+  function twoTeams(): Workspace {
+    const alpha = team([event({ type: 'weekly', weekday: 1 }, { duration: 720 })], {
+      id: 'alpha',
+      memberHours: { p1: 20 },
+    });
+    const beta = team([], { id: 'beta', memberHours: { p1: 18 } });
+    const ws = workspace([alpha, beta], '2027-01-04', '2027-01-10');
+    ws.settings.thresholds = { warnFactor: 100, maxFte: 0.5 };
+    return ws;
+  }
+
+  it('capacity is the team entry, the sum over teams, or the default', () => {
+    const ws = twoTeams();
+    expect(capacity(ws, 'p1', 'alpha')).toBe(20);
+    expect(capacity(ws, 'p1')).toBe(38);
+    expect(capacity(ws, 'p2')).toBe(ws.settings.hoursPerWeek);
+    ws.teams[1]!.memberHours = {};
+    expect(capacity(ws, 'p1')).toBe(20 + ws.settings.hoursPerWeek);
+  });
+
+  it('counts hours per team and checks FTE against the filter', () => {
+    const ws = twoTeams();
+    const weeks = loadPerWeek(ws, noIndex());
+    expect(at(weeks, 0).byTeamPerson['alpha']?.['p1']).toBe(12);
+    expect(at(weeks, 0).byTeamPerson['beta']).toBeUndefined();
+    // 12 / 20 = 0.6 in Alpha is above 0.5; 12 / 38 over both teams is not.
+    expect(warnings(weeks, ws, { teamId: 'alpha' })).toEqual([
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
+    ]);
+    expect(warnings(weeks, ws, { personId: 'p1' })).toEqual([]);
+    expect(warnings(weeks, ws, { teamId: 'beta' })).toEqual([]);
+  });
+});
+
 describe('ids that name Object.prototype members (security #40)', () => {
   const hostile = ['__proto__', 'constructor', 'toString', 'hasOwnProperty'];
 
@@ -287,7 +325,7 @@ describe('ids that name Object.prototype members (security #40)', () => {
       },
     );
     const ws = workspace([t]);
-    ws.people = [{ id, name: 'X', hoursPerWeek: 40 }];
+    ws.people = [{ id, name: 'X' }];
     const weeks = loadPerWeek(ws, noIndex());
     const w = at(weeks, 0);
     expect(Object.getOwnPropertyDescriptor(w.byPerson, id)?.value).toBe(1);
