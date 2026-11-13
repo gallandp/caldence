@@ -19,7 +19,7 @@ const tabNames = {
   calendar: { en: 'Calendar', de: 'Kalender' },
   weeks: { en: 'Weeks', de: 'Wochen' },
   load: { en: 'Load', de: 'Auslastung' },
-  meetings: { en: 'Meetings', de: 'Termine' },
+  meetings: { en: 'Meetings & cadence', de: 'Termine & Takt' },
   templates: { en: 'Templates', de: 'Vorlagen' },
   exchange: { en: 'Import / Export', de: 'Import / Export' },
   help: { en: 'Help', de: 'Hilfe' },

@@ -13,7 +13,7 @@ const row = (page: Page, name: string) => panel(page).getByRole('row').filter({ 
 
 async function openMeetings(page: Page) {
   await openExample(page);
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await expect(panel(page).getByRole('table', { name: 'Meetings of Team Alpha' })).toBeVisible();
 }
 
@@ -136,7 +136,7 @@ test('selected weekdays show on those days only, and none selected is refused in
     await expect(details).toHaveCount(0);
   }
 
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await row(page, 'M days').getByRole('button', { name: 'Edit M days' }).click();
   const again = panel(page).getByRole('region', { name: /M days/ });
   const g2 = again.getByRole('group', { name: 'Weekdays' });
@@ -372,17 +372,16 @@ test('a language change keeps the open draft and translates the heading', async 
 
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
-  const team = page.getByRole('tabpanel', { name: 'Team' });
-  await team.getByLabel('New cycle name').fill('Q3');
-  await team.getByRole('button', { name: 'Add cycle' }).click();
-  const q3 = team.getByRole('group', { name: 'Milestones of Q3' });
+  const form = await startNew(page, 'Cycle check');
+  // A cycle added further down while the form is open shows up in the form.
+  await panel(page).getByLabel('New cycle name').fill('Q3');
+  await panel(page).getByRole('button', { name: 'Add cycle' }).click();
+  const q3 = panel(page).getByRole('group', { name: 'Milestones of Q3' });
   await q3.getByLabel('New milestone name').fill('Beta');
   await q3.getByLabel('New milestone date').fill('2027-09-01');
   await q3.getByRole('button', { name: 'Add milestone' }).click();
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
 
-  const form = await startNew(page, 'Cycle check');
+  await expect(form.getByLabel('Name', { exact: true })).toHaveValue('Cycle check');
   await form.getByLabel('Repeats').selectOption('cycle-milestone');
   const milestone = form.getByLabel('Milestone');
   await expect(milestone.locator('option')).toHaveText(['Release']);
@@ -423,7 +422,7 @@ test('a team without meetings explains what to do', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill('Team B');
   await dialog.getByRole('button', { name: 'Apply' }).click();
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await expect(panel(page).getByText('No meetings yet')).toBeVisible();
   await expect(panel(page).getByRole('table')).toHaveCount(0);
   await expect(panel(page).getByRole('button', { name: 'Add meeting' })).toBeEnabled();

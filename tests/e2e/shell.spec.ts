@@ -101,7 +101,8 @@ test('Save stands out only while there are unsaved changes', async ({ page }) =>
   await page.getByRole('button', { name: 'Open the example' }).click();
   const save = page.getByRole('button', { name: 'Save', exact: true });
   await expect(save).not.toHaveClass(/primary/);
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Change cadence' }).click();
   const length = page.getByLabel('Length (weeks)');
   await length.fill('3');
   await length.blur();
@@ -114,7 +115,7 @@ test('the views are grouped, with Help last', async ({ page }) => {
   const list = page.getByRole('tablist');
   // Dividers (decorative) before Meetings, Workspace settings and Help.
   const before = list.locator('.group + [role="tab"]');
-  await expect(before).toHaveText(['Meetings', 'Workspace settings', 'Help']);
+  await expect(before).toHaveText(['Meetings & cadence', 'Workspace settings', 'Help']);
   await expect(list.locator('.group').first()).toHaveAttribute('aria-hidden', 'true');
   await expect(list.getByRole('tab').last()).toHaveText('Help');
 });
@@ -150,7 +151,7 @@ test('the role and person filters show only where they apply', async ({ page }) 
     await expect(filters).toBeVisible();
   }
   await page.getByRole('combobox', { name: 'Role' }).selectOption({ label: 'Product Owner' });
-  for (const name of ['Meetings', 'Team', 'Templates', 'Workspace settings', 'Help']) {
+  for (const name of ['Meetings & cadence', 'Team', 'Templates', 'Workspace settings', 'Help']) {
     await page.getByRole('tab', { name, exact: true }).click();
     await expect(filters).toBeHidden();
   }
@@ -194,19 +195,19 @@ test('on narrow screens the views open from a menu', async ({ page }) => {
   await openExample(page);
   const toggle = page.getByRole('button', { name: /^Menu:/ });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('tab', { name: 'Meetings' })).toBeHidden();
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toBeHidden();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('tab', { name: 'Meetings' }).click();
-  await expect(page.getByRole('tabpanel', { name: 'Meetings' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Meetings & cadence' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Meetings & cadence' })).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toContainText('Meetings');
+  await expect(toggle).toContainText('Meetings & cadence');
   await expect(page.locator('main')).toBeFocused();
 
   // Escape closes the menu and returns to its button.
   await toggle.click();
-  await page.getByRole('tab', { name: 'Meetings' }).focus();
+  await page.getByRole('tab', { name: 'Meetings & cadence' }).focus();
   await page.keyboard.press('Escape');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(toggle).toBeFocused();

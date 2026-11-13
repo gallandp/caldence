@@ -100,6 +100,12 @@
     <Rich
       key="help.views.meetings"
       labels={{
+        cadence: 'team.cadence',
+        change: 'meet.cadence.edit',
+        sprint: 'team.cadence.kind.sprint',
+        flow: 'team.cadence.kind.flow',
+        pi: 'team.cadence.kind.pi',
+        cycles: 'team.cycles',
         add: 'meet.add',
         edit: 'meet.edit',
         duplicate: 'meet.duplicate',
@@ -135,11 +141,6 @@
         shared: 'team.shared',
         people: 'settings.people',
         roles: 'settings.roles',
-        cadence: 'team.cadence',
-        sprint: 'team.cadence.kind.sprint',
-        flow: 'team.cadence.kind.flow',
-        pi: 'team.cadence.kind.pi',
-        cycles: 'team.cycles',
         assumptions: 'team.assumptions',
       }}
     />

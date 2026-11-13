@@ -16,14 +16,14 @@ async function setRate(page: Page, value: string) {
 test('costs appear only while an hourly rate is set', async ({ page }) => {
   await openExample(page);
 
-  await tab(page, 'Meetings');
+  await tab(page, 'Meetings & cadence');
   await expect(page.getByRole('columnheader', { name: 'Cost' })).toHaveCount(0);
   await expect(page.locator('[data-costs]')).toHaveCount(0);
   await tab(page, 'Load');
   await expect(page.locator('[data-costs]')).toHaveCount(0);
 
   await setRate(page, '100');
-  await tab(page, 'Meetings');
+  await tab(page, 'Meetings & cadence');
   await expect(page.getByRole('columnheader', { name: 'Cost' })).toBeVisible();
   // Weekly Sync: 15 minutes, Product Owner and Scrum Master, one person each.
   const sync = page.getByRole('row', { name: /Weekly Sync/ });
@@ -36,7 +36,7 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await expect(page.locator('[data-costs] [data-cost-week]')).toContainText('/ week');
 
   await setRate(page, '');
-  await tab(page, 'Meetings');
+  await tab(page, 'Meetings & cadence');
   await expect(page.getByRole('columnheader', { name: 'Cost' })).toHaveCount(0);
   await expect(page.locator('[data-costs]')).toHaveCount(0);
 });
@@ -45,11 +45,11 @@ test('an hourly rate of 0 shows an error and is not committed', async ({ page })
   await openExample(page);
   await setRate(page, '0');
   await expect(page.getByLabel('Hourly rate (optional)')).toHaveAttribute('aria-invalid', 'true');
-  await tab(page, 'Meetings');
+  await tab(page, 'Meetings & cadence');
   await expect(page.locator('[data-costs]')).toHaveCount(0);
 });
 
-for (const view of ['Meetings', 'Load', 'Workspace settings']) {
+for (const view of ['Meetings & cadence', 'Load', 'Workspace settings']) {
   test(`axe finds no violations with costs in ${view}`, async ({ page }) => {
     await openExample(page);
     await setRate(page, '85');

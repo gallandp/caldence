@@ -17,7 +17,7 @@ const views = {
     'Kalender',
     'Wochen',
     'Auslastung',
-    'Termine',
+    'Termine & Takt',
     'Team',
     'Vorlagen',
     'Einstellungen',
@@ -28,7 +28,7 @@ const views = {
     'Calendar',
     'Weeks',
     'Load',
-    'Meetings',
+    'Meetings & cadence',
     'Team',
     'Templates',
     'Workspace settings',
@@ -182,7 +182,7 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
   // Whether a table is wider than 320 px depends on the fonts of the machine, so this counts
   // the scrolling tables of all views together.
   let scrolled = 0;
-  for (const name of ['Meetings', 'Help', 'Import / Export']) {
+  for (const name of ['Meetings & cadence', 'Help', 'Import / Export']) {
     await openMenuIfNarrow(page);
     const tab = page.getByRole('tab', { name, exact: true });
     await tab.click();

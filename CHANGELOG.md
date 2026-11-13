@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The cadence and the cycles with their milestones moved from Team to the meetings view, now called Meetings & cadence. The cadence shows as one line above the meetings and opens with Change; changing it keeps an open meeting form
+
 ## 1.21.0 – 2026-11-13
 
 ### Changed

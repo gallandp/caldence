@@ -12,7 +12,7 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    files: ['**/*.svelte'],
+    files: ['**/*.svelte', '**/*.svelte.ts'],
     languageOptions: { parserOptions: { parser: tseslint.parser } },
   },
 );

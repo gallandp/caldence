@@ -70,9 +70,9 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
   await page.getByLabel('New role name').fill('Product Owner');
   await page.getByLabel('New role name').press('Enter');
   await expect(addTeam).toBeHidden();
-  await tab(page, 'Meetings').click();
-  await panel(page, 'Meetings').getByLabel('New category name').fill('Scrum');
-  await panel(page, 'Meetings').getByLabel('New category name').press('Enter');
+  await tab(page, 'Meetings & cadence').click();
+  await panel(page, 'Meetings & cadence').getByLabel('New category name').fill('Scrum');
+  await panel(page, 'Meetings & cadence').getByLabel('New category name').press('Enter');
 
   await tab(page, 'Import / Export').click();
   const chooser = page.waitForEvent('filechooser');
@@ -89,7 +89,9 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
   await expect(exchange.getByRole('status')).toContainText('5 meetings were imported');
   await exchange.getByRole('button', { name: 'Open Meetings' }).click();
 
-  const table = panel(page, 'Meetings').getByRole('table', { name: 'Meetings of Imported' });
+  const table = panel(page, 'Meetings & cadence').getByRole('table', {
+    name: 'Meetings of Imported',
+  });
   for (const name of SCRUM_EVENTS) {
     await expect(table.getByRole('row').filter({ hasText: name })).toHaveCount(1);
   }

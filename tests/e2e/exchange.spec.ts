@@ -145,8 +145,8 @@ test('the Outlook sample lists six rows and the left-out items', async ({ page }
 
 test('importing the selected rows is one undo step', async ({ page }) => {
   await openExchange(page);
-  await page.getByRole('tab', { name: 'Meetings', exact: true }).click();
-  const meetings = page.getByRole('tabpanel', { name: 'Meetings' });
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  const meetings = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
   const before = await meetings.locator('tbody tr').count();
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
   await chooseIcs(page, OUTLOOK, 'outlook-sample.ics');
@@ -157,7 +157,7 @@ test('importing the selected rows is one undo step', async ({ page }) => {
   await panel(page).getByRole('button', { name: 'Open Meetings' }).click();
   await expect(meetings.locator('tbody tr')).toHaveCount(before + 5);
   await expect(meetings).toContainText('Team-Abstimmung');
-  await page.getByRole('heading', { level: 2, name: 'Meetings' }).click();
+  await page.getByRole('heading', { level: 2, name: 'Meetings & cadence' }).click();
   await page.keyboard.press('Control+z');
   await expect(meetings.locator('tbody tr')).toHaveCount(before);
 });
