@@ -208,7 +208,6 @@
         </svg>
         <h1>{$t('app.name')}</h1>
       </div>
-      <span class="version">{$t('app.version', { version: APP_VERSION })}</span>
     </header>
 
     {#if !(active === 'calendar' && noTeams)}
@@ -255,6 +254,7 @@
           {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
         </a>
         <span class="license">{$t('legal.license')}</span>
+        <span class="license">{$t('app.version', { version: APP_VERSION })}</span>
       </p>
     </div>
   </aside>
@@ -485,15 +485,6 @@
     letter-spacing: -0.02em;
     color: #fff;
   }
-  .version {
-    white-space: nowrap;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.1);
-    color: var(--side-text);
-  }
   .tabs {
     display: flex;
     flex-direction: column;
@@ -625,6 +616,7 @@
     stroke-linejoin: round;
   }
   .license {
+    white-space: nowrap;
     font-size: 0.75rem;
     color: rgb(195 199 222 / 0.75);
   }

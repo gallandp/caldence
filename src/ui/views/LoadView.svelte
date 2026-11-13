@@ -285,7 +285,6 @@
 
 <style>
   .load {
-    max-width: 80rem;
     min-width: 0;
   }
   .hint {
@@ -300,10 +299,14 @@
     padding: 0;
     list-style: none;
   }
+  /* Each tile spans four rows of the list's grid (subgrid), so labels, values, meters and
+     sub-lines line up across tiles even when a role name wraps or a tile has no meter. */
   .tile {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
+    display: grid;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    row-gap: 0.3rem;
+    align-content: start;
     padding: 1.1rem 1.25rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -311,6 +314,8 @@
     box-shadow: var(--shadow);
   }
   .label {
+    grid-row: 1;
+    align-self: end;
     font-size: 0.8rem;
     font-weight: 650;
     letter-spacing: 0.04em;
@@ -318,6 +323,7 @@
     color: var(--text-muted);
   }
   .value {
+    grid-row: 2;
     font-size: 1.6rem;
     font-weight: 780;
     letter-spacing: -0.02em;
@@ -329,10 +335,13 @@
     color: var(--text-muted);
   }
   .sub {
+    grid-row: 4;
     font-size: 0.85rem;
     color: var(--text-muted);
   }
   .meter {
+    grid-row: 3;
+    align-self: center;
     display: block;
     height: 0.4rem;
     border-radius: 999px;

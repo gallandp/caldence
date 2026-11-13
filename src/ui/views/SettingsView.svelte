@@ -543,9 +543,6 @@
 </div>
 
 <style>
-  .settings {
-    max-width: 48rem;
-  }
   .help {
     color: var(--text-muted);
   }
