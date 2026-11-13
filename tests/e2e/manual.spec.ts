@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { useFileFallback } from './helpers';
+import { openMenuIfNarrow, useFileFallback } from './helpers';
 
 type Catalogue = Record<string, string>;
 const catalogue = (locale: 'de' | 'en'): Catalogue =>
@@ -145,6 +145,7 @@ for (const locale of ['de', 'en'] as const) {
       await page.setViewportSize({ width: 375, height: 800 });
       await page.goto('/');
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await openMenuIfNarrow(page);
       await page.getByRole('tab', { name: c['view.help'], exact: true }).click();
       await expect(
         page.getByRole('navigation', { name: c['help.toc'], exact: true }),

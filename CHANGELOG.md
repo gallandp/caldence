@@ -5,6 +5,7 @@
 ### Changed
 
 - The example's categories are named in the UI language, Meetings lists meetings in the order they next take place, the Weeks table keeps its column headings in view on wide screens, and the settings point to Members & cadence by its name
+- Narrow screens: the views, language, appearance and links open from a menu button that shows the current view, instead of a sideways-scrolling row that hid most views
 - Calmer sidebar: thin dividers instead of the three group headings, and language and appearance side by side in one row
 
 ## 1.17.0 – 2026-11-13

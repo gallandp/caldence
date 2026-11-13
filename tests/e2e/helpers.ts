@@ -59,3 +59,15 @@ export async function teamAction(page: Page, name: string) {
   if (!(await button.isVisible())) await page.getByRole('button', { name: 'Team actions' }).click();
   await button.click();
 }
+
+/** On narrow screens the views, language and appearance sit in a menu: open it if it is closed. */
+export async function openMenuIfNarrow(page: Page) {
+  const toggle = page.locator('.menu-toggle');
+  // The menu button replaces the side bar below 60rem (960 px).
+  if ((page.viewportSize()?.width ?? Infinity) > 960) return;
+  // A click before the app has hydrated does nothing, so click until the menu reports open.
+  await expect(async () => {
+    if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
+  }).toPass();
+}

@@ -41,6 +41,7 @@
   "legal.source": "GitHub",
   "legal.license": "Open source, AGPL-3.0",
   "legal.source.hint": "(source code, opens in a new tab)",
+  "nav.menu": "Menu",
   "nav.views": "Views",
   "view.failed": "This view could not be shown. Your data is unchanged. Switch to another view, or try again.",
   "view.retry": "Try again",

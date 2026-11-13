@@ -175,6 +175,22 @@
   }
 
   let main: HTMLElement | undefined;
+
+  /** Narrow screens: the views, language, appearance and links fold into a menu. */
+  let menuOpen = $state(false);
+  let menuButton: HTMLButtonElement | undefined = $state();
+  function pick(id: ViewId) {
+    select(id);
+    if (!menuOpen) return;
+    menuOpen = false;
+    main?.focus();
+  }
+  function onMenuKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape' || !menuOpen) return;
+    menuOpen = false;
+    menuButton?.focus();
+  }
+
   function skip(event: Event) {
     event.preventDefault();
     main?.focus();
@@ -205,56 +221,73 @@
         </svg>
         <h1>{$t('app.name')}</h1>
       </div>
+      <button
+        type="button"
+        class="menu-toggle"
+        aria-expanded={menuOpen}
+        aria-controls="side-nav"
+        bind:this={menuButton}
+        onclick={() => (menuOpen = !menuOpen)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"
+          ><path d={menuOpen ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} /></svg
+        >
+        <span class="sr-only">{$t('nav.menu')}:</span>
+        <span>{$t('view.' + active)}</span>
+      </button>
     </header>
 
     {#if !(active === 'calendar' && noTeams)}
       <TeamSwitcher onPlan={() => planWizard?.show()} />
     {/if}
 
-    <div class="tabs" role="tablist" aria-orientation="vertical" aria-label={$t('nav.views')}>
-      {#each views as id (id)}
-        {#if groupBefore.has(id)}
-          <div class="group" aria-hidden="true"></div>
-        {/if}
-        <button
-          type="button"
-          role="tab"
-          id={'tab-' + id}
-          aria-selected={active === id}
-          aria-controls={'panel-' + id}
-          tabindex={active === id ? 0 : -1}
-          bind:this={tabs[id]}
-          onclick={() => select(id)}
-          onkeydown={onKeydown}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
-          <span>{$t('view.' + id)}</span>
-        </button>
-      {/each}
-    </div>
-
-    <div class="side-foot">
-      <div class="prefs">
-        <LanguageSwitch />
-        <ThemeSwitch />
-      </div>
-      {#if legal.length > 0}
-        <nav class="legal" aria-label={$t('legal.label')}>
-          {#each legal as page (page)}
-            <a href="./{page}.html">{$t('legal.' + page)}</a>
-          {/each}
-        </nav>
-      {/if}
-      <p class="source">
-        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
-          <svg viewBox="0 0 24 24" aria-hidden="true"
-            ><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg
+    <!-- svelte-ignore a11y_no_static_element_interactions (Escape closes the menu from any control in it) -->
+    <div id="side-nav" class="side-nav" class:open={menuOpen} onkeydown={onMenuKeydown}>
+      <div class="tabs" role="tablist" aria-orientation="vertical" aria-label={$t('nav.views')}>
+        {#each views as id (id)}
+          {#if groupBefore.has(id)}
+            <div class="group" aria-hidden="true"></div>
+          {/if}
+          <button
+            type="button"
+            role="tab"
+            id={'tab-' + id}
+            aria-selected={active === id}
+            aria-controls={'panel-' + id}
+            tabindex={active === id ? 0 : -1}
+            bind:this={tabs[id]}
+            onclick={() => pick(id)}
+            onkeydown={onKeydown}
           >
-          {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
-        </a>
-        <span class="license">{$t('legal.license')}</span>
-        <span class="license">{$t('app.version', { version: APP_VERSION })}</span>
-      </p>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
+            <span>{$t('view.' + id)}</span>
+          </button>
+        {/each}
+      </div>
+
+      <div class="side-foot">
+        <div class="prefs">
+          <LanguageSwitch />
+          <ThemeSwitch />
+        </div>
+        {#if legal.length > 0}
+          <nav class="legal" aria-label={$t('legal.label')}>
+            {#each legal as page (page)}
+              <a href="./{page}.html">{$t('legal.' + page)}</a>
+            {/each}
+          </nav>
+        {/if}
+        <p class="source">
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+            <svg viewBox="0 0 24 24" aria-hidden="true"
+              ><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg
+            >
+            {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
+          </a>
+          <span class="license">{$t('legal.license')}</span>
+          <span class="license">{$t('app.version', { version: APP_VERSION })}</span>
+        </p>
+      </div>
     </div>
   </aside>
 
@@ -560,6 +593,36 @@
       text-underline-offset: 0.2em;
     }
   }
+  /* Wide screens: the menu wrapper adds no box, and its toggle is not needed. */
+  .side-nav {
+    display: contents;
+  }
+  :global(#app) .menu-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.5rem;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid rgb(255 255 255 / 0.25);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.08);
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .menu-toggle svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .menu-toggle:focus-visible {
+    outline-color: #b9b0ff;
+  }
   .side-foot {
     margin-top: auto;
     padding: 0 0.5rem;
@@ -704,21 +767,22 @@
       gap: 0.75rem;
       padding: 0.75rem;
     }
-    .tabs {
-      flex-direction: row;
-      overflow-x: auto;
-      padding-bottom: 0.25rem;
+    /* The views, language, appearance and links fold into a menu below the header. */
+    :global(#app) .menu-toggle {
+      display: inline-flex;
     }
-    .group {
+    .side-nav {
       display: none;
     }
-    [role='tab'] {
-      white-space: nowrap;
+    .side-nav.open {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
     [role='tab'][aria-selected='true']::before {
-      display: none;
+      left: -0.75rem;
     }
-    /* Without the bar beside it, the selected tab keeps a mark that is not only colour (WCAG 1.4.11). */
+    /* In the menu, the selected view also keeps a mark that is not only colour (WCAG 1.4.11). */
     [role='tab'][aria-selected='true'] {
       text-decoration: underline;
       text-decoration-color: #b9b0ff;

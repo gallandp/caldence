@@ -187,3 +187,26 @@ test('appearance overrides the system scheme and is remembered', async ({ page }
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
   expect(await bg()).toBe(systemDark);
 });
+
+test('on narrow screens the views open from a menu', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExample(page);
+  const toggle = page.getByRole('button', { name: /^Menu:/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('tab', { name: 'Meetings' })).toBeHidden();
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('tab', { name: 'Meetings' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Meetings' })).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toContainText('Meetings');
+  await expect(page.locator('main')).toBeFocused();
+
+  // Escape closes the menu and returns to its button.
+  await toggle.click();
+  await page.getByRole('tab', { name: 'Meetings' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toBeFocused();
+});
