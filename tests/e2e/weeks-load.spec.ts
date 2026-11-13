@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, useFileFallback } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -29,6 +29,7 @@ async function openView(
 ) {
   await page.clock.setFixedTime(new Date(`${today}T12:00:00`));
   await openExample(page);
+  await openMenuIfNarrow(page);
   await page.getByLabel(/Language|Sprache/).selectOption(lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
   await page.getByRole('tab', { name: tabName[view][lang], exact: true }).click();

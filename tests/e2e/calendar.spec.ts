@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
-import { openExample, useFileFallback } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -21,8 +21,11 @@ const cellOf = (page: Page, date: string) => panel(page).locator(`td[data-date="
 async function openCalendar(page: Page, today: string, lang: 'de' | 'en' = 'en') {
   await page.clock.setFixedTime(new Date(`${today}T12:00:00`));
   await openExample(page);
+  await openMenuIfNarrow(page);
   await page.getByLabel(/Language|Sprache/).selectOption(lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
+  // Close the menu again on narrow screens.
+  if (await page.locator('.menu-toggle').isVisible()) await page.locator('.menu-toggle').click();
 }
 
 test('Christmas shows the holiday name in the UI language with 0 h', async ({ page }) => {

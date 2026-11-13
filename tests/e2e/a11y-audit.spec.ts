@@ -2,7 +2,7 @@
 // docs/accessibility/audit-2026.md; keep the test names in step with the report.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { useFileFallback } from './helpers';
+import { openMenuIfNarrow, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -51,11 +51,13 @@ async function loadExample(page: Page, locale: Locale) {
   await expect(page.getByRole('grid').or(discard)).toBeVisible();
   if (await discard.isVisible()) await discard.click();
   await expect(page.getByRole('grid')).toBeVisible();
+  await openMenuIfNarrow(page);
   await page.getByLabel(/Language|Sprache/).selectOption(locale);
   await expect(page.locator('html')).toHaveAttribute('lang', locale);
 }
 
 async function showView(page: Page, name: string) {
+  await openMenuIfNarrow(page);
   await page.getByRole('tab', { name, exact: true }).click();
   await expect(page.getByRole('tabpanel', { name, exact: true })).toBeVisible();
 }
@@ -148,6 +150,7 @@ for (const locale of ['de', 'en'] as const) {
       await page.setViewportSize({ width, height: 800 });
       await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
       await page.goto('/');
+      await openMenuIfNarrow(page);
       await page.getByLabel(/Language|Sprache/).selectOption(locale);
       expect(await reflowProblems(page), 'start screen').toEqual([]);
       await loadExample(page, locale);
@@ -180,6 +183,7 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
   // the scrolling tables of all views together.
   let scrolled = 0;
   for (const name of ['Meetings', 'Help', 'Import / Export']) {
+    await openMenuIfNarrow(page);
     const tab = page.getByRole('tab', { name, exact: true });
     await tab.click();
     if (name === 'Import / Export') {
@@ -199,7 +203,8 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
       const region = regions.nth(i);
       if (!(await region.evaluate((el) => el.scrollWidth > el.clientWidth))) continue;
       scrolled++;
-      await tab.focus();
+      // Start from the content (the views sit in a closed menu on narrow screens).
+      await page.locator('main').focus();
       await tabTo(page, region, 'Tab', 200);
       expect(await focusVisible(region), `${name} region ${i}`).toBe(true);
     }
