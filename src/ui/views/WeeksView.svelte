@@ -1,22 +1,22 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { mondayOf } from '../../core/date';
   import { loadPerWeek, warnings } from '../../core/load';
   import { schoolHolidayGap, scopeTeams, warnedWeeks, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
+  /** The calendar's Horizon level; the calendar shows the empty-state hint. */
   interface Props {
-    /** Switches to the Meetings view (empty-state hint). */
-    onOpenMeetings: () => void;
+    /** The calendar's level switch, at the end of this toolbar. */
+    levels?: Snippet;
   }
-  let { onOpenMeetings }: Props = $props();
+  let { levels }: Props = $props();
 
   const settings = $derived($workspace.settings);
   const rows = $derived(weekRows($workspace, $index, $filter));
   const teams = $derived(scopeTeams($workspace, $filter));
   const several = $derived(teams.length > 1);
-  const hasEvents = $derived($workspace.teams.some((x) => x.events.length > 0));
   /** Roles in workspace order that carry hours in at least one row. */
   const roles = $derived($workspace.roles.filter((r) => rows.some((row) => r.id in row.byRole)));
   const currentMonday = mondayOf(localToday());
@@ -68,12 +68,6 @@
   {#if coverage}
     <p class="hint">{coverage}</p>
   {/if}
-  {#if !hasEvents}
-    <p class="hint">
-      {$t('cal.noevents.text')}
-      <button type="button" onclick={onOpenMeetings}>{$t('cal.noevents.button')}</button>
-    </p>
-  {/if}
 
   <div class="toolbar">
     <div class="segmented" role="group" aria-label={$t('weeks.show')}>
@@ -84,6 +78,7 @@
       {/each}
     </div>
     <span class="unit">{$t('weeks.unit')}</span>
+    {@render levels?.()}
   </div>
 
   <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->

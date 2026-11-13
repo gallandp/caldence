@@ -194,6 +194,29 @@ test('toolbar: previous, today, next and the week view', async ({ page }) => {
   await expect(label).toContainText('Week 11');
 });
 
+test('the calendar levels are Week, Month and Horizon; Horizon lists every week', async ({
+  page,
+}) => {
+  await openCalendar(page, '2027-03-10');
+  const levels = panel(page).getByRole('group', { name: 'Calendar view' });
+  await expect(levels.getByRole('button')).toHaveText(['Week', 'Month', 'Horizon']);
+  const horizon = levels.getByRole('button', { name: 'Horizon', exact: true });
+  await horizon.click();
+  await expect(horizon).toHaveAttribute('aria-pressed', 'true');
+  // One row per week of the horizon; paging and the period title belong to week and month.
+  await expect(panel(page).locator('caption')).toHaveText('Weeks 01/01/2027–12/31/2027');
+  await expect(panel(page).getByRole('grid')).toHaveCount(0);
+  await expect(panel(page).getByRole('button', { name: 'Today' })).toHaveCount(0);
+  await expect(panel(page).locator('[aria-live="polite"]')).toHaveCount(0);
+  await expect(panel(page).locator('tr[aria-current="date"]')).toHaveAttribute(
+    'data-monday',
+    '2027-03-08',
+  );
+  await levels.getByRole('button', { name: 'Month', exact: true }).click();
+  await expect(panel(page).getByRole('grid')).toBeVisible();
+  await expect(panel(page).locator('[aria-live="polite"]')).toHaveText('March 2027');
+});
+
 test('days outside the planning horizon show no data', async ({ page }) => {
   await openCalendar(page, '2027-01-15');
   await panel(page).getByRole('button', { name: 'Previous month' }).click();

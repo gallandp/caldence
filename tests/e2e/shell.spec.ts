@@ -33,8 +33,8 @@ test('the vertical view list also follows ArrowDown and ArrowUp', async ({ page 
   await expect(list).toHaveAttribute('aria-orientation', 'vertical');
   await page.getByRole('tab', { name: 'Calendar' }).focus();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('tab', { name: 'Weeks' })).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'Weeks' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Load' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Load' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeFocused();
 });
@@ -146,7 +146,7 @@ test('on wide screens the view title and the filters share one row', async ({ pa
 test('the role and person filters show only where they apply', async ({ page }) => {
   await openExample(page);
   const filters = page.locator('.bar.context');
-  for (const name of ['Calendar', 'Weeks', 'Load']) {
+  for (const name of ['Calendar', 'Load']) {
     await page.getByRole('tab', { name, exact: true }).click();
     await expect(filters).toBeVisible();
   }
@@ -156,7 +156,7 @@ test('the role and person filters show only where they apply', async ({ page }) 
     await expect(filters).toBeHidden();
   }
   // Hidden, not reset: the choice is still there on return.
-  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
+  await page.getByRole('tab', { name: 'Load', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Role' })).not.toHaveValue('');
 });
 

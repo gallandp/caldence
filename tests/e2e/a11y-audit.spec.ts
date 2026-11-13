@@ -15,7 +15,6 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const views = {
   de: [
     'Kalender',
-    'Wochen',
     'Auslastung',
     'Termine & Takt',
     'Team',
@@ -26,7 +25,6 @@ const views = {
   ],
   en: [
     'Calendar',
-    'Weeks',
     'Load',
     'Meetings & cadence',
     'Team',
@@ -256,7 +254,7 @@ for (const width of [1280, 320]) {
     expect(await focusVisible(button), 'focused button').toBe(true);
 
     // The selected tab must differ from the others by more than colour: a border or an underline.
-    const other = page.getByRole('tab', { name: 'Weeks', exact: true });
+    const other = page.getByRole('tab', { name: 'Load', exact: true });
     expect(await extraMarks(selected, other, true), 'selected tab marks').not.toEqual([]);
   });
 }
@@ -299,7 +297,7 @@ for (const width of [320, 800]) {
     await loadExample(page, 'en');
     const selected = page.getByRole('tab', { name: 'Calendar', exact: true });
     await expect(selected).toHaveAttribute('aria-selected', 'true');
-    const other = page.getByRole('tab', { name: 'Weeks', exact: true });
+    const other = page.getByRole('tab', { name: 'Load', exact: true });
     const outlined = (await extraMarks(selected, other, false)).filter(
       (m) => m.includes('border') || m.includes('underline'),
     );
@@ -342,10 +340,10 @@ test('keyboard only: start screen, example, calendar, day details and export', a
 
   // The tabs follow the arrow keys.
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('tab', { name: 'Weeks', exact: true })).toBeFocused();
-  await expect(page.getByRole('tabpanel', { name: 'Weeks' })).toBeVisible();
-  await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Load', exact: true })).toBeFocused();
+  await expect(page.getByRole('tabpanel', { name: 'Load' })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowUp');
   await expect(calendarTab).toBeFocused();

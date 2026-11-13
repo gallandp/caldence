@@ -6,6 +6,7 @@
 
 ### Changed
 
+- The Weeks view is now the calendar's third level: Week · Month · Horizon (Woche · Monat · Zeitraum). Horizon shows one row per week of the planning horizon, as the Weeks view did; the sidebar has 8 entries
 - The cadence and the cycles with their milestones moved from Team to the meetings view, now called Meetings & cadence. The cadence shows as one line above the meetings and opens with Change; changing it keeps an open meeting form
 
 ## 1.21.0 – 2026-11-13

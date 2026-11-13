@@ -6,7 +6,6 @@ const schemes = ['light', 'dark'] as const;
 const tabNames = {
   de: [
     'Kalender',
-    'Wochen',
     'Auslastung',
     'Termine & Takt',
     'Team',
@@ -17,7 +16,6 @@ const tabNames = {
   ],
   en: [
     'Calendar',
-    'Weeks',
     'Load',
     'Meetings & cadence',
     'Team',
@@ -98,7 +96,7 @@ test('skip link is the first Tab stop and moves focus to main', async ({ page })
 test('view tabs follow the ARIA tab pattern', async ({ page }) => {
   await page.goto('/');
   const tabs = page.getByRole('tab');
-  await expect(tabs).toHaveCount(9);
+  await expect(tabs).toHaveCount(8);
   await expect(page.getByRole('tablist')).toHaveAccessibleName('Views');
   await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
   await expect(tabs.nth(1)).toHaveAttribute('tabindex', '-1');
@@ -107,7 +105,7 @@ test('view tabs follow the ARIA tab pattern', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(tabs.nth(1)).toBeFocused();
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel')).toHaveAccessibleName('Weeks');
+  await expect(page.getByRole('tabpanel')).toHaveAccessibleName('Load');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await expect(tabs.last()).toBeFocused();

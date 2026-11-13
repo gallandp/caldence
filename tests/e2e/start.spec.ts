@@ -168,10 +168,10 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
 
 test('other views keep their own empty states', async ({ page }) => {
   await start(page);
-  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
-  const weeks = page.getByRole('tabpanel', { name: 'Weeks' });
-  await expect(weeks.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
-  await expect(weeks.getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  const load = page.getByRole('tabpanel', { name: 'Load' });
+  await expect(load.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
+  await expect(load.getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
 });
 
 for (const locale of ['de', 'en'] as const) {

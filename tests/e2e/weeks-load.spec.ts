@@ -18,7 +18,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 type Lang = 'de' | 'en';
-const tabName = { weeks: { de: 'Wochen', en: 'Weeks' }, load: { de: 'Auslastung', en: 'Load' } };
+const tabName = {
+  weeks: { de: 'Kalender', en: 'Calendar' },
+  load: { de: 'Auslastung', en: 'Load' },
+};
+const rangeName = { de: 'Zeitraum', en: 'Horizon' };
+
+/** The weeks table is the calendar's Horizon level. */
+async function showRange(page: Page, lang: Lang = 'en') {
+  await page.getByRole('tab', { name: tabName.weeks[lang], exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: tabName.weeks[lang] });
+  await panel.getByRole('button', { name: rangeName[lang], exact: true }).click();
+  return panel;
+}
 
 /** Opens the example with the clock fixed on `today` and shows a view in the given language. */
 async function openView(
@@ -32,6 +44,7 @@ async function openView(
   await openMenuIfNarrow(page);
   await page.getByLabel(/Language|Sprache/).selectOption(lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
+  if (view === 'weeks') return showRange(page, lang);
   await page.getByRole('tab', { name: tabName[view][lang], exact: true }).click();
   return page.getByRole('tabpanel', { name: tabName[view][lang] });
 }
@@ -150,7 +163,7 @@ test('the current week is marked by text and attribute, scrolled into view, focu
   await expect(current).toHaveAttribute('data-monday', '2027-09-13');
   await expect(current.getByText('This week')).toBeVisible();
   await expect(current).toBeInViewport();
-  await expect(page.getByRole('tab', { name: 'Weeks', exact: true })).toBeFocused();
+  await expect(panel.getByRole('button', { name: 'Horizon', exact: true })).toBeFocused();
 });
 
 test('no row is marked when today is outside the horizon', async ({ page }) => {
@@ -178,7 +191,12 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
   await page.getByLabel('Horizon from').fill('2026-06-01');
   await page.getByLabel('Horizon to').fill('2026-12-31');
   await expect(page.getByLabel('Horizon to')).not.toHaveAttribute('aria-invalid', 'true');
-  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
+  // The calendar keeps its Horizon level while the horizon changes.
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Horizon', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(panel.locator('caption')).toHaveText('Weeks 06/01/2026–12/31/2026');
   expect(await panel.locator('tbody tr').count()).toBeGreaterThan(20);
   await expect(panel.getByText(/Sprint|Period/)).toHaveCount(0);
@@ -188,9 +206,9 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
   ).toBeVisible();
 });
 
-test('empty workspace explains how to start in both views', async ({ page }) => {
+test('empty workspace explains how to start in the load view', async ({ page }) => {
   await page.goto('/');
-  for (const name of ['Weeks', 'Load']) {
+  for (const name of ['Load']) {
     await page.getByRole('tab', { name, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name });
     await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();

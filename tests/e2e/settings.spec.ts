@@ -240,7 +240,8 @@ test('a horizon beyond the known school holidays shows a warning in Settings and
   await page.getByLabel('Horizon to').fill('2028-12-31');
   await page.getByLabel('Horizon to').blur();
   await expect(page.getByText(warning)).toBeVisible();
-  await page.getByRole('tab', { name: 'Weeks', exact: true }).click();
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await page.getByRole('tabpanel').getByRole('button', { name: 'Horizon', exact: true }).click();
   await expect(page.getByRole('tabpanel').getByText(warning)).toBeVisible();
 });
 
