@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.23.0 – 2026-11-13
+
 ### Fixed
 
 - The team actions menu keeps focus when it is opened by keyboard right after renaming a team
