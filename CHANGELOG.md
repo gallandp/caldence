@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- The month calendar fits short laptop screens
+
 ## 1.20.0 – 2026-11-13
 
 ### Changed

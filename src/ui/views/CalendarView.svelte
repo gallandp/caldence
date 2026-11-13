@@ -322,6 +322,7 @@
 
   // ---------- day details next to the selected day ----------
 
+  let root: HTMLDivElement | undefined = $state();
   let board: HTMLDivElement | undefined = $state();
   let boardWidth = $state(0);
   let popWidth = $state(0);
@@ -333,6 +334,8 @@
     if (!grid) return;
     const observer = new ResizeObserver(() => layout++);
     observer.observe(grid);
+    // The legend or a hint above the grid can change the room left for it.
+    if (root) observer.observe(root);
     return () => observer.disconnect();
   });
   /** Beside the grid only when the whole month fits; otherwise the details follow below it. */
@@ -360,6 +363,46 @@
     const top = Math.max(0, Math.min(c.top - b.top, b.height - popHeight));
     place = { left, top, height: b.height };
   });
+
+  // ---------- fit the month into the window ----------
+
+  let innerHeight = $state(0);
+  /** The root font size in px, read when the fit is computed. */
+  let r = $state(16);
+  /** Row height in px that lets the whole month fit the window; null keeps the roomy default. */
+  let rowPx = $state<number | null>(null);
+  $effect(() => {
+    void [innerHeight, layout, weeks.length];
+    const body = grid?.tBodies[0];
+    if (!floating || !grid || !body || !root) {
+      rowPx = null;
+      return;
+    }
+    r = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    // Space between the first week and the window bottom, minus the legend and card padding below.
+    const below = root.getBoundingClientRect().bottom - grid.getBoundingClientRect().bottom;
+    const top = body.getBoundingClientRect().top + window.scrollY;
+    const fit = Math.floor((innerHeight - top - below - r) / weeks.length);
+    // Never taller than the default (large screens stay as they are), never too short for a day
+    // number and one entry: then the page scrolls as before.
+    const max = 8.4 * r + 1;
+    rowPx = fit >= max ? null : Math.max(fit, 4.75 * r);
+  });
+  /**
+   * How many meetings a day shows, and whether "+n" counts the rest. In a fitted row the tags come
+   * first, then as many meetings as fit (heights in rem: tag 1.45, meeting 1.6, "+n" 1.2, each
+   * with its gap; 2.75 for the padding, day number and spacing above them). When not even "+n"
+   * fits, the hours next to the day number still show that there are meetings.
+   */
+  function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
+    const all = c.chips.length;
+    if (rowPx === null) return { shown: Math.min(3, all), more: all > 3 };
+    const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
+    const room = rowPx - 1 - (2.75 + 1.45 * tags) * r;
+    let n = Math.min(3, all);
+    while (n > 0 && (1.6 * n + (all > n ? 1.2 : 0)) * r > room) n--;
+    return { shown: n, more: all > n && (1.6 * n + 1.2) * r <= room };
+  }
 
   /** A click outside the details and the grid closes them, as with any popover. */
   function onWindowClick(event: MouseEvent) {
@@ -415,9 +458,9 @@
   }
 </script>
 
-<svelte:window onclick={onWindowClick} />
+<svelte:window onclick={onWindowClick} bind:innerHeight />
 
-<div class="calendar">
+<div class="calendar" bind:this={root}>
   {#if !hasEvents}
     <p class="hint">
       {$t('cal.noevents.text')}
@@ -465,7 +508,12 @@
     <div class="board" bind:this={board} bind:clientWidth={boardWidth}>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
       <div class="scroll" role="region" aria-label={$t('cal.grid.region')} tabindex="0">
-        <table role="grid" bind:this={grid} aria-describedby="{uid}-hint">
+        <table
+          role="grid"
+          bind:this={grid}
+          aria-describedby="{uid}-hint"
+          style:--row={rowPx === null ? undefined : `${rowPx}px`}
+        >
           <caption>{formatMonth(cursor)}</caption>
           <thead>
             <tr>
@@ -481,6 +529,7 @@
                 <th scope="row" class="weekcol">{formatNumber($locale, isoWeek(days[0]!), 0)}</th>
                 {#each days as date (date)}
                   {@const c = cell(date)}
+                  {@const fit = fitChips(c)}
                   <td
                     role="gridcell"
                     data-date={date}
@@ -514,12 +563,12 @@
                       {#each c.milestones as name, i (i)}<span class="tag milestone"
                           ><span class="diamond"></span>{name}</span
                         >{/each}
-                      {#each c.chips.slice(0, 3) as chip (chip.key)}
+                      {#each c.chips.slice(0, fit.shown) as chip (chip.key)}
                         <span class="chip" style:--c={chip.colour}
                           ><span class="t">{chip.start}</span>{chip.name}</span
                         >
                       {/each}
-                      {#if c.chips.length > 3}<span class="more">+{c.chips.length - 3}</span>{/if}
+                      {#if fit.more}<span class="more">+{c.chips.length - fit.shown}</span>{/if}
                     </span>
                   </td>
                 {/each}
@@ -707,7 +756,8 @@
     background: var(--surface-2);
   }
   td {
-    height: 7.5rem;
+    /* --row is the whole row; the cell height excludes its padding and bottom border. */
+    height: calc(var(--row, 8.4rem + 1px) - 0.9rem - 1px);
     font-size: 0.8rem;
     cursor: pointer;
     position: relative;
