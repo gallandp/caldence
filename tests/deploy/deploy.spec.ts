@@ -52,6 +52,16 @@ for (const base of urls) {
       expect(asset.headers()['cache-control']).toContain('immutable');
     });
 
+    test('text files are compressed (#138)', async ({ page, request }) => {
+      test.skip(!checkHeaders, 'headers are not checked on this server');
+      await page.goto(base);
+      const src = await page.locator('script[src*="assets/"]').first().getAttribute('src');
+      for (const url of [base, new URL(src!, base).toString()]) {
+        const response = await request.get(url, { headers: { 'Accept-Encoding': 'gzip' } });
+        expect(response.headers()['content-encoding'], url).toBe('gzip');
+      }
+    });
+
     test('security headers on the page, the service worker and an asset (#42)', async ({
       page,
       request,
