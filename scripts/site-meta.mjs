@@ -1,6 +1,6 @@
 // Adds the parts of the page metadata that name the site's own address (#136): canonical link,
 // og:url, the absolute preview image and JSON-LD, plus sitemap.xml and, for a site at the root of
-// its host, robots.txt (#137). The release ZIP names no domain, so copies
+// its host, robots.txt (#137). It also turns on the 404 page (#151), whose path the ZIP cannot know. The release ZIP names no domain, so copies
 // hosted elsewhere never point at caldence.de; deploy.yml runs this on the unpacked release.
 // Plain Node without dependencies, like deploy-plan.mjs.
 //
@@ -81,12 +81,33 @@ export function robots(base) {
   return `User-agent: *\nAllow: /\n\nSitemap: ${base}sitemap.xml\n`;
 }
 
+/** Apache's ErrorDocument needs the path from the host root, so it is added per site. */
+export function addErrorDocument(htaccess, base) {
+  checkBase(base);
+  if (htaccess.includes('ErrorDocument 404'))
+    throw new Error('.htaccess already has an ErrorDocument');
+  const path = new URL(base).pathname;
+  return `${htaccess.trimEnd()}\n\n# Friendly page for unknown addresses (#151), added by scripts/site-meta.mjs.\nErrorDocument 404 ${path}404.html\n`;
+}
+
+/** The 404 page's link points at "/"; a site in a folder needs its own path there. */
+export function setHomeLink(html, base) {
+  checkBase(base);
+  const link = '<a class="button" href="/" data-home>';
+  if (!html.includes(link)) throw new Error('404.html has no home link');
+  return html.replace(link, `<a class="button" href="${new URL(base).pathname}" data-home>`);
+}
+
 export function apply(dir, base, date = new Date().toISOString().slice(0, 10)) {
   const index = join(dir, 'index.html');
   writeFileSync(index, addHeadTags(readFileSync(index, 'utf8'), base));
   writeFileSync(join(dir, 'sitemap.xml'), sitemap(base, date));
   const text = robots(base);
   if (text) writeFileSync(join(dir, 'robots.txt'), text);
+  const htaccess = join(dir, '.htaccess');
+  writeFileSync(htaccess, addErrorDocument(readFileSync(htaccess, 'utf8'), base));
+  const notFound = join(dir, '404.html');
+  writeFileSync(notFound, setHomeLink(readFileSync(notFound, 'utf8'), base));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
