@@ -7,6 +7,12 @@
 - Meetings table: the headings Meeting, Next and Cost sort it, and meetings on the same day follow their start time; "By category" groups the rows with each category's cost per week (#150)
 - Meetings table is more compact: participants as coloured initials (name on hover or tap), "When" in one short line, Duplicate and Delete in a ⋯ menu; on phones each meeting is a card (#150)
 
+## 1.28.0 – 2026-11-14
+
+### Changed
+
+- Friendly 404 page in the Caldence look (#152)
+
 ## 1.27.0 – 2026-11-14
 
 ### Added
