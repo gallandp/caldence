@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExample, useFileFallback, teamAction } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback, teamAction } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -11,8 +11,19 @@ test.beforeEach(async ({ page }) => {
 const panel = (page: Page) => page.getByRole('tabpanel', { name: /Meetings|Termine/ });
 const row = (page: Page, name: string) => panel(page).getByRole('row').filter({ hasText: name });
 
+/** Duplicate and Delete sit in the row's ⋯ menu. */
+async function rowAction(page: Page, action: 'Duplicate' | 'Delete', name: string) {
+  await panel(page)
+    .getByRole('button', { name: `More actions for ${name}` })
+    .click();
+  await panel(page)
+    .getByRole('button', { name: `${action} ${name}` })
+    .click();
+}
+
 async function openMeetings(page: Page) {
   await openExample(page);
+  await openMenuIfNarrow(page);
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await expect(panel(page).getByRole('table', { name: 'Meetings of Team Alpha' })).toBeVisible();
 }
@@ -169,7 +180,7 @@ test('the table shows when, the next date and the participants with their share'
   await expect(row(page, 'Kick-off Workshop')).toContainText('None left');
   // A full share shows the role alone; a partial share adds the percentage.
   const refinement = row(page, 'Backlog Refinement').getByRole('listitem');
-  await expect(refinement).toHaveText(['PO Product Owner', 'SM Scrum Master · 50%']);
+  await expect(refinement).toHaveText(['PO Product Owner', 'SM 50% Scrum Master · 50%']);
 });
 
 test('the filter narrows the rows and says when nothing matches', async ({ page }) => {
@@ -209,11 +220,11 @@ test('row actions are icon buttons with a visible tooltip on focus', async ({ pa
 test('deleting a row while a form is open keeps the focus on the next row', async ({ page }) => {
   await openMeetings(page);
   await panel(page).getByRole('button', { name: 'Edit Sprint Planning' }).click();
-  await panel(page).getByRole('button', { name: 'Delete Weekly Sync' }).click();
+  await rowAction(page, 'Delete', 'Weekly Sync');
   await expect(row(page, 'Weekly Sync')).toHaveCount(0);
-  // The next row's Edit is disabled while the form is open, so its Delete takes the focus.
+  // The next row's Edit is disabled while the form is open, so its ⋯ button takes the focus.
   await expect(
-    panel(page).getByRole('button', { name: 'Delete Backlog Refinement' }),
+    panel(page).getByRole('button', { name: 'More actions for Backlog Refinement' }),
   ).toBeFocused();
 });
 
@@ -330,7 +341,7 @@ test('undo restores a deleted meeting', async ({ page }) => {
   await openMeetings(page);
   const undo = panel(page).getByRole('button', { name: 'Undo' });
   await expect(undo).toBeDisabled();
-  await panel(page).getByRole('button', { name: 'Delete Weekly Sync' }).click();
+  await rowAction(page, 'Delete', 'Weekly Sync');
   await expect(row(page, 'Weekly Sync')).toHaveCount(0);
   await expect(undo).toBeEnabled();
   await undo.click();
@@ -340,7 +351,7 @@ test('undo restores a deleted meeting', async ({ page }) => {
 
 test('duplicating adds a copy of the meeting', async ({ page }) => {
   await openMeetings(page);
-  await panel(page).getByRole('button', { name: 'Duplicate Weekly Sync' }).click();
+  await rowAction(page, 'Duplicate', 'Weekly Sync');
   await expect(row(page, 'Weekly Sync')).toHaveCount(2);
 });
 
@@ -412,6 +423,7 @@ test('other rows cannot start editing while a form is open', async ({ page }) =>
   await startNew(page, 'Open one');
   await expect(panel(page).getByText('Finish or cancel the open form first.')).toBeVisible();
   await expect(panel(page).getByRole('button', { name: 'Edit Weekly Sync' })).toBeDisabled();
+  await panel(page).getByRole('button', { name: 'More actions for Weekly Sync' }).click();
   await expect(panel(page).getByRole('button', { name: 'Duplicate Weekly Sync' })).toBeDisabled();
 });
 
@@ -457,7 +469,7 @@ test('Ctrl+Z on a button inside the open meeting form keeps the draft and does n
   page,
 }) => {
   await openMeetings(page);
-  await panel(page).getByRole('button', { name: 'Delete Weekly Sync' }).click();
+  await rowAction(page, 'Delete', 'Weekly Sync');
   await expect(row(page, 'Weekly Sync')).toHaveCount(0);
   const form = await startNew(page, 'Draft stays');
   await form.getByRole('button').last().focus();
@@ -466,4 +478,65 @@ test('Ctrl+Z on a button inside the open meeting form keeps the draft and does n
   await expect(panel(page).getByRole('button', { name: 'Undo' })).toBeEnabled();
   await form.getByRole('button', { name: 'Cancel' }).click();
   await expect(row(page, 'Weekly Sync')).toHaveCount(0);
+});
+
+test('column headers sort the table and say how', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2027-01-05T09:00:00'));
+  await openMeetings(page);
+  const names = () => panel(page).getByRole('rowheader').locator('.title').allTextContents();
+  const meeting = panel(page).getByRole('columnheader', { name: 'Meeting' });
+  const next = panel(page).getByRole('columnheader', { name: 'Next' });
+  await expect(next).toHaveAttribute('aria-sort', 'ascending');
+  // Same day (Thursday, January 7): the earlier start comes first.
+  expect((await names()).slice(0, 2)).toEqual(['Sprint Planning', 'Stakeholder Update']);
+  await meeting.getByRole('button').click();
+  await expect(meeting).toHaveAttribute('aria-sort', 'ascending');
+  await expect(next).toHaveAttribute('aria-sort', 'none');
+  const ascending = await names();
+  expect(ascending).toEqual([...ascending].sort((a, b) => a.localeCompare(b, 'en')));
+  await meeting.getByRole('button').click();
+  await expect(meeting).toHaveAttribute('aria-sort', 'descending');
+  expect(await names()).toEqual([...ascending].reverse());
+});
+
+test('grouping shows each category once with its meetings', async ({ page }) => {
+  await openMeetings(page);
+  const toggle = panel(page).getByRole('button', { name: 'By category' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  const groups = panel(page).locator('tr.group th');
+  await expect(groups).toHaveCount(3);
+  await expect(groups.first()).toContainText('Scrum events');
+  await expect(groups.first()).toContainText('2 meetings');
+  await toggle.click();
+  await expect(groups).toHaveCount(0);
+});
+
+test('the ⋯ menu opens on its first action and closes with Escape', async ({ page }) => {
+  await openMeetings(page);
+  const more = panel(page).getByRole('button', { name: 'More actions for Weekly Sync' });
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel(page).getByRole('button', { name: 'Duplicate Weekly Sync' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(more).toBeFocused();
+  await expect(panel(page).getByRole('button', { name: 'Duplicate Weekly Sync' })).toBeHidden();
+});
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('each meeting is a card and nothing scrolls sideways', async ({ page }) => {
+    await openMeetings(page);
+    const wrap = panel(page).locator('.table-wrap');
+    expect(await wrap.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    await panel(page).getByLabel('Sort').selectOption({ label: 'Name A–Z' });
+    await expect(panel(page).getByRole('rowheader').first()).toContainText('Backlog Refinement');
+  });
 });

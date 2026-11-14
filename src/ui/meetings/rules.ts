@@ -183,3 +183,54 @@ export function ruleSummary(
       return t('meet.sum.once', { date: formatDisplayDate(loc, rule.date, 'long') });
   }
 }
+
+/** Short weekday name (1 = Monday) in the given locale, e.g. "Mi" or "Wed". */
+export function weekdayShort(locale: Locale, weekday: number): string {
+  const d = new Date(Date.UTC(2024, 0, weekday));
+  return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(d);
+}
+
+/** The rule in a few words for the meetings table ("Every 2 weeks · Wed"); time and duration go elsewhere. */
+export function ruleShort(
+  rule: Rule,
+  tm: Team,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  loc: Locale,
+): string {
+  const wd = (d: number) => weekdayShort(loc, d);
+  switch (rule.type) {
+    case 'weekly':
+      return t('meet.short.weekly', { weekday: wd(rule.weekday) });
+    case 'weekdays':
+      return weekdayRuns(rule.weekdays)
+        .map((r) => (r.from === r.to ? wd(r.from) : `${wd(r.from)}–${wd(r.to)}`))
+        .join(', ');
+    case 'every-n-weeks':
+      return t('meet.short.everyN', { n: formatNumber(loc, rule.n, 0), weekday: wd(rule.weekday) });
+    case 'monthly-nth-weekday':
+      return t('meet.short.monthly', {
+        nth: t(rule.nth === -1 ? 'meet.nth.last' : `meet.nth.${rule.nth}`),
+        weekday: wd(rule.weekday),
+      });
+    case 'cadence-day':
+      return t('meet.short.cadenceDay', {
+        day: formatNumber(loc, rule.day + 1, 0),
+        kind: t(`meet.kind.${tm.cadence.kind}`),
+      });
+    case 'cycle-milestone': {
+      const milestone =
+        tm.cycles
+          .find((c) => c.id === rule.cycleId)
+          ?.milestones.find((m) => m.id === rule.milestoneId)?.name ?? rule.milestoneId;
+      if (rule.offsetDays === 0) return t('meet.short.milestoneOn', { milestone });
+      const days = Math.abs(rule.offsetDays);
+      const key = rule.offsetDays > 0 ? 'after' : 'before';
+      return t(`meet.short.${key}${days === 1 ? 'One' : ''}`, {
+        n: formatNumber(loc, days, 0),
+        milestone,
+      });
+    }
+    case 'once':
+      return t('meet.short.once');
+  }
+}

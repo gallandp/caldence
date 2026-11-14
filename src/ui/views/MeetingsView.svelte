@@ -15,7 +15,15 @@
   import CyclesCard from '../components/CyclesCard.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { ruleSummary } from '../meetings/rules';
+  import { ruleShort, ruleSummary } from '../meetings/rules';
+  import {
+    firstDir,
+    groupByCategory,
+    sortMeetings,
+    type MeetingGroup,
+    type SortDir,
+    type SortKey,
+  } from '../meetings/table';
   import { fieldErrors } from '../state/form';
   import { applyOwn, isOwnChange } from '../state/problems.svelte';
   import { activeTeamId, index, workspace } from '../state/workspace';
@@ -123,12 +131,75 @@
   const summaries = $derived(
     new Map(team?.events.map((e) => [e.id, ruleSummary(e.rule, team, $t, $locale)]) ?? []),
   );
-  /** Meetings in the order they next take place; those without a next date come last. */
-  const ordered = $derived.by(() => {
-    if (!team) return [];
-    const at = (e: CalEvent) => next?.get(e.id) ?? '9999-12-31';
-    return [...team.events].sort((a, b) => at(a).localeCompare(at(b)));
+  // ---------- sorting, grouping, ⋯ menu ----------
+
+  let sortKey = $state<SortKey>('next');
+  let sortDir = $state<SortDir>(1);
+  let grouped = $state(false);
+
+  function sortBy(key: SortKey) {
+    if (sortKey === key) sortDir = sortDir === 1 ? -1 : 1;
+    else {
+      sortKey = key;
+      sortDir = firstDir(key);
+    }
+  }
+  // Without a rate there is no Cost column to sort by.
+  $effect(() => {
+    if (!rate && sortKey === 'cost') {
+      sortKey = 'next';
+      sortDir = 1;
+    }
   });
+  const ariaSort = (key: SortKey) =>
+    sortKey === key ? (sortDir === 1 ? 'ascending' : 'descending') : 'none';
+
+  const costOf = (e: CalEvent) =>
+    rate && team ? meetingCost(team, e, effectiveDuration(e, team), rate) : 0;
+  const weekCostOf = (e: CalEvent) => (team ? occurrencesPerWeek(e.rule, team) * costOf(e) : 0);
+
+  const ordered = $derived(
+    team
+      ? sortMeetings(team.events, sortKey, sortDir, {
+          next: (e) => next?.get(e.id),
+          cost: costOf,
+          locale: $locale,
+        })
+      : [],
+  );
+  const shorts = $derived(
+    new Map(team?.events.map((e) => [e.id, ruleShort(e.rule, team, $t, $locale)]) ?? []),
+  );
+
+  /** Duplicate and Delete sit in a disclosure per row; one is open at a time. */
+  let menuFor = $state<string | null>(null);
+  const moreSelector = (id: string) => `[data-more="${CSS.escape(id)}"]`;
+
+  async function toggleMenu(id: string) {
+    menuFor = menuFor === id ? null : id;
+    if (menuFor === null) return;
+    await tick();
+    root
+      ?.querySelector<HTMLElement>(`#${CSS.escape(`${uid}-menu-${id}`)} button:not(:disabled)`)
+      ?.focus();
+  }
+  function onMenuKeydown(event: KeyboardEvent, id: string) {
+    if (event.key !== 'Escape' || menuFor !== id) return;
+    event.stopPropagation();
+    menuFor = null;
+    root?.querySelector<HTMLElement>(moreSelector(id))?.focus();
+  }
+  function onMenuFocusout(event: FocusEvent) {
+    const next = event.relatedTarget as Node | null;
+    const wrap = event.currentTarget as HTMLElement;
+    if (next && !wrap.contains(next)) menuFor = null;
+  }
+  function onWindowPointer(event: PointerEvent) {
+    if (menuFor === null) return;
+    const wrap = root?.querySelector(moreSelector(menuFor))?.parentElement;
+    if (!wrap?.contains(event.target as Node)) menuFor = null;
+  }
+
   const visible = $derived.by(() => {
     if (!team) return [];
     const q = query.trim().toLocaleLowerCase($locale);
@@ -138,10 +209,15 @@
         e.name,
         categoryOf(e.categoryId)?.name ?? '',
         summaries.get(e.id) ?? '',
+        shorts.get(e.id) ?? '',
         ...e.participants.map((p) => roleName(p.roleId)),
       ].some((text) => text.toLocaleLowerCase($locale).includes(q)),
     );
   });
+
+  const groups = $derived<MeetingGroup[]>(
+    grouped ? groupByCategory(visible, categories) : [{ category: undefined, events: visible }],
+  );
 
   // ---------- form ----------
 
@@ -207,20 +283,26 @@
     commit((ws) => duplicateEvent(ws, teamId, event.id));
   }
 
-  function remove(event: CalEvent, at: number) {
+  /** The rows in the order they are shown, groups included. */
+  const shown = $derived(groups.flatMap((g) => g.events));
+
+  function remove(event: CalEvent) {
     if (!team) return;
     const teamId = team.id;
-    const neighbour = visible[at + 1] ?? visible[at - 1];
+    const at = shown.indexOf(event);
+    const neighbour = shown[at + 1] ?? shown[at - 1];
     const result = commit((ws) => removeEvent(ws, teamId, event.id));
     if (!result.ok) return;
     if (editing?.event.id === event.id) editing = null;
-    // The neighbour's Edit is disabled while a form is open; its Delete never is.
+    // The neighbour's Edit is disabled while a form is open; its ⋯ button never is.
     const id = neighbour ? CSS.escape(neighbour.id) : '';
     void focusSoon(
-      neighbour ? `[data-edit="${id}"]:not(:disabled), [data-delete="${id}"]` : '[data-add]',
+      neighbour ? `[data-edit="${id}"]:not(:disabled), [data-more="${id}"]` : '[data-add]',
     );
   }
 </script>
+
+<svelte:window onpointerdown={onWindowPointer} />
 
 <div class="meetings stack" bind:this={root}>
   {#if !team}
@@ -252,8 +334,42 @@
             <input type="search" bind:value={query} placeholder={$t('meet.filter')} />
           </label>
         {/if}
-        <button type="button" class="undo" disabled={!$canUndo} onclick={() => workspace.undo()}
-          >{$t('meet.undo')}</button
+        {#if team.events.length > 0}
+          <label class="m-sort">
+            <span class="sr-only">{$t('meet.sort')}</span>
+            <select
+              value={sortKey}
+              onchange={(e) => {
+                sortKey = e.currentTarget.value as SortKey;
+                sortDir = firstDir(sortKey);
+              }}
+            >
+              <option value="next">{$t('meet.sort.next')}</option>
+              <option value="name">{$t('meet.sort.name')}</option>
+              {#if rate}<option value="cost">{$t('meet.sort.cost')}</option>{/if}
+            </select>
+          </label>
+          <button
+            type="button"
+            class="toggle"
+            aria-pressed={grouped}
+            onclick={() => (grouped = !grouped)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"
+              ><path d="M4 6h16M4 12h10M4 18h10M17 15l3 3-3 3" /></svg
+            >
+            <span class="label">{$t('meet.group')}</span>
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="undo"
+          data-tip={$t('meet.undo')}
+          disabled={!$canUndo}
+          onclick={() => workspace.undo()}
+          ><svg viewBox="0 0 24 24" aria-hidden="true" class="m-only"
+            ><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></svg
+          ><span class="label">{$t('meet.undo')}</span></button
         >
       </div>
       {#if categories.length === 0}
@@ -272,144 +388,244 @@
       {:else}
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
         <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
-          <table>
+          <table class:grouped>
             <caption id="{uid}-caption" class="sr-only"
               >{$t('meet.table.caption', { team: team.name })}</caption
             >
             <thead>
               <tr>
-                <th scope="col">{$t('meet.col.meeting')}</th>
+                {#snippet sortable(key: SortKey, label: string, num = false)}
+                  <th scope="col" class:num aria-sort={ariaSort(key)}>
+                    <button
+                      type="button"
+                      class="sort"
+                      class:active={sortKey === key}
+                      onclick={() => sortBy(key)}
+                    >
+                      {label}
+                      <svg viewBox="0 0 24 24" aria-hidden="true"
+                        >{#if sortKey !== key}<path
+                            d="M8 10l4-4 4 4M8 14l4 4 4-4"
+                          />{:else if sortDir === 1}<path d="M8 14l4-4 4 4" />{:else}<path
+                            d="M8 10l4 4 4-4"
+                          />{/if}</svg
+                      >
+                    </button>
+                  </th>
+                {/snippet}
+                {@render sortable('name', $t('meet.col.meeting'))}
                 <th scope="col">{$t('meet.col.when')}</th>
-                <th scope="col">{$t('meet.col.next')}</th>
+                {@render sortable('next', $t('meet.col.next'))}
                 {#if rate}
-                  <th scope="col" class="num">{$t('meet.col.cost')}</th>
+                  {@render sortable('cost', $t('meet.col.cost'), true)}
                 {/if}
                 <th scope="col">{$t('meet.col.participants')}</th>
                 <th scope="col"><span class="sr-only">{$t('meet.col.actions')}</span></th>
               </tr>
             </thead>
-            <tbody>
-              {#each visible as event, i (event.id)}
-                {@const category = categoryOf(event.categoryId)}
-                {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
-                {@const cost = rate
-                  ? meetingCost(team, event, effectiveDuration(event, team), rate)
-                  : 0}
-                {@const when = next?.get(event.id)}
-                <tr>
-                  <th scope="row">
-                    <span class="name">
-                      <span class="bar" style:background={category?.colour} aria-hidden="true"
-                      ></span>
-                      <span>
-                        <span class="title">{event.name}</span>
-                        <span class="sub">{category?.name ?? event.categoryId}</span>
-                      </span>
-                    </span>
-                  </th>
-                  <td>
-                    {summaries.get(event.id)}
-                    <span class="sub"
-                      >{event.time} · {$t(
-                        event.scaling ? 'meet.duration.scaled' : 'meet.duration.fixed',
-                        { n: minutes },
-                      )}</span
-                    >
-                  </td>
-                  <td class="next">
-                    {#if when}
-                      <time datetime={when} title={formatDisplayDate($locale, when, 'long')}
-                        >{nextLabel(when)}</time
-                      >
-                    {:else}
-                      <span class="none" title={$t('meet.next.none.hint')}
-                        >{$t('meet.next.none')}</span
-                      >
-                    {/if}
-                  </td>
-                  {#if rate}
-                    {@const perWeek = occurrencesPerWeek(event.rule, team)}
-                    <td class="num cost" data-cost={event.id}>
-                      {euro(cost)}
-                      {#if perWeek > 0}
-                        <span class="sub"
-                          >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
+            {#each groups as group, gi (group.category?.id ?? gi)}
+              <tbody>
+                {#if grouped}
+                  {@const weekTotal = group.events.reduce((sum, e) => sum + weekCostOf(e), 0)}
+                  <tr class="group">
+                    <th scope="rowgroup" colspan="3">
+                      <span class="group-name">
+                        <span
+                          class="dot"
+                          style:background={group.category?.colour}
+                          aria-hidden="true"
+                        ></span>
+                        {group.category?.name ?? '—'}
+                        <span class="count"
+                          >{$t(
+                            group.events.length === 1
+                              ? 'meet.group.count.one'
+                              : 'meet.group.count.other',
+                            { n: formatNumber($locale, group.events.length, 0) },
+                          )}</span
                         >
-                      {:else if event.rule.type === 'once'}
-                        <span class="sub">{$t('meet.cost.once')}</span>
-                      {:else if event.rule.type === 'cycle-milestone'}
-                        <span class="sub">{$t('meet.cost.milestone')}</span>
+                      </span>
+                    </th>
+                    {#if rate}
+                      <td class="num cost group-cost">
+                        {$t('meet.cost.week', { amount: euro(weekTotal) })}
+                      </td>
+                    {/if}
+                    <td colspan="2"></td>
+                  </tr>
+                {/if}
+                {#each group.events as event (event.id)}
+                  {@const category = categoryOf(event.categoryId)}
+                  {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
+                  {@const cost = costOf(event)}
+                  {@const when = next?.get(event.id)}
+                  <tr class="row">
+                    <th scope="row" class="c-name">
+                      <span class="name">
+                        <span class="bar" style:background={category?.colour} aria-hidden="true"
+                        ></span>
+                        <span>
+                          <span class="title">{event.name}</span>
+                          {#if !grouped}
+                            <span class="sub">{category?.name ?? event.categoryId}</span>
+                          {/if}
+                        </span>
+                      </span>
+                    </th>
+                    <td class="c-when" title={summaries.get(event.id)}>
+                      <!-- The short text is for the eye; screen readers get the full rule. -->
+                      <span class="when" aria-hidden="true">{shorts.get(event.id)}</span>
+                      <span class="sr-only">{summaries.get(event.id)}</span>
+                      <span class="sub"
+                        >{event.time} · {$t(
+                          event.scaling ? 'meet.duration.scaled' : 'meet.duration.fixed',
+                          { n: minutes },
+                        )}</span
+                      >
+                    </td>
+                    <td class="next c-next">
+                      <span class="m-label">{$t('meet.col.next')}</span>
+                      {#if when}
+                        <time datetime={when} title={formatDisplayDate($locale, when, 'long')}
+                          >{nextLabel(when)}</time
+                        >
+                      {:else}
+                        <span class="none" title={$t('meet.next.none.hint')}
+                          >{$t('meet.next.none')}</span
+                        >
                       {/if}
                     </td>
-                  {/if}
-                  <td>
-                    <ul class="roles">
-                      {#each event.participants as p, pi (pi)}
-                        {@const name = roleName(p.roleId)}
-                        {@const colour = roleOf(p.roleId)?.colour ?? '#4b5470'}
-                        <li class="role">
-                          <span
-                            class="ini"
-                            style:background={colour}
-                            style:color={inkOn(colour)}
-                            aria-hidden="true">{initials(name)}</span
+                    {#if rate}
+                      {@const perWeek = occurrencesPerWeek(event.rule, team)}
+                      <td class="num cost c-cost" data-cost={event.id}>
+                        {euro(cost)}
+                        {#if perWeek > 0}
+                          <span class="sub"
+                            >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
                           >
-                          {p.share < 1
-                            ? $t('meet.role.share', {
-                                role: name,
-                                share: formatNumber($locale, p.share * 100, 0),
-                              })
-                            : name}
-                        </li>
-                      {/each}
-                    </ul>
-                  </td>
-                  <td>
-                    <div class="icons">
-                      <button
-                        type="button"
-                        class="icon"
-                        data-tip={$t('meet.edit')}
-                        data-edit={event.id}
-                        disabled={locked(event)}
-                        aria-describedby={locked(event) ? 'meet-open-note' : undefined}
-                        aria-label={$t('meet.edit.named', { name: event.name })}
-                        onclick={() => open(event, event.id)}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true"
-                          ><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
+                        {:else if event.rule.type === 'once'}
+                          <span class="sub">{$t('meet.cost.once')}</span>
+                        {:else if event.rule.type === 'cycle-milestone'}
+                          <span class="sub">{$t('meet.cost.milestone')}</span>
+                        {/if}
+                      </td>
+                    {/if}
+                    <td class="c-people">
+                      <ul class="roles">
+                        {#each event.participants as p, pi (pi)}
+                          {@const name = roleName(p.roleId)}
+                          {@const colour = roleOf(p.roleId)?.colour ?? '#4b5470'}
+                          {@const label =
+                            p.share < 1
+                              ? $t('meet.role.share', {
+                                  role: name,
+                                  share: formatNumber($locale, p.share * 100, 0),
+                                })
+                              : name}
+                          <!-- Focusable by tap but not by Tab, so a touch screen can show the name too. -->
+                          <li class="role" class:part={p.share < 1} data-tip={label} tabindex="-1">
+                            <span
+                              class="ini"
+                              style:background={colour}
+                              style:color={inkOn(colour)}
+                              aria-hidden="true">{initials(name)}</span
+                            >
+                            {#if p.share < 1}<span class="share" aria-hidden="true"
+                                >{$t('meet.role.shareOnly', {
+                                  share: formatNumber($locale, p.share * 100, 0),
+                                })}</span
+                              >{/if}
+                            <span class="sr-only">{label}</span>
+                          </li>
+                        {/each}
+                      </ul>
+                    </td>
+                    <td class="c-actions">
+                      <div class="icons">
+                        <button
+                          type="button"
+                          class="icon"
+                          data-tip={$t('meet.edit')}
+                          data-edit={event.id}
+                          disabled={locked(event)}
+                          aria-describedby={locked(event) ? 'meet-open-note' : undefined}
+                          aria-label={$t('meet.edit.named', { name: event.name })}
+                          onclick={() => open(event, event.id)}
                         >
-                      </button>
-                      <button
-                        type="button"
-                        class="icon"
-                        data-tip={$t('meet.duplicate')}
-                        disabled={locked(event)}
-                        aria-describedby={locked(event) ? 'meet-open-note' : undefined}
-                        aria-label={$t('meet.duplicate.named', { name: event.name })}
-                        onclick={() => duplicate(event)}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true"
-                          ><path d="M8 8h11v11H8zM5 16V5h11" /></svg
+                          <svg viewBox="0 0 24 24" aria-hidden="true"
+                            ><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
+                          >
+                        </button>
+                        <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
+                        <div
+                          class="menu-wrap"
+                          onkeydown={(e) => onMenuKeydown(e, event.id)}
+                          onfocusout={onMenuFocusout}
                         >
-                      </button>
-                      <button
-                        type="button"
-                        class="icon danger"
-                        data-tip={$t('meet.delete')}
-                        data-delete={event.id}
-                        aria-label={$t('meet.delete.named', { name: event.name })}
-                        onclick={() => remove(event, i)}
-                      >
-                        <svg viewBox="0 0 24 24" aria-hidden="true"
-                          ><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6" /></svg
-                        >
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
+                          <button
+                            type="button"
+                            class="icon more"
+                            data-more={event.id}
+                            data-tip={$t('meet.more')}
+                            aria-expanded={menuFor === event.id}
+                            aria-controls="{uid}-menu-{event.id}"
+                            aria-label={$t('meet.more.named', { name: event.name })}
+                            onclick={() => toggleMenu(event.id)}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" class="dots"
+                              ><circle cx="5" cy="12" r="1.6" /><circle
+                                cx="12"
+                                cy="12"
+                                r="1.6"
+                              /><circle cx="19" cy="12" r="1.6" /></svg
+                            >
+                          </button>
+                          <div
+                            class="menu"
+                            id="{uid}-menu-{event.id}"
+                            hidden={menuFor !== event.id}
+                          >
+                            <button
+                              type="button"
+                              disabled={locked(event)}
+                              aria-describedby={locked(event) ? 'meet-open-note' : undefined}
+                              aria-label={$t('meet.duplicate.named', { name: event.name })}
+                              onclick={() => {
+                                menuFor = null;
+                                duplicate(event);
+                                void focusSoon(moreSelector(event.id));
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true"
+                                ><path d="M8 8h11v11H8zM5 16V5h11" /></svg
+                              >
+                              {$t('meet.duplicate')}
+                            </button>
+                            <button
+                              type="button"
+                              class="danger"
+                              data-delete={event.id}
+                              aria-label={$t('meet.delete.named', { name: event.name })}
+                              onclick={() => {
+                                menuFor = null;
+                                remove(event);
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true"
+                                ><path
+                                  d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6"
+                                /></svg
+                              >
+                              {$t('meet.delete')}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            {/each}
           </table>
         </div>
         <p class="empty status" role="status">
@@ -548,33 +764,340 @@
   .roles {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.3rem;
     margin: 0;
     padding: 0;
     list-style: none;
   }
   .role {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.15rem 0.6rem 0.15rem 0.2rem;
-    border: 1px solid var(--border);
+    gap: 0.25rem;
     border-radius: 999px;
-    background: var(--surface);
-    font-size: 0.875rem;
-    white-space: nowrap;
+  }
+  .role.part {
+    padding-right: 0.5rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
   }
   .ini {
     display: inline-grid;
     place-items: center;
-    min-width: 1.4rem;
-    height: 1.4rem;
-    padding: 0 0.2rem;
+    min-width: 1.85rem;
+    height: 1.85rem;
+    padding: 0 0.25rem;
     border-radius: 999px;
     color: #fff;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  .role::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 0.35rem);
+    left: 50%;
+    z-index: 3;
+    translate: -50% 0;
+    display: none;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.4rem;
+    background: var(--text);
+    color: var(--surface);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  @media (hover: hover) {
+    .role:hover::after {
+      display: block;
+    }
+  }
+  .role:focus::after {
+    display: block;
+  }
+  .role:focus {
+    outline: none;
+  }
+  .when {
+    display: block;
+    white-space: nowrap;
+  }
+  .c-when .sub {
+    white-space: nowrap;
+  }
+  .m-label {
+    display: none;
+  }
+  /* ---------- sortable headers ---------- */
+  :global(#app) th .sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    margin: -0.3rem -0.4rem;
+    padding: 0.3rem 0.4rem;
+    min-height: 0;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+  }
+  :global(#app) th .sort:hover {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  :global(#app) th .sort.active {
+    color: var(--accent-text);
+  }
+  th .sort svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    opacity: 0.45;
+  }
+  th .sort.active svg {
+    opacity: 1;
+  }
+  /* ---------- groups ---------- */
+  :global(#app) tr.group > * {
+    padding-top: 1.1rem;
+    padding-bottom: 0.45rem;
+    background: transparent;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .group-name {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+  }
+  .dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+  }
+  .count {
+    font-weight: 400;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  .group-cost {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  /* ---------- toolbar extras ---------- */
+  :global(#app) .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  :global(#app) .toggle[aria-pressed='true'] {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+  .toolbar .m-only {
+    display: none;
+  }
+  .m-sort {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  /* ---------- ⋯ menu ---------- */
+  .menu-wrap {
+    position: relative;
+  }
+  .dots {
+    fill: currentColor;
+    stroke: none;
+  }
+  :global(#app) .icons .icon.more[aria-expanded='true'] {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .menu {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    right: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 11rem;
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg, var(--shadow));
+  }
+  .icons .icon.more[aria-expanded='true']::after {
+    display: none;
+  }
+  /* The table region scrolls, so the menus of the last rows open upwards to stay inside it. */
+  tbody:last-child tr:nth-last-child(-n + 2) .menu {
+    top: auto;
+    bottom: calc(100% + 0.3rem);
+  }
+  .menu[hidden] {
+    display: none;
+  }
+  :global(#app) .menu button {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text);
+    font-weight: 500;
+    text-align: left;
+  }
+  :global(#app) .menu button:hover {
+    background: var(--surface-2);
+  }
+  :global(#app) .menu button.danger {
+    color: var(--danger);
+  }
+  :global(#app) .menu button.danger:hover {
+    background: var(--danger-soft);
+  }
+  /* ---------- phones: each meeting becomes a card ---------- */
+  @media (max-width: 40rem) {
+    .m-sort {
+      display: inline-flex;
+      order: 4;
+    }
+    .group .count {
+      display: none;
+    }
+    .toolbar .search {
+      order: 3;
+      flex: 1 1 100%;
+    }
+    .m-sort {
+      flex: 1 1 auto;
+    }
+    .m-sort select {
+      width: 100%;
+    }
+    :global(#app) .toolbar .toggle {
+      order: 5;
+    }
+    /* Undo and grouping become icon buttons, so each row of the toolbar fits a phone. */
+    :global(#app) .toolbar :is(.toggle, .undo) {
+      display: inline-grid;
+      place-items: center;
+      width: 2.75rem;
+      padding: 0;
+    }
+    .toolbar :is(.toggle, .undo) .label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .toolbar .m-only {
+      display: block;
+    }
+    :global(#app) table:not([role='grid']) tr > *,
+    :global(#app) table:not([role='grid']) tbody tr:hover > * {
+      background: transparent;
+    }
+    .table-wrap {
+      overflow: visible;
+    }
+    table,
+    tbody {
+      display: block;
+    }
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    :global(#app) tr.group {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    :global(#app) tr.group > * {
+      display: block;
+      padding: 1rem 0 0.4rem;
+      border: 0;
+    }
+    :global(#app) tr.group > td:empty {
+      display: none;
+    }
+    :global(#app) table tr.row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        'name actions'
+        'when cost'
+        'next people';
+      column-gap: 0.75rem;
+      row-gap: 0.4rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    :global(#app) table tr.row > * {
+      display: block;
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    .c-name {
+      grid-area: name;
+      align-self: center;
+    }
+    .c-actions {
+      grid-area: actions;
+    }
+    .c-when {
+      grid-area: when;
+    }
+    .c-cost {
+      grid-area: cost;
+    }
+    .c-next {
+      grid-area: next;
+      align-self: center;
+      font-size: 0.9rem;
+    }
+    .m-label {
+      display: inline;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-right: 0.3rem;
+    }
+    .c-people {
+      grid-area: people;
+      justify-self: end;
+    }
+    .roles {
+      justify-content: flex-end;
+    }
   }
   .icons {
     display: flex;
@@ -596,10 +1119,6 @@
   :global(#app) .icons .icon:hover:not(:disabled) {
     color: var(--accent-text);
     background: var(--accent-soft);
-  }
-  :global(#app) .icons .icon.danger:hover:not(:disabled) {
-    color: var(--danger);
-    background: var(--danger-soft);
   }
   /* The visible tooltip repeats the start of the accessible name ("Edit" of "Edit Weekly Sync"). */
   .icons .icon::after {

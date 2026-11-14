@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Rule, Team } from '../../src/core/model';
 import {
   ruleDraft,
+  ruleShort,
   ruleSummary,
   toRule,
   weekdayName,
@@ -101,5 +102,40 @@ describe('ruleSummary', () => {
 
   it('formats a once rule with a localised date', () => {
     expect(ruleSummary({ type: 'once', date: '2027-01-06' }, team, tr, 'de')).toContain('2027');
+  });
+});
+
+describe('short rule texts', () => {
+  const tr = (key: string, params?: Record<string, string | number>) =>
+    `${key}${params ? JSON.stringify(params) : ''}`;
+
+  it('uses short weekday names and keeps weekday runs as ranges', () => {
+    expect(ruleShort({ type: 'weekdays', weekdays: [1, 2, 3, 4, 5] }, team, tr, 'en')).toBe(
+      'Mon–Fri',
+    );
+    expect(ruleShort({ type: 'weekdays', weekdays: [1, 4] }, team, tr, 'en')).toBe('Mon, Thu');
+    expect(
+      ruleShort({ type: 'every-n-weeks', weekday: 3, n: 2, anchor: today }, team, tr, 'en'),
+    ).toBe('meet.short.everyN{"n":"2","weekday":"Wed"}');
+  });
+
+  it('names the milestone without its cycle', () => {
+    const rule = { type: 'cycle-milestone', cycleId: 'cy1', milestoneId: 'm1' } as const;
+    expect(ruleShort({ ...rule, offsetDays: 0 }, team, tr, 'en')).toBe(
+      'meet.short.milestoneOn{"milestone":"M"}',
+    );
+    expect(ruleShort({ ...rule, offsetDays: -7 }, team, tr, 'en')).toBe(
+      'meet.short.before{"n":"7","milestone":"M"}',
+    );
+    expect(ruleShort({ ...rule, offsetDays: 1 }, team, tr, 'en')).toBe(
+      'meet.short.afterOne{"n":"1","milestone":"M"}',
+    );
+  });
+
+  it('gives a cadence day 1-based and a once rule without its date', () => {
+    expect(ruleShort({ type: 'cadence-day', day: 0 }, team, tr, 'en')).toBe(
+      'meet.short.cadenceDay{"day":"1","kind":"meet.kind.sprint"}',
+    );
+    expect(ruleShort({ type: 'once', date: '2027-01-06' }, team, tr, 'en')).toBe('meet.short.once');
   });
 });
