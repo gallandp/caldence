@@ -26,6 +26,20 @@
         delete: 'team.delete',
         role: 'filter.role',
         person: 'filter.person',
+        plan2: 'setup.open',
+        example: 'start.example',
+      }}
+    />
+  </p>
+  <p>
+    <Rich
+      key="help.views.phone"
+      labels={{
+        new: 'file.new',
+        open: 'file.open',
+        save: 'file.save',
+        saveAs: 'file.saveAs',
+        more: 'file.more',
       }}
     />
   </p>
@@ -90,6 +104,7 @@
         hpw: 'settings.hoursPerWeek',
         person: 'load.table.person',
         warnings: 'load.warnings',
+        costs: 'cost.title',
         calc: sectionLink('manual-calc'),
       }}
     />
@@ -163,6 +178,8 @@
         horizon: 'settings.horizon',
         skip: 'settings.skipHolidays',
         thresholds: 'settings.thresholds',
+        costs: 'settings.costs',
+        hourlyRate: 'settings.hourlyRate',
       }}
     />
   </p>

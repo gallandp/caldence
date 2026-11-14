@@ -6,6 +6,7 @@
 
 ### Changed
 
+- Manual brought up to date: people are added in Team, the settings chapter and the "Where is each value set?" table name the hourly rate, Load mentions the costs card, the first steps mention the card after Plan new, and a new paragraph explains the phone layout (views menu, ⋯ file menu) (#159)
 - First visit: Load, Meetings & cadence and Team show the same card as long as there is no team, with Plan new and Open the example; Meetings & cadence no longer shows the categories without a team, and the sidebar's "No team yet" box no longer squeezes its text (#158)
 - The card after Plan new explains that the note about unsaved changes is about the file only, and the wizard names Team as the place for roles and people (#158)
 

@@ -48,6 +48,7 @@ export const MANUAL_STEPS: ManualStep[] = [
   {
     text: 'help.first.step.create',
     control: { role: 'button', name: 'templates.create' },
+    labels: { done: 'setup.done.title' },
   },
   {
     text: 'help.first.step.meetings',
