@@ -6,3 +6,6 @@ try {
 } catch {
   // Blocked storage: follow the system.
 }
+
+// JavaScript runs: hide the static intro of index.html until the app replaces it (#135).
+document.documentElement.classList.add('js');
