@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.26.0 – 2026-11-14
+
 ### Changed
 
 - Faster first start: the included server configurations send text files gzip-compressed (#138)
