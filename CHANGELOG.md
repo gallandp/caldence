@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Phones: the file bar is one row. Save stays, New, Open and Save as are in a menu next to it, and the role and person filters share one row
+
 ## 1.24.0 – 2026-11-14
 
 ### Changed

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { translate as t } from '../i18n';
   import { emptyWorkspace, type Workspace } from '../core/model';
@@ -120,6 +121,55 @@
     }, undefined);
   }
 
+  // ---------- narrow screens: Save stays, New, Open and Save as fold into a menu ----------
+
+  const uid = $props.id();
+  let moreOpen = $state(false);
+  let moreToggle: HTMLButtonElement | undefined = $state();
+  let morePanel: HTMLDivElement | undefined = $state();
+
+  // The menu belongs to narrow screens: turning a phone to a wide layout closes it.
+  onMount(() => {
+    const narrow = window.matchMedia('(max-width: 40rem)');
+    const close = () => {
+      if (!narrow.matches) moreOpen = false;
+    };
+    narrow.addEventListener('change', close);
+    return () => narrow.removeEventListener('change', close);
+  });
+
+  async function toggleMore() {
+    moreOpen = !moreOpen;
+    if (!moreOpen) return;
+    await tick();
+    morePanel?.querySelector('button')?.focus();
+  }
+
+  /** Closes the menu, gives focus back to its button and runs the action. */
+  function fromMore(action: () => Promise<unknown>) {
+    moreOpen = false;
+    moreToggle?.focus();
+    void action();
+  }
+
+  function onMoreKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape' || !moreOpen) return;
+    event.stopPropagation();
+    moreOpen = false;
+    moreToggle?.focus();
+  }
+
+  function onMoreFocusout(event: FocusEvent) {
+    const next = event.relatedTarget as Node | null;
+    if (next && !morePanel?.contains(next) && !moreToggle?.contains(next)) moreOpen = false;
+  }
+
+  function onWindowPointer(event: PointerEvent) {
+    if (!moreOpen) return;
+    const target = event.target as Node;
+    if (!morePanel?.contains(target) && !moreToggle?.contains(target)) moreOpen = false;
+  }
+
   async function replaceWith(make: () => Workspace) {
     if (!(await proceed())) return;
     error = null;
@@ -144,17 +194,57 @@
   }
 </script>
 
+<svelte:window onpointerdown={onWindowPointer} />
+
 <header class="bar">
-  <div class="buttons">
-    <button type="button" onclick={newWorkspace}>{$t('file.new')}</button>
-    <button type="button" onclick={open}>{$t('file.open')}</button>
-    <button type="button" class:primary={$dirty} onclick={save}>{$t('file.save')}</button>
-    <button type="button" onclick={saveAs}>{$t('file.saveAs')}</button>
+  <div class="buttons wide">
+    <button type="button" class="new" onclick={newWorkspace}>{$t('file.new')}</button>
+    <button type="button" class="open" onclick={open}>{$t('file.open')}</button>
+    <button type="button" class="save" class:primary={$dirty} onclick={save}
+      >{$t('file.save')}</button
+    >
+    <button type="button" class="save-as" onclick={saveAs}>{$t('file.saveAs')}</button>
+  </div>
+  <!-- Only one of the two button groups shows; the hidden one is out of the tab order. -->
+  <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
+  <div class="buttons compact" onkeydown={onMoreKeydown} onfocusout={onMoreFocusout}>
+    <button type="button" class="save" class:primary={$dirty} onclick={save}
+      >{$t('file.save')}</button
+    >
+    <button
+      type="button"
+      class="more"
+      aria-label={$t('file.more')}
+      aria-expanded={moreOpen}
+      aria-controls="{uid}-more"
+      bind:this={moreToggle}
+      onclick={toggleMore}
+      ><svg viewBox="0 0 24 24" aria-hidden="true"
+        ><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle
+          cx="19"
+          cy="12"
+          r="1.6"
+        /></svg
+      ></button
+    >
+    <div class="more-panel" id="{uid}-more" hidden={!moreOpen} bind:this={morePanel}>
+      <button type="button" class="new" onclick={() => fromMore(newWorkspace)}
+        >{$t('file.new')}</button
+      >
+      <button type="button" class="open" onclick={() => fromMore(open)}>{$t('file.open')}</button>
+      <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
+        >{$t('file.saveAs')}</button
+      >
+    </div>
   </div>
   <p class="status">
     <span class="name">{$fileName ?? $t('file.untitled')}</span>
     {#if $dirty}
-      <span class="marker">{$t('file.unsaved')}</span>
+      <span class="marker"
+        ><span class="full">{$t('file.unsaved')}</span><span class="short"
+          >{$t('file.unsaved.short')}</span
+        ></span
+      >
     {:else if $fileName !== null}
       <span class="marker saved">{$t('file.saved')}</span>
     {/if}

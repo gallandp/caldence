@@ -122,15 +122,11 @@
   flex-wrap: nowrap;
   gap: 0.4rem;
 }
-/* Narrow screens: the file buttons wrap instead of widening the page (WCAG 1.4.10). */
+/* Narrow screens: the bar wraps instead of widening the page (WCAG 1.4.10). */
 @media (max-width: 40rem) {
   #app .content > .bar:not(.context) {
     flex-wrap: wrap;
     padding: 0.6rem 1rem;
-  }
-  #app .content > .bar:not(.context) .buttons {
-    flex-wrap: wrap;
-    margin-left: 0;
   }
 }
 #app .content > .bar:not(.context) .status {
@@ -202,17 +198,104 @@
   background: currentColor;
   mask: var(--icon) center / contain no-repeat;
 }
-#app .content > .bar .buttons button:nth-child(1) {
+#app .content > .bar .buttons button.new {
   --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
 }
-#app .content > .bar .buttons button:nth-child(2) {
+#app .content > .bar .buttons button.open {
   --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3C/svg%3E");
 }
-#app .content > .bar .buttons button:nth-child(3) {
+#app .content > .bar .buttons button.save {
   --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
 }
-#app .content > .bar .buttons button:nth-child(4) {
+#app .content > .bar .buttons button.save-as {
   --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7 10l5 5 5-5M5 20h14'/%3E%3C/svg%3E");
+}
+
+/* Narrow screens: name and state on the left, Save and a menu with the other file actions on the
+   right, all on one row. */
+#app .content > .bar .buttons.compact {
+  display: none;
+}
+#app .content > .bar .marker .short {
+  display: none;
+}
+#app .content > .bar:not(.context) .buttons button.more {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-color: var(--border);
+}
+#app .content > .bar:not(.context) .buttons button.more::before {
+  content: none;
+}
+#app .content > .bar:not(.context) .buttons button.more[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+#app .bar .more svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+#app .bar .more-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 13rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg, var(--shadow));
+}
+#app .bar .more-panel[hidden] {
+  display: none;
+}
+#app .content > .bar:not(.context) .more-panel button {
+  width: 100%;
+  min-height: 2.5rem;
+  text-align: left;
+}
+@media (max-width: 40rem) {
+  #app .content > .bar .buttons.wide {
+    display: none;
+  }
+  #app .content > .bar .buttons.compact {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-left: auto;
+  }
+  #app .content > .bar:not(.context) .status {
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  #app .content > .bar:not(.context) .name {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #app .content > .bar:not(.context) .marker {
+    font-size: 0.75rem;
+    padding: 0.05rem 0.5rem;
+    white-space: nowrap;
+  }
+  #app .content > .bar .marker .full {
+    display: none;
+  }
+  #app .content > .bar .marker .short {
+    display: inline;
+  }
 }
 
 #app .content > .bar.context {
@@ -272,6 +355,34 @@
   }
   #app .bar.context .scope {
     white-space: nowrap;
+  }
+}
+
+/* Phones: role and person share one row. "Show for" is the region's name already, so its visible
+   text goes; "All teams" (a person is chosen) takes the next row. */
+@media (max-width: 40rem) {
+  #app .content > .bar.context {
+    padding: 0.75rem 1rem 0;
+  }
+  #app .bar.context .filters {
+    margin-left: 0;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+  #app .bar.context .for {
+    display: none;
+  }
+  #app .bar.context .field {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  #app .bar.context select {
+    min-width: 0;
+    max-width: 9rem;
+  }
+  #app .bar.context .scope {
+    flex-basis: 100%;
+    padding-block: 0;
   }
 }
 
