@@ -360,9 +360,11 @@
     border: 0;
     border-top: 1px solid var(--border);
   }
+  /* Without a team: the note stays on one line; in the narrow sidebar the button wraps below it. */
   .none {
-    flex: 1;
-    margin: 0;
+    flex: 1 1 auto;
+    margin: 0 0 0 0.25rem;
+    white-space: nowrap;
     font-size: 0.85rem;
     color: var(--side-text);
   }

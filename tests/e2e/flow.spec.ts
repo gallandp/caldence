@@ -155,7 +155,7 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
 
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await tab(page, 'Team').click();
-  await expect(page.getByText('There is no team yet.').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No teams yet' }).first()).toBeVisible();
 
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Open', exact: true }).click();

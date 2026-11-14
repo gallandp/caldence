@@ -59,7 +59,7 @@ test('Scrum template to .ics export, new workspace and import with a role', asyn
     .getByRole('button', { name: 'Discard' })
     .click();
   await tab(page, 'Team').click();
-  await expect(page.getByText('There is no team yet.').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No teams yet' }).first()).toBeVisible();
 
   // 5. An empty team, a role and a category, then import with that role.
   await tab(page, 'Team').click();

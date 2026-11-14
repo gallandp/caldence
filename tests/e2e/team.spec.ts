@@ -174,7 +174,7 @@ test('deleting a team needs confirmation', async ({ page }) => {
     .click();
   await expect(teamSelect(page)).toHaveCount(0);
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
-  await expect(panel(page).getByText('There is no team yet')).toBeVisible();
+  await expect(panel(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add team' })).toBeFocused();
 });
 

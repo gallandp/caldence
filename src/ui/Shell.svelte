@@ -330,13 +330,21 @@
                   void tick().then(() => select('calendar', true));
                 }}
               />
-            {:else if id === 'load' && noTeams}
+            {:else if (id === 'load' || id === 'meetings' || id === 'team') && noTeams}
+              <!-- The same way in as the start screen, from every view that needs a team. -->
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
-                <button type="button" onclick={() => fromEmptyState(bar?.openExample())}
-                  >{$t('start.example')}</button
-                >
+                <div class="start-actions">
+                  <button type="button" class="primary" onclick={() => planWizard?.show()}
+                    >{$t('setup.open')}</button
+                  >
+                  <button
+                    type="button"
+                    class="secondary"
+                    onclick={() => fromEmptyState(bar?.openExample())}>{$t('start.example')}</button
+                  >
+                </div>
               </section>
             {:else if id === 'calendar'}
               {#if setupDone}
@@ -753,6 +761,11 @@
   .start h3 {
     margin-top: 0;
     font-size: 1.35rem;
+  }
+  .start-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
   @media (max-width: 60rem) {
     .layout {
