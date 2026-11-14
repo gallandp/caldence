@@ -38,10 +38,15 @@
     perUnit: number | null;
     assumption: string;
     grid: number | null;
-    participants: { roleId: string; share: number | null }[];
+    /** `key` only tells the rows apart while editing; it is not saved. */
+    participants: { key: number; roleId: string; share: number | null }[];
     /** Percent, 0 to 100. */
     preparation: number | null;
   }
+
+  let nextKey = 0;
+  let addButton: HTMLButtonElement | undefined = $state();
+  let partsList: HTMLUListElement | undefined = $state();
 
   function init(e: CalEvent): Draft {
     const s = e.scaling;
@@ -56,7 +61,7 @@
       perUnit: s?.perUnit ?? 5,
       assumption: s?.assumption ?? Object.keys(team.assumptions)[0] ?? '',
       grid: s?.grid ?? 5,
-      participants: e.participants.map((p) => ({ ...p })),
+      participants: e.participants.map((p) => ({ key: nextKey++, ...p })),
       preparation: Math.round(e.preparation * 10000) / 100,
     };
   }
@@ -113,16 +118,22 @@
     };
   }
 
-  function addParticipant() {
+  /** The new row's role takes the focus (the add button may now be disabled). */
+  async function addParticipant() {
     const free = roles.find((r) => !draft.participants.some((p) => p.roleId === r.id));
     if (!free) return;
-    draft.participants.push({ roleId: free.id, share: 1 });
+    draft.participants.push({ key: nextKey++, roleId: free.id, share: 1 });
     clearParticipantErrors();
+    await tick();
+    partsList?.querySelector<HTMLElement>('li:last-child select')?.focus();
   }
 
-  function removeParticipant(i: number) {
+  /** The removed row's button is gone: focus moves to the add button. */
+  async function removeParticipant(i: number) {
     draft.participants.splice(i, 1);
     clearParticipantErrors();
+    await tick();
+    addButton?.focus();
   }
 
   function onChange(e: Event) {
@@ -388,49 +399,70 @@
       {:else if draft.participants.length === 0}
         <p class="hint">{$t('meet.participants.empty')}</p>
       {/if}
-      {#each draft.participants as p, i (i)}
-        <div class="row">
-          <div class="field">
-            <label for={id(`participants.${i}.roleId`)}>{$t('meet.participants.role')}</label>
-            <select
-              id={id(`participants.${i}.roleId`)}
-              data-field="participants.{i}.roleId"
-              bind:value={p.roleId}
-              aria-invalid={invalid(`participants.${i}.roleId`)}
-              aria-describedby={describe(`participants.${i}.roleId`)}
-            >
-              {#each roles as r (r.id)}
-                <option value={r.id}>{r.name}</option>
-              {/each}
-            </select>
-            {@render err(`participants.${i}.roleId`, $t('meet.participants.role'))}
+      {#if draft.participants.length > 0}
+        <!-- Column heads once; every field is named by its own aria-label. -->
+        <div class="parts-wrap">
+          <div class="part-grid part-heads" aria-hidden="true">
+            <span>{$t('meet.participants.role')}</span><span>{$t('meet.participants.share')}</span>
           </div>
-          <div class="field">
-            <label for={id(`participants.${i}.share`)}>{$t('meet.participants.share')}</label>
-            <input
-              id={id(`participants.${i}.share`)}
-              type="number"
-              min="0"
-              max="1"
-              step="0.05"
-              data-field="participants.{i}.share"
-              bind:value={p.share}
-              aria-invalid={invalid(`participants.${i}.share`)}
-              aria-describedby={describe(`participants.${i}.share`, `${uid}-share-hint`)}
-            />
-            {@render err(`participants.${i}.share`, $t('meet.participants.share'))}
-          </div>
-          <button
-            type="button"
-            aria-label={$t('meet.participants.remove', { role: roleName(p.roleId) })}
-            onclick={() => removeParticipant(i)}><span aria-hidden="true">✕</span></button
-          >
+          <ul class="parts" bind:this={partsList}>
+            {#each draft.participants as p, i (p.key)}
+              <li class="part-grid">
+                <div class="field role">
+                  <select
+                    id={id(`participants.${i}.roleId`)}
+                    data-field="participants.{i}.roleId"
+                    bind:value={p.roleId}
+                    aria-label={$t('meet.participants.role')}
+                    aria-invalid={invalid(`participants.${i}.roleId`)}
+                    aria-describedby={describe(`participants.${i}.roleId`)}
+                  >
+                    {#each roles as r (r.id)}
+                      <option value={r.id}>{r.name}</option>
+                    {/each}
+                  </select>
+                </div>
+                <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
+                <div class="field share">
+                  <input
+                    id={id(`participants.${i}.share`)}
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    data-field="participants.{i}.share"
+                    bind:value={p.share}
+                    aria-label={$t('meet.participants.shareOf', { role: roleName(p.roleId) })}
+                    aria-invalid={invalid(`participants.${i}.share`)}
+                    aria-describedby={describe(`participants.${i}.share`, `${uid}-share-hint`)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="icon-button remove"
+                  aria-label={$t('meet.participants.remove', { role: roleName(p.roleId) })}
+                  onclick={() => removeParticipant(i)}
+                  ><svg viewBox="0 0 24 24" aria-hidden="true"
+                    ><path d="M6 6l12 12M18 6L6 18" /></svg
+                  ></button
+                >
+                <!-- Errors span the row below its fields. -->
+                {@render err(`participants.${i}.roleId`, roleName(p.roleId))}
+                {@render err(`participants.${i}.share`, roleName(p.roleId))}
+              </li>
+            {/each}
+          </ul>
         </div>
-      {/each}
+      {/if}
       <button
         type="button"
+        class="secondary add"
+        bind:this={addButton}
         disabled={roles.length === 0 || draft.participants.length >= roles.length}
-        onclick={addParticipant}>{$t('meet.participants.add')}</button
+        onclick={addParticipant}
+        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
+          'meet.participants.add',
+        )}</button
       >
     </fieldset>
 
@@ -517,6 +549,91 @@
   button:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+  /* Participants: one aligned row per role, column heads once. A narrow form (a phone) gives
+     the role a row of its own, and the share its own label. */
+  .parts-wrap {
+    container-type: inline-size;
+  }
+  .part-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 5rem 2.5rem;
+    grid-template-areas: 'role share remove';
+    gap: 0.4rem;
+    align-items: center;
+    max-width: 34rem;
+  }
+  .part-grid > .field-error {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .part-grid .role {
+    grid-area: role;
+  }
+  .part-grid .share {
+    grid-area: share;
+  }
+  .part-grid .remove {
+    grid-area: remove;
+  }
+  .share-label {
+    display: none;
+    grid-area: label;
+    align-self: center;
+    justify-self: end;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  @container (max-width: 22rem) {
+    .part-heads > :last-child {
+      display: none;
+    }
+    .parts .part-grid {
+      grid-template-areas:
+        'role role remove'
+        'label share .';
+    }
+    .parts > li + li {
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .share-label {
+      display: block;
+    }
+  }
+  .part-heads {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .parts {
+    list-style: none;
+    margin: 0.3rem 0 0.75rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .parts select,
+  .parts input {
+    width: 100%;
+  }
+  .add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+  }
+  .parts svg,
+  .add svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
   }
   button.primary {
     background: var(--accent);

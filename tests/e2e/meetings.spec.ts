@@ -467,3 +467,47 @@ test('Ctrl+Z on a button inside the open meeting form keeps the draft and does n
   await form.getByRole('button', { name: 'Cancel' }).click();
   await expect(row(page, 'Weekly Sync')).toHaveCount(0);
 });
+
+test('participants are aligned rows: role, share and remove, with column heads once', async ({
+  page,
+}) => {
+  await openMeetings(page);
+  const form = await startNew(page, 'Rows');
+  await form.getByRole('button', { name: 'Add participant' }).click();
+  const roles = form.getByLabel('Role', { exact: true });
+  await expect(roles).toHaveCount(3);
+  // The new row's role takes the focus (all roles are used, so the add button is disabled).
+  await expect(roles.nth(2)).toBeFocused();
+  // One visible "Role" head for all rows; each share field names its role.
+  await expect(form.getByText('Role', { exact: true })).toHaveCount(1);
+  const share = form.getByLabel('Share (0–1): Developer');
+  await expect(share).toHaveValue('1');
+  const remove = form.getByRole('button', { name: 'Remove Developer' });
+  const [r, s, x] = await Promise.all([
+    roles.nth(2).boundingBox(),
+    share.boundingBox(),
+    remove.boundingBox(),
+  ]);
+  expect(Math.abs(r!.y + r!.height / 2 - (x!.y + x!.height / 2))).toBeLessThan(3);
+  expect(Math.abs(r!.y - s!.y)).toBeLessThan(3);
+  await remove.click();
+  await expect(roles).toHaveCount(2);
+  await expect(form.getByRole('button', { name: 'Add participant' })).toBeFocused();
+
+  // A share out of range is explained under its row, naming the role.
+  await form.getByLabel('Share (0–1): Scrum Master').fill('2');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form.getByText(/Scrum Master/).filter({ visible: true })).not.toHaveCount(0);
+  await expect(form.getByLabel('Share (0–1): Scrum Master')).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await form.getByLabel('Share (0–1): Scrum Master').fill('1');
+
+  // On a phone the role gets its own row and the share its own label; nothing overflows.
+  await page.setViewportSize({ width: 375, height: 800 });
+  await expect(form.getByText('Share (0–1)').filter({ visible: true })).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  const results = await new AxeBuilder({ page }).include('#panel-meetings').analyze();
+  expect(results.violations).toEqual([]);
+});
