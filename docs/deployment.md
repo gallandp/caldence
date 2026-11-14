@@ -92,6 +92,18 @@ A minimal template (replace every value in square brackets; check with a lawyer 
 
 The security headers of `.htaccess` also apply to these pages: no inline styles or scripts. Use a separate `.css` file next to them if you want styling.
 
+## Search engines and link previews
+
+The release's `index.html` has a title, a description and Open Graph tags, but names no address, so a copy on your server never points at caldence.de. To add the tags that need your address (canonical link, `og:url`, the absolute preview image `social-preview.png` and JSON-LD structured data), run [`scripts/site-meta.mjs`](../scripts/site-meta.mjs) from this repository on the unpacked release before uploading it (plain Node, no install):
+
+```sh
+node scripts/site-meta.mjs caldence-x.y.z/ https://example.org/apps/caldence/
+```
+
+It also writes `sitemap.xml` and, when the app sits at the root of its host, a `robots.txt` that points to it. The release itself ships `llms.txt`, a short plain-text description for AI assistants, and `favicon.ico`.
+
+The automatic deployment below does this for caldence.de.
+
 ## Automatic deployment by SFTP (maintainers)
 
 The workflow `.github/workflows/deploy.yml` uploads a published release to a webspace by SFTP. `release.yml` starts it after every release; it can also be started by hand under Actions → Deploy → Run workflow with any published version, for a rollback.

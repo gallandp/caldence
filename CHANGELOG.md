@@ -5,6 +5,8 @@
 ### Added
 
 - Search engines, AI assistants and visitors without JavaScript see a short description of Caldence instead of an empty page (#135)
+- Search results and shared links show a title, a description and a preview image; caldence.de also tells search engines what Caldence is (structured data) (#136)
+- `llms.txt` and `favicon.ico` in the release; caldence.de also gets `robots.txt` and `sitemap.xml` (#137)
 
 ## 1.26.0 – 2026-11-14
 
