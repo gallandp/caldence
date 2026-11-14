@@ -3,12 +3,16 @@
  * public/.htaccess, public/web.config and deploy/nginx.conf; a unit test keeps them in step.
  *
  * The build loads nothing from other hosts and has no inline scripts or styles: Svelte sets dynamic
- * styles through the CSSOM (`element.style`), which style-src does not restrict.
+ * styles through the CSSOM (`element.style`), which style-src does not restrict. The one exception is
+ * the <style> block of public/404.html (#151), allowed by its hash because that page is served at any
+ * path depth and so cannot load a stylesheet by relative path. A unit test checks the hash.
  */
+export const NOT_FOUND_STYLE_HASH = "'sha256-bqsP52oChAEYqhWNUPAmSI86lrPc69gQtmQXWlP+YO4='";
+
 const DIRECTIVES = [
   "default-src 'none'",
   "script-src 'self'",
-  "style-src 'self'",
+  `style-src 'self' ${NOT_FOUND_STYLE_HASH}`,
   "img-src 'self' data:",
   "font-src 'self'",
   "connect-src 'self'",

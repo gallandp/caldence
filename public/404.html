@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Seite nicht gefunden · Page not found – Caldence</title>
+    <!-- Served for any missing URL at any depth (#151), so it loads nothing by relative path: the
+         logo is inline and the styles are allowed by their hash in the Content Security Policy
+         (security-headers.ts). After editing the styles, update that hash; a unit test checks it. -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: light-dark(#f4f5fb, #0a0c18);
+        --surface: light-dark(#ffffff, #12152a);
+        --surface-2: light-dark(#f1f2f9, #191d36);
+        --text: light-dark(#0f1426, #eceefa);
+        --text-muted: light-dark(#555d74, #a8aec8);
+        --border: light-dark(#e2e5f0, #262b49);
+        --accent: light-dark(#5340e6, #a99dff);
+        --accent-hover: light-dark(#4431d1, #c2b9ff);
+        --on-accent: light-dark(#ffffff, #120e33);
+        --glow-a: light-dark(rgb(139 123 255 / 0.22), rgb(139 123 255 / 0.3));
+        --glow-b: light-dark(rgb(34 195 238 / 0.16), rgb(34 195 238 / 0.16));
+        --event-a: light-dark(#d9d4ff, #3a3370);
+        --event-b: light-dark(#c8eef8, #17445a);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI Variable',
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        line-height: 1.5;
+        color: var(--text);
+        background:
+          radial-gradient(40rem 28rem at 12% 0%, var(--glow-a), transparent 70%),
+          radial-gradient(36rem 26rem at 95% 100%, var(--glow-b), transparent 70%), var(--bg);
+      }
+      main {
+        width: 100%;
+        max-width: 34rem;
+        padding: 2rem clamp(1.25rem, 5vw, 2.5rem) 2.25rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        box-shadow:
+          0 1px 2px light-dark(rgb(15 20 38 / 0.04), rgb(0 0 0 / 0.5)),
+          0 24px 64px -24px light-dark(rgb(15 20 38 / 0.25), rgb(0 0 0 / 0.7));
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        letter-spacing: -0.01em;
+      }
+      .brand svg {
+        width: 2rem;
+        height: 2rem;
+        flex: none;
+      }
+      .week {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: clamp(0.25rem, 1.2vw, 0.4rem);
+        margin: 2rem 0 1.75rem;
+      }
+      .day {
+        aspect-ratio: 3 / 4;
+        border-radius: 0.55rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        padding: 0.35rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .day i {
+        display: block;
+        height: 0.4rem;
+        border-radius: 1rem;
+        background: var(--event-a);
+      }
+      .day i + i {
+        background: var(--event-b);
+        width: 70%;
+      }
+      .day.off {
+        opacity: 0.55;
+      }
+      .day.missing {
+        border: 2px dashed var(--accent);
+        background: transparent;
+        justify-content: center;
+        align-items: center;
+        transform: translateY(-0.35rem) rotate(-3deg);
+        font-weight: 800;
+        font-size: clamp(0.85rem, 3.4vw, 1.15rem);
+        letter-spacing: -0.02em;
+        color: var(--accent);
+      }
+      .eyebrow {
+        margin: 0 0 0.35rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h1 {
+        margin: 0 0 0.6rem;
+        font-size: clamp(1.45rem, 5vw, 1.85rem);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+      p {
+        margin: 0;
+        color: var(--text-muted);
+      }
+      .en {
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.95rem;
+      }
+      .en strong {
+        color: var(--text);
+      }
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 1.75rem;
+        padding: 0.7rem 1.2rem;
+        border-radius: 0.6rem;
+        background: var(--accent);
+        color: var(--on-accent);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a.button:hover {
+        background: var(--accent-hover);
+      }
+      a.button:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+      a.button svg {
+        width: 1.1rem;
+        height: 1.1rem;
+      }
+      @media (forced-colors: active) {
+        a.button {
+          border: 1px solid ButtonText;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#8b7bff" />
+              <stop offset="1" stop-color="#22c3ee" />
+            </linearGradient>
+          </defs>
+          <rect width="32" height="32" rx="9" fill="url(#g)" />
+          <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6.5" y="8.5" width="19" height="17" rx="3.5" stroke-width="2" />
+            <path d="M11.5 6v4.5M20.5 6v4.5" stroke-width="2" />
+            <path d="M9 18.5h3.2l1.6-3.5 2.4 6.5 2-4.6 1 1.6H23" stroke-width="1.9" />
+          </g>
+        </svg>
+        Caldence
+      </div>
+
+      <div class="week" aria-hidden="true">
+        <div class="day"><i></i><i></i></div>
+        <div class="day"><i></i></div>
+        <div class="day"><i></i><i></i></div>
+        <div class="day missing">404</div>
+        <div class="day"><i></i></div>
+        <div class="day off"></div>
+        <div class="day off"></div>
+      </div>
+
+      <p class="eyebrow">Fehler 404 · Error 404</p>
+      <h1>Diese Seite steht in keinem Kalender.</h1>
+      <p>
+        Die Adresse gibt es nicht oder nicht mehr. Vielleicht hat sich ein Tippfehler
+        eingeschlichen, oder der Link ist veraltet.
+      </p>
+      <p class="en" lang="en">
+        <strong>This page isn’t on any calendar.</strong> The address doesn’t exist, or no longer
+        does. Perhaps a typo, or an outdated link.
+      </p>
+
+      <a class="button" href="/" data-home>
+        <span>Zu Caldence · <span lang="en">Open Caldence</span></span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </a>
+    </main>
+  </body>
+</html>

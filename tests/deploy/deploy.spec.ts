@@ -87,6 +87,24 @@ for (const base of urls) {
         expect((await request.get(base + file)).status(), file).toBeGreaterThanOrEqual(400);
     });
 
+    test('unknown addresses get the 404 page at any depth (#151)', async ({ page }) => {
+      test.skip(!checkHeaders, 'plain servers have no error page');
+      const violations: string[] = [];
+      page.on('console', (m) => {
+        if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+      });
+      for (const path of ['no-such-page', 'a/b/c/no-such-page.html']) {
+        const response = await page.goto(base + path);
+        expect(response?.status(), path).toBe(404);
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+          'Diese Seite steht in keinem Kalender.',
+        );
+        // The styles applied, so the policy allowed them.
+        await expect(page.locator('main')).toHaveCSS('border-top-style', 'solid');
+      }
+      expect(violations).toEqual([]);
+    });
+
     test('the app runs under the policy without violations (#42)', async ({ page }) => {
       const violations: string[] = [];
       page.on('console', (m) => {

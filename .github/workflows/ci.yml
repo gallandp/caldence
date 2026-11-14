@@ -61,6 +61,8 @@ jobs:
         run: |
           mkdir -p srv/apps/caldence
           unzip -q caldence-*.zip -d srv/apps/caldence
+          # As deploy.yml does for caldence.de; this turns on the 404 page (#151) for the folder.
+          node scripts/site-meta.mjs srv/apps/caldence https://localhost/apps/caldence/
       - name: Start Apache and nginx
         run: |
           docker run -d --name apache -p 8081:80 \

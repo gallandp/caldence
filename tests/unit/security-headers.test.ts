@@ -1,6 +1,13 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CSP, CSP_META, injectCspMeta, SECURITY_HEADERS } from '../../security-headers';
+import {
+  CSP,
+  CSP_META,
+  injectCspMeta,
+  NOT_FOUND_STYLE_HASH,
+  SECURITY_HEADERS,
+} from '../../security-headers';
 
 const read = (p: string) => readFileSync(p, 'utf8');
 
@@ -43,5 +50,13 @@ describe('security headers (security #42)', () => {
     expect(html).toContain(meta);
     expect(html.indexOf(meta)).toBeLessThan(html.indexOf('<script'));
     expect(html.indexOf(meta)).toBeGreaterThan(html.indexOf('<meta charset'));
+  });
+
+  it('allows exactly the styles of 404.html (#151)', () => {
+    const blocks = [...read('public/404.html').matchAll(/<style>([^]*?)<\/style>/g)];
+    expect(blocks).toHaveLength(1);
+    const hash = createHash('sha256').update(blocks[0]![1]!).digest('base64');
+    expect(NOT_FOUND_STYLE_HASH).toBe(`'sha256-${hash}'`);
+    expect(CSP).toContain(`style-src 'self' ${NOT_FOUND_STYLE_HASH};`);
   });
 });
