@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { openExample, useFileFallback } from './helpers';
@@ -211,4 +212,48 @@ test('on narrow screens the views open from a menu', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(toggle).toBeFocused();
+});
+
+test('on narrow screens the file bar is one row with Save and a menu for the rest', async ({
+  page,
+}) => {
+  await useFileFallback(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExample(page);
+  const bar = page.locator('.content > .bar:not(.context)');
+  const save = bar.getByRole('button', { name: 'Save', exact: true });
+  const more = bar.getByRole('button', { name: 'More file actions' });
+  await expect(save).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'New', exact: true })).toBeHidden();
+  const name = (await bar.locator('.name').boundingBox())!;
+  const saveBox = (await save.boundingBox())!;
+  expect(Math.abs(name.y - saveBox.y)).toBeLessThan(saveBox.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  // The menu opens on its first entry and Escape returns to its button.
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await more.click();
+  await expect(more).toHaveAttribute('aria-expanded', 'true');
+  await expect(bar.getByRole('button', { name: 'New', exact: true })).toBeFocused();
+  await expect(bar.getByRole('button', { name: 'Save as' })).toBeVisible();
+  const result = await new AxeBuilder({ page }).include('.content > .bar').analyze();
+  expect(result.violations).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(more).toBeFocused();
+
+  // An entry closes the menu and runs its action.
+  await more.click();
+  await bar.getByRole('button', { name: 'New', exact: true }).click();
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
+});
+
+test('on narrow screens the role and person filters share one row', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExample(page);
+  const role = (await page.getByLabel('Role', { exact: true }).boundingBox())!;
+  const person = (await page.getByLabel('Person', { exact: true }).boundingBox())!;
+  expect(Math.abs(role.y - person.y)).toBeLessThan(2);
+  await expect(page.getByRole('region', { name: 'Show for' })).toBeVisible();
 });
