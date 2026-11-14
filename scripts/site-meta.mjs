@@ -5,7 +5,7 @@
 // Plain Node without dependencies, like deploy-plan.mjs.
 //
 //   node scripts/site-meta.mjs <site-dir> <base-url>     base URL ends in "/", e.g. https://caldence.de/
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -102,7 +102,8 @@ export function apply(dir, base, date = new Date().toISOString().slice(0, 10)) {
   // Releases before #151 have no 404.html; a rollback to one still deploys. Checked first, so a
   // failure leaves the folder untouched.
   const notFound = join(dir, '404.html');
-  const page = existsSync(notFound) ? setHomeLink(readFileSync(notFound, 'utf8'), base) : null;
+  const original = readIfExists(notFound);
+  const page = original === null ? null : setHomeLink(original, base);
   const index = join(dir, 'index.html');
   writeFileSync(index, addHeadTags(readFileSync(index, 'utf8'), base));
   writeFileSync(join(dir, 'sitemap.xml'), sitemap(base, date));
@@ -111,8 +112,18 @@ export function apply(dir, base, date = new Date().toISOString().slice(0, 10)) {
   if (page === null) return;
   writeFileSync(notFound, page);
   const htaccess = join(dir, '.htaccess');
-  if (existsSync(htaccess))
-    writeFileSync(htaccess, addErrorDocument(readFileSync(htaccess, 'utf8'), base));
+  const rules = readIfExists(htaccess);
+  if (rules !== null) writeFileSync(htaccess, addErrorDocument(rules, base));
+}
+
+/** Reads a file, or returns null when it is missing (no separate exists check, so no race). */
+function readIfExists(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
