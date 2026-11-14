@@ -29,15 +29,15 @@ Overwrite all files with those of the new ZIP. Users see the "new version" promp
 
 ## Apache
 
-The included `.htaccess` sets the MIME types and cache headers. The folder needs `AllowOverride FileInfo` (the CI smoke test runs with exactly that) and `mod_mime`. `mod_headers` is optional: without it the cache headers are missing, but the app still works; updates may then be delayed by browser caches. Alternatively, copy the directives from `.htaccess` into the vhost.
+The included `.htaccess` sets the MIME types and cache headers. The folder needs `AllowOverride FileInfo` (the CI smoke test runs with exactly that) and `mod_mime`. `mod_headers` is optional: without it the cache headers are missing, but the app still works; updates may then be delayed by browser caches. With `mod_deflate` and `mod_filter`, text files (HTML, JavaScript, CSS, SVG, JSON) are sent gzip-compressed, which makes the first start noticeably faster; without them they go out uncompressed. Alternatively, copy the directives from `.htaccess` into the vhost.
 
 ## nginx
 
-Include [`deploy/nginx.conf`](../deploy/nginx.conf) in your configuration and adjust `root` and the `/apps/caldence/` path. It sets the MIME type of `.webmanifest`, the cache headers, and `absolute_redirect off` so the redirect to the trailing slash keeps the host and port.
+Include [`deploy/nginx.conf`](../deploy/nginx.conf) in your configuration and adjust `root` and the `/apps/caldence/` path. It sets the MIME type of `.webmanifest`, gzip compression, the cache headers, and `absolute_redirect off` so the redirect to the trailing slash keeps the host and port.
 
 ## IIS
 
-`web.config` is included in the ZIP and sets the same MIME types and cache headers. The only difference: IIS cannot match the hashed `workbox-*.js` file name, so that file is served with `no-cache` instead of `immutable`.
+`web.config` is included in the ZIP and sets the same MIME types and cache headers, and turns on static compression (needs the IIS feature "Static Content Compression"). The only difference: IIS cannot match the hashed `workbox-*.js` file name, so that file is served with `no-cache` instead of `immutable`.
 
 ## Security headers
 
@@ -136,7 +136,7 @@ Run `python3 -m http.server` in the unzipped folder and open `http://localhost:8
 
 ## Checking a deployment
 
-CI runs a smoke test against Apache (`httpd:2.4`) and nginx: the app starts, works offline, sends the security headers, runs without policy violations and does not serve `README.txt`, `web.config` or `.htaccess`. To run it against your own server:
+CI runs a smoke test against Apache (`httpd:2.4`) and nginx: the app starts, works offline, sends the security headers, runs without policy violations, compresses text files and does not serve `README.txt`, `web.config` or `.htaccess`. To run it against your own server:
 
 ```sh
 DEPLOY_URLS=https://example.com/apps/caldence/ npx playwright test -c playwright.deploy.config.ts

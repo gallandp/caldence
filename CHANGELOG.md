@@ -6,6 +6,10 @@
 
 - Search engines, AI assistants and visitors without JavaScript see a short description of Caldence instead of an empty page (#135)
 
+### Changed
+
+- Faster first start: the included server configurations send text files gzip-compressed (#138)
+
 ## 1.25.0 – 2026-11-14
 
 ### Changed
