@@ -1,5 +1,6 @@
 // Takes the README screenshots from the built app. Run `npm run build` first, then `npm run screenshots`.
 // Usage: node scripts/screenshots.mjs [--out <dir>]  (default: docs/screenshots)
+// Also writes public/social-preview.png, the 1200×630 link preview (og:image, #136).
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -50,10 +51,14 @@ async function waitFor(url) {
   throw new Error(`vite preview did not answer at ${url}`);
 }
 
-async function shoot(browser, base, { name, locale, dark = false, steps }) {
+async function shoot(
+  browser,
+  base,
+  { name, locale, dark = false, steps, path = `${out}/${name}.png`, social = false },
+) {
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 800 },
-    deviceScaleFactor: 2,
+    viewport: social ? { width: 1200, height: 630 } : { width: 1280, height: 800 },
+    deviceScaleFactor: social ? 1 : 2,
     locale: locale === 'de' ? 'de-DE' : 'en-US',
     colorScheme: dark ? 'dark' : 'light',
   });
@@ -65,8 +70,8 @@ async function shoot(browser, base, { name, locale, dark = false, steps }) {
     await page.locator(`html[lang="${locale}"]`).waitFor();
     await steps(page, locale);
     await page.evaluate(() => document.fonts.ready);
-    await page.screenshot({ path: `${out}/${name}.png` });
-    console.log(`${out}/${name}.png`);
+    await page.screenshot({ path });
+    console.log(path);
   } finally {
     await context.close();
   }
@@ -148,6 +153,14 @@ try {
         await shoot(browser, base, { name: `${view}-${locale}-dark`, locale, dark, steps });
     }
   }
+  const calendar = shots.find((s) => s.view === 'calendar');
+  await shoot(browser, base, {
+    name: 'social-preview',
+    locale: 'en',
+    steps: calendar.steps,
+    path: `${root}public/social-preview.png`,
+    social: true,
+  });
 } finally {
   await browser?.close();
   stop();

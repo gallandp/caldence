@@ -6,6 +6,20 @@
 
 - Meeting form: participants are aligned rows with the column heads once, a quiet remove button and an add button with an icon; on a phone the role gets a row of its own
 
+## 1.28.0 – 2026-11-14
+
+### Changed
+
+- Friendly 404 page in the Caldence look (#152)
+
+## 1.27.0 – 2026-11-14
+
+### Added
+
+- Search engines, AI assistants and visitors without JavaScript see a short description of Caldence instead of an empty page (#135)
+- Search results and shared links show a title, a description and a preview image; caldence.de also tells search engines what Caldence is (structured data) (#136)
+- `llms.txt` and `favicon.ico` in the release; caldence.de also gets `robots.txt` and `sitemap.xml` (#137)
+
 ## 1.26.0 – 2026-11-14
 
 ### Changed

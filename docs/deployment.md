@@ -43,7 +43,7 @@ Include [`deploy/nginx.conf`](../deploy/nginx.conf) in your configuration and ad
 
 `.htaccess`, `web.config` and `deploy/nginx.conf` send these headers with every response (the values are kept in [`security-headers.ts`](../security-headers.ts), and a unit test checks that the three files match it):
 
-- `Content-Security-Policy`: the app loads only its own files and no inline scripts or styles, and it may not be shown in a frame of another site (`frame-ancestors 'none'`).
+- `Content-Security-Policy`: the app loads only its own files and no inline scripts or styles (except the styles of `404.html`, allowed by their hash), and it may not be shown in a frame of another site (`frame-ancestors 'none'`).
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` and a `Permissions-Policy` that switches off camera, microphone, location and similar features.
 
 The build also puts the same policy (without `frame-ancestors`, which browsers ignore there) into a `<meta>` tag of `index.html`, so a host without `mod_headers` still gets most of the protection. `README.txt` and `web.config` answer 404 on Apache (with `mod_alias`), nginx and IIS.
@@ -92,6 +92,28 @@ A minimal template (replace every value in square brackets; check with a lawyer 
 
 The security headers of `.htaccess` also apply to these pages: no inline styles or scripts. Use a separate `.css` file next to them if you want styling.
 
+## Page for unknown addresses (404)
+
+The ZIP contains `404.html`, a page in the Caldence look that tells visitors in German and English that an address does not exist and links to the app. It loads nothing by relative path, so it works for missing addresses at any depth. The server needs to know where it is, and that depends on your folder:
+
+- **Apache:** add `ErrorDocument 404 /apps/caldence/404.html` (your path from the host root) to `.htaccess`. `scripts/site-meta.mjs` (next section) does this for you.
+- **nginx:** `deploy/nginx.conf` already has `error_page 404 /apps/caldence/404.html;`; adjust the path.
+- **IIS:** add an `<httpErrors>` entry for 404 that points at the file.
+
+The button links to `/`. For a site in a folder, `scripts/site-meta.mjs` changes it to the folder; otherwise edit the `href` with the `data-home` attribute yourself.
+
+## Search engines and link previews
+
+The release's `index.html` has a title, a description and Open Graph tags, but names no address, so a copy on your server never points at caldence.de. To add the tags that need your address (canonical link, `og:url`, the absolute preview image `social-preview.png` and JSON-LD structured data), run [`scripts/site-meta.mjs`](../scripts/site-meta.mjs) from this repository on the unpacked release before uploading it (plain Node, no install):
+
+```sh
+node scripts/site-meta.mjs caldence-x.y.z/ https://example.org/apps/caldence/
+```
+
+It also turns on the 404 page (see above), writes `sitemap.xml` and, when the app sits at the root of its host, a `robots.txt` that points to it. The release itself ships `llms.txt`, a short plain-text description for AI assistants, and `favicon.ico`.
+
+The automatic deployment below does this for caldence.de.
+
 ## Automatic deployment by SFTP (maintainers)
 
 The workflow `.github/workflows/deploy.yml` uploads a published release to a webspace by SFTP. `release.yml` starts it after every release; it can also be started by hand under Actions → Deploy → Run workflow with any published version, for a rollback.
@@ -136,7 +158,7 @@ Run `python3 -m http.server` in the unzipped folder and open `http://localhost:8
 
 ## Checking a deployment
 
-CI runs a smoke test against Apache (`httpd:2.4`) and nginx: the app starts, works offline, sends the security headers, runs without policy violations, compresses text files and does not serve `README.txt`, `web.config` or `.htaccess`. To run it against your own server:
+CI runs a smoke test against Apache (`httpd:2.4`) and nginx: the app starts, works offline, sends the security headers, runs without policy violations, compresses text files, answers unknown addresses with the 404 page and does not serve `README.txt`, `web.config` or `.htaccess`. To run it against your own server:
 
 ```sh
 DEPLOY_URLS=https://example.com/apps/caldence/ npx playwright test -c playwright.deploy.config.ts

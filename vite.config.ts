@@ -42,6 +42,8 @@ export default defineConfig({
       workbox: {
         // manifest.webmanifest is added by the plugin itself.
         globPatterns: ['**/*.{js,css,html,svg,png,json}'],
+        // Only for link previews (#136) and the server's error page (#151); the app never shows them.
+        globIgnores: ['social-preview.png', '404.html'],
         // No navigateFallback: the app has one page, and precacheAndRoute serves ./ via
         // directoryIndex. A fallback would answer every other page in scope with the app.
         navigateFallback: null,

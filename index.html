@@ -5,11 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <title>Caldence</title>
+    <title>Caldence – plan the recurring meetings of agile teams</title>
+    <!-- Search and link preview (#136). Tags that name the site's address (canonical, og:url,
+         og:image, JSON-LD) are added per site by scripts/site-meta.mjs, not here. -->
+    <meta
+      name="description"
+      content="Plan the recurring meetings of agile teams (Scrum, Kanban, SAFe) and export them to Outlook, Google or Apple Calendar. Free, open source, private."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Caldence" />
+    <meta property="og:title" content="Caldence – plan the recurring meetings of agile teams" />
+    <meta
+      property="og:description"
+      content="Plan the recurring meetings of agile teams (Scrum, Kanban, SAFe) and export them to Outlook, Google or Apple Calendar. Free, open source, private."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <script src="./theme-init.js"></script>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Shown without JavaScript and read by crawlers that run none (#135). main.ts removes it
+           before the app mounts; theme-init.js hides it until then. Names no domain, so
+           self-hosted copies can ship it unchanged. -->
+      <main class="static-intro">
+        <h1>Caldence</h1>
+        <p>
+          Caldence plans the recurring meetings of agile roles and teams and exports them to
+          Outlook, Google Calendar and Apple Calendar. It is free and open source, and everything
+          stays in your browser: no account, no server, no tracking.
+        </p>
+        <h2>Features</h2>
+        <ul>
+          <li>
+            Teams, people and roles (Product Owner, Scrum Master, developers) with working hours
+          </li>
+          <li>
+            Recurring meetings: weekly, selected weekdays, every n weeks, monthly, cadence day,
+            sprint or cycle milestone, once
+          </li>
+          <li>Templates for Scrum, Kanban and SAFe, plus your own template files</li>
+          <li>
+            Calendar by week, month or the whole planning horizon, with public and school holidays
+          </li>
+          <li>
+            Load per person and role, warnings when a week is unusually full, optional meeting costs
+          </li>
+          <li>Export and import as .ics files</li>
+          <li>
+            Installable app that works offline; German and English; built for keyboard and screen
+            readers
+          </li>
+        </ul>
+        <p>Caldence needs JavaScript. Please turn it on to use the app.</p>
+        <section lang="de">
+          <h2>Caldence auf Deutsch</h2>
+          <p>
+            Caldence plant die wiederkehrenden Termine agiler Rollen und Teams (Scrum, Kanban, SAFe)
+            und exportiert sie nach Outlook, Google Kalender und Apple Kalender. Kostenlos, Open
+            Source, und alle Daten bleiben in Ihrem Browser. Bitte aktivieren Sie JavaScript, um die
+            App zu nutzen.
+          </p>
+        </section>
+        <p>
+          Source code, documentation and file formats:
+          <a href="https://github.com/gallandp/caldence">github.com/gallandp/caldence</a>
+          (AGPL-3.0-or-later).
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

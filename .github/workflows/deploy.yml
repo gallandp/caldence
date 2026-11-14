@@ -44,12 +44,14 @@ jobs:
             echo "::error::Not a version: $VERSION"
             exit 1
           fi
-      # Only for scripts/deploy-plan.mjs, at the commit of this run (main), before the key is
-      # written. It runs on the runner's preinstalled Node; nothing is downloaded or installed.
+      # Only for scripts/deploy-plan.mjs and scripts/site-meta.mjs, at the commit of this run
+      # (main), before the key is written. It runs on the runner's preinstalled Node; nothing is downloaded or installed.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: scripts/deploy-plan.mjs
+          sparse-checkout: |
+            scripts/deploy-plan.mjs
+            scripts/site-meta.mjs
           sparse-checkout-cone-mode: false
       - name: Download and check the release
         env:
@@ -67,6 +69,12 @@ jobs:
           gh attestation verify "caldence-$VERSION.zip" --repo "$REPO" \
             --signer-workflow "$REPO/.github/workflows/release.yml" --source-ref refs/heads/main
           unzip -q "caldence-$VERSION.zip" -d ../site
+      # The release names no domain; add canonical, preview image URL and JSON-LD for this site.
+      - name: Add the site metadata
+        env:
+          SITE_META: ${{ github.workspace }}/scripts/site-meta.mjs
+        working-directory: ${{ runner.temp }}
+        run: node "$SITE_META" site https://caldence.de/
       - name: Write the key and the pinned host key
         env:
           SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
