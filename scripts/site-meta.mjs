@@ -5,7 +5,7 @@
 // Plain Node without dependencies, like deploy-plan.mjs.
 //
 //   node scripts/site-meta.mjs <site-dir> <base-url>     base URL ends in "/", e.g. https://caldence.de/
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,8 +84,8 @@ export function robots(base) {
 /** Apache's ErrorDocument needs the path from the host root, so it is added per site. */
 export function addErrorDocument(htaccess, base) {
   checkBase(base);
-  if (htaccess.includes('ErrorDocument 404'))
-    throw new Error('.htaccess already has an ErrorDocument');
+  // Already there, e.g. added by hand: keep it.
+  if (htaccess.includes('ErrorDocument 404')) return htaccess;
   const path = new URL(base).pathname;
   return `${htaccess.trimEnd()}\n\n# Friendly page for unknown addresses (#151), added by scripts/site-meta.mjs.\nErrorDocument 404 ${path}404.html\n`;
 }
@@ -99,15 +99,20 @@ export function setHomeLink(html, base) {
 }
 
 export function apply(dir, base, date = new Date().toISOString().slice(0, 10)) {
+  // Releases before #151 have no 404.html; a rollback to one still deploys. Checked first, so a
+  // failure leaves the folder untouched.
+  const notFound = join(dir, '404.html');
+  const page = existsSync(notFound) ? setHomeLink(readFileSync(notFound, 'utf8'), base) : null;
   const index = join(dir, 'index.html');
   writeFileSync(index, addHeadTags(readFileSync(index, 'utf8'), base));
   writeFileSync(join(dir, 'sitemap.xml'), sitemap(base, date));
   const text = robots(base);
   if (text) writeFileSync(join(dir, 'robots.txt'), text);
+  if (page === null) return;
+  writeFileSync(notFound, page);
   const htaccess = join(dir, '.htaccess');
-  writeFileSync(htaccess, addErrorDocument(readFileSync(htaccess, 'utf8'), base));
-  const notFound = join(dir, '404.html');
-  writeFileSync(notFound, setHomeLink(readFileSync(notFound, 'utf8'), base));
+  if (existsSync(htaccess))
+    writeFileSync(htaccess, addErrorDocument(readFileSync(htaccess, 'utf8'), base));
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

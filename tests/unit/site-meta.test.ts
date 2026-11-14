@@ -102,7 +102,16 @@ describe('404 page (#151)', () => {
     expect(addErrorDocument('X', 'https://example.org/apps/caldence/')).toContain(
       'ErrorDocument 404 /apps/caldence/404.html',
     );
-    expect(() => addErrorDocument(addErrorDocument('X', BASE), BASE)).toThrow();
+    const once = addErrorDocument('X', BASE);
+    expect(addErrorDocument(once, BASE)).toBe(once);
+  });
+
+  it('still handles a release from before the 404 page (rollback)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'site-meta-'));
+    writeFileSync(join(dir, 'index.html'), html);
+    writeFileSync(join(dir, '.htaccess'), 'X\n');
+    apply(dir, BASE, '2026-11-14');
+    expect(readFileSync(join(dir, '.htaccess'), 'utf8')).toBe('X\n');
   });
 
   it('points the home link at the path of the site', () => {

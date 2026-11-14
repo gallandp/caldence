@@ -13,7 +13,7 @@ AddType text/javascript .js .mjs
   Header always set X-Frame-Options "DENY"
   Header always set Permissions-Policy "accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()"
   # Always revalidate the entry points so updates reach users.
-  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+  <FilesMatch "^(index\.html|404\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
   # Files with a content hash in the name never change.
