@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- First visit: Load, Meetings & cadence and Team show the same card as long as there is no team, with Plan new and Open the example; Meetings & cadence no longer shows the categories without a team, and the sidebar's "No team yet" box no longer squeezes its text (#158)
+- The card after Plan new explains that the note about unsaved changes is about the file only, and the wizard names Team as the place for roles and people (#158)
+
 ## 1.30.0 – 2026-11-14
 
 ### Changed

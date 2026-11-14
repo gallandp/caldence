@@ -126,7 +126,7 @@ test('after the wizard a card offers the next steps once', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Create team' }).click();
   const card = calendar(page).getByRole('region', { name: 'Your team is ready' });
   await expect(card).toBeVisible();
-  await expect(card).toContainText('saved automatically');
+  await expect(card).toContainText('unsaved changes at the top is about the file only');
   await card.getByRole('button', { name: 'Share calendars' }).click();
   await expect(page.getByRole('tabpanel', { name: 'Import / Export' })).toBeVisible();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
@@ -166,12 +166,32 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
 });
 
-test('other views keep their own empty states', async ({ page }) => {
+test('the views that need a team offer the same way in', async ({ page }) => {
   await start(page);
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
-  const load = page.getByRole('tabpanel', { name: 'Load' });
-  await expect(load.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
-  await expect(load.getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
+  for (const name of ['Load', 'Meetings & cadence', 'Team']) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    const panel = page.getByRole('tabpanel', { name });
+    await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: 'Plan new', exact: true })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Open the example' })).toBeVisible();
+    // Nothing to edit without a team, not even the categories.
+    await expect(panel.getByLabel('New category name')).toHaveCount(0);
+  }
+  // Plan new opens the wizard here too and ends in the calendar with the new team.
+  await page
+    .getByRole('tabpanel', { name: 'Team' })
+    .getByRole('button', { name: 'Plan new', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await expect(dialog.getByText('Step 1 of 4')).toBeVisible();
+  for (let step = 0; step < 3; step++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(page.getByRole('tab', { name: 'Calendar', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByRole('heading', { name: 'Your team is ready' })).toBeVisible();
 });
 
 for (const locale of ['de', 'en'] as const) {
