@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Team view: People and Roles are cards of their own and follow right after Members; Assumptions come last
+
+### Fixed
+
+- The mobile menu button and the light and dark appearance buttons keep their contrast on hover
+
 ## 1.23.1 – 2026-11-14
 
 ### Changed

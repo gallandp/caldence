@@ -612,6 +612,14 @@
     stroke-width: 2;
     stroke-linecap: round;
   }
+  /* Stays on the dark header: the light hover of other buttons would hide its white text. */
+  :global(#app) header button.menu-toggle:hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+  :global(#app) header button.menu-toggle[aria-expanded='true'] {
+    border-color: rgb(255 255 255 / 0.45);
+    background: rgb(255 255 255 / 0.2);
+  }
   .menu-toggle:focus-visible {
     outline-color: #b9b0ff;
   }

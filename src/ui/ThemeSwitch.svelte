@@ -73,8 +73,10 @@
     box-shadow: none;
     font-size: inherit;
   }
-  :global(#app) .options button:hover {
+  /* Stays on the dark sidebar: the light hover of other buttons would hide the icon. */
+  :global(#app) .options button:not([aria-checked='true']):hover {
     color: #fff;
+    background: rgb(255 255 255 / 0.16);
   }
   :global(#app) .options button[aria-checked='true'] {
     color: #120e33;
