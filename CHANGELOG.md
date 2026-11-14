@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.24.0 – 2026-11-14
+
 ### Changed
 
 - Team view: People and Roles are cards of their own and follow right after Members; Assumptions come last
