@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.23.1 – 2026-11-14
+
+### Changed
+
+- deps: Bump the npm group with 2 updates (#133)
+
 ## 1.23.0 – 2026-11-13
 
 ### Changed
