@@ -236,8 +236,11 @@ test('on narrow screens the file bar is one row with Save and a menu for the res
   await expect(more).toHaveAttribute('aria-expanded', 'true');
   await expect(bar.getByRole('button', { name: 'New', exact: true })).toBeFocused();
   await expect(bar.getByRole('button', { name: 'Save as' })).toBeVisible();
-  const result = await new AxeBuilder({ page }).include('.content > .bar').analyze();
-  expect(result.violations).toEqual([]);
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    const result = await new AxeBuilder({ page }).include('.content > .bar').analyze();
+    expect(result.violations).toEqual([]);
+  }
   await page.keyboard.press('Escape');
   await expect(more).toHaveAttribute('aria-expanded', 'false');
   await expect(more).toBeFocused();
@@ -256,4 +259,8 @@ test('on narrow screens the role and person filters share one row', async ({ pag
   const person = (await page.getByLabel('Person', { exact: true }).boundingBox())!;
   expect(Math.abs(role.y - person.y)).toBeLessThan(2);
   await expect(page.getByRole('region', { name: 'Show for' })).toBeVisible();
+  // A chosen person adds "All teams" on its own row; the page does not widen.
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Alex' });
+  await expect(page.getByText('All teams')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

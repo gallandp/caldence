@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
   import { translate as t } from '../i18n';
   import { emptyWorkspace, type Workspace } from '../core/model';
@@ -127,6 +127,16 @@
   let moreOpen = $state(false);
   let moreToggle: HTMLButtonElement | undefined = $state();
   let morePanel: HTMLDivElement | undefined = $state();
+
+  // The menu belongs to narrow screens: turning a phone to a wide layout closes it.
+  onMount(() => {
+    const narrow = window.matchMedia('(max-width: 40rem)');
+    const close = () => {
+      if (!narrow.matches) moreOpen = false;
+    };
+    narrow.addEventListener('change', close);
+    return () => narrow.removeEventListener('change', close);
+  });
 
   async function toggleMore() {
     moreOpen = !moreOpen;
