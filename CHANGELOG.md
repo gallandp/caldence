@@ -6,6 +6,12 @@
 
 - Meeting form: participants are aligned rows with the column heads once, a quiet remove button and an add button with an icon; on a phone the role gets a row of its own
 
+## 1.26.0 – 2026-11-14
+
+### Changed
+
+- Faster first start: the included server configurations send text files gzip-compressed (#138)
+
 ## 1.25.0 – 2026-11-14
 
 ### Changed
