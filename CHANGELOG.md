@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Faster first start: the included server configurations send text files gzip-compressed (#138)
+
 ## 1.25.0 – 2026-11-14
 
 ### Changed

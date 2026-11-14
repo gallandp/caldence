@@ -25,6 +25,14 @@ AddType text/javascript .js .mjs
   </If>
 </IfModule>
 
+# Compress text files (#138). Needs mod_deflate and mod_filter; both may be missing, then the
+# files go out uncompressed as before. Already compressed images are left alone.
+<IfModule mod_deflate.c>
+  <IfModule mod_filter.c>
+    AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/manifest+json image/svg+xml application/xml text/xml text/plain
+  </IfModule>
+</IfModule>
+
 # Configuration, notes for operators and the deploy file list are not part of the app (mod_alias, FileInfo is enough).
 <IfModule mod_alias.c>
   RedirectMatch 404 (^|/)(README\.txt|web\.config|\.caldence-deploy-files)$
