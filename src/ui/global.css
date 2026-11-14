@@ -29,3 +29,14 @@ body {
   color: var(--danger);
   margin: 0.25rem 0 0;
 }
+
+/* Static intro of index.html for visitors and crawlers without JavaScript (#135). */
+.js .static-intro {
+  display: none;
+}
+
+.static-intro {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
