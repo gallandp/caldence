@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Manual brought up to date: people are added in Team, the settings chapter and the "Where is each value set?" table name the hourly rate, Load mentions the costs card, the first steps mention the card after Plan new, and a new paragraph explains the phone layout (views menu, ⋯ file menu) (#159)
+
 ## 1.30.0 – 2026-11-14
 
 ### Changed

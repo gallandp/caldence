@@ -12,6 +12,7 @@
     { label: 'settings.horizon', view: 'settings' },
     { label: 'settings.skipHolidays', view: 'settings' },
     { label: 'settings.thresholds', view: 'settings' },
+    { label: 'settings.hourlyRate', view: 'settings' },
     { label: 'team.members', view: 'team' },
     { label: 'team.members.hours', view: 'team' },
     { label: 'settings.people', view: 'team' },
@@ -33,6 +34,7 @@
         team: 'view.team',
         meetings: 'view.meetings',
         assumptions: 'team.assumptions',
+        hourlyRate: 'settings.hourlyRate',
       }}
     />
   </p>

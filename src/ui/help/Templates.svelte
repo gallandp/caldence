@@ -25,7 +25,6 @@
           team: 'templates.export.team',
           name: 'templates.export.name',
           exportButton: 'templates.export.button',
-          settings: 'view.settings',
           teamView: 'view.team',
         }}
         keys={{ undo: $shortcut('undo') }}
