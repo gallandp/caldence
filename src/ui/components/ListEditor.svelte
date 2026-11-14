@@ -181,9 +181,14 @@
   }
 </script>
 
-<section class="list" bind:this={root} aria-labelledby="{uid}-h">
+<section
+  class="list"
+  bind:this={root}
+  aria-labelledby="{uid}-h"
+  aria-describedby={hint ? `${uid}-hint` : undefined}
+>
   <h3 id="{uid}-h">{heading}</h3>
-  {#if hint}<p class="hint">{hint}</p>{/if}
+  {#if hint}<p class="hint" id="{uid}-hint">{hint}</p>{/if}
   {#if items.length === 0}
     <p class="empty">{$t('list.empty')}</p>
   {:else}

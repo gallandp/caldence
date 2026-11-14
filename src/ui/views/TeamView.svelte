@@ -237,7 +237,6 @@
   {#if !team}
     <div class="card">
       <p class="empty">{$t('team.view.none')}</p>
-      {@render info()}
     </div>
   {:else}
     <!-- Members first, then the people and roles they are made of, then the assumptions. -->
@@ -396,6 +395,7 @@
           {/snippet}
         </ListEditor>
       </div>
+      <!-- Like Members, Assumptions start afresh with each epoch (see Problems). -->
       {#key epoch}
         <section class="card" aria-labelledby="{uid}-assumptions-h">
           <h3 id="{uid}-assumptions-h">{$t('team.assumptions')}</h3>
@@ -483,10 +483,13 @@
 </div>
 
 <style>
-  /* Cards flow in reading order: two per row on a wide screen, one below the other on a phone. */
+  /* Cards flow in reading order: at most two per row, one below the other on a phone. */
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(min(100%, max(26rem, calc((100% - 1.25rem) / 2))), 1fr)
+    );
     gap: 1.25rem;
     align-items: start;
   }
