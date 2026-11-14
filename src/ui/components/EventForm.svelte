@@ -38,10 +38,15 @@
     perUnit: number | null;
     assumption: string;
     grid: number | null;
-    participants: { roleId: string; share: number | null }[];
+    /** `key` only tells the rows apart while editing; it is not saved. */
+    participants: { key: number; roleId: string; share: number | null }[];
     /** Percent, 0 to 100. */
     preparation: number | null;
   }
+
+  let nextKey = 0;
+  let addButton: HTMLButtonElement | undefined = $state();
+  let partsList: HTMLUListElement | undefined = $state();
 
   function init(e: CalEvent): Draft {
     const s = e.scaling;
@@ -56,7 +61,7 @@
       perUnit: s?.perUnit ?? 5,
       assumption: s?.assumption ?? Object.keys(team.assumptions)[0] ?? '',
       grid: s?.grid ?? 5,
-      participants: e.participants.map((p) => ({ ...p })),
+      participants: e.participants.map((p) => ({ key: nextKey++, ...p })),
       preparation: Math.round(e.preparation * 10000) / 100,
     };
   }
@@ -113,16 +118,22 @@
     };
   }
 
-  function addParticipant() {
+  /** The new row's role takes the focus (the add button may now be disabled). */
+  async function addParticipant() {
     const free = roles.find((r) => !draft.participants.some((p) => p.roleId === r.id));
     if (!free) return;
-    draft.participants.push({ roleId: free.id, share: 1 });
+    draft.participants.push({ key: nextKey++, roleId: free.id, share: 1 });
     clearParticipantErrors();
+    await tick();
+    partsList?.querySelector<HTMLElement>('li:last-child select')?.focus();
   }
 
-  function removeParticipant(i: number) {
+  /** The removed row's button is gone: focus moves to the add button. */
+  async function removeParticipant(i: number) {
     draft.participants.splice(i, 1);
     clearParticipantErrors();
+    await tick();
+    addButton?.focus();
   }
 
   function onChange(e: Event) {
@@ -394,8 +405,8 @@
           <div class="part-grid part-heads" aria-hidden="true">
             <span>{$t('meet.participants.role')}</span><span>{$t('meet.participants.share')}</span>
           </div>
-          <ul class="parts">
-            {#each draft.participants as p, i (i)}
+          <ul class="parts" bind:this={partsList}>
+            {#each draft.participants as p, i (p.key)}
               <li class="part-grid">
                 <div class="field role">
                   <select
@@ -410,7 +421,6 @@
                       <option value={r.id}>{r.name}</option>
                     {/each}
                   </select>
-                  {@render err(`participants.${i}.roleId`, $t('meet.participants.role'))}
                 </div>
                 <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
                 <div class="field share">
@@ -426,7 +436,6 @@
                     aria-invalid={invalid(`participants.${i}.share`)}
                     aria-describedby={describe(`participants.${i}.share`, `${uid}-share-hint`)}
                   />
-                  {@render err(`participants.${i}.share`, $t('meet.participants.share'))}
                 </div>
                 <button
                   type="button"
@@ -437,6 +446,9 @@
                     ><path d="M6 6l12 12M18 6L6 18" /></svg
                   ></button
                 >
+                <!-- Errors span the row below its fields. -->
+                {@render err(`participants.${i}.roleId`, roleName(p.roleId))}
+                {@render err(`participants.${i}.share`, roleName(p.roleId))}
               </li>
             {/each}
           </ul>
@@ -445,6 +457,7 @@
       <button
         type="button"
         class="secondary add"
+        bind:this={addButton}
         disabled={roles.length === 0 || draft.participants.length >= roles.length}
         onclick={addParticipant}
         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
@@ -547,8 +560,12 @@
     grid-template-columns: minmax(0, 1fr) 5rem 2.5rem;
     grid-template-areas: 'role share remove';
     gap: 0.4rem;
-    align-items: start;
+    align-items: center;
     max-width: 34rem;
+  }
+  .part-grid > .field-error {
+    grid-column: 1 / -1;
+    margin: 0;
   }
   .part-grid .role {
     grid-area: role;
@@ -569,7 +586,7 @@
     color: var(--text-muted);
   }
   @container (max-width: 22rem) {
-    .part-heads {
+    .part-heads > :last-child {
       display: none;
     }
     .parts .part-grid {

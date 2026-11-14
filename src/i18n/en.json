@@ -338,7 +338,7 @@
   "meet.participants": "Participants",
   "meet.participants.role": "Role",
   "meet.participants.share": "Share (0–1)",
-  "meet.participants.shareOf": "Share of {role} (0–1)",
+  "meet.participants.shareOf": "Share (0–1): {role}",
   "meet.participants.hint": "1 = always, 0.5 = every other time",
   "meet.participants.add": "Add participant",
   "meet.participants.remove": "Remove {role}",

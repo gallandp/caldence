@@ -476,9 +476,11 @@ test('participants are aligned rows: role, share and remove, with column heads o
   await form.getByRole('button', { name: 'Add participant' }).click();
   const roles = form.getByLabel('Role', { exact: true });
   await expect(roles).toHaveCount(3);
+  // The new row's role takes the focus (all roles are used, so the add button is disabled).
+  await expect(roles.nth(2)).toBeFocused();
   // One visible "Role" head for all rows; each share field names its role.
   await expect(form.getByText('Role', { exact: true })).toHaveCount(1);
-  const share = form.getByLabel('Share of Developer (0–1)');
+  const share = form.getByLabel('Share (0–1): Developer');
   await expect(share).toHaveValue('1');
   const remove = form.getByRole('button', { name: 'Remove Developer' });
   const [r, s, x] = await Promise.all([
@@ -490,6 +492,17 @@ test('participants are aligned rows: role, share and remove, with column heads o
   expect(Math.abs(r!.y - s!.y)).toBeLessThan(3);
   await remove.click();
   await expect(roles).toHaveCount(2);
+  await expect(form.getByRole('button', { name: 'Add participant' })).toBeFocused();
+
+  // A share out of range is explained under its row, naming the role.
+  await form.getByLabel('Share (0–1): Scrum Master').fill('2');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form.getByText(/Scrum Master/).filter({ visible: true })).not.toHaveCount(0);
+  await expect(form.getByLabel('Share (0–1): Scrum Master')).toHaveAttribute(
+    'aria-invalid',
+    'true',
+  );
+  await form.getByLabel('Share (0–1): Scrum Master').fill('1');
 
   // On a phone the role gets its own row and the share its own label; nothing overflows.
   await page.setViewportSize({ width: 375, height: 800 });
