@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.29.0 – 2026-11-14
+
 ### Changed
 
 - Meetings table: the headings Meeting, Next and Cost sort it, and meetings on the same day follow their start time; "By category" groups the rows with each category's cost per week (#150)
