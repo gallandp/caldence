@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.28.0 – 2026-11-14
+
+### Changed
+
+- Friendly 404 page in the Caldence look (#152)
+
 ## 1.27.0 – 2026-11-14
 
 ### Added
