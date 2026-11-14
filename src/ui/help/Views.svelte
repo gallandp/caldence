@@ -110,6 +110,10 @@
         edit: 'meet.edit',
         duplicate: 'meet.duplicate',
         delete: 'meet.delete',
+        meeting: 'meet.col.meeting',
+        next: 'meet.col.next',
+        cost: 'meet.col.cost',
+        group: 'meet.group',
         scale: 'meet.scaling.enable',
         categories: 'meet.categories',
       }}
