@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Search results and shared links show a title, a description and a preview image; caldence.de also tells search engines what Caldence is (structured data) (#136)
+
 ### Changed
 
 - Faster first start: the included server configurations send text files gzip-compressed (#138)
