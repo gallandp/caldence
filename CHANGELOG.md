@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.27.0 – 2026-11-14
+
 ### Added
 
 - Search engines, AI assistants and visitors without JavaScript see a short description of Caldence instead of an empty page (#135)
