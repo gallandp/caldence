@@ -240,219 +240,132 @@
       {@render info()}
     </div>
   {:else}
-    {#key epoch}
-      <div class="cols">
-        <div class="col">
-          <section class="card" aria-labelledby="{uid}-members-h">
-            <h3 id="{uid}-members-h">{$t('team.members')}</h3>
-            {@render info()}
-            {#if grouped.length === 0}
-              <p class="empty">{$t('team.members.empty')}</p>
-            {:else}
-              <ul class="members" aria-label={$t('team.members.caption', { team: team.name })}>
-                {#each grouped as member (member.personId)}
-                  {@const colour = roleColour(member.roleIds[0]!)}
-                  {@const name = personName(member.personId)}
-                  <li>
-                    <span class="avatar" style:background={colour} style:color={inkOn(colour)}
-                      >{initials(name)}</span
-                    >
-                    <span class="who">
-                      <span class="name">{name}</span>
-                      <span class="chips">
-                        {#each member.roleIds as roleId (roleId)}
-                          <span class="chip" style:--c={roleColour(roleId)}
-                            >{roleName(roleId)}<button
-                              type="button"
-                              class="chip-remove"
-                              aria-describedby={describe('member-remove')}
-                              onclick={() => removeMember(member.personId, roleId)}
-                              aria-label={$t('team.members.remove', {
-                                person: name,
-                                role: roleName(roleId),
-                              })}>{@render cross()}</button
-                            ></span
-                          >
-                        {/each}
-                      </span>
-                    </span>
-                    <label class="hours">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={hoursOf(member.personId)}
-                        aria-label={$t('team.members.hoursOf', { name, team: team.name })}
-                        aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
-                        aria-describedby={describe(`hours-${member.personId}`)}
-                        onchange={(e) => setHours(member.personId, e)}
-                      />
-                      <span aria-hidden="true">{$t('settings.people.unit')}</span>
-                    </label>
-                    {@render err(`hours-${member.personId}`)}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-            {@render err('member-remove')}
-
-            {#if roles.length === 0}
-              <p class="empty">{$t('team.members.needs')}</p>
-            {:else}
-              <form class="row add-row" onsubmit={addMember}>
-                <div class="field grow">
-                  <label for="{uid}-add-person">{$t('team.members.person')}</label>
-                  <input
-                    id="{uid}-add-person"
-                    data-member-add
-                    list="{uid}-people"
-                    autocomplete="off"
-                    placeholder={$t('team.members.person.placeholder')}
-                    bind:value={addName}
-                    aria-invalid={errors['member-add'] ? 'true' : undefined}
-                    aria-describedby={describe('member-add')}
-                    oninput={() => clearError('member-add')}
-                  />
-                  <datalist id="{uid}-people">
-                    {#each others as person (person.id)}
-                      <option value={person.name}></option>
-                    {/each}
-                  </datalist>
-                </div>
-                <div class="field grow">
-                  <label for="{uid}-add-role">{$t('team.members.role')}</label>
-                  <select
-                    id="{uid}-add-role"
-                    value={roleChoice}
-                    aria-invalid={errors['member-add'] ? 'true' : undefined}
-                    aria-describedby={describe('member-add')}
-                    onchange={(e) => {
-                      addRole = e.currentTarget.value;
-                      clearError('member-add');
-                    }}
+    <!-- Members first, then the people and roles they are made of, then the assumptions. -->
+    <div class="cards">
+      {#key epoch}
+        <section class="card" aria-labelledby="{uid}-members-h">
+          <h3 id="{uid}-members-h">{$t('team.members')}</h3>
+          {@render info()}
+          {#if grouped.length === 0}
+            <p class="empty">{$t('team.members.empty')}</p>
+          {:else}
+            <ul class="members" aria-label={$t('team.members.caption', { team: team.name })}>
+              {#each grouped as member (member.personId)}
+                {@const colour = roleColour(member.roleIds[0]!)}
+                {@const name = personName(member.personId)}
+                <li>
+                  <span class="avatar" style:background={colour} style:color={inkOn(colour)}
+                    >{initials(name)}</span
                   >
-                    {#each roles as role (role.id)}
-                      <option value={role.id}>{role.name}</option>
-                    {/each}
-                  </select>
-                </div>
-                <div class="field hours-field">
-                  <label for="{uid}-add-hours">{$t('team.members.hours')}</label>
-                  <input
-                    id="{uid}-add-hours"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    placeholder={String(defaultHours)}
-                    value={addHours ?? ''}
-                    oninput={(e) => {
-                      const v = e.currentTarget.value;
-                      addHours = v.trim() === '' ? null : Number(v);
-                    }}
-                  />
-                </div>
-                <button type="submit" class="secondary add"
-                  >{@render plus()}{$t('team.members.add')}</button
-                >
-              </form>
-              {@render err('member-add')}
-            {/if}
-          </section>
-        </div>
+                  <span class="who">
+                    <span class="name">{name}</span>
+                    <span class="chips">
+                      {#each member.roleIds as roleId (roleId)}
+                        <span class="chip" style:--c={roleColour(roleId)}
+                          >{roleName(roleId)}<button
+                            type="button"
+                            class="chip-remove"
+                            aria-describedby={describe('member-remove')}
+                            onclick={() => removeMember(member.personId, roleId)}
+                            aria-label={$t('team.members.remove', {
+                              person: name,
+                              role: roleName(roleId),
+                            })}>{@render cross()}</button
+                          ></span
+                        >
+                      {/each}
+                    </span>
+                  </span>
+                  <label class="hours">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={hoursOf(member.personId)}
+                      aria-label={$t('team.members.hoursOf', { name, team: team.name })}
+                      aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
+                      aria-describedby={describe(`hours-${member.personId}`)}
+                      onchange={(e) => setHours(member.personId, e)}
+                    />
+                    <span aria-hidden="true">{$t('settings.people.unit')}</span>
+                  </label>
+                  {@render err(`hours-${member.personId}`)}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {@render err('member-remove')}
 
-        <div class="col">
-          <section class="card" aria-labelledby="{uid}-assumptions-h">
-            <h3 id="{uid}-assumptions-h">{$t('team.assumptions')}</h3>
-            <p class="hint">{$t('team.assumptions.hint')}</p>
-            {#if Object.keys(team.assumptions).length === 0}
-              <p class="empty">{$t('team.assumptions.empty')}</p>
-            {:else}
-              <div class="heads" aria-hidden="true">
-                <span>{$t('team.assumption.key')}</span><span class="value-head"
-                  >{$t('team.assumption.value')}</span
-                >
-              </div>
-              <ul class="assumptions">
-                {#each Object.entries(team.assumptions) as [key, value] (key)}
-                  <li>
-                    <div class="row line-row">
-                      <input
-                        class="grow key"
-                        type="text"
-                        data-as-key={key}
-                        value={key}
-                        aria-label={$t('team.assumption.rename', { key })}
-                        aria-invalid={errors[`as-${key}`] ? 'true' : undefined}
-                        aria-describedby={describe(`as-${key}`)}
-                        onchange={(e) => rekey(key, e)}
-                      />
-                      <input
-                        class="value"
-                        type="number"
-                        step="any"
-                        {value}
-                        aria-label={$t('team.assumption.revalue', { key })}
-                        aria-invalid={errors[`as-${key}`] ? 'true' : undefined}
-                        aria-describedby={describe(`as-${key}`)}
-                        onchange={(e) => revalue(key, e)}
-                      />
-                      <button
-                        type="button"
-                        class="icon-button"
-                        aria-label={$t('team.assumption.delete', { key })}
-                        aria-describedby={describe(`as-${key}`)}
-                        onclick={() => removeAssumption(key)}>{@render cross()}</button
-                      >
-                    </div>
-                    {@render err(`as-${key}`)}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-
-            <form class="row add-row" onsubmit={addAssumption}>
+          {#if roles.length === 0}
+            <p class="empty">{$t('team.members.needs')}</p>
+          {:else}
+            <form class="row add-row" onsubmit={addMember}>
               <div class="field grow">
-                <label for="{uid}-as-new">{$t('team.assumption.new')}</label>
+                <label for="{uid}-add-person">{$t('team.members.person')}</label>
                 <input
-                  id="{uid}-as-new"
-                  type="text"
-                  data-as-add
-                  bind:value={newKey}
-                  aria-invalid={errors['as-add'] ? 'true' : undefined}
-                  aria-describedby={describe('as-add')}
+                  id="{uid}-add-person"
+                  data-member-add
+                  list="{uid}-people"
+                  autocomplete="off"
+                  placeholder={$t('team.members.person.placeholder')}
+                  bind:value={addName}
+                  aria-invalid={errors['member-add'] ? 'true' : undefined}
+                  aria-describedby={describe('member-add')}
+                  oninput={() => clearError('member-add')}
                 />
+                <datalist id="{uid}-people">
+                  {#each others as person (person.id)}
+                    <option value={person.name}></option>
+                  {/each}
+                </datalist>
               </div>
-              <div class="field">
-                <label for="{uid}-as-new-value">{$t('team.assumption.newValue')}</label>
+              <div class="field grow">
+                <label for="{uid}-add-role">{$t('team.members.role')}</label>
+                <select
+                  id="{uid}-add-role"
+                  value={roleChoice}
+                  aria-invalid={errors['member-add'] ? 'true' : undefined}
+                  aria-describedby={describe('member-add')}
+                  onchange={(e) => {
+                    addRole = e.currentTarget.value;
+                    clearError('member-add');
+                  }}
+                >
+                  {#each roles as role (role.id)}
+                    <option value={role.id}>{role.name}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="field hours-field">
+                <label for="{uid}-add-hours">{$t('team.members.hours')}</label>
                 <input
-                  id="{uid}-as-new-value"
-                  class="value"
+                  id="{uid}-add-hours"
                   type="number"
-                  step="any"
-                  value={newValue}
-                  oninput={(e) => (newValue = e.currentTarget.value)}
-                  aria-invalid={errors['as-add'] ? 'true' : undefined}
-                  aria-describedby={describe('as-add')}
+                  min="0"
+                  step="0.5"
+                  placeholder={String(defaultHours)}
+                  value={addHours ?? ''}
+                  oninput={(e) => {
+                    const v = e.currentTarget.value;
+                    addHours = v.trim() === '' ? null : Number(v);
+                  }}
                 />
               </div>
               <button type="submit" class="secondary add"
-                >{@render plus()}{$t('team.assumption.add')}</button
+                >{@render plus()}{$t('team.members.add')}</button
               >
             </form>
-            {@render err('as-add')}
-          </section>
-        </div>
-      </div>
-    {/key}
-    <!-- Outside the key block: the lists keep focus while they change the workspace. -->
-    <section class="card shared" aria-labelledby="{uid}-shared-h">
-      <h3 id="{uid}-shared-h">{$t('team.shared')}</h3>
-      <p class="hint">{$t('team.shared.hint')}</p>
-      <div class="lists">
+            {@render err('member-add')}
+          {/if}
+        </section>
+      {/key}
+      <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
+      <div class="card">
         <ListEditor
           kind="people"
           items={$workspace.people}
           heading={$t('settings.people')}
+          hint={$t('team.people.hint')}
           addLabel={$t('settings.people.add')}
           create={(name) => ({ name })}
           confirmRemove={confirmPerson}
@@ -461,10 +374,13 @@
             <span class="teams-of">{teamsOf(person.id)}</span>
           {/snippet}
         </ListEditor>
+      </div>
+      <div class="card">
         <ListEditor
           kind="roles"
           items={$workspace.roles}
           heading={$t('settings.roles')}
+          hint={$t('team.roles.hint')}
           addLabel={$t('settings.roles.add')}
           create={(name) => ({
             name,
@@ -480,22 +396,99 @@
           {/snippet}
         </ListEditor>
       </div>
-    </section>
+      {#key epoch}
+        <section class="card" aria-labelledby="{uid}-assumptions-h">
+          <h3 id="{uid}-assumptions-h">{$t('team.assumptions')}</h3>
+          <p class="hint">{$t('team.assumptions.hint')}</p>
+          {#if Object.keys(team.assumptions).length === 0}
+            <p class="empty">{$t('team.assumptions.empty')}</p>
+          {:else}
+            <div class="heads" aria-hidden="true">
+              <span>{$t('team.assumption.key')}</span><span class="value-head"
+                >{$t('team.assumption.value')}</span
+              >
+            </div>
+            <ul class="assumptions">
+              {#each Object.entries(team.assumptions) as [key, value] (key)}
+                <li>
+                  <div class="row line-row">
+                    <input
+                      class="grow key"
+                      type="text"
+                      data-as-key={key}
+                      value={key}
+                      aria-label={$t('team.assumption.rename', { key })}
+                      aria-invalid={errors[`as-${key}`] ? 'true' : undefined}
+                      aria-describedby={describe(`as-${key}`)}
+                      onchange={(e) => rekey(key, e)}
+                    />
+                    <input
+                      class="value"
+                      type="number"
+                      step="any"
+                      {value}
+                      aria-label={$t('team.assumption.revalue', { key })}
+                      aria-invalid={errors[`as-${key}`] ? 'true' : undefined}
+                      aria-describedby={describe(`as-${key}`)}
+                      onchange={(e) => revalue(key, e)}
+                    />
+                    <button
+                      type="button"
+                      class="icon-button"
+                      aria-label={$t('team.assumption.delete', { key })}
+                      aria-describedby={describe(`as-${key}`)}
+                      onclick={() => removeAssumption(key)}>{@render cross()}</button
+                    >
+                  </div>
+                  {@render err(`as-${key}`)}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+
+          <form class="row add-row" onsubmit={addAssumption}>
+            <div class="field grow">
+              <label for="{uid}-as-new">{$t('team.assumption.new')}</label>
+              <input
+                id="{uid}-as-new"
+                type="text"
+                data-as-add
+                bind:value={newKey}
+                aria-invalid={errors['as-add'] ? 'true' : undefined}
+                aria-describedby={describe('as-add')}
+              />
+            </div>
+            <div class="field">
+              <label for="{uid}-as-new-value">{$t('team.assumption.newValue')}</label>
+              <input
+                id="{uid}-as-new-value"
+                class="value"
+                type="number"
+                step="any"
+                value={newValue}
+                oninput={(e) => (newValue = e.currentTarget.value)}
+                aria-invalid={errors['as-add'] ? 'true' : undefined}
+                aria-describedby={describe('as-add')}
+              />
+            </div>
+            <button type="submit" class="secondary add"
+              >{@render plus()}{$t('team.assumption.add')}</button
+            >
+          </form>
+          {@render err('as-add')}
+        </section>
+      {/key}
+    </div>
   {/if}
 </div>
 
 <style>
-  .cols {
+  /* Cards flow in reading order: two per row on a wide screen, one below the other on a phone. */
+  .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
     gap: 1.25rem;
     align-items: start;
-  }
-  .col {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    min-width: 0;
   }
   .card {
     min-width: 0;
@@ -621,19 +614,6 @@
   .members li :global(.field-error) {
     flex-basis: 100%;
     margin: 0;
-  }
-  .shared {
-    margin-top: var(--space, 1rem);
-  }
-  .lists {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
-    gap: 1.5rem;
-    align-items: start;
-  }
-  .shared .hint {
-    margin-top: 0;
-    color: var(--text-muted);
   }
   .row {
     display: flex;

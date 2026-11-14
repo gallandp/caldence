@@ -28,6 +28,7 @@
     kind,
     items,
     heading,
+    hint,
     addLabel,
     create,
     extra,
@@ -36,6 +37,8 @@
     kind: ListKind;
     items: T[];
     heading: string;
+    /** A short line under the heading. */
+    hint?: string;
     /** Visible label of the "new item" name input. */
     addLabel: string;
     /** Item data (without id) for a new item with this name. */
@@ -180,6 +183,7 @@
 
 <section class="list" bind:this={root} aria-labelledby="{uid}-h">
   <h3 id="{uid}-h">{heading}</h3>
+  {#if hint}<p class="hint">{hint}</p>{/if}
   {#if items.length === 0}
     <p class="empty">{$t('list.empty')}</p>
   {:else}
@@ -283,8 +287,9 @@
 />
 
 <style>
+  /* Sits in a card: the card's padding is its margin. */
   .list {
-    margin-block: var(--space);
+    margin: 0;
   }
   h3 {
     margin-bottom: 0.5rem;
@@ -374,7 +379,11 @@
     stroke-width: 2;
     stroke-linecap: round;
   }
-  .empty {
+  .empty,
+  .hint {
     color: var(--text-muted);
+  }
+  .hint {
+    margin: 0 0 1rem;
   }
 </style>

@@ -138,7 +138,6 @@
       labels={{
         members: 'team.members',
         hours: 'team.members.hours',
-        shared: 'team.shared',
         people: 'settings.people',
         roles: 'settings.roles',
         assumptions: 'team.assumptions',
