@@ -1,0 +1,32 @@
+# Caldence
+
+> Caldence is a free, open-source web app (AGPL-3.0-or-later) for planning the recurring meetings of agile roles and teams (Product Owner, Scrum Master, developers; Scrum, Kanban, SAFe) and exporting them as .ics files to Outlook, Google Calendar and Apple Calendar. It runs entirely in the browser: no account, no server-side processing, no tracking. Workspaces are saved as local JSON files.
+
+Caldence is a static single-page app with a German and an English interface. It can be installed as an app and works offline. Anyone can host it: the release ZIP contains only static files.
+
+Main features:
+
+- Teams, people and roles with weekly working hours per team
+- Recurring meeting rules: weekly, selected weekdays, every n weeks, monthly nth weekday, cadence day, cycle milestone, once
+- Templates for Scrum, Kanban and SAFe, plus custom template files
+- Calendar by week, month or the whole planning horizon, with public and school holidays (Saxony, Germany built in; other regions via region files)
+- Load per person and role with warnings for unusually full weeks; optional meeting costs from an hourly rate
+- Import and export of .ics calendar files
+- Keyboard operation and screen reader support, light and dark mode, targeting WCAG 2.2 AA
+
+## Docs
+
+- [README](https://github.com/gallandp/caldence/blob/main/README.md): overview, features, screenshots, quick start
+- [Deployment guide](https://github.com/gallandp/caldence/blob/main/docs/deployment.md): hosting on Apache, nginx, IIS or plain webspace
+- [Accessibility statement](https://github.com/gallandp/caldence/blob/main/docs/accessibility.md)
+
+## File formats
+
+- [Workspace format](https://github.com/gallandp/caldence/blob/main/docs/workspace-format.md)
+- [Template format](https://github.com/gallandp/caldence/blob/main/docs/template-format.md)
+- [Region format](https://github.com/gallandp/caldence/blob/main/docs/region-format.md)
+
+## Optional
+
+- [Source code](https://github.com/gallandp/caldence)
+- [Changelog](https://github.com/gallandp/caldence/blob/main/CHANGELOG.md)

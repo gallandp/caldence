@@ -1,6 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MARKER, addHeadTags, checkBase, headTags } from '../../scripts/site-meta.mjs';
+import {
+  MARKER,
+  addHeadTags,
+  apply,
+  checkBase,
+  headTags,
+  robots,
+  sitemap,
+} from '../../scripts/site-meta.mjs';
 
 const BASE = 'https://caldence.de/';
 const html = '<html><head><title>Caldence</title>\n  </head><body></body></html>';
@@ -43,5 +53,38 @@ describe('site metadata (#136)', () => {
     expect(index).not.toContain('caldence.de');
     expect(index).not.toContain('rel="canonical"');
     expect(index).toContain('name="description"');
+  });
+});
+
+describe('robots.txt and sitemap.xml (#137)', () => {
+  it('lists the start page in the sitemap', () => {
+    expect(sitemap(BASE, '2026-11-14')).toContain(
+      '<url><loc>https://caldence.de/</loc><lastmod>2026-11-14</lastmod></url>',
+    );
+  });
+
+  it('writes robots.txt only for a site at the root of its host', () => {
+    expect(robots(BASE)).toBe(
+      'User-agent: *\nAllow: /\n\nSitemap: https://caldence.de/sitemap.xml\n',
+    );
+    expect(robots('https://example.org/apps/caldence/')).toBeNull();
+  });
+
+  it('writes the files into the site folder', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'site-meta-'));
+    writeFileSync(join(dir, 'index.html'), html);
+    apply(dir, BASE, '2026-11-14');
+    expect(readFileSync(join(dir, 'index.html'), 'utf8')).toContain(MARKER);
+    expect(existsSync(join(dir, 'robots.txt'))).toBe(true);
+    expect(readFileSync(join(dir, 'sitemap.xml'), 'utf8')).toContain('2026-11-14');
+  });
+
+  it('the release ships llms.txt and favicon.ico but no robots.txt or sitemap.xml', () => {
+    const pub = (name: string) => new URL(`../../public/${name}`, import.meta.url);
+    expect(existsSync(pub('llms.txt'))).toBe(true);
+    expect(readFileSync(pub('llms.txt'), 'utf8')).not.toContain('caldence.de');
+    expect(existsSync(pub('favicon.ico'))).toBe(true);
+    expect(existsSync(pub('robots.txt'))).toBe(false);
+    expect(existsSync(pub('sitemap.xml'))).toBe(false);
   });
 });

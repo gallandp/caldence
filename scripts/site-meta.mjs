@@ -1,5 +1,6 @@
 // Adds the parts of the page metadata that name the site's own address (#136): canonical link,
-// og:url, the absolute preview image and JSON-LD. The release ZIP names no domain, so copies
+// og:url, the absolute preview image and JSON-LD, plus sitemap.xml and, for a site at the root of
+// its host, robots.txt (#137). The release ZIP names no domain, so copies
 // hosted elsewhere never point at caldence.de; deploy.yml runs this on the unpacked release.
 // Plain Node without dependencies, like deploy-plan.mjs.
 //
@@ -62,9 +63,30 @@ export function addHeadTags(html, base) {
   return html.replace(/\s*<\/head>/, `\n${headTags(base)}  </head>`);
 }
 
-export function apply(dir, base) {
+export function sitemap(base, date) {
+  checkBase(base);
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    `  <url><loc>${base}</loc><lastmod>${date}</lastmod></url>`,
+    '</urlset>',
+    '',
+  ].join('\n');
+}
+
+/** Crawlers read robots.txt only at the root of a host, so it is null for a site in a folder. */
+export function robots(base) {
+  checkBase(base);
+  if (new URL(base).pathname !== '/') return null;
+  return `User-agent: *\nAllow: /\n\nSitemap: ${base}sitemap.xml\n`;
+}
+
+export function apply(dir, base, date = new Date().toISOString().slice(0, 10)) {
   const index = join(dir, 'index.html');
   writeFileSync(index, addHeadTags(readFileSync(index, 'utf8'), base));
+  writeFileSync(join(dir, 'sitemap.xml'), sitemap(base, date));
+  const text = robots(base);
+  if (text) writeFileSync(join(dir, 'robots.txt'), text);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

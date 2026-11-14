@@ -100,6 +100,8 @@ The release's `index.html` has a title, a description and Open Graph tags, but n
 node scripts/site-meta.mjs caldence-x.y.z/ https://example.org/apps/caldence/
 ```
 
+It also writes `sitemap.xml` and, when the app sits at the root of its host, a `robots.txt` that points to it. The release itself ships `llms.txt`, a short plain-text description for AI assistants, and `favicon.ico`.
+
 The automatic deployment below does this for caldence.de.
 
 ## Automatic deployment by SFTP (maintainers)
