@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.32.0 – 2026-11-14
+
+### Changed
+
+- Bring the in-app manual up to date (#171)
+
 ## 1.31.0 – 2026-11-14
 
 ### Changed
