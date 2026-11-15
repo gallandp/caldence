@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.36.0 – 2026-11-15
+
 ### Added
 
 - Area meetings: with an area selected, Meetings & cadence plans the area's own meetings and optional cadence. A role can be invited from every team ("Scrum Master · every team"); the form and the list name who that reaches, which team lacks the role and who has no hours in the area yet. Area meetings count as area time, not team time: Load, the hours check (0 h in an area without an entry), costs and the iCalendar export include them, and the area gets a calendar of its own (#165)
