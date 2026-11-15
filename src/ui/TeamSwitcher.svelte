@@ -465,7 +465,7 @@
     position: relative;
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 0.35rem 0.5rem 0.5rem;
     border-radius: 0.85rem;
@@ -489,7 +489,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
     gap: 0.5rem;
     padding: 0.1rem;
@@ -503,10 +503,6 @@
   }
   :global(#app) .switcher button.pick:hover {
     background: rgb(255 255 255 / 0.06);
-  }
-  /* Names wrap: icons stay on the first line. */
-  .pick > .avatar {
-    margin-top: 0.2rem;
   }
   .text {
     flex: 1;
@@ -617,7 +613,7 @@
   }
   :global(#app) .switcher .list button.opt {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
     gap: 0.5rem;
     width: 100%;
@@ -642,17 +638,13 @@
   /* In the list, names wrap in full: it is where people tell similar names apart. */
   .opt-name {
     min-width: 0;
-    padding-top: 0.05rem;
     overflow-wrap: anywhere;
-  }
-  .list .avatar.mini {
-    margin-top: 0.05rem;
   }
   /* Only the number: the teams are listed right below. */
   .count {
     flex: none;
     min-width: 1.25rem;
-    margin: 0.1rem 0 0 auto;
+    margin-left: auto;
     padding: 0.05rem 0.4rem;
     border-radius: 999px;
     background: var(--surface-2);
@@ -678,7 +670,6 @@
   }
   :global(#app) .switcher button.toggle {
     flex: none;
-    margin-top: 0.3rem;
     display: grid;
     place-items: center;
     width: 1.75rem;

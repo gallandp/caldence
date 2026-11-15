@@ -60,6 +60,9 @@ test('long area names wrap instead of being cut off', async ({ page }) => {
     'title',
     new RegExp(`^Team Alpha\\n${long.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} · `),
   );
+  // The meta line stops after two lines instead of growing the card.
+  const meta = page.locator('.switcher .meta');
+  expect(await meta.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   await page.locator('.switcher .pick').click();
   const option = page.locator('.switcher .list .opt').first();
   const name = option.locator('.opt-name');
