@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback, currentUnit, unitNames } from './helpers';
+import { currentUnit, openExample, openMenuIfNarrow, unitNames, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -57,6 +57,29 @@ test('applying Scrum takes two clicks and a confirmed name', async ({ page }) =>
   const cal = page.getByRole('tabpanel', { name: 'Calendar' });
   await cal.locator('td[data-date="2027-03-22"]').click();
   await expect(cal.getByRole('region', { name: /March 22, 2027/ })).toContainText('Daily Scrum');
+});
+
+test('applying SAFe twice puts both teams into one Release Train', async ({ page }) => {
+  await openTemplates(page);
+  for (const name of ['Alpha', 'Beta']) {
+    await panel(page)
+      .getByRole('article', { name: 'SAFe' })
+      .getByRole('button', { name: 'Apply' })
+      .click();
+    const dialog = page.getByRole('dialog', { name: /SAFe/ });
+    await dialog.getByLabel('Team name').fill(name);
+    await dialog.getByRole('button', { name: 'Create team' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(panel(page).getByRole('status')).toContainText(name);
+  }
+  await expect(unitNames(page)).toHaveText(['Release Train', 'Alpha', 'Beta']);
+  // The level names follow the template: the area is a "release train" with two teams.
+  await page.locator('.switcher .pick').click();
+  await page
+    .locator('.switcher .list')
+    .getByRole('button', { name: /^Release Train\W+release train\W+2 teams$/ })
+    .click();
+  await expect(currentUnit(page)).toHaveText('Release Train');
 });
 
 test('undo removes the applied team', async ({ page }) => {

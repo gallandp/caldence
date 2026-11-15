@@ -525,7 +525,7 @@
   "help.where.col.field": "Wert",
   "help.where.col.where": "Bearbeitet in",
   "help.templates.title": "Vorlagen",
-  "help.templates.apply": "Anwenden: Wählen Sie in {templates} bei Scrum, Kanban oder SAFe {apply}, prüfen Sie das Feld {teamName} und wählen Sie {create}. Das neue Team erhält Rollen, Takt, Kategorien und Termine und wird das gewählte Team; {open} führt Sie hin. Mit {undo} entfernen Sie es wieder. Der Startbildschirm {start} bietet dieselben Vorlagen an.",
+  "help.templates.apply": "Anwenden: Wählen Sie in {templates} bei Scrum, Kanban oder SAFe {apply}, prüfen Sie das Feld {teamName} und wählen Sie {create}. Das neue Team erhält Rollen, Takt, Kategorien und Termine und wird das gewählte Team; {open} führt Sie hin. Mit {undo} entfernen Sie es wieder. SAFe legt zusätzlich einen Release Train über dem Team an, mit Release Train Engineer, Product Management und den PI-Events; ein zweites SAFe-Team kommt in denselben Release Train. Der Startbildschirm {start} bietet dieselben Vorlagen an.",
   "help.templates.import": "Importieren: Wählen Sie {importButton} und dann eine Vorlagendatei. Prüfen Sie die {preview} und das Feld {teamName} und wählen Sie dann {create}.",
   "help.templates.export": "Exportieren: Wählen Sie unter {exportHeading} das {team}, geben Sie im Feld {name} einen Namen ein und wählen Sie {exportButton}. Die Datei können Sie weitergeben, andere können sie importieren.",
   "help.templates.people": "Eine Vorlage enthält keine Personen. Legen Sie Personen in {teamView} an und weisen Sie ihnen dort ihre Rollen zu.",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The SAFe template now creates a Release Train above the team: Release Train Engineer and Product Management are roles of the train, and PI Planning, ART Sync, System Demo, Inspect & Adapt and the PI Planning preparation are train meetings that invite the team roles from every team. The team keeps the iteration events with a two-week cadence, and a second SAFe team joins the same Release Train (#169)
+
 ## 1.35.0 – 2026-11-15
 
 ### Added

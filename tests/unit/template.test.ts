@@ -106,25 +106,100 @@ describe('applyTemplate', () => {
     expect(planning.participants.some((p) => p.roleId === 'x')).toBe(true);
   });
 
-  it('shifts SAFe milestones and anchors with the cadence start', () => {
+  it('SAFe creates a Release Train area above the team with the PI events', () => {
     const safe = BUILTIN_TEMPLATES.safe.en;
     const r = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
       name: 'ART',
       today: '2027-02-10',
     });
     if (!r.ok) throw new Error('apply');
-    const team = r.value[0].teams[0]!;
-    expect(team.cadence.start).toBe('2027-02-15');
-    const ms = team.cycles[0]!.milestones.map((m) => m.date);
-    expect(ms).toEqual(['2027-04-22', '2027-04-26']);
-    const iterationEnd = new Set(['Iteration Review', 'Iteration Retrospective', 'System Demo']);
+    const [ws, teamId] = r.value;
+    expect(ws.settings.levelNames).toEqual({ preset: 'train' });
+    expect(ws.areas).toHaveLength(1);
+    const area = ws.areas[0]!;
+    const team = ws.teams[0]!;
+    expect(team.id).toBe(teamId);
+    expect(area.id).not.toBe(team.id);
+    expect(area.name).toBe('Release Train');
+    expect(area.teamIds).toEqual([teamId]);
+    expect(area.members).toEqual([]);
+    expect(area.memberHours).toEqual({});
+    expect(area.cadence).toEqual({ kind: 'pi', lengthWeeks: 10, start: '2027-02-15' });
+    expect(team.cadence).toEqual({ kind: 'sprint', lengthWeeks: 2, start: '2027-02-15' });
+    expect(area.cycles[0]!.milestones.map((m) => m.date)).toEqual(['2027-04-22', '2027-04-26']);
+    expect(team.cycles).toEqual([]);
+
+    const roleName = (id: string) => ws.roles.find((x) => x.id === id)!.name;
+    expect(area.events.map((e) => e.name)).toEqual([
+      'PI Planning day 1',
+      'PI Planning day 2',
+      'ART Sync',
+      'System Demo',
+      'Inspect & Adapt',
+      'PI Planning preparation',
+    ]);
+    expect(team.events.map((e) => e.name)).toEqual([
+      'Iteration Planning',
+      'Team Sync',
+      'Iteration Review',
+      'Iteration Retrospective',
+    ]);
+    // Area roles are invited as themselves, team roles "from every team".
+    const areaRoles = new Set(['Release Train Engineer', 'Product Management']);
+    for (const e of area.events)
+      for (const p of e.participants)
+        expect((p as { fromTeams?: boolean }).fromTeams, `${e.name}/${roleName(p.roleId)}`).toBe(
+          areaRoles.has(roleName(p.roleId)) ? undefined : true,
+        );
+    // RTE and Product Management are no longer stuffed into the team.
     for (const e of team.events)
+      for (const p of e.participants) expect(areaRoles.has(roleName(p.roleId))).toBe(false);
+    for (const e of [...team.events, ...area.events])
       if (e.rule.type === 'every-n-weeks')
-        expect(e.rule.anchor).toBe(iterationEnd.has(e.name) ? '2027-02-22' : '2027-02-15');
+        expect(e.rule.anchor).toBe(
+          ['Iteration Review', 'Iteration Retrospective', 'System Demo'].includes(e.name)
+            ? '2027-02-22'
+            : '2027-02-15',
+        );
+  });
+
+  it('SAFe puts a second team into the same area, in step with its increments', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    const second = applyTemplate(first.value[0], safe, { name: 'B', today: '2027-03-03' });
+    if (!second.ok) throw new Error('second');
+    const [ws, teamId] = second.value;
+    expect(ws.areas).toHaveLength(1);
+    expect(ws.areas[0]!.teamIds).toEqual([ws.teams[0]!.id, teamId]);
+    expect(ws.areas[0]!.events).toHaveLength(6);
+    expect(ws.teams[1]!.cadence.start).toBe('2027-02-15');
+    expect(ws.roles).toHaveLength(5);
+  });
+
+  it('SAFe keeps level names the workspace already has', () => {
+    const base = emptyWorkspace('2027-02-10');
+    base.settings.levelNames = { preset: 'department' };
+    const r = applyTemplate(base, BUILTIN_TEMPLATES.safe.en, { name: 'A', today: '2027-02-10' });
+    expect(r.ok && r.value[0].settings.levelNames).toEqual({ preset: 'department' });
+  });
+
+  it('Scrum and Kanban create no area', () => {
+    for (const id of ['scrum', 'kanban'] as const) {
+      expect(BUILTIN_TEMPLATES[id].en.area).toBeUndefined();
+      const r = applyTemplate(emptyWorkspace('2027-02-10'), BUILTIN_TEMPLATES[id].en, {
+        name: 'A',
+        today: '2027-02-10',
+      });
+      expect(r.ok && r.value[0].areas).toEqual([]);
+    }
   });
 
   for (const loc of LOCALES)
-    it(`SAFe.${loc}: review, retrospective and demo first fall in the iteration's second week`, () => {
+    it(`SAFe.${loc}: review and retrospective first fall in the iteration's second week`, () => {
       const r = applyTemplate(emptyWorkspace('2027-02-10'), BUILTIN_TEMPLATES.safe[loc], {
         name: 'ART',
         today: '2027-02-10',
@@ -134,7 +209,7 @@ describe('applyTemplate', () => {
       const team = ws.teams[0]!;
       const start = team.cadence.start;
       const occ = occurrences(team, ws.settings, workspaceIndex(ws));
-      const ids = ['e-itreview', 'e-itretro', 'e-demo'];
+      const ids = ['e-itreview', 'e-itretro'];
       for (const id of ids) {
         const first = occ.find((o) => o.eventId === id)!;
         expect(first, id).toBeDefined();

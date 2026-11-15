@@ -525,7 +525,7 @@
   "help.where.col.field": "Value",
   "help.where.col.where": "Edited in",
   "help.templates.title": "Templates",
-  "help.templates.apply": "Apply: in {templates}, choose {apply} for Scrum, Kanban or SAFe, check the field {teamName} and choose {create}. The new team gets its roles, cadence, categories and meetings and becomes the selected team; {open} takes you to it. {undo} removes it again. The start screen {start} offers the same templates.",
+  "help.templates.apply": "Apply: in {templates}, choose {apply} for Scrum, Kanban or SAFe, check the field {teamName} and choose {create}. The new team gets its roles, cadence, categories and meetings and becomes the selected team; {open} takes you to it. {undo} removes it again. SAFe also puts a Release Train above the team, with Release Train Engineer, Product Management and the PI events; a second SAFe team joins the same Release Train. The start screen {start} offers the same templates.",
   "help.templates.import": "Import: choose {importButton} and select a template file. Check the {preview} and the field {teamName}, then choose {create}.",
   "help.templates.export": "Export: under {exportHeading}, choose the {team}, enter a name in {name} and choose {exportButton}. You can share the file, and others can import it.",
   "help.templates.people": "A template holds no people. Add people in {teamView} and give them their roles there.",

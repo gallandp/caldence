@@ -1,7 +1,7 @@
 import type { ISODate } from './date';
 import { addItem, addTeam, updateSettings } from './edit';
 import type { Settings, Workspace } from './model';
-import { applyTemplate, type Template } from './template';
+import { applyTemplate, areaRoleIds, type Template } from './template';
 import { validate, type Result } from './validate';
 
 export interface SetupMember {
@@ -45,6 +45,11 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     return name === undefined ? undefined : out.roles.find((r) => norm(r.name) === norm(name))?.id;
   };
 
+  // People with an area-only role (Release Train Engineer) belong to the area, not the team.
+  const areaRoles = new Set(
+    input.template ? [...areaRoleIds(input.template)].map(roleFor).filter((id) => id) : [],
+  );
+
   for (const member of input.members) {
     const name = member.name.trim();
     const roleId = roleFor(member.roleId);
@@ -53,9 +58,13 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     if (personId === undefined) {
       [out, personId] = addItem(out, 'people', { name });
     }
-    const team = out.teams.find((t) => t.id === teamId)!;
-    if (team.members.some((m) => m.personId === personId && m.roleId === roleId)) continue;
-    team.members.push({ personId, roleId });
+    // addItem copies the workspace, so look the unit up afresh.
+    const area = out.areas.find((a) => a.teamIds.includes(teamId));
+    const unit = area && areaRoles.has(roleId) ? area : out.teams.find((t) => t.id === teamId)!;
+    if (unit.members.some((m) => m.personId === personId && m.roleId === roleId)) continue;
+    unit.members.push({ personId, roleId });
+    // A missing area entry means 0 h; someone who is only in the area works there full time.
+    if (unit === area) unit.memberHours[personId] ??= out.settings.hoursPerWeek;
   }
 
   const checked = validate(out);

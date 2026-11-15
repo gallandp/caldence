@@ -1,9 +1,9 @@
 {
   "kind": "caldence-template",
-  "schemaVersion": 2,
+  "schemaVersion": 5,
   "id": "safe",
   "name": "SAFe",
-  "description": "Zehnwöchige Program Increments mit den SAFe-Events.",
+  "description": "Ein Release Train mit zehnwöchigen Program Increments und den PI-Events, darunter ein Team mit zweiwöchigen Iterationen.",
   "roles": [
     {
       "id": "r-po",
@@ -43,14 +43,16 @@
       "colour": "#15803d"
     }
   ],
-  "team": {
-    "name": "SAFe",
+  "area": {
+    "name": "Release Train",
+    "levelNames": {
+      "preset": "train"
+    },
     "cadence": {
       "kind": "pi",
       "lengthWeeks": 10,
       "start": "2027-01-04"
     },
-    "assumptions": {},
     "cycles": [
       {
         "id": "cy-pi1",
@@ -83,15 +85,18 @@
         "participants": [
           {
             "roleId": "r-po",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-sm",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-team",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-pm",
@@ -117,15 +122,18 @@
         "participants": [
           {
             "roleId": "r-po",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-sm",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-team",
-            "share": 1
+            "share": 1,
+            "fromTeams": true
           },
           {
             "roleId": "r-pm",
@@ -138,6 +146,165 @@
         ],
         "preparation": 0.25
       },
+      {
+        "id": "e-artsync",
+        "name": "ART Sync",
+        "categoryId": "c-pi",
+        "rule": {
+          "type": "weekly",
+          "weekday": 3
+        },
+        "time": "10:00",
+        "duration": 30,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-pm",
+            "share": 1
+          },
+          {
+            "roleId": "r-rte",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-demo",
+        "name": "System Demo",
+        "categoryId": "c-iter",
+        "rule": {
+          "type": "every-n-weeks",
+          "weekday": 5,
+          "n": 2,
+          "anchor": "2027-01-11"
+        },
+        "time": "14:00",
+        "duration": 60,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-team",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-pm",
+            "share": 1
+          },
+          {
+            "roleId": "r-rte",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-ia",
+        "name": "Inspect & Adapt",
+        "categoryId": "c-pi",
+        "rule": {
+          "type": "cadence-day",
+          "day": 66
+        },
+        "time": "09:00",
+        "duration": 240,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-team",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-pm",
+            "share": 1
+          },
+          {
+            "roleId": "r-rte",
+            "share": 1
+          }
+        ],
+        "preparation": 0
+      },
+      {
+        "id": "e-prep",
+        "name": "PI Planning preparation",
+        "categoryId": "c-pi",
+        "rule": {
+          "type": "cycle-milestone",
+          "cycleId": "cy-pi1",
+          "milestoneId": "m-next",
+          "offsetDays": -7
+        },
+        "time": "10:00",
+        "duration": 120,
+        "participants": [
+          {
+            "roleId": "r-po",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-sm",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-team",
+            "share": 1,
+            "fromTeams": true
+          },
+          {
+            "roleId": "r-pm",
+            "share": 1
+          },
+          {
+            "roleId": "r-rte",
+            "share": 1
+          }
+        ],
+        "preparation": 0.25
+      }
+    ]
+  },
+  "team": {
+    "name": "SAFe",
+    "cadence": {
+      "kind": "sprint",
+      "lengthWeeks": 2,
+      "start": "2027-01-04"
+    },
+    "assumptions": {},
+    "cycles": [],
+    "events": [
       {
         "id": "e-itplan",
         "name": "Iteration Planning",
@@ -162,14 +329,6 @@
           {
             "roleId": "r-team",
             "share": 0.5
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
           }
         ],
         "preparation": 0.25
@@ -195,14 +354,6 @@
           },
           {
             "roleId": "r-team",
-            "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
             "share": 1
           }
         ],
@@ -232,14 +383,6 @@
           {
             "roleId": "r-team",
             "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
           }
         ],
         "preparation": 0
@@ -268,123 +411,9 @@
           {
             "roleId": "r-team",
             "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
           }
         ],
         "preparation": 0
-      },
-      {
-        "id": "e-demo",
-        "name": "System Demo",
-        "categoryId": "c-iter",
-        "rule": {
-          "type": "every-n-weeks",
-          "weekday": 5,
-          "n": 2,
-          "anchor": "2027-01-11"
-        },
-        "time": "14:00",
-        "duration": 60,
-        "participants": [
-          {
-            "roleId": "r-po",
-            "share": 1
-          },
-          {
-            "roleId": "r-sm",
-            "share": 1
-          },
-          {
-            "roleId": "r-team",
-            "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
-          }
-        ],
-        "preparation": 0
-      },
-      {
-        "id": "e-ia",
-        "name": "Inspect & Adapt",
-        "categoryId": "c-pi",
-        "rule": {
-          "type": "cadence-day",
-          "day": 66
-        },
-        "time": "09:00",
-        "duration": 240,
-        "participants": [
-          {
-            "roleId": "r-po",
-            "share": 1
-          },
-          {
-            "roleId": "r-sm",
-            "share": 1
-          },
-          {
-            "roleId": "r-team",
-            "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
-          }
-        ],
-        "preparation": 0
-      },
-      {
-        "id": "e-prep",
-        "name": "PI Planning preparation",
-        "categoryId": "c-pi",
-        "rule": {
-          "type": "cycle-milestone",
-          "cycleId": "cy-pi1",
-          "milestoneId": "m-next",
-          "offsetDays": -7
-        },
-        "time": "10:00",
-        "duration": 120,
-        "participants": [
-          {
-            "roleId": "r-po",
-            "share": 1
-          },
-          {
-            "roleId": "r-sm",
-            "share": 1
-          },
-          {
-            "roleId": "r-team",
-            "share": 1
-          },
-          {
-            "roleId": "r-pm",
-            "share": 1
-          },
-          {
-            "roleId": "r-rte",
-            "share": 1
-          }
-        ],
-        "preparation": 0.25
       }
     ]
   }
