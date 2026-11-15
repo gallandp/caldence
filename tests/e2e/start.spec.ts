@@ -158,7 +158,7 @@ test('a click anywhere on an option card picks that way of working', async ({ pa
   await dialog.getByText(/^Flow/).click();
   await expect(kanban).toBeChecked();
   const none = dialog.getByRole('radio', { name: 'No template', exact: true });
-  const card = dialog.locator('.choice').filter({ hasText: 'No template' });
+  const card = dialog.locator('label').filter({ hasText: 'No template' });
   const box = await card.boundingBox();
   if (!box) throw new Error('no card');
   // The empty right edge of the card, away from the radio and the text.
