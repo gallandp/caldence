@@ -95,7 +95,7 @@ test('"0 h · set hours" opens the card at the area hours', async ({ page }) => 
   const hours = card.getByRole('spinbutton', { name: 'Hours in the area' });
   await expect(hours).toBeFocused();
   // Only invited: the person cannot be removed here, the card says why.
-  await expect(card.getByRole('button', { name: 'Remove from area' })).toBeDisabled();
+  await expect(card.getByRole('button', { name: 'Remove from Payments' })).toBeDisabled();
   await expect(card.getByText(/Invited via “Scrum Master · every team”/)).toBeVisible();
   await hours.fill('3');
   await hours.press('Tab');
@@ -126,7 +126,7 @@ test('adding a person who is in no team puts them only in the area', async ({ pa
     .click();
   await page
     .getByRole('dialog', { name: 'Nina Z.' })
-    .getByRole('button', { name: 'Remove from area' })
+    .getByRole('button', { name: 'Remove from Payments' })
     .click();
   await expect(page.locator('.zone.only').getByRole('button', { name: /Nina Z\./ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '+ Person' })).toBeFocused();
@@ -237,3 +237,19 @@ for (const scheme of ['light', 'dark'] as const) {
     expect(table.violations).toEqual([]);
   });
 }
+
+test('after removing someone who is also in a team, focus finds their team tile', async ({
+  page,
+}) => {
+  await openStructure(page);
+  await node(page)
+    .getByRole('button', { name: /Lea T\./ })
+    .click();
+  const card = page.getByRole('dialog', { name: 'Lea T.' });
+  await card.getByRole('button', { name: 'Remove from Payments' }).click();
+  // Lea is now only in Alpha: the tile that opened the card is gone.
+  await expect(node(page).getByRole('button', { name: /Lea T\./ })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  await expect(team(page, 'Alpha').getByRole('button', { name: /Lea T\./ })).toBeFocused();
+});

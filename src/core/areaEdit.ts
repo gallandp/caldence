@@ -50,16 +50,22 @@ export function setAreaHours(
   return mapArea(ws, areaId, (a) => withHours(a, personId, hours));
 }
 
-/** Adds a person to the area with a role and weekly hours (a person already there gets both). */
+/**
+ * Adds a person to the area with a role and, if given, weekly hours. A person who is already
+ * there keeps their other roles, and their hours when `hours` is null.
+ */
 export function addAreaPerson(
   ws: Workspace,
   areaId: string,
   personId: string,
   roleId: string,
-  hours: number,
+  hours: number | null,
 ): Result<Workspace> {
-  const set = setAreaRole(ws, areaId, personId, roleId);
-  return set.ok ? setAreaHours(set.value, areaId, personId, hours) : set;
+  return mapArea(ws, areaId, (a) => {
+    if (!a.members.some((m) => m.personId === personId && m.roleId === roleId))
+      a.members = [...a.members, { personId, roleId }];
+    if (hours !== null) withHours(a, personId, hours);
+  });
 }
 
 /** Removes a person's area roles and area hours; their teams stay as they are. */

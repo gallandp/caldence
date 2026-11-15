@@ -120,6 +120,11 @@ describe('area person edits', () => {
     w = ok(addAreaPerson(w, 'zv', 'bea', 'lead', 6));
     expect(w.areas[0]!.members).toContainEqual({ personId: 'bea', roleId: 'lead' });
     expect(w.areas[0]!.memberHours.bea).toBe(6);
+    // Adding someone already there keeps their roles, and their hours without new ones.
+    w = ok(addAreaPerson(w, 'zv', 'sabine', 'po', null));
+    expect(w.areas[0]!.members.filter((m) => m.personId === 'sabine').length).toBe(2);
+    expect(w.areas[0]!.memberHours.sabine).toBe(40);
+    w = ok(setAreaRole(w, 'zv', 'sabine', 'lead'));
     w = ok(setAreaRole(w, 'zv', 'alex', 'sm'));
     expect(w.areas[0]!.members.map((m) => [m.personId, m.roleId])).toEqual([
       ['sabine', 'lead'],

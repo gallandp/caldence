@@ -16,9 +16,6 @@
   let { area, overview }: { area: Area; overview: Snippet } = $props();
 
   let page = $state(remembered);
-  $effect(() => {
-    remembered = page;
-  });
 </script>
 
 <div class="area-view">
@@ -27,7 +24,7 @@
   {/if}
   <div class="pages" role="group" aria-label={$t('area.view.label')}>
     {#each ['structure', 'overview'] as const as p (p)}
-      <button type="button" aria-pressed={page === p} onclick={() => (page = p)}
+      <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
         >{$t(`area.view.${p}`)}</button
       >
     {/each}

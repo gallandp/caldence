@@ -4,7 +4,7 @@
   import { updateTeam } from '../../core/edit';
   import { attendees, type Area } from '../../core/model';
   import { record } from '../../core/record';
-  import { areaStructure } from '../../core/structure';
+  import type { StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
   import AreaIcon from './AreaIcon.svelte';
   import FieldError from './FieldError.svelte';
@@ -18,11 +18,14 @@
   let {
     area,
     personId,
+    person: p,
     onclose,
     ongone,
   }: {
     area: Area;
     personId: string | null;
+    /** The person's place in the structure; undefined once they left it. */
+    person: StructurePerson | undefined;
     onclose: () => void;
     /** The person left the structure (removed from an area they only worked in). */
     ongone: () => void;
@@ -36,11 +39,6 @@
   let dialog: HTMLDialogElement | undefined = $state();
   let trigger: HTMLElement | null = null;
 
-  const p = $derived(
-    personId
-      ? areaStructure($workspace, area).people.find((x) => x.personId === personId)
-      : undefined,
-  );
   const name = $derived($workspace.people.find((x) => x.id === personId)?.name ?? '');
   const roles = $derived($workspace.roles);
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? id;
@@ -88,30 +86,27 @@
   }
 
   function close() {
+    const id = personId;
     dialog?.close();
     onclose();
-    trigger?.focus();
+    // An edit may have moved the person to another group, which replaced the tile that opened
+    // the card: focus their tile where it is now.
+    if (trigger?.isConnected) return trigger.focus();
+    const tile =
+      id === null
+        ? null
+        : document.querySelector<HTMLElement>(
+            `.structure .team [data-p="${CSS.escape(id)}"], .structure [data-p="${CSS.escape(id)}"]`,
+          );
+    if (tile) tile.focus();
+    else ongone();
   }
 
-  /** Escape closes; Tab stays inside the card while it is open. */
-  function onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-      return;
-    }
-    if (event.key !== 'Tab' || !dialog) return;
-    const items = [...dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input, select')];
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (event.shiftKey && (document.activeElement === first || !items.length)) {
-      event.preventDefault();
-      last?.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first?.focus();
-    }
+  /** Escape closes the card, also while focus is back in the tree (the card is not modal). */
+  function onWindowKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape' || !dialog?.open || document.querySelector('dialog:modal')) return;
+    event.preventDefault();
+    close();
   }
 
   /** The meeting's name, and the invitation behind it when that is the only way in. */
@@ -178,7 +173,9 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="card" aria-labelledby="{uid}-name" onkeydown={onKeydown}>
+<svelte:window onkeydown={onWindowKeydown} />
+
+<dialog bind:this={dialog} class="card" aria-labelledby="{uid}-name">
   {#if p}
     <header>
       <div>
@@ -196,12 +193,23 @@
     <div class="row">
       <div class="place">
         <span class="unit-name area"><AreaIcon />{area.name}</span>
-        <select value={p.areaRoleIds[0] ?? ''} aria-label={$t('area.card.role')} onchange={onRole}>
-          <option value=""
-            >{invite ? $t('area.card.noRoleImplicit', { invite }) : $t('area.card.noRole')}</option
+        {#if p.areaRoleIds.length > 1}
+          <!-- Several roles at area level: shown, not edited here, so none gets lost. -->
+          <small>{p.areaRoleIds.map(roleName).join(', ')}</small>
+        {:else}
+          <select
+            value={p.areaRoleIds[0] ?? ''}
+            aria-label={$t('area.card.role')}
+            onchange={onRole}
           >
-          {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-        </select>
+            <option value=""
+              >{invite
+                ? $t('area.card.noRoleImplicit', { invite })
+                : $t('area.card.noRole')}</option
+            >
+            {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+          </select>
+        {/if}
       </div>
       <span class="hours">
         <input
@@ -215,7 +223,7 @@
           aria-invalid={errors['area-hours'] ? true : undefined}
           aria-describedby={describe('area-hours')}
           onchange={onAreaHours}
-        />h
+        />{$t('area.card.unit')}
       </span>
     </div>
     <FieldError {problems} id="area-hours" />
@@ -235,18 +243,20 @@
             aria-invalid={errors[`team-${x.teamId}`] ? true : undefined}
             aria-describedby={describe(`team-${x.teamId}`)}
             onchange={(e) => onTeamHours(x.teamId, e)}
-          />h
+          />{$t('area.card.unit')}
         </span>
       </div>
       <FieldError {problems} id="team-{x.teamId}" />
     {/each}
     {#if p.otherHours > 0}
       <div class="row other">
-        <span>{$t('area.structure.otherTeams')}</span><span>{num(p.otherHours)} h</span>
+        <span>{$t('area.structure.otherTeams')}</span><span
+          >{num(p.otherHours)} {$t('area.card.unit')}</span
+        >
       </div>
     {/if}
     <div class="row sum">
-      <span>{$t('area.card.total')}</span><span>{num(p.total)} h</span>
+      <span>{$t('area.card.total')}</span><span>{num(p.total)} {$t('area.card.unit')}</span>
     </div>
 
     {#if meetings.length > 0}
@@ -257,10 +267,12 @@
 
     <div class="foot">
       {#if p.areaRoleIds.length > 0 || p.areaHours > 0}
-        <button type="button" class="remove" onclick={remove}>{$t('area.card.remove')}</button>
+        <button type="button" class="remove" onclick={remove}
+          >{$t('area.card.remove', { name: area.name })}</button
+        >
       {:else if invite}
         <button type="button" class="remove" disabled aria-describedby="{uid}-implicit"
-          >{$t('area.card.remove')}</button
+          >{$t('area.card.remove', { name: area.name })}</button
         >
         <p class="hint" id="{uid}-implicit">{$t('area.person.implicit', { invite })}</p>
       {/if}

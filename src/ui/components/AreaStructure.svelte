@@ -1,8 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { areaAsTeam, missingRoles, type Area, type Team } from '../../core/model';
+  import { areaAsTeam, attendees, missingRoles, type Area, type Team } from '../../core/model';
   import { areaStructure, type Group, type StructurePerson } from '../../core/structure';
-  import { attendees } from '../../core/model';
   import { locale, translate as t } from '../../i18n';
   import { ruleShort } from '../meetings/rules';
   import { initials, inkOn } from '../avatar';
@@ -18,9 +17,12 @@
   const s = $derived(areaStructure($workspace, area));
   const byId = $derived(new Map(s.people.map((p) => [p.personId, p])));
   const teams = $derived(area.teamIds.flatMap((id) => $workspace.teams.filter((x) => x.id === id)));
-  const teamName = (id: string) => $workspace.teams.find((x) => x.id === id)?.name ?? id;
-  const personName = (id: string) => $workspace.people.find((p) => p.id === id)?.name ?? id;
-  const role = (id: string | undefined) => $workspace.roles.find((r) => r.id === id);
+  const teamNames = $derived(new Map($workspace.teams.map((x) => [x.id, x.name])));
+  const personNames = $derived(new Map($workspace.people.map((x) => [x.id, x.name])));
+  const roleById = $derived(new Map($workspace.roles.map((x) => [x.id, x])));
+  const teamName = (id: string) => teamNames.get(id) ?? id;
+  const personName = (id: string) => personNames.get(id) ?? id;
+  const role = (id: string | undefined) => (id === undefined ? undefined : roleById.get(id));
   const roleName = (id: string | undefined) => role(id)?.name ?? '';
   const h = (n: number) =>
     `${new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n)} h`;
@@ -55,7 +57,14 @@
       ? new Set(meeting.participants.flatMap((p) => attendees($workspace, area.id, p)))
       : null,
   );
-  const missing = $derived(meeting ? missingRoles($workspace, area, meeting) : []);
+  /** Teams lacking an invited role, each pair once (a meeting may list a role twice). */
+  const missing = $derived(
+    meeting
+      ? missingRoles($workspace, area, meeting).filter(
+          (m, i, all) => all.findIndex((x) => x.teamId === m.teamId && x.roleId === m.roleId) === i,
+        )
+      : [],
+  );
 
   function lit(personId: string): boolean {
     if (active) return personId === active;
@@ -146,11 +155,11 @@
   const avatarColour = (p: StructurePerson) =>
     role(p.group === 'area' ? p.areaRoleIds[0] : p.teams[0]?.roleIds[0])?.colour ?? '#5340e6';
 
+  const teamCount = (n: number) =>
+    n === 1 ? $t('area.structure.teamMeta.one') : $t('area.structure.teamMeta.other', { n });
   const teamMeta = (team: Team) =>
     [
-      $t('area.structure.teamMeta', {
-        n: new Set(team.members.map((m) => m.personId)).size,
-      }),
+      teamCount(new Set(team.members.map((m) => m.personId)).size),
       $t('team.switcher.meta', {
         kind: $t(`team.cadence.kind.${team.cadence.kind}`),
         weeks: team.cadence.lengthWeeks,
@@ -362,7 +371,7 @@
           </div>
           <div class="zone from">
             <h4 class="cap">
-              <i class="dot k-both" aria-hidden="true"></i>{$t('area.structure.fromTeams')}
+              <i class="dot k-both" aria-hidden="true"></i>{$t('area.group.both')}
               <span class="n">· {s.counts.both}</span>
             </h4>
             <div class="fromgrid">
@@ -557,6 +566,7 @@
   bind:this={card}
   {area}
   personId={selected}
+  person={selected ? byId.get(selected) : undefined}
   onclose={() => (selected = null)}
   ongone={() => addButton?.focus()}
 />
@@ -1302,7 +1312,7 @@
       height: 1.375rem;
       font-size: 0.6rem;
     }
-    .from small {
+    .from small:not(.unset) {
       display: none;
     }
     .from b {

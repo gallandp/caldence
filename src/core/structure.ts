@@ -63,14 +63,20 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
     ...invited,
   ]);
   const teamPeople = personIds(teams.flatMap((t) => t.members));
-  const order = [...areaMembers.filter((id) => !teamPeople.includes(id)), ...teamPeople];
-  // A person with hours but no role who is in none of the teams still counts as area-only.
-  for (const id of inArea) if (!order.includes(id)) order.push(id);
+  const inTeams = new Set(teamPeople);
+  // Area-only people first; one with hours but no role who is in no team counts as area-only.
+  const order = new Set([
+    ...areaMembers.filter((id) => !inTeams.has(id)),
+    ...teamPeople,
+    ...inArea,
+  ]);
+  const known = new Set(ws.people.map((p) => p.id));
+  const own = new Set(area.teamIds);
 
-  const people = order
-    .filter((id) => ws.people.some((p) => p.id === id))
+  const people = [...order]
+    .filter((id) => known.has(id))
     .map((personId): StructurePerson => {
-      const own = teams
+      const mine = teams
         .filter((t) => t.members.some((m) => m.personId === personId))
         .map((t) => ({
           teamId: t.id,
@@ -78,21 +84,19 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
           hours: capacity(ws, personId, t.id),
         }));
       const otherHours = ws.teams
-        .filter(
-          (t) => !area.teamIds.includes(t.id) && t.members.some((m) => m.personId === personId),
-        )
+        .filter((t) => !own.has(t.id) && t.members.some((m) => m.personId === personId))
         .reduce((sum, t) => sum + capacity(ws, personId, t.id), 0);
       const areaHours = hoursOf(area, personId);
       const areaRoleIds = area.members.filter((m) => m.personId === personId).map((m) => m.roleId);
-      const group: Group = own.length === 0 ? 'area' : inArea.has(personId) ? 'both' : 'team';
+      const group: Group = mine.length === 0 ? 'area' : inArea.has(personId) ? 'both' : 'team';
       return {
         personId,
         group,
         areaRoleIds,
         areaHours,
-        teams: own,
+        teams: mine,
         otherHours,
-        total: areaHours + own.reduce((s, x) => s + x.hours, 0) + otherHours,
+        total: areaHours + mine.reduce((s, x) => s + x.hours, 0) + otherHours,
         invitedOnly: areaRoleIds.length === 0 && areaHours === 0 && invited.has(personId),
       };
     });

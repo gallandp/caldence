@@ -46,8 +46,9 @@
     const value = name.trim();
     if (value === '') return fail('add', 'error.required', $t('area.add.person'));
     if (roleChoice === '') return fail('add', 'error.required', $t('area.card.role'));
-    const h = hours ?? 0;
-    if (!Number.isFinite(h) || h < 0)
+    // A blank field keeps the hours of someone already in the area (a new person: 0 h).
+    const h = hours;
+    if (h !== null && (!Number.isFinite(h) || h < 0))
       return fail('add', 'error.number.invalid', $t('area.add.hours'));
     const known = $workspace.people.find(
       (p) => p.name.trim().toLowerCase() === value.toLowerCase(),

@@ -236,10 +236,10 @@
   "area.structure.perWeek": "pro Woche {levelInArea}",
   "area.structure.add": "+ Person",
   "area.structure.nobody": "Noch niemand.",
-  "area.structure.fromTeams": "Aus den {levelTeams}",
   "area.structure.origin": "aus {teams}",
   "area.structure.meetings": "Termine {levelInArea}: Wer nimmt teil?",
-  "area.structure.teamMeta": "{n} Pers.",
+  "area.structure.teamMeta.one": "1 Pers.",
+  "area.structure.teamMeta.other": "{n} Pers.",
   "area.structure.cadence": "Takt: {weeks} Wochen",
   "area.structure.inTeam": "{levelTeam}",
   "area.structure.inArea": "{levelArea}",
@@ -251,7 +251,7 @@
   "area.card.role": "Rolle {levelInArea}",
   "area.card.noRole": "Keine",
   "area.card.meetings": "Termine {levelInArea}: {list}",
-  "area.card.remove": "Aus {levelArea} entfernen",
+  "area.card.remove": "Aus {name} entfernen",
   "area.add.title": "Person zu {name} hinzufügen",
   "area.add.person": "Person",
   "area.add.hours": "Stunden pro Woche {levelInArea}",
@@ -825,5 +825,6 @@
   "meet.role.shareOnly": "{share} %",
   "meet.group.count.one": "{n} Termin",
   "meet.group.count.other": "{n} Termine",
-  "meet.more": "Weitere Aktionen"
+  "meet.more": "Weitere Aktionen",
+  "area.card.unit": "h"
 }
