@@ -226,3 +226,23 @@ export function missingRoles(
   }
   return out;
 }
+
+/**
+ * The areas whose own meetings a filter counts: with a person filter the areas where the person
+ * attends a meeting, with a team filter the selected area (none for a team), otherwise all.
+ */
+export function areasInScope(
+  ws: Workspace,
+  filter: { teamId?: string; personId?: string },
+): Team[] {
+  const { personId, teamId } = filter;
+  return ws.areas
+    .filter((a) =>
+      personId
+        ? a.events.some((e) =>
+            e.participants.some((p) => attendees(ws, a.id, p).includes(personId)),
+          )
+        : teamId === undefined || a.id === teamId,
+    )
+    .map(areaAsTeam);
+}

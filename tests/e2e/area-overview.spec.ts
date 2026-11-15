@@ -87,6 +87,17 @@ test('a load cell opens Load for that team and week', async ({ page }) => {
   await expect(focus).toBeHidden();
 });
 
+test('an area meeting opens in Meetings & cadence', async ({ page }) => {
+  const overview = await openOverview(page);
+  await overview.getByRole('button', { name: 'Open PO forum in Meetings & cadence' }).click();
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Payments');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('PO forum');
+});
+
 test('phones show the area meetings as cards', async ({ page }) => {
   const overview = await openOverview(page);
   await page.setViewportSize({ width: 390, height: 844 });

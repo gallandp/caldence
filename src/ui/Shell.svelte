@@ -366,8 +366,6 @@
                   onOpenLoad={openLoad}
                   onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
                 />{/if}
-            {:else if id === 'meetings' && activeArea}
-              {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}
                 <SetupDone

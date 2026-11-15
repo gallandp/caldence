@@ -55,11 +55,13 @@ function workspace(t: Team): Workspace {
 describe('meetingCost', () => {
   it('counts every member of a role, and one person for a role without members', () => {
     // 3 devs x 1 h + 1 po (no members) x 0.5 h = 3.5 person-hours
-    expect(meetingCost(team([]), event(), 60, 100)).toBe(350);
+    expect(meetingCost(workspace(team([])), team([]), event(), 60, 100)).toBe(350);
   });
 
   it('includes preparation time', () => {
-    expect(meetingCost(team([]), event({ preparation: 0.5 }), 60, 100)).toBe(525);
+    expect(meetingCost(workspace(team([])), team([]), event({ preparation: 0.5 }), 60, 100)).toBe(
+      525,
+    );
   });
 });
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { unitTeamIds } from '../../core/model';
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
@@ -25,9 +24,6 @@
   } from '../state/files';
   import { pickFile } from '../state/picker';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
-  /** With an area selected, its first team. */
-  const firstTeamOf = (id: string | null) =>
-    id === null ? null : (unitTeamIds($workspace, id)[0] ?? null);
 
   let { onOpenMeetings }: { onOpenMeetings?: () => void } = $props();
 
@@ -82,15 +78,15 @@
 
   const choices = $derived(
     kind === 'team'
-      ? ws.teams.map((x) => ({ id: x.id, name: x.name }))
+      ? // An area's calendar holds its own meetings; each team keeps its own.
+        [...ws.teams, ...ws.areas].map((x) => ({ id: x.id, name: x.name }))
       : kind === 'role'
         ? ws.roles.map((x) => ({ id: x.id, name: x.name }))
         : ws.people.map((x) => ({ id: x.id, name: x.name })),
   );
   const chosen = $derived(
-    choices.find(
-      (c) => c.id === (pickedId[kind] ?? (kind === 'team' ? firstTeamOf($activeTeamId) : null)),
-    ) ?? choices[0],
+    choices.find((c) => c.id === (pickedId[kind] ?? (kind === 'team' ? $activeTeamId : null))) ??
+      choices[0],
   );
   const scope = $derived<Filter>(
     !chosen
@@ -363,9 +359,19 @@
             value={chosen?.id ?? ''}
             onchange={(e) => (pickedId[kind] = e.currentTarget.value)}
           >
-            {#each choices as choice (choice.id)}
-              <option value={choice.id}>{choice.name}</option>
-            {/each}
+            {#if kind === 'team' && ws.areas.length > 0}
+              <!-- Teams and areas apart, so an area is not taken for a team. -->
+              <optgroup label={$t('exchange.scope.group.teams')}>
+                {#each ws.teams as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+              </optgroup>
+              <optgroup label={$t('exchange.scope.group.areas')}>
+                {#each ws.areas as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+              </optgroup>
+            {:else}
+              {#each choices as choice (choice.id)}
+                <option value={choice.id}>{choice.name}</option>
+              {/each}
+            {/if}
           </select>
         </div>
       </div>
