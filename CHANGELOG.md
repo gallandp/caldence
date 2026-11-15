@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.39.0 – 2026-11-15
+
 ### Added
 
 - Areas: roles are created right in the area: "New role …" in "+ Person" and in the person card, and the role list (rename, colour, order) is on the structure page too
