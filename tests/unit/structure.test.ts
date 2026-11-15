@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/valid-workspace.json';
 import type { CalEvent, Team, Workspace } from '../../src/core/model';
 import { validate, type Result } from '../../src/core/validate';
-import { areaStructure, meetingReach } from '../../src/core/structure';
+import { areaStructure } from '../../src/core/structure';
 import { addAreaPerson, removeFromArea, setAreaHours, setAreaRole } from '../../src/core/areaEdit';
 
 function ok<T>(r: Result<T>): T {
@@ -111,17 +111,6 @@ describe('areaStructure', () => {
     w.areas[0]!.memberHours.bea = 2;
     const bea = areaStructure(w, w.areas[0]!).people.find((p) => p.personId === 'bea')!;
     expect(bea).toMatchObject({ group: 'both', areaRoleIds: [], invitedOnly: false });
-  });
-});
-
-describe('meetingReach', () => {
-  it('lists everyone invited and the teams that lack a "from every team" role', () => {
-    const w = ws();
-    w.teams[1]!.members = w.teams[1]!.members.filter((m) => m.roleId !== 'po');
-    const r = meetingReach(w, w.areas[0]!, forum(true));
-    expect([...r.personIds].sort()).toEqual(['alex']);
-    expect(r.missing).toEqual([{ teamId: 'beta', roleId: 'po' }]);
-    expect(meetingReach(w, w.areas[0]!, forum(false)).missing).toEqual([]);
   });
 });
 

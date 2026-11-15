@@ -1,5 +1,5 @@
 import { capacity } from './load';
-import type { Area, CalEvent, Workspace } from './model';
+import { attendees, type Area, type Workspace } from './model';
 
 /** The three groups of people around an area, named the same in every view. */
 export type Group = 'area' | 'both' | 'team';
@@ -45,38 +45,6 @@ const hoursOf = (area: Area, personId: string): number =>
   Object.hasOwn(area.memberHours, personId) ? area.memberHours[personId]! : 0;
 
 /**
- * Who a participant of an area meeting reaches: area members with the role and, for "role X from
- * every team", the members with that role in every team of the area. Person ids, each once.
- */
-export function reach(ws: Workspace, area: Area, p: CalEvent['participants'][number]): string[] {
-  const out = new Set(area.members.filter((m) => m.roleId === p.roleId).map((m) => m.personId));
-  if (p.fromTeams)
-    for (const team of ws.teams)
-      if (area.teamIds.includes(team.id))
-        for (const m of team.members) if (m.roleId === p.roleId) out.add(m.personId);
-  return [...out];
-}
-
-/** Everyone an area meeting invites, and the teams that lack an invited "from every team" role. */
-export function meetingReach(
-  ws: Workspace,
-  area: Area,
-  event: CalEvent,
-): { personIds: Set<string>; missing: { teamId: string; roleId: string }[] } {
-  const ids = new Set(event.participants.flatMap((p) => reach(ws, area, p)));
-  const missing: { teamId: string; roleId: string }[] = [];
-  for (const p of event.participants) {
-    if (!p.fromTeams) continue;
-    for (const teamId of area.teamIds) {
-      const team = ws.teams.find((t) => t.id === teamId);
-      if (team && !team.members.some((m) => m.roleId === p.roleId))
-        missing.push({ teamId, roleId: p.roleId });
-    }
-  }
-  return { personIds: ids, missing };
-}
-
-/**
  * The structure of an area: who works only in the area, in a team and in the area, or only in a
  * team, with their hours. A team member belongs to the area when they have an area role, area
  * hours, or a meeting of the area invites them as "role X from every team".
@@ -85,7 +53,7 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
   const teams = area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id));
   const invited = new Set(
     area.events.flatMap((e) =>
-      e.participants.filter((p) => p.fromTeams).flatMap((p) => reach(ws, area, p)),
+      e.participants.filter((p) => p.fromTeams).flatMap((p) => attendees(ws, area.id, p)),
     ),
   );
   const areaMembers = personIds(area.members);
