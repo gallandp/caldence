@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.38.1 – 2026-11-15
+
 ### Fixed
 
 - Areas: "Role · every team (n)" now shows the same count on Meetings & cadence and in the area overview (everyone the meeting reaches), area edits in the structure tree are checked like all other edits, and an error message used a fixed "area" instead of the configured level name
