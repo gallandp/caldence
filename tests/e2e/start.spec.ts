@@ -149,6 +149,23 @@ test('choosing another way of working starts the later steps afresh', async ({ p
   await expect(dialog.getByLabel('Team name')).toHaveValue('Kanban');
 });
 
+test('a click anywhere on an option card picks that way of working', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  const kanban = dialog.getByRole('radio', { name: 'Kanban', exact: true });
+  await expect(kanban).toHaveAccessibleDescription(/^Flow/);
+  await dialog.getByText(/^Flow/).click();
+  await expect(kanban).toBeChecked();
+  const none = dialog.getByRole('radio', { name: 'No template', exact: true });
+  const card = dialog.locator('label').filter({ hasText: 'No template' });
+  const box = await card.boundingBox();
+  if (!box) throw new Error('no card');
+  // The empty right edge of the card, away from the radio and the text.
+  await page.mouse.click(box.x + box.width - 8, box.y + box.height / 2);
+  await expect(none).toBeChecked();
+});
+
 test('the manual link switches to Help', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Read the manual' }).click();
