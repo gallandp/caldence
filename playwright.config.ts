@@ -15,6 +15,14 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], launchOptions: { executablePath } },
+      testIgnore: /update-notice\.spec\.ts/,
+    },
+    // Changes the built sw.js, so it runs alone after all other Chromium tests.
+    {
+      name: 'chromium-update',
+      use: { ...devices['Desktop Chrome'], launchOptions: { executablePath } },
+      testMatch: /update-notice\.spec\.ts/,
+      dependencies: ['chromium'],
     },
     // The file and autosave flows must also work in Firefox and WebKit (CI only).
     ...(process.env.CI

@@ -1,5 +1,3 @@
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 
 test('links a manifest with name, start_url, display and a maskable icon', async ({
@@ -75,49 +73,4 @@ test('the app opens offline with a query string', async ({ page, context }) => {
   await context.setOffline(true);
   await page.goto('/?source=pwa');
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
-});
-
-const swFile = fileURLToPath(new URL('../../dist/sw.js', import.meta.url));
-
-/**
- * Changes the built sw.js (the preview server reads files on each request), so the next
- * update check finds a new version. Restored after each test.
- */
-async function deployNewVersion(page: import('@playwright/test').Page) {
-  appendFileSync(swFile, '\n// next version\n');
-  await page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => r?.update()));
-}
-
-test.describe('update notice', () => {
-  let original = '';
-  test.beforeEach(() => {
-    original = readFileSync(swFile, 'utf8');
-  });
-  test.afterEach(() => writeFileSync(swFile, original));
-
-  for (const hardReload of [false, true]) {
-    test(`Reload in the update notice loads the new version${hardReload ? ' after a hard reload' : ''}`, async ({
-      page,
-      context,
-    }) => {
-      if (hardReload) {
-        // A second, controlled tab keeps the old worker; this tab bypasses it like Cmd+Shift+R.
-        await controlled(await context.newPage());
-        const cdp = await context.newCDPSession(page);
-        await cdp.send('Network.enable');
-        await cdp.send('Network.setBypassServiceWorker', { bypass: true });
-        await page.goto('/');
-      } else {
-        await controlled(page);
-      }
-      await deployNewVersion(page);
-      const notice = page.getByText('A new version of Caldence is available.');
-      await expect(notice).toBeVisible();
-      const reloaded = page.waitForEvent('framenavigated');
-      await page.getByRole('button', { name: 'Reload' }).click();
-      await reloaded;
-      await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
-      await expect(notice).toHaveCount(0);
-    });
-  }
 });
