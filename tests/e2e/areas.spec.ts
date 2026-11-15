@@ -44,9 +44,10 @@ test('an area groups teams in the switcher and is selected like a team', async (
   await expect(page.locator('.switcher .list')).toBeHidden();
   await expect(page.locator('.switcher .pick')).toBeFocused();
 
-  // A team in the area names it in the card.
+  // A team in the area names it in the card; the area can be picked again from the list.
   await pickUnit(page, 'Team Alpha');
   await expect(page.locator('.switcher .meta')).toContainText('Platform ·');
+  await pickUnit(page, 'Platform');
 });
 
 test('the views follow the area: Load sums its teams, Team offers them', async ({ page }) => {
@@ -58,8 +59,11 @@ test('the views follow the area: Load sums its teams, Team offers them', async (
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   const panel = page.getByRole('tabpanel', { name: 'Team' });
   await expect(panel.getByText(/People and roles are assigned per team/)).toBeVisible();
-  await panel.getByRole('button', { name: 'Team Beta' }).click();
+  await panel.getByRole('button', { name: 'Team Beta' }).focus();
+  await page.keyboard.press('Enter');
   await expect(currentUnit(page)).toHaveText('Team Beta');
+  // The team view replaces the list of teams; focus moves to the panel instead of getting lost.
+  await expect(page.locator('#panel-team')).toBeFocused();
   await expect(panel.getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
 });
 
@@ -82,6 +86,10 @@ test('rename an area, move a team into it after a question, delete it', async ({
   await choose.getByRole('button', { name: 'Apply' }).click();
   const move = page.getByRole('dialog', { name: 'Move teams?' });
   await expect(move).toContainText('Moving to Insights: Team Alpha (was Platform).');
+  // Cancel keeps the choice open; Apply asks again.
+  await move.getByRole('button', { name: 'Cancel' }).click();
+  await expect(choose.getByRole('checkbox', { name: 'Team Alpha' })).toBeChecked();
+  await choose.getByRole('button', { name: 'Apply' }).click();
   await move.getByRole('button', { name: 'Move' }).click();
   await expect(unitNames(page)).toHaveText(['Platform', 'Insights', 'Team Alpha', 'Team Beta']);
 

@@ -61,7 +61,12 @@ export const unitNames = (page: Page) => page.locator('.switcher .list .opt-name
 /** Selects a team or an area in the sidebar switcher. */
 export async function pickUnit(page: Page, name: string) {
   await page.locator('.switcher .pick').click();
-  await page.locator('.switcher .list').getByRole('button', { name, exact: true }).click();
+  // An area's button also names its level and team count ("Platform, area, 2 teams").
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await page
+    .locator('.switcher .list')
+    .getByRole('button', { name: new RegExp(`^${escaped}(\\W+\\w+\\W+\\d+ \\w+)?$`) })
+    .click();
   await expect(currentUnit(page)).toHaveText(name);
 }
 

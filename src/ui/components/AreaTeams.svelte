@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import { initials } from '../avatar';
@@ -6,6 +7,13 @@
 
   /** A view that works per team shows this while an area is selected: the area's teams to pick. */
   let { area, view }: { area: Area; view: 'meetings' | 'team' } = $props();
+
+  /** The view replaces this panel; focus goes to the view's panel so it is not lost. */
+  async function open(id: string) {
+    activeTeamId.set(id);
+    await tick();
+    document.getElementById(`panel-${view}`)?.focus();
+  }
 
   const teams = $derived(area.teamIds.flatMap((id) => $workspace.teams.filter((x) => x.id === id)));
 </script>
@@ -18,7 +26,7 @@
     <ul>
       {#each teams as team (team.id)}
         <li>
-          <button type="button" onclick={() => activeTeamId.set(team.id)}>
+          <button type="button" onclick={() => open(team.id)}>
             <span class="avatar" aria-hidden="true">{initials(team.name)}</span>
             {team.name}
           </button>

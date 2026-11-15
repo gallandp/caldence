@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { unitTeamIds } from '../../core/model';
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { slug } from '../../core/slug';
@@ -14,6 +15,9 @@
   import { pickFile } from '../state/picker';
   import ApplyDialog from '../templates/ApplyDialog.svelte';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
+  /** With an area selected, its first team. */
+  const firstTeamOf = (id: string | null) =>
+    id === null ? null : (unitTeamIds($workspace, id)[0] ?? null);
 
   let { onOpenTeam }: { onOpenTeam?: () => void } = $props();
 
@@ -108,7 +112,7 @@
   let nameDraft = $state<string | null>(null);
   let exportError = $state(false);
   const exportTeam = $derived(
-    teams.find((x) => x.id === (chosenTeam ?? $activeTeamId)) ?? teams[0],
+    teams.find((x) => x.id === (chosenTeam ?? firstTeamOf($activeTeamId))) ?? teams[0],
   );
   const exportName = $derived(nameDraft ?? exportTeam?.name ?? '');
 

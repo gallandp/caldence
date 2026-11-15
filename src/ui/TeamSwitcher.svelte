@@ -247,8 +247,10 @@
       {/if}
       <span class="text">
         <span class="name"
-          ><span class="label">{current.name}</span><svg class="chev" viewBox="0 0 24 24"
-            ><path d="M6 9l6 6 6-6" /></svg
+          ><span class="label">{current.name}</span><svg
+            class="chev"
+            viewBox="0 0 24 24"
+            aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
           ></span
         >
         <span class="meta">

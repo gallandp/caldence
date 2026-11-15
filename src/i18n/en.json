@@ -201,7 +201,7 @@
   "area.delete.goes": "Also deleted: its own meetings ({events}) and the assignments of people ({people}) at this level; the people themselves stay.",
   "area.undo": "You can undo this with Ctrl+Z.",
   "area.dialog.name": "{levelArea} name",
-  "area.dialog.teams": "{levelTeams} in it",
+  "area.dialog.teams": "{levelTeams} in this {levelAreaLc}",
   "area.dialog.noTeams": "No {levelTeamsLc} yet. You can also choose them later.",
   "area.dialog.hint": "You can change this later.",
   "area.dialog.in": "in {area}",
