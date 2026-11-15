@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { removeFromArea, setAreaHours, setAreaRole } from '../../core/areaEdit';
   import { roleByName, updateTeam } from '../../core/edit';
+  import { LIMITS } from '../../core/limits';
   import { attendees, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
@@ -158,7 +159,7 @@
   }
 
   /** The select's value for "New role …", which asks for the new role's name below it. */
-  const NEW = 'new';
+  const NEW = ':new';
   let creating = $state(false);
   $effect(() => {
     void personId;
@@ -170,6 +171,7 @@
     const value = (event.currentTarget as HTMLSelectElement).value;
     if (value === NEW) {
       creating = true;
+      clear('area-role');
       await tick();
       dialog?.querySelector<HTMLInputElement>('[data-new-role]')?.focus();
       return;
@@ -186,6 +188,8 @@
     if (!personId) return;
     const value = (event.currentTarget as HTMLInputElement).value.trim();
     if (value === '') return fail('area-role', 'error.required', $t('settings.roles.add'));
+    if (value.length > LIMITS.textChars)
+      return fail('area-role', 'error.text.tooLong', $t('settings.roles.add'));
     const id = personId;
     const colour = PALETTE[roles.length % PALETTE.length]!.hex;
     const done = commit('area-role', $t('area.card.role'), (ws) => {
@@ -199,7 +203,11 @@
   }
 
   function onNewRoleKeydown(event: KeyboardEvent) {
-    // Escape cancels the new role only; the card stays open. Enter and leaving save (change).
+    // Enter and leaving save (change), which does not fire for a field left empty.
+    const input = event.currentTarget as HTMLInputElement;
+    if (event.key === 'Enter' && input.value.trim() === '')
+      return fail('area-role', 'error.required', $t('settings.roles.add'));
+    // Escape cancels the new role only; the card stays open.
     if (event.key !== 'Escape') return;
     event.preventDefault();
     event.stopPropagation();
@@ -244,6 +252,8 @@
             data-area-role
             value={creating ? NEW : (p.areaRoleIds[0] ?? '')}
             aria-label={$t('area.card.role')}
+            aria-invalid={!creating && errors['area-role'] ? true : undefined}
+            aria-describedby={creating ? undefined : describe('area-role')}
             onchange={onRole}
           >
             <option value=""

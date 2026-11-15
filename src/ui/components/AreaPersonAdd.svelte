@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { addAreaPerson } from '../../core/areaEdit';
   import { addItem, roleByName } from '../../core/edit';
+  import { LIMITS } from '../../core/limits';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import { PALETTE } from './ColourField.svelte';
@@ -25,7 +26,7 @@
   let newRole = $state('');
 
   /** The select's value for "New role …": a role is created with the person. */
-  const NEW = 'new';
+  const NEW = ':new';
   const roles = $derived($workspace.roles);
   const roleChoice = $derived(
     roleId === NEW || roles.some((r) => r.id === roleId) ? roleId : (roles[0]?.id ?? NEW),
@@ -38,9 +39,18 @@
     newRole = '';
     if (!roles.some((r) => r.id === roleId)) roleId = roles[0]?.id ?? NEW;
     clear('add');
+    clear('role');
     await tick();
     dialog?.showModal();
     dialog?.querySelector<HTMLInputElement>('input')?.focus();
+  }
+
+  async function onRoleChoice(event: Event) {
+    roleId = (event.currentTarget as HTMLSelectElement).value;
+    clear('role');
+    if (roleId !== NEW) return;
+    await tick();
+    dialog?.querySelector<HTMLInputElement>('[data-new-role]')?.focus();
   }
 
   function close() {
@@ -53,8 +63,11 @@
     const value = name.trim();
     if (value === '') return fail('add', 'error.required', $t('area.add.person'));
     const roleNew = newRole.trim();
+    clear('role');
     if (roleChoice === NEW && roleNew === '')
-      return fail('add', 'error.required', $t('settings.roles.add'));
+      return fail('role', 'error.required', $t('settings.roles.add'));
+    if (roleChoice === NEW && roleNew.length > LIMITS.textChars)
+      return fail('role', 'error.text.tooLong', $t('settings.roles.add'));
     // A blank field keeps the hours of someone already in the area (a new person: 0 h).
     const h = hours;
     if (h !== null && (!Number.isFinite(h) || h < 0))
@@ -63,7 +76,7 @@
       (p) => p.name.trim().toLowerCase() === value.toLowerCase(),
     );
     let added = known?.id;
-    const done = commit('add', $t('area.add.hours'), (ws) => {
+    const done = commit('add', $t('area.add.person'), (ws) => {
       let next = ws;
       let id = known?.id;
       if (id === undefined) [next, id] = addItem(next, 'people', { name: value });
@@ -103,7 +116,7 @@
     </datalist>
     <label>
       {$t('area.card.role')}
-      <select value={roleChoice} onchange={(e) => (roleId = e.currentTarget.value)}>
+      <select value={roleChoice} onchange={onRoleChoice}>
         {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
         <option value={NEW}>{$t('area.role.new')}</option>
       </select>
@@ -116,9 +129,11 @@
           data-new-role
           placeholder={$t('area.role.placeholder')}
           bind:value={newRole}
-          aria-describedby={describe('add')}
+          aria-invalid={errors.role ? true : undefined}
+          aria-describedby={describe('role')}
         />
       </label>
+      <FieldError {problems} id="role" />
     {/if}
     <label>
       {$t('area.add.hours')}

@@ -140,9 +140,11 @@ test('a new role is created right in the area, from "+ Person" and from the card
   const dialog = page.getByRole('dialog', { name: 'Add a person to Payments' });
   await dialog.getByLabel('Person').fill('Nina Z.');
   await dialog.getByLabel('Role in the area').selectOption({ label: 'New role …' });
-  // Without a name nothing is added.
+  await expect(dialog.getByLabel('New role name')).toBeFocused();
+  // Without a name nothing is added, and the error sits at the role name.
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('New role name')).toHaveAttribute('aria-invalid', 'true');
   await dialog.getByLabel('New role name').fill('Area architect');
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -161,6 +163,8 @@ test('a new role is created right in the area, from "+ Person" and from the card
   await expect(field).toHaveCount(0);
   await expect(select).toBeFocused();
   await select.selectOption({ label: 'New role …' });
+  await card.getByLabel('New role name').press('Enter');
+  await expect(card.getByLabel('New role name')).toHaveAttribute('aria-invalid', 'true');
   await card.getByLabel('New role name').fill('Coach');
   await card.getByLabel('New role name').press('Enter');
   await expect(nina).toContainText('Coach');
