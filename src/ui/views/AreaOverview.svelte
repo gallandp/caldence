@@ -8,8 +8,8 @@
     type StepReason,
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
-  import { capacity, loadPerWeek } from '../../core/load';
-  import { areaAsTeam, missingRoles, type Area, type Cadence } from '../../core/model';
+  import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
+  import { areaAsTeam, type Area, type Cadence } from '../../core/model';
   import {
     formatDisplayDate,
     formatNumber,
@@ -19,6 +19,7 @@
   } from '../../i18n';
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
+  import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
 
@@ -207,7 +208,7 @@
       roleIds: [
         ...new Set(area.members.filter((m) => m.personId === personId).map((m) => m.roleId)),
       ],
-      areaHours: area.memberHours[personId] ?? 0,
+      areaHours: hoursInArea(ws, area.id, personId),
       teams: teams
         .filter((x) => x.members.some((m) => m.personId === personId))
         .map((x) => ({ id: x.id, hours: capacity(ws, personId, x.id) })),
@@ -221,11 +222,6 @@
         (x) => ', ' + $t('overview.steer.inTeam', { hours: hours(x.hours), team: teamName(x.id) }),
       )
       .join('');
-  /** People with the role in the area's teams (area-level holders have their own chip). */
-  const fromTeams = (roleId: string) =>
-    new Set(
-      teams.flatMap((x) => x.members.filter((m) => m.roleId === roleId).map((m) => m.personId)),
-    ).size;
   const unit = $derived(areaAsTeam(area));
   const whenText = (e: Area['events'][number]) =>
     $t('overview.steer.when', {
@@ -470,7 +466,6 @@
             <tbody>
               {#each area.events as event, i (event.id)}
                 {@const m = meetings[i]}
-                {@const missing = missingRoles(ws, area, event)}
                 <tr data-meeting={event.id}>
                   <td class="what">
                     {#if onOpenMeeting}
@@ -489,28 +484,7 @@
                     <small>{whenText(event)}</small>
                   </td>
                   <td class="who">
-                    {#each event.participants as p, j (j)}
-                      {#if p.fromTeams}
-                        <span class="chip from"
-                          ><i class="dot" aria-hidden="true"></i>{$t('area.fromTeams.count', {
-                            role: roleName(p.roleId),
-                            n: formatNumber($locale, fromTeams(p.roleId), 0),
-                          })}</span
-                        >
-                      {:else}
-                        <span class="chip area-role">{roleName(p.roleId)}</span>
-                      {/if}
-                    {/each}
-                    {#each missing as gap, k (k)}
-                      <span class="missing"
-                        ><svg viewBox="0 0 24 24" aria-hidden="true"
-                          ><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
-                        >{$t('area.missingRole', {
-                          team: teamName(gap.teamId),
-                          role: roleName(gap.roleId),
-                        })}</span
-                      >
-                    {/each}
+                    <AreaMeetingWho {area} {event} />
                   </td>
                   <td class="num">
                     {#if m && m.recurring}
@@ -884,45 +858,6 @@
     color: #062a26;
     font-size: 0.68rem;
     font-weight: 750;
-  }
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin: 0.1rem 0.25rem 0.1rem 0;
-    padding: 0.05rem 0.55rem;
-    border-radius: 99px;
-    background: var(--area-soft);
-    color: var(--area);
-    font-size: 0.78rem;
-    white-space: nowrap;
-  }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: linear-gradient(90deg, var(--area), var(--accent));
-  }
-  .missing {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin-top: 0.35rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 0.4rem;
-    background: var(--warn-soft);
-    color: var(--warn);
-    font-size: 0.78rem;
-  }
-  .missing svg {
-    width: 1em;
-    height: 1em;
-    flex: none;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
   table.meetings {
     width: 100%;

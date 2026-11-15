@@ -1,18 +1,18 @@
 import type { Area, Workspace } from './model';
 import { record } from './record';
-import type { Result } from './validate';
+import { validate, type Result } from './validate';
 
 const unknown = <T>(areaId: string): Result<T> => ({
   ok: false,
   errors: [{ path: `areas.${areaId}`, key: 'error.ref.unknown' }],
 });
 
-/** A copy of the workspace with one area changed; refuses an unknown area. */
+/** A copy of the workspace with one area changed; refuses an unknown area or an invalid result. */
 function mapArea(ws: Workspace, areaId: string, fn: (a: Area) => void): Result<Workspace> {
   if (!ws.areas.some((a) => a.id === areaId)) return unknown(areaId);
   const out = structuredClone(ws);
   for (const a of out.areas) if (a.id === areaId) fn(a);
-  return { ok: true, value: out };
+  return validate(out);
 }
 
 function withHours(a: Area, personId: string, hours: number | null): void {

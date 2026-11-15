@@ -1,5 +1,5 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
-import { capacity, fte, occurrenceHours, occurrencesPerWeek, type WeekLoad } from './load';
+import { capacity, fte, occurrenceHours, overMax, occurrencesPerWeek, type WeekLoad } from './load';
 import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
 import { effectiveDuration } from './recurrence';
 
@@ -169,7 +169,7 @@ export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell
       const cap = hours.get(p) ?? 0;
       const share = cap > 0 ? fte(h, cap) : h > 0 ? 1 : 0;
       total += share;
-      if (h > 0 && (cap > 0 ? share > maxFte : true)) warn = true;
+      if (overMax(h, cap, maxFte)) warn = true;
     }
     return { monday: week.monday, share: people.length > 0 ? total / people.length : 0, warn };
   });

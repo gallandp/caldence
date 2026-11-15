@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import { areaAsTeam, attendees, missingRoles, type CalEvent } from '../../core/model';
+  import { areaAsTeam, type CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
@@ -11,6 +11,7 @@
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import AreaIcon from '../components/AreaIcon.svelte';
+  import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
   import CyclesCard from '../components/CyclesCard.svelte';
@@ -163,12 +164,6 @@
   });
   const ariaSort = (key: SortKey) =>
     sortKey === key ? (sortDir === 1 ? 'ascending' : 'descending') : 'none';
-
-  /** " · 50 %" after a role that comes to part of the meetings; nothing at a share of 1. */
-  const shareSuffix = (share: number) =>
-    share >= 1
-      ? ''
-      : ` · ${$t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) })}`;
 
   const costOf = (e: CalEvent) =>
     rate && team ? meetingCost($workspace, team, e, effectiveDuration(e, team), rate) : 0;
@@ -561,30 +556,7 @@
                     {/if}
                     <td class="c-people">
                       {#if area}
-                        <ul class="area-roles">
-                          {#each event.participants as p, pi (pi)}
-                            {@const name = roleName(p.roleId)}
-                            {@const share = shareSuffix(p.share)}
-                            <li class="area-chip" class:from-teams={p.fromTeams}>
-                              {#if p.fromTeams}
-                                <span class="split-dot" aria-hidden="true"></span>{$t(
-                                  'area.fromTeams.count',
-                                  { role: name, n: attendees($workspace, area.id, p).length },
-                                )}{share}
-                              {:else}{name}{share}{/if}
-                            </li>
-                          {/each}
-                        </ul>
-                        {#each missingRoles($workspace, area, event) as m (m.teamId + m.roleId)}
-                          <p class="missing-role">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"
-                              ><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
-                            >{$t('area.missingRole', {
-                              team: $workspace.teams.find((x) => x.id === m.teamId)?.name ?? '',
-                              role: roleName(m.roleId),
-                            })}
-                          </p>
-                        {/each}
+                        <AreaMeetingWho {area} {event} />
                       {:else}
                         <ul class="roles">
                           {#each event.participants as p, pi (pi)}
@@ -750,54 +722,6 @@
   .area-mark {
     display: inline-flex;
     color: var(--area);
-  }
-  .area-roles {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-  }
-  .area-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.15rem 0.6rem;
-    border-radius: 999px;
-    background: var(--area-soft);
-    color: var(--area);
-    font-size: 0.78rem;
-    font-weight: 600;
-  }
-  .split-dot {
-    width: 8px;
-    height: 8px;
-    flex: none;
-    border-radius: 50%;
-    background: linear-gradient(90deg, var(--area) 50%, var(--accent) 50%);
-  }
-  .missing-role {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0.4rem 0.3rem 0 0;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: var(--warn-soft);
-    color: var(--warn);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-  .missing-role svg {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
   .empty {
     color: var(--text-muted);

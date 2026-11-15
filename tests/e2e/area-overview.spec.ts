@@ -67,7 +67,7 @@ test('the area overview compares cadences, shows load and the area steering', as
   await expect(roles).toContainText('Head of area · 32.0 h in the area');
   await expect(roles.locator('li', { hasText: 'Pia' })).toContainText('0 h · set hours');
   const forum = overview.locator('[data-meeting="ev-po-forum"]');
-  await expect(forum).toContainText('Product Owner · every team (3)');
+  await expect(forum).toContainText('Product Owner · every team (4)');
   // Ruth, Pia (area PO) and the three team POs: 5 h a week.
   await expect(forum.locator('td.num')).toHaveText('5.0');
   // Only Team Beta has developers.
