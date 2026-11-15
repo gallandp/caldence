@@ -16,6 +16,8 @@ export type RegisterFn = (options?: RegisterOptions) => (reloadPage?: boolean) =
 export interface UpdateEnv {
   /** Runs `fn` every `ms` milliseconds. */
   every(ms: number, fn: () => void): void;
+  /** Runs `fn` once after `ms` milliseconds. */
+  later(ms: number, fn: () => void): void;
   /** Runs `fn` whenever the page becomes visible again. */
   onVisible(fn: () => void): void;
   online(): boolean;
@@ -33,9 +35,15 @@ export interface UpdateService {
 export const UPDATE_CHECK_MS = 60 * 60 * 1000;
 /** A save that does not finish in this time must not block the reload. */
 export const FLUSH_TIMEOUT_MS = 3000;
+/**
+ * The longest reload() waits for the new worker to activate before reloading the page itself.
+ * Reloading before it activates would load the old version again.
+ */
+export const RELOAD_FALLBACK_MS = 5000;
 
 export const browserUpdateEnv: UpdateEnv = {
   every: (ms, fn) => void setInterval(fn, ms),
+  later: (ms, fn) => void setTimeout(fn, ms),
   onVisible: (fn) =>
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') fn();
@@ -53,6 +61,16 @@ export function createUpdate(
   const needRefresh = writable(false);
   const offlineReady = writable(false);
   let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
+  let registration: ServiceWorkerRegistration | undefined;
+  let reloading = false;
+  /** Set once the user chose Reload and the save is done. */
+  let saved = false;
+
+  function reloadOnce() {
+    if (reloading) return;
+    reloading = true;
+    env.reloadPage();
+  }
 
   /** Saves first; a failing or hanging save must not block the update (autosave holds earlier state). */
   async function save(): Promise<void> {
@@ -69,11 +87,23 @@ export function createUpdate(
     }
   }
 
-  function watch(registration: ServiceWorkerRegistration | undefined) {
-    if (!registration) return;
+  /** Resolves once `sw` is activated or replaced, or after RELOAD_FALLBACK_MS. */
+  function activated(sw: ServiceWorker | null | undefined): Promise<void> {
+    if (!sw) return Promise.resolve();
+    return new Promise((resolve) => {
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'activated' || sw.state === 'redundant') resolve();
+      });
+      env.later(RELOAD_FALLBACK_MS, resolve);
+    });
+  }
+
+  function watch(reg: ServiceWorkerRegistration | undefined) {
+    registration = reg;
+    if (!reg) return;
     const check = () => {
       if (!env.online()) return;
-      registration.update().catch(() => {
+      reg.update().catch(() => {
         // Server not reachable: try again next time.
       });
     };
@@ -86,7 +116,8 @@ export function createUpdate(
       onNeedRefresh: () => needRefresh.set(true),
       onOfflineReady: () => offlineReady.set(true),
       onNeedReload: () => {
-        void save().then(() => env.reloadPage());
+        if (saved) reloadOnce();
+        else void save().then(reloadOnce);
       },
       onRegisteredSW: (_url, registration) => watch(registration),
     });
@@ -96,9 +127,21 @@ export function createUpdate(
   return {
     needRefresh: readonly(needRefresh),
     offlineReady: readonly(offlineReady),
+    /**
+     * Saves, activates the new worker and reloads. The page reloads itself instead of relying
+     * on controllerchange: an uncontrolled page (after a hard reload) never gets one (#181).
+     */
     async reload() {
       await save();
-      await updateSW?.(true);
+      saved = true;
+      const waiting = registration?.waiting;
+      try {
+        await updateSW?.(true);
+      } catch {
+        // The reload below still brings the new version once the worker activates.
+      }
+      await activated(waiting);
+      reloadOnce();
     },
     dismiss() {
       needRefresh.set(false);
