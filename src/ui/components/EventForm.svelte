@@ -86,6 +86,12 @@
 
   onMount(() => nameInput?.focus());
 
+  /** An area without a cadence has no cadence days to plan on (unless the meeting uses one). */
+  const ruleTypes = $derived(
+    area && !area.cadence
+      ? RULE_TYPES.filter((r) => r !== 'cadence-day' || draft.rule.type === r)
+      : RULE_TYPES,
+  );
   const assumptionKeys = $derived(Object.keys(team.assumptions));
   /** The event scales by an assumption the team no longer has. */
   const staleAssumption = $derived(
@@ -274,7 +280,7 @@
           aria-invalid={invalid('rule.type')}
           aria-describedby={describe('rule.type')}
         >
-          {#each RULE_TYPES as r (r)}
+          {#each ruleTypes as r (r)}
             <option value={r}>{$t(`meet.ruletype.${r}`)}</option>
           {/each}
         </select>
@@ -330,7 +336,8 @@
       </div>
     </div>
 
-    <fieldset>
+    <!-- Areas have no assumptions to scale by. -->
+    <fieldset hidden={!!area && !draft.scaled}>
       <legend>{$t('meet.scaling')}</legend>
       <label class="check">
         <input type="checkbox" data-field="scaling" bind:checked={draft.scaled} />

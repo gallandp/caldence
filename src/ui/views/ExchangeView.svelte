@@ -359,9 +359,19 @@
             value={chosen?.id ?? ''}
             onchange={(e) => (pickedId[kind] = e.currentTarget.value)}
           >
-            {#each choices as choice (choice.id)}
-              <option value={choice.id}>{choice.name}</option>
-            {/each}
+            {#if kind === 'team' && ws.areas.length > 0}
+              <!-- Teams and areas apart, so an area is not taken for a team. -->
+              <optgroup label={$t('exchange.scope.group.teams')}>
+                {#each ws.teams as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+              </optgroup>
+              <optgroup label={$t('exchange.scope.group.areas')}>
+                {#each ws.areas as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+              </optgroup>
+            {:else}
+              {#each choices as choice (choice.id)}
+                <option value={choice.id}>{choice.name}</option>
+              {/each}
+            {/if}
           </select>
         </div>
       </div>
