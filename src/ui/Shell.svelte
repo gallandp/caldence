@@ -6,6 +6,7 @@
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
+  import AreaView from './views/AreaView.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -60,6 +61,8 @@
   const noTeams = $derived($workspace.teams.length === 0);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
+  /** With an area selected, the Team entry is the area's page and carries the upper level name. */
+  const viewKey = (id: ViewId) => (id === 'team' && activeArea ? 'view.area' : `view.${id}`);
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -260,7 +263,7 @@
             onkeydown={onKeydown}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
-            <span>{$t('view.' + id)}</span>
+            <span>{$t(viewKey(id))}</span>
           </button>
         {/each}
       </div>
@@ -320,7 +323,9 @@
           hidden={active !== id}
         >
           <h2 class:sr-only={id === 'calendar' && noTeams}>
-            {$t('view.' + id)}
+            {id === 'team' && activeArea
+              ? $t('area.view.title', { name: activeArea.name })
+              : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
             {#if id === 'calendar' && noTeams}
@@ -349,7 +354,15 @@
                   >
                 </div>
               </section>
-            {:else if (id === 'meetings' || id === 'team') && activeArea}
+            {:else if id === 'team' && activeArea}
+              {#if active === id}
+                <AreaView area={activeArea}>
+                  {#snippet overview()}
+                    <AreaTeams area={activeArea} view="team" />
+                  {/snippet}
+                </AreaView>
+              {/if}
+            {:else if id === 'meetings' && activeArea}
               {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}

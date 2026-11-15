@@ -1,3 +1,5 @@
+<script lang="ts"></script>
+
 <!-- The area marker (layers), 1em in the current colour; decorative, so the text names the area. -->
 <svg class="area-icon" viewBox="0 0 24 24" aria-hidden="true"
   ><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /></svg
