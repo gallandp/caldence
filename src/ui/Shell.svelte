@@ -133,7 +133,8 @@
 
   function onShortcut(event: KeyboardEvent) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    if (event.repeat || document.querySelector('dialog[open]')) return;
+    // A modal dialog has its own keys; the structure view's person card is not modal.
+    if (event.repeat || document.querySelector('dialog:modal')) return;
     const key = event.key.toLowerCase();
     if (key === 's') {
       const field = commitFocused();

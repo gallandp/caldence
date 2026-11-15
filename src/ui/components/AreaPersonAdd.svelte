@@ -62,8 +62,8 @@
     });
     if (!done || added === undefined) return;
     dialog?.close();
-    onadded(added);
     trigger?.focus();
+    onadded(added);
   }
 </script>
 

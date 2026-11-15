@@ -126,6 +126,16 @@
     void card?.open(event.currentTarget as HTMLElement, focusHours);
   }
 
+  /** After adding: the new person's tile in the area node gets the focus and a short pulse. */
+  async function focusPerson(personId: string) {
+    await tick();
+    const tile = root?.querySelector<HTMLElement>(`.areanode [data-p="${CSS.escape(personId)}"]`);
+    if (!tile) return;
+    tile.focus();
+    tile.classList.add('pulse');
+    setTimeout(() => tile.classList.remove('pulse'), 1600);
+  }
+
   function enter(personId: string) {
     hover = personId;
   }
@@ -550,7 +560,7 @@
   onclose={() => (selected = null)}
   ongone={() => addButton?.focus()}
 />
-<AreaPersonAdd bind:this={adder} {area} onadded={(id) => (selected = id)} />
+<AreaPersonAdd bind:this={adder} {area} onadded={focusPerson} />
 <AreaDialog bind:this={teamsDialog} returnFocus={() => teamsButton?.focus()} />
 
 <style>
@@ -682,6 +692,22 @@
   }
   .dim {
     opacity: 0.25;
+  }
+  :global(#app) .person:global(.pulse) {
+    animation: pulse 0.8s ease-out 2;
+  }
+  @keyframes pulse {
+    from {
+      box-shadow: 0 0 0 0 var(--area);
+    }
+    to {
+      box-shadow: 0 0 0 0.5rem transparent;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(#app) .person:global(.pulse) {
+      animation: none;
+    }
   }
   .tx {
     flex: 1;
