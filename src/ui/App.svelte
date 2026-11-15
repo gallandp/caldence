@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { locale } from '../i18n';
+  import { levels, locale } from '../i18n';
   import { onMount } from 'svelte';
+  import { levelWords } from '../core/levels';
   import { translate as t } from '../i18n';
   import { autosave, restoreWithTimeout, wantsReset } from './state/autosave';
   import { workspace } from './state/workspace';
@@ -13,6 +14,7 @@
   // The UI language is a workspace setting.
   $effect(() => {
     locale.set($workspace.settings.locale);
+    levels.set(levelWords($workspace.settings, $workspace.settings.locale));
   });
 
   const { dirty, fileName, version } = workspace;

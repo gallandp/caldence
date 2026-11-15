@@ -34,7 +34,10 @@ describe('catalogues', () => {
   });
 
   it('use the same placeholders in both languages', () => {
-    const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
+    // Level names ({levelTeam}, {levelTeamLc}, …) are filled in for every text; each language
+    // picks the forms its grammar needs.
+    const ph = (s: string) =>
+      (s.match(/\{\w+\}/g) ?? []).filter((p) => !p.startsWith('{level')).sort();
     for (const k of Object.keys(de) as (keyof typeof de)[]) expect(ph(de[k]), k).toEqual(ph(en[k]));
   });
 });

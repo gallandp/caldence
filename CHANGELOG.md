@@ -4,6 +4,7 @@
 
 ### Added
 
+- Settings › Names: call the levels Bereich/Team, Abteilung/Team, Plattform/Produkt, Chapter/Unit, Release Train/Team or your own names; the sidebar, team menu and buttons follow (#163)
 - Workspace files can store areas that group several teams (schema 5); older files are upgraded on open. Nothing in the app uses them yet (#162)
 
 ## 1.32.0 – 2026-11-14

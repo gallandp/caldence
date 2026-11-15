@@ -1,5 +1,6 @@
 import { derived, writable } from 'svelte/store';
 import type { ISODate } from '../core/date';
+import { levelParams, levelWords, type LevelWords } from '../core/levels';
 import type { Settings } from '../core/model';
 import de from './de.json';
 import en from './en.json';
@@ -64,8 +65,13 @@ export function formatPercent(locale: Locale, fraction: number): string {
 }
 
 export const locale = writable<Locale>(detectLocale());
-/** Store of a translate function; import as `translate as t` in components and use `$t(key)`. */
-export const translate = derived(
-  locale,
-  ($locale) => (key: string, params?: Params) => t($locale, key, params),
-);
+/** The workspace's names for the two levels; App keeps it in step with settings and locale. */
+export const levels = writable<LevelWords>(levelWords({}, detectLocale()));
+/**
+ * Store of a translate function; import as `translate as t` in components and use `$t(key)`.
+ * Every text can use the level names as `{levelTeam}`, `{levelTeamsLc}` and so on.
+ */
+export const translate = derived([locale, levels], ([$locale, $levels]) => {
+  const defaults = levelParams($levels);
+  return (key: string, params?: Params) => t($locale, key, { ...defaults, ...params });
+});

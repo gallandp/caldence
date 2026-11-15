@@ -376,3 +376,27 @@ test('colour radios can be chosen with the arrow keys', async ({ page }) => {
   await expect(group.getByRole('radio', { name: 'Green' })).toBeChecked();
   await expect(group.getByRole('radio', { name: 'Green' })).toBeFocused();
 });
+
+test('level names rename the team labels, with presets and own names', async ({ page }) => {
+  await openExample(page);
+  const choice = page.getByLabel('Levels');
+  await expect(choice).toHaveValue('area');
+  await choice.selectOption({ label: 'Platform / Product' });
+  await expect(page.getByRole('tab', { name: 'Product', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Product actions' })).toBeVisible();
+
+  await choice.selectOption({ label: 'Own names' });
+  const lower = page.getByLabel('Lower level');
+  await expect(lower).toHaveValue('Product');
+  await lower.fill('Squad');
+  await lower.press('Tab');
+  await expect(page.getByRole('tab', { name: 'Squad', exact: true })).toBeVisible();
+
+  await lower.fill('');
+  await lower.press('Tab');
+  await expect(page.getByText(/Lower level/).and(page.locator('.field-error'))).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Squad', exact: true })).toBeVisible();
+
+  await choice.selectOption({ label: 'Area / Team' });
+  await expect(page.getByRole('tab', { name: 'Team', exact: true })).toBeVisible();
+});

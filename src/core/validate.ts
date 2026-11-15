@@ -1,4 +1,5 @@
 import { isValidDate, isValidTime } from './date';
+import { LEVEL_PRESETS } from './levels';
 import { inYearRange, latestHorizonEnd, LIMITS } from './limits';
 import { migrate } from './migrate';
 import { CURRENT_SCHEMA, type Workspace } from './model';
@@ -175,6 +176,16 @@ function checkSettings(c: Checker, v: unknown): void {
   }
   if (s.hourlyRate !== undefined)
     c.num(s, 'hourlyRate', p, { min: 0, exclusive: true, max: LIMITS.hourlyRate });
+  if (s.levelNames !== undefined) {
+    const n = c.obj(s.levelNames, 'settings.levelNames');
+    if (n && n.preset !== undefined) {
+      if (!(LEVEL_PRESETS as readonly unknown[]).includes(n.preset))
+        c.err('settings.levelNames.preset', 'error.enum.invalid');
+    } else if (n) {
+      c.str(n, 'area', 'settings.levelNames');
+      c.str(n, 'team', 'settings.levelNames');
+    }
+  }
 }
 
 function checkRule(

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
+  import { LEVEL_PRESETS, levelWords, type LevelPreset } from '../../core/levels';
   import { LIMITS } from '../../core/limits';
   import type { Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
@@ -228,6 +229,37 @@
 
   function describe(key: string): string | undefined {
     return errors[key] ? `err-${key}` : undefined;
+  }
+
+  // Level names: a preset or own names. The default preset is stored as no setting at all.
+  const levelChoice = $derived(
+    settings.levelNames === undefined
+      ? 'area'
+      : 'preset' in settings.levelNames
+        ? settings.levelNames.preset
+        : 'custom',
+  );
+  const presetLabel = (preset: LevelPreset) => {
+    const w = levelWords({ levelNames: { preset } }, settings.locale);
+    return `${w.area} / ${w.team}`;
+  };
+  function onLevelChoice(event: Event) {
+    const value = (event.currentTarget as HTMLSelectElement).value;
+    if (value === 'custom') {
+      const w = levelWords(settings, settings.locale);
+      commit(['levelNames.area', 'levelNames.team'], {
+        levelNames: { area: w.area, team: w.team },
+      });
+    } else
+      commit(['levelNames.area', 'levelNames.team'], {
+        levelNames: value === 'area' ? undefined : { preset: value as LevelPreset },
+      });
+  }
+  function onLevelName(level: 'area' | 'team', event: Event) {
+    const names = settings.levelNames;
+    if (!names || 'preset' in names) return;
+    const text = (event.currentTarget as HTMLInputElement).value.trim();
+    commit([`levelNames.${level}`], { levelNames: { ...names, [level]: text } });
   }
 
   const lang = (event: Event) =>
@@ -471,6 +503,44 @@
         {@render err('hourlyRate', $t('settings.hourlyRate'))}
         <p class="help rate-help" id="note-rate">{$t('settings.hourlyRate.help')}</p>
       </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{$t('settings.levels')}</legend>
+      <div class="field">
+        <label for="set-levels">{$t('settings.levels.choice')}</label>
+        <select
+          id="set-levels"
+          value={levelChoice}
+          aria-describedby="note-levels"
+          onchange={onLevelChoice}
+        >
+          {#each LEVEL_PRESETS as preset (preset)}
+            <option value={preset}>{presetLabel(preset)}</option>
+          {/each}
+          <option value="custom">{$t('settings.levels.custom')}</option>
+        </select>
+        <p class="help" id="note-levels">{$t('settings.levels.help')}</p>
+      </div>
+      {#if settings.levelNames && !('preset' in settings.levelNames)}
+        <div class="grid">
+          {#each ['area', 'team'] as const as level (level)}
+            <div class="field">
+              <label for="set-level-{level}">{$t('settings.levels.' + level)}</label>
+              <input
+                id="set-level-{level}"
+                type="text"
+                maxlength={LIMITS.textChars}
+                value={settings.levelNames[level]}
+                aria-invalid={errors[`levelNames.${level}`] ? 'true' : undefined}
+                aria-describedby={describe(`levelNames.${level}`)}
+                onchange={(e) => onLevelName(level, e)}
+              />
+              {@render err(`levelNames.${level}`, $t('settings.levels.' + level))}
+            </div>
+          {/each}
+        </div>
+      {/if}
     </fieldset>
   </section>
 </div>
