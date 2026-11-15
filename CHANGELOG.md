@@ -6,6 +6,14 @@
 
 - Area structure: with an area selected, the sidebar entry carries the upper level name and shows the area as a tree: who works only in the area, in a team and in the area, or only in a team, with their hours. Hover or tap a person to see everywhere they work, tap a meeting to see who is invited and which team lacks the role, or switch to a table. Add people, choose teams and edit area roles and hours right in the tree (#167)
 
+## 1.37.0 – 2026-11-15
+
+### Changed
+
+- Area overview: compare team cadences and load, see the area's steering (#195)
+- Calendar and Load show the whole area when an area is selected (#166) (#188)
+- SAFe template creates a Release Train area (#187)
+
 ## 1.36.0 – 2026-11-15
 
 ### Added
