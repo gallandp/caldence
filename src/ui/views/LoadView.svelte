@@ -1,7 +1,8 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
-  import { capacity, fte, loadPerWeek, warnings } from '../../core/load';
+  import { capacity, fte, hoursIn, loadPerWeek, warnings } from '../../core/load';
+  import { unitTeamIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -26,8 +27,11 @@
   const weekLabel = (monday: string): string =>
     $t('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
 
-  /** With a team filter the person table shows that team's members and their hours in it. */
+  /** With a team or area filter the person table shows its members and their hours in it. */
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
+  /** The team's id, or an area's teams. */
+  const teamIds = $derived(teamId ? unitTeamIds($workspace, teamId) : undefined);
+  const area = $derived($workspace.areas.find((a) => a.id === teamId));
   const people = $derived(
     $filter.personId
       ? $workspace.people.filter((p) => p.id === $filter.personId)
@@ -39,7 +43,7 @@
   const perPerson = $derived(
     people.map((person) => {
       const of = (w: (typeof weeks)[number]): number =>
-        (teamId ? w.byTeamPerson[teamId]?.[person.id] : w.byPerson[person.id]) ?? 0;
+        teamIds ? hoursIn(w, teamIds, person.id) : (w.byPerson[person.id] ?? 0);
       const total = weeks.reduce((sum, w) => sum + of(w), 0);
       const average = weeks.length > 0 ? total / weeks.length : 0;
       let peak: { monday: string; hours: number } | undefined;
@@ -81,15 +85,14 @@
         .map((kind) => {
           const mondays = g.kinds[kind]!;
           const named = label(mondays);
-          const hoursIn = (m: string): number => {
+          const hoursThen = (m: string): number => {
             const w = byMonday.get(m);
-            return (
-              (kind === 'above-fte' && teamId
-                ? w?.byTeamPerson[teamId]?.[g.personId]
-                : w?.byPerson[g.personId]) ?? 0
-            );
+            if (!w) return 0;
+            return kind === 'above-fte' && teamIds
+              ? hoursIn(w, teamIds, g.personId)
+              : (w.byPerson[g.personId] ?? 0);
           };
-          const most = Math.max(...mondays.map(hoursIn));
+          const most = Math.max(...mondays.map(hoursThen));
           return $t(`load.warn.${kind}`, {
             factor: formatNumber($locale, warnFactor, 1),
             fte: formatNumber($locale, maxFte, 2),
@@ -313,7 +316,11 @@
       {#if $workspace.people.length > 0}
         <div class="card">
           {@render region('person', $t('load.table.person'), personBody)}
-          {#if !$filter.personId}<p class="note below">{$t('load.table.person.note')}</p>{/if}
+          {#if !$filter.personId}<p class="note below">
+              {area
+                ? $t('load.table.person.noteArea', { name: area.name })
+                : $t('load.table.person.note')}
+            </p>{/if}
         </div>
       {/if}
     </div>

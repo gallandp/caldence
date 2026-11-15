@@ -144,3 +144,13 @@ export function emptyWorkspace(today: ISODate): Workspace {
     customRegions: [],
   };
 }
+
+/** The teams a selected unit stands for: an area's teams, or the team itself. */
+export function unitTeamIds(ws: Workspace, unitId: string): string[] {
+  return ws.areas.find((a) => a.id === unitId)?.teamIds ?? [unitId];
+}
+
+/** The area a team belongs to, if any. */
+export function areaOf(ws: Workspace, teamId: string): Area | undefined {
+  return ws.areas.find((a) => a.teamIds.includes(teamId));
+}

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/valid-workspace.json';
-import type { CalEvent, Workspace } from '../../src/core/model';
+import { areaOf, type CalEvent, type Workspace } from '../../src/core/model';
 import { validate, type Result } from '../../src/core/validate';
 import sampleJson from '../fixtures/regions/de-by-sample.json';
 import type { Region } from '../../src/core/regions';
 import {
+  addArea,
   addCustomRegion,
   addItem,
   addTeam,
@@ -12,12 +13,15 @@ import {
   duplicateTeam,
   moveItem,
   newId,
+  removeArea,
   removeCustomRegion,
   removeCycle,
   removeEvent,
   removeItem,
   removeTeam,
+  renameArea,
   renameAssumption,
+  setAreaTeams,
   updateItem,
   updateSettings,
   updateTeam,
@@ -584,5 +588,43 @@ describe('areas in edits', () => {
     const w = ok(removeItem(ws, 'roles', 'r1', 'r2'));
     expect(w.areas[0]!.members[0]!.roleId).toBe('r2');
     expect(w.areas[0]!.events[0]!.participants[0]!.roleId).toBe('r2');
+  });
+
+  it('adds an area with teams and moves a team out of its old area', () => {
+    const ws = withArea();
+    ws.teams.push({ ...structuredClone(ws.teams[0]!), id: 't3', name: 'Gamma' });
+    const [w, id] = ok(addArea(ws, 'Data', ['t3', 't2']));
+    expect(id).toBe('a2');
+    expect(w.areas[1]).toMatchObject({ id: 'a2', name: 'Data', teamIds: ['t2', 't3'] });
+    expect(w.areas[0]!.teamIds).toEqual(['t1']);
+    expect(areaOf(w, 't2')?.id).toBe('a2');
+    valid(w);
+  });
+
+  it('sets, renames and removes an area; its teams stay', () => {
+    const ws = withArea();
+    const w = ok(setAreaTeams(ws, 'a1', ['t2']));
+    expect(w.areas[0]!.teamIds).toEqual(['t2']);
+    expect(ok(renameArea(w, 'a1', 'Core')).areas[0]!.name).toBe('Core');
+    const gone = removeArea(w, 'a1');
+    expect(gone.areas).toEqual([]);
+    expect(gone.teams.map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
+  it('a duplicated team joins the area of its source', () => {
+    const [w, id] = duplicateTeam(setAreaTeamsOk(withArea(), ['t1']), 't1', 'Copy');
+    expect(w.areas[0]!.teamIds).toEqual(['t1', id]);
+    valid(w);
+  });
+
+  function setAreaTeamsOk(ws: Workspace, ids: string[]): Workspace {
+    return ok(setAreaTeams(ws, 'a1', ids));
+  }
+
+  it('refuses unknown areas and teams', () => {
+    const ws = withArea();
+    expect(setAreaTeams(ws, 'a9', []).ok).toBe(false);
+    expect(setAreaTeams(ws, 'a1', ['t9']).ok).toBe(false);
+    expect(renameArea(ws, 'a9', 'X').ok).toBe(false);
   });
 });

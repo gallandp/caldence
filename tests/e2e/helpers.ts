@@ -53,6 +53,18 @@ export async function openWorkspaceFile(page: Page, ws: unknown, name = 'test.ca
   await expect(page.getByText(name)).toBeVisible();
 }
 
+/** The name of the selected team or area in the sidebar switcher. */
+export const currentUnit = (page: Page) => page.locator('.switcher .pick .label');
+/** The names of all teams and areas in the switcher's list (also while it is closed). */
+export const unitNames = (page: Page) => page.locator('.switcher .list .opt-name');
+
+/** Selects a team or an area in the sidebar switcher. */
+export async function pickUnit(page: Page, name: string) {
+  await page.locator('.switcher .pick').click();
+  await page.locator('.switcher .list').getByRole('button', { name, exact: true }).click();
+  await expect(currentUnit(page)).toHaveText(name);
+}
+
 /** Runs a team action from the sidebar: the actions sit behind the "Team actions" button. */
 export async function teamAction(page: Page, name: string) {
   const button = page.getByRole('button', { name, exact: true });

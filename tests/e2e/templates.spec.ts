@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback, currentUnit, unitNames } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -45,7 +45,7 @@ test('applying Scrum takes two clicks and a confirmed name', async ({ page }) =>
   await panel(page).getByRole('button', { name: 'Open team' }).click();
 
   await expect(page.getByRole('tabpanel', { name: 'Team' })).toBeVisible();
-  await expect(page.locator('.switcher select option:checked')).toHaveText('Scrum');
+  await expect(currentUnit(page)).toHaveText('Scrum');
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await expect(
     page
@@ -68,10 +68,10 @@ test('undo removes the applied team', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Create team' }).click();
   await expect(panel(page).getByRole('status')).toContainText('Kanban');
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
-  await expect(page.locator('.switcher select option:checked')).toHaveText('Kanban');
+  await expect(currentUnit(page)).toHaveText('Kanban');
   await page.getByRole('heading', { level: 2, name: 'Team' }).click();
   await page.keyboard.press('Control+z');
-  await expect(page.locator('.switcher select')).toHaveCount(0);
+  await expect(currentUnit(page)).toHaveCount(0);
 });
 
 test('importing a custom template shows a preview and creates a team', async ({ page }) => {
@@ -95,13 +95,13 @@ test('importing a custom template shows a preview and creates a team', async ({ 
   await expect(panel(page).getByRole('status')).toContainText('Pair Team');
   await expect(panel(page).getByRole('button', { name: 'Open team' })).toBeFocused();
   await panel(page).getByRole('button', { name: 'Open team' }).click();
-  await expect(page.locator('.switcher select option:checked')).toHaveText('Pair Team');
+  await expect(currentUnit(page)).toHaveText('Pair Team');
 });
 
 test('a workspace file is refused and nothing changes', async ({ page }) => {
   await openExample(page);
   await page.getByRole('tab', { name: 'Templates', exact: true }).click();
-  const before = await page.locator('.switcher select option').allTextContents();
+  const before = await unitNames(page).allTextContents();
   await chooseFile(
     page,
     () => panel(page).getByRole('button', { name: 'Import template file…' }).click(),
@@ -110,7 +110,7 @@ test('a workspace file is refused and nothing changes', async ({ page }) => {
   );
   await expect(panel(page).getByRole('alert')).toContainText('This is not a template file');
   await expect(panel(page).getByRole('region', { name: 'Preview' })).toHaveCount(0);
-  await expect(page.locator('.switcher select option')).toHaveText(before);
+  await expect(unitNames(page)).toHaveText(before);
 });
 
 test('exporting a team downloads a template without people', async ({ page }) => {
@@ -151,7 +151,7 @@ for (const how of ['Escape', 'Cancel'] as const) {
     await expect(apply(page, 'Scrum')).toBeFocused();
     await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
     await expect(panel(page).getByRole('status')).toHaveText('');
-    await expect(page.locator('.switcher select')).toHaveCount(0);
+    await expect(currentUnit(page)).toHaveCount(0);
   });
 }
 
@@ -226,7 +226,7 @@ test('duplicate team names are allowed and do not crash', async ({ page }) => {
   }
   await expect(panel(page).getByRole('alert')).toHaveText('');
   await panel(page).getByRole('button', { name: 'Open team' }).click();
-  await expect(page.locator('.switcher select option')).toHaveText(['Scrum', 'Scrum']);
+  await expect(unitNames(page)).toHaveText(['Scrum', 'Scrum']);
 });
 
 test('no horizontal page scroll at 375 px', async ({ page }) => {

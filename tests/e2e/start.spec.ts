@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction } from './helpers';
+import { useFileFallback, teamAction, currentUnit, unitNames } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -52,7 +52,7 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
     await expect(dialog).toBeHidden();
     await expect(calendar(page).getByRole('grid')).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Calendar', exact: true })).toBeFocused();
-    await expect(page.locator('.switcher select option:checked')).toHaveText(template);
+    await expect(currentUnit(page)).toHaveText(template);
     await expect(
       page.getByLabel('Person', { exact: true }).locator('option', { hasText: 'Kim' }),
     ).toHaveCount(1);
@@ -76,14 +76,14 @@ test('the wizard without a template creates an empty team', async ({ page }) => 
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Create team' }).click();
-  await expect(page.locator('.switcher select option:checked')).toHaveText('Solo');
+  await expect(currentUnit(page)).toHaveText('Solo');
 });
 
 test('Open the example shows the example teams', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
-  await expect(page.locator('.switcher select option')).not.toHaveCount(0);
+  await expect(unitNames(page)).not.toHaveCount(0);
 });
 
 test('Open a file reads a workspace file', async ({ page }) => {
@@ -253,7 +253,7 @@ test('deleting the last team in the calendar returns to the start screen with fo
   await start(page);
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
-  for (let left = await page.locator('.switcher select option').count(); left > 0; left--) {
+  for (let left = await unitNames(page).count(); left > 0; left--) {
     await teamAction(page, 'Delete team');
     await page
       .getByRole('dialog', { name: /^Delete / })

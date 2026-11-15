@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+
+- Areas: group teams under an area (Bereich, or your own level name) with ⋯ › Add area, choose its teams, rename or delete it. The sidebar switcher lists each area with its teams below it; with an area selected, Calendar and Load show all its teams together, and Meetings & cadence and Team offer its teams to pick (#164)
+
+### Fixed
+
+- Dialog buttons no longer look like the small row actions of tables (#164)
+
 ## 1.34.0 – 2026-11-15
 
 ### Added

@@ -211,7 +211,10 @@ export function duplicateTeam(ws: Workspace, teamId: string, name: string): [Wor
   if (!src) return [structuredClone(ws), teamId];
   const id = newId('t', unitIds(ws));
   const copy: Team = { ...structuredClone(src), id, name };
-  return [{ ...structuredClone(ws), teams: [...structuredClone(ws.teams), copy] }, id];
+  const out = { ...structuredClone(ws), teams: [...structuredClone(ws.teams), copy] };
+  // The copy joins the area of its source.
+  for (const a of out.areas) if (a.teamIds.includes(teamId)) a.teamIds.push(id);
+  return [out, id];
 }
 
 export function removeTeam(ws: Workspace, teamId: string): Workspace {
@@ -219,6 +222,63 @@ export function removeTeam(ws: Workspace, teamId: string): Workspace {
   const out = structuredClone(ws);
   out.teams = out.teams.filter((t) => t.id !== teamId);
   for (const a of out.areas) a.teamIds = a.teamIds.filter((id) => id !== teamId);
+  return out;
+}
+
+// ---------- areas ----------
+
+/** Adds an area with these teams; a team that was in another area moves to the new one. */
+export function addArea(
+  ws: Workspace,
+  name: string,
+  teamIds: string[],
+): Result<[Workspace, string]> {
+  const id = newId('a', unitIds(ws));
+  const out = structuredClone(ws);
+  out.areas.push({ id, name, teamIds: [], members: [], memberHours: {}, cycles: [], events: [] });
+  const result = setAreaTeams(out, id, teamIds, false);
+  return result.ok ? { ok: true, value: [result.value, id] } : result;
+}
+
+/** Renames an area. */
+export function renameArea(ws: Workspace, areaId: string, name: string): Result<Workspace> {
+  if (!ws.areas.some((a) => a.id === areaId)) return fail(`areas.${areaId}`, 'error.ref.unknown');
+  const out = structuredClone(ws);
+  for (const a of out.areas) if (a.id === areaId) a.name = name;
+  const v = validate(out);
+  return v.ok ? { ok: true, value: out } : v;
+}
+
+/**
+ * Sets an area's teams, in the order of the workspace's teams. A team can be in one area only:
+ * one that was in another area leaves it. Unknown team ids are refused.
+ */
+export function setAreaTeams(
+  ws: Workspace,
+  areaId: string,
+  teamIds: string[],
+  copy = true,
+): Result<Workspace> {
+  if (!ws.areas.some((a) => a.id === areaId)) return fail(`areas.${areaId}`, 'error.ref.unknown');
+  const wanted = new Set(teamIds);
+  for (const id of wanted)
+    if (!ws.teams.some((t) => t.id === id))
+      return fail(`areas.${areaId}.teamIds`, 'error.ref.unknown');
+  // addArea passes its own fresh copy.
+  const out = copy ? structuredClone(ws) : ws;
+  for (const a of out.areas)
+    a.teamIds =
+      a.id === areaId
+        ? out.teams.filter((t) => wanted.has(t.id)).map((t) => t.id)
+        : a.teamIds.filter((id) => !wanted.has(id));
+  const v = validate(out);
+  return v.ok ? { ok: true, value: out } : v;
+}
+
+/** Removes an area with its own people, cycles and meetings; its teams stay, without an area. */
+export function removeArea(ws: Workspace, areaId: string): Workspace {
+  const out = structuredClone(ws);
+  out.areas = out.areas.filter((a) => a.id !== areaId);
   return out;
 }
 

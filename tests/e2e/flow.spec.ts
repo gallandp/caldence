@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction } from './helpers';
+import { useFileFallback, teamAction, pickUnit, unitNames } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -24,7 +24,7 @@ async function addTeam(page: Page, name: string) {
 }
 
 async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean) {
-  await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
+  await pickUnit(page, team);
   await tab(page, 'Team').click();
   const teamPanel = panel(page, 'Team');
   await teamPanel.getByLabel('Person', { exact: true }).fill('Kim');
@@ -54,7 +54,7 @@ async function addMemberAndMeeting(page: Page, team: string, firstTeam: boolean)
 async function expectEverything(page: Page) {
   await tab(page, 'Meetings & cadence').click();
   for (const team of ['Team A', 'Team B']) {
-    await page.getByRole('combobox', { name: 'Team', exact: true }).selectOption({ label: team });
+    await pickUnit(page, team);
     const table = panel(page, 'Meetings & cadence').getByRole('table', {
       name: `Meetings of ${team}`,
     });
@@ -79,7 +79,7 @@ async function expectEverything(page: Page) {
     await tab(page, 'Meetings & cadence').click();
   }
   await tab(page, 'Team').click();
-  const options = page.getByRole('combobox', { name: 'Team', exact: true }).locator('option');
+  const options = unitNames(page);
   await expect(options).toHaveText(['Team A', 'Team B']);
 
   await tab(page, 'Load').click();

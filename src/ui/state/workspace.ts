@@ -89,12 +89,15 @@ export function createWorkspaceStore(initial: Workspace) {
 
 export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>;
 
-/** A writable team id that falls back to the first team (or null) whenever the workspace changes. */
+/**
+ * The selected team or area (ids share one space). Falls back to the first team (or null) when
+ * the workspace no longer has it.
+ */
 export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | null> {
   const active = writable<string | null>(null);
   ws.subscribe(($ws) => {
     const current = get(active);
-    if (current !== null && $ws.teams.some((t) => t.id === current)) return;
+    if (current !== null && [...$ws.teams, ...$ws.areas].some((u) => u.id === current)) return;
     const fallback = $ws.teams[0]?.id ?? null;
     if (fallback !== current) active.set(fallback);
   });

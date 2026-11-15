@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback, teamAction } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback, teamAction, pickUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -235,9 +235,7 @@ test('switching teams clears the filter', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Add team' });
   await dialog.getByLabel('Team name').fill('Team B');
   await dialog.getByRole('button', { name: 'Apply' }).click();
-  await page
-    .getByRole('combobox', { name: 'Team', exact: true })
-    .selectOption({ label: 'Team Alpha' });
+  await pickUnit(page, 'Team Alpha');
   await expect(panel(page).getByRole('searchbox', { name: 'Filter meetings' })).toHaveValue('');
   await expect(row(page, 'Sprint Review')).toBeVisible();
 });

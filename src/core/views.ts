@@ -1,6 +1,6 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
 import { fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
-import type { Settings, Team, Workspace } from './model';
+import { unitTeamIds, type Settings, type Team, type Workspace } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
 import {
@@ -45,6 +45,7 @@ export function schoolHolidayGap(ws: Workspace, index: HolidayIndex): Region | n
 
 /**
  * Teams in scope: with a person filter the teams the person is a member of (teamId is ignored),
+ * with a team filter that team or, for an area's id, the area's teams,
  * otherwise the team filter, otherwise all teams.
  */
 export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
@@ -52,7 +53,8 @@ export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
     return ws.teams.filter((t) => t.members.some((m) => m.personId === filter.personId));
   }
   if (!filter.teamId) return ws.teams;
-  return ws.teams.filter((t) => t.id === filter.teamId);
+  const ids = new Set(unitTeamIds(ws, filter.teamId));
+  return ws.teams.filter((t) => ids.has(t.id));
 }
 
 /** The people a filter is about: the selected person, or the members of the teams in scope. */
