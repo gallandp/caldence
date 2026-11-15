@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.38.0 – 2026-11-15
+
 ### Added
 
 - Area structure: with an area selected, the sidebar entry carries the upper level name and shows the area as a tree: who works only in the area, in a team and in the area, or only in a team, with their hours. Hover or tap a person to see everywhere they work, tap a meeting to see who is invited and which team lacks the role, or switch to a table. Add people, choose teams and edit area roles and hours right in the tree (#167)
