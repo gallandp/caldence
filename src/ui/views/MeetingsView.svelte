@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { costSummary, meetingCost } from '../../core/cost';
+  import { meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import { areaAsTeam, attendees, missingRoles, type CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
@@ -133,9 +133,8 @@
   // ---------- costs: only with an hourly rate ----------
 
   const rate = $derived($workspace.settings.hourlyRate);
-  const costs = $derived(
-    rate && team ? costSummary($workspace, $index, { teamId: team.id }, rate) : null,
-  );
+  // Only this page's meetings: for an area its own, not those of its teams.
+  const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
   const euro = (n: number) => formatEuro($locale, n);
 
   let query = $state('');
@@ -246,6 +245,13 @@
     const first = roles[0];
     const memberRoles = roles.filter((r) => team?.members.some((m) => m.roleId === r.id));
     const fromTeams = area !== undefined && memberRoles.length === 0;
+    // An area without roles of its own invites the first role its teams have, from every team.
+    const teamRole = roles.find((r) =>
+      $workspace.teams.some(
+        (x) => area?.teamIds.includes(x.id) && x.members.some((m) => m.roleId === r.id),
+      ),
+    );
+    const firstRole = fromTeams ? (teamRole ?? first) : first;
     return {
       id: '',
       name: '',
@@ -256,11 +262,11 @@
       participants:
         memberRoles.length > 0
           ? memberRoles.map((r) => ({ roleId: r.id, share: 1 }))
-          : first
+          : firstRole
             ? [
                 fromTeams
-                  ? { roleId: first.id, share: 1, fromTeams }
-                  : { roleId: first.id, share: 1 },
+                  ? { roleId: firstRole.id, share: 1, fromTeams }
+                  : { roleId: firstRole.id, share: 1 },
               ]
             : [],
       preparation: 0,

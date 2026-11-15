@@ -132,8 +132,11 @@ function mergeParticipants(list: CalEvent['participants']): CalEvent['participan
   const out: CalEvent['participants'] = [];
   for (const p of list) {
     const hit = out.find((o) => o.roleId === p.roleId);
-    if (hit) hit.share = Math.min(1, hit.share + p.share);
-    else out.push({ ...p });
+    if (hit) {
+      hit.share = Math.min(1, hit.share + p.share);
+      // "From every team" reaches the area's members too, so the merged entry keeps it.
+      if (p.fromTeams) hit.fromTeams = true;
+    } else out.push({ ...p });
   }
   return out;
 }

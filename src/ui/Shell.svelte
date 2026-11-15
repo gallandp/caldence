@@ -381,7 +381,6 @@
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
-                  onSetHours={() => select('team', true)}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}

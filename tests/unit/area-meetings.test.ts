@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { costSummary, meetingCost } from '../../src/core/cost';
+import { costSummary, meetingCost, unitCostSummary } from '../../src/core/cost';
+import { removeItem } from '../../src/core/edit';
 import { exportIcs, scopeHasEvents } from '../../src/core/ics';
 import {
   areaHours,
@@ -296,5 +297,26 @@ describe('validating fromTeams', () => {
     ]);
     const result = validate(ws);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('area page costs', () => {
+  it('count only the unit own meetings', () => {
+    const ws = workspace();
+    ws.teams[0]!.events = [{ ...forum(), id: 'e9', participants: [{ roleId: 'dev', share: 1 }] }];
+    expect(unitCostSummary(ws, noIndex(), areaAsTeam(ws.areas[0]!), 100).perWeek).toBe(300);
+    expect(costSummary(ws, noIndex(), { teamId: 'area' }, 100).perWeek).toBe(400);
+  });
+});
+
+describe('replacing a role in an area meeting', () => {
+  it('keeps "from every team" when two entries merge', () => {
+    const ws = workspace();
+    const result = removeItem(ws, 'roles', 'po', 'head');
+    expect(result.ok).toBe(true);
+    if (result.ok)
+      expect(result.value.areas[0]!.events[0]!.participants).toEqual([
+        { roleId: 'head', share: 1, fromTeams: true },
+      ]);
   });
 });
