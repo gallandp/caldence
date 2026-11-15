@@ -155,7 +155,7 @@
     sortKey === key ? (sortDir === 1 ? 'ascending' : 'descending') : 'none';
 
   const costOf = (e: CalEvent) =>
-    rate && team ? meetingCost(team, e, effectiveDuration(e, team), rate) : 0;
+    rate && team ? meetingCost($workspace, team, e, effectiveDuration(e, team), rate) : 0;
   const weekCostOf = (e: CalEvent) => (team ? occurrencesPerWeek(e.rule, team) * costOf(e) : 0);
 
   const ordered = $derived(
