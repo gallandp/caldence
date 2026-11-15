@@ -70,7 +70,7 @@ export interface CalEvent {
   time: Time;
   duration: number;
   scaling?: { base: number; perUnit: number; assumption: string; grid: number };
-  participants: { roleId: string; share: number }[];
+  participants: { roleId: string; share: number; fromTeams?: boolean }[];
   preparation: number;
 }
 
