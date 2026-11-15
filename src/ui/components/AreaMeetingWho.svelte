@@ -34,7 +34,7 @@
     </li>
   {/each}
 </ul>
-{#each missing as m (m.teamId + m.roleId)}
+{#each missing as m, i (i)}
   <p class="missing">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
     >{$t('area.missingRole', { team: teamName(m.teamId), role: roleName(m.roleId) })}
