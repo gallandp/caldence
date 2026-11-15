@@ -514,3 +514,75 @@ describe('purity of every edit function', () => {
     expect(ws).toEqual(before);
   });
 });
+
+describe('areas in edits', () => {
+  /** rich() with a second team t2 and an area a1 over t1 and t2 that uses p1, r1 and c1. */
+  function withArea(): Workspace {
+    const ws = rich();
+    ws.teams.push({ ...structuredClone(ws.teams[0]!), id: 't2', name: 'Beta' });
+    ws.areas = [
+      {
+        id: 'a1',
+        name: 'Payments',
+        teamIds: ['t1', 't2'],
+        members: [{ personId: 'p1', roleId: 'r1' }],
+        memberHours: { p1: 4 },
+        cycles: [],
+        events: [
+          {
+            id: 'ea',
+            name: 'PO forum',
+            categoryId: 'c1',
+            rule: { type: 'weekly', weekday: 2 },
+            time: '10:00',
+            duration: 60,
+            participants: [{ roleId: 'r1', share: 1 }],
+            preparation: 0,
+          },
+        ],
+      },
+    ];
+    valid(ws);
+    return ws;
+  }
+
+  it('new and duplicated teams never take an area id', () => {
+    const ws = withArea();
+    ws.areas[0]!.id = 't3';
+    const [w, id] = addTeam(ws, 'New', '2026-11-11');
+    expect(id).toBe('t4');
+    valid(w);
+    const [w2, id2] = duplicateTeam(w, 't1', 'Copy');
+    expect(id2).toBe('t5');
+    valid(w2);
+  });
+
+  it('removing a team takes it out of its area', () => {
+    const w = removeTeam(withArea(), 't1');
+    expect(w.areas[0]!.teamIds).toEqual(['t2']);
+    valid(w);
+  });
+
+  it('removing a person drops their area membership and hours', () => {
+    const w = ok(removeItem(withArea(), 'people', 'p1'));
+    expect(w.areas[0]!.members).toEqual([]);
+    expect(w.areas[0]!.memberHours).toEqual({});
+    valid(w);
+  });
+
+  it('replacing a person moves their area membership and hours', () => {
+    const w = ok(removeItem(withArea(), 'people', 'p1', 'p2'));
+    expect(w.areas[0]!.members).toEqual([{ personId: 'p2', roleId: 'r1' }]);
+    expect(w.areas[0]!.memberHours).toEqual({ p2: 4 });
+  });
+
+  it('counts roles and categories used only in an area as in use', () => {
+    const ws = withArea();
+    ws.teams = ws.teams.map((t) => ({ ...t, members: [], events: [] }));
+    expect(removeItem(ws, 'roles', 'r1').ok).toBe(false);
+    expect(removeItem(ws, 'categories', 'c1').ok).toBe(false);
+    const w = ok(removeItem(ws, 'roles', 'r1', 'r2'));
+    expect(w.areas[0]!.members[0]!.roleId).toBe('r2');
+    expect(w.areas[0]!.events[0]!.participants[0]!.roleId).toBe('r2');
+  });
+});

@@ -1,5 +1,5 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
-import { newId } from './edit';
+import { newId, unitIds } from './edit';
 import { migrate } from './migrate';
 import {
   CURRENT_SCHEMA,
@@ -39,6 +39,8 @@ export function validateTemplate(input: unknown): Result<Template> {
   // Regions belong to a workspace, never to a template.
   if ('customRegions' in input)
     return fail([{ path: 'customRegions', key: 'template.error.notTemplate' }]);
+  // Areas hold people and their hours; a template is one team without people.
+  if ('areas' in input) return fail([{ path: 'areas', key: 'template.error.notTemplate' }]);
 
   const m = migrate(input);
   if (!m.ok) return fail([{ path: 'schemaVersion', key: m.key }]);
@@ -46,6 +48,7 @@ export function validateTemplate(input: unknown): Result<Template> {
   // Templates share the workspace schema version; workspace-only fields added on the way are dropped.
   const value: Record<string, unknown> = { ...(m.value as Record<string, unknown>), id: input.id };
   delete value.customRegions;
+  delete value.areas;
 
   const errors: ValidationError[] = [];
   if (value.id === undefined) errors.push({ path: 'id', key: 'error.required' });
@@ -73,6 +76,7 @@ export function validateTemplate(input: unknown): Result<Template> {
       value.team === undefined
         ? undefined
         : [{ ...(value.team as object), id: 'team', members: [], memberHours: {} }],
+    areas: [],
     customRegions: [],
   };
   const r = validate(temp);
@@ -146,10 +150,7 @@ export function applyTemplate(
   while (weekday(newStart) !== wd) newStart = addDays(newStart, 1);
   const shift = diffDays(newStart, cadenceStart);
 
-  const teamId = newId(
-    't',
-    out.teams.map((t) => t.id),
-  );
+  const teamId = newId('t', unitIds(out));
   const team: Team = {
     ...tpl.team,
     id: teamId,

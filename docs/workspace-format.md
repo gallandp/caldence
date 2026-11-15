@@ -1,12 +1,12 @@
 # Workspace format
 
-A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams and their meetings. The current schema version is `4`.
+A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams, areas and their meetings. The current schema version is `5`.
 
 ## Fields
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | integer | Schema version of the file (`4`). |
+| `schemaVersion` | integer | Schema version of the file (`5`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
 | `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
@@ -14,8 +14,9 @@ A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. 
 | `categories` | list of `{ id, name, colour }` | Event categories. |
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
+| `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
 
-All ids (the workspace `id` and the ids of roles, people, categories, teams, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
+All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
 
 ### `settings`
 
@@ -43,6 +44,20 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, cyc
 | `assumptions` | object of numbers | Named values (for example `devs`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
+
+### Area
+
+An area groups several teams into one unit, for example a department or a release train. It is shaped like a team, without assumptions. Areas do not nest.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `id`, `name` | string | Identity and display name. The id must not equal a team id. |
+| `teamIds` | list of team ids | The teams in the area. A team belongs to at most one area. |
+| `cadence` | `{ kind, lengthWeeks, start }`, optional | Reference cadence of the area, for example a planning interval of 10 weeks. Without it, the area's meetings cannot use the `cadence-day` rule. |
+| `members` | list of `{ personId, roleId }` | People with a role at area level, for example head of area. The same pair must not appear twice. |
+| `memberHours` | object | Weekly hours of a person in the area, by person id, from 0 to 168. Unlike in a team, a person without an entry has **0 hours** in the area: area time comes on top of team time and is set on purpose. |
+| `cycles` | list of `{ id, name, milestones }` | As in a team. |
+| `events` | list of events | The area's own meetings. |
 
 ### Event
 
@@ -82,8 +97,8 @@ A file that goes beyond these limits is rejected with a message naming the field
 | File size | 5 MB |
 | Dates (all of them) | years 1900 to 2200 |
 | Planning horizon | at most 5 years (`to` at most the same date 5 years after `from`) |
-| Meetings | 500 in all teams together |
-| Teams / roles / categories / people | 50 / 200 / 200 / 1000 |
+| Meetings | 500 in all teams and areas together |
+| Teams / areas / roles / categories / people | 50 / 50 / 200 / 200 / 1000 |
 | Members, cycles, milestones per cycle, assumptions per team | 1000, 100, 100, 50 |
 | Imported regions | 20 (each with at most 100 holidays and 500 school holidays of at most a year each) |
 | Names and other text | 200 characters (template description: 2000) |
@@ -96,7 +111,7 @@ A file that goes beyond these limits is rejected with a message naming the field
 
 If a stored workspace ever keeps the app from starting, open it with `?reset` at the end of the address (for example `https://caldence.de/?reset`). The app then starts with an empty workspace; the stored one is kept in the browser as a backup (`current.bak`) until the next reset or unreadable start.
 
-Older files (schema 1 to 3) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each). The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
+Older files (schema 1 to 4) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
 
 ## Privacy
 
@@ -106,7 +121,7 @@ A workspace file contains names of people, their working hours and your meeting 
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "id": "6f1c1d52-4b0e-4f0a-9a43-0c2f6a1d8e11",
   "settings": {
     "locale": "en",
@@ -144,6 +159,7 @@ A workspace file contains names of people, their working hours and your meeting 
         }
       ]
     }
-  ]
+  ],
+  "areas": []
 }
 ```

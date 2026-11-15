@@ -476,3 +476,92 @@ describe('latestHorizonEnd', () => {
     expect(latestHorizonEnd('2028-02-29')).toBe('2033-03-01');
   });
 });
+
+describe('areas', () => {
+  /** The fixture with a second team and an area over both. */
+  function withArea(): Workspace {
+    const w = fixture();
+    w.teams.push({ ...structuredClone(w.teams[0]!), id: 't2', name: 'Beta' });
+    w.areas = [
+      {
+        id: 'a1',
+        name: 'Payments',
+        teamIds: ['t1', 't2'],
+        cadence: { kind: 'pi', lengthWeeks: 10, start: '2027-01-04' },
+        members: [{ personId: 'p1', roleId: 'r1' }],
+        memberHours: { p1: 4 },
+        cycles: [],
+        events: [
+          {
+            id: 'e1',
+            name: 'PO forum',
+            categoryId: 'c1',
+            rule: { type: 'cadence-day', day: 1 },
+            time: '10:00',
+            duration: 60,
+            participants: [{ roleId: 'r1', share: 1 }],
+            preparation: 0,
+          },
+        ],
+      },
+    ];
+    return w;
+  }
+
+  it('accepts an area with teams, cadence, members, hours and meetings', () => {
+    expect(validate(withArea()).ok).toBe(true);
+  });
+
+  it('requires the areas list', () => {
+    const w = fixture() as unknown as Record<string, unknown>;
+    delete w.areas;
+    expect(errorsOf(w)).toContainEqual({ path: 'areas', key: 'error.required' });
+  });
+
+  it('accepts an area without a cadence, but then no cadence-day meeting', () => {
+    const w = withArea();
+    delete w.areas[0]!.cadence;
+    expect(errorsOf(w)).toContainEqual({
+      path: 'areas.0.events.0.rule.day',
+      key: 'error.number.invalid',
+    });
+    w.areas[0]!.events[0]!.rule = { type: 'weekly', weekday: 2 };
+    expect(validate(w).ok).toBe(true);
+  });
+
+  it('rejects an unknown team and a team in two areas', () => {
+    const w = withArea();
+    w.areas[0]!.teamIds.push('nope');
+    w.areas.push({ ...structuredClone(w.areas[0]!), id: 'a2', teamIds: ['t2'] });
+    const errors = errorsOf(w);
+    expect(errors).toContainEqual({ path: 'areas.0.teamIds.2', key: 'error.ref.unknown' });
+    expect(errors).toContainEqual({ path: 'areas.1.teamIds.0', key: 'error.area.teamTaken' });
+  });
+
+  it('reports a team listed twice in one area as a duplicate', () => {
+    const w = withArea();
+    w.areas[0]!.teamIds.push('t1');
+    expect(errorsOf(w)).toContainEqual({ path: 'areas.0.teamIds.2', key: 'error.id.duplicate' });
+  });
+
+  it('reports a broken area cadence once, not at every cadence-day meeting', () => {
+    const w = withArea();
+    w.areas[0]!.cadence!.lengthWeeks = 0;
+    expect(errorsOf(w).map((e) => e.path)).toEqual(['areas.0.cadence.lengthWeeks']);
+  });
+
+  it('rejects an area id that a team already uses', () => {
+    const w = withArea();
+    w.areas[0]!.id = 't1';
+    expect(errorsOf(w)).toContainEqual({ path: 'areas.0.id', key: 'error.id.duplicate' });
+  });
+
+  it('checks area members and hours like a team', () => {
+    const w = withArea();
+    w.areas[0]!.members.push({ personId: 'ghost', roleId: 'r1' });
+    w.areas[0]!.memberHours = { p1: 200 };
+    const errors = errorsOf(w);
+    expect(errors).toContainEqual({ path: 'areas.0.members.1.personId', key: 'error.ref.unknown' });
+    expect(errors).toContainEqual({ path: 'areas.0.memberHours.p1', key: 'error.number.invalid' });
+  });
+});

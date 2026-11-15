@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Workspace files can store areas that group several teams (schema 5); older files are upgraded on open. Nothing in the app uses them yet (#162)
+
 ## 1.32.0 – 2026-11-14
 
 ### Changed

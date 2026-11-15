@@ -2,7 +2,7 @@ import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 4;
+export const CURRENT_SCHEMA = 5;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -84,6 +84,27 @@ export interface Team {
   events: CalEvent[];
 }
 
+/**
+ * A group of teams (default name "Bereich" / "Area"), shaped like a team so that recurrence, load
+ * and cost code can treat it as one more unit. A team is in at most one area; areas do not nest.
+ */
+export interface Area {
+  id: string;
+  name: string;
+  teamIds: string[];
+  /** Optional reference cadence, e.g. a planning interval of 10 weeks. */
+  cadence?: Cadence;
+  /** People with a role at area level, e.g. head of area. */
+  members: { personId: string; roleId: string }[];
+  /**
+   * Weekly hours of a person in the area. Unlike a team, a missing entry means 0 hours: area time
+   * is extra to team time and has to be set on purpose.
+   */
+  memberHours: Record<string, number>;
+  cycles: Cycle[];
+  events: CalEvent[];
+}
+
 export interface Workspace {
   /** UUID v4, stable for the life of the workspace. */
   id: string;
@@ -93,6 +114,7 @@ export interface Workspace {
   people: Person[];
   categories: Category[];
   teams: Team[];
+  areas: Area[];
   /** Region files imported into this workspace; ids never equal a built-in region id. */
   customRegions: Region[];
 }
@@ -115,6 +137,7 @@ export function emptyWorkspace(today: ISODate): Workspace {
     people: [],
     categories: [],
     teams: [],
+    areas: [],
     customRegions: [],
   };
 }

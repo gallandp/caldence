@@ -57,7 +57,7 @@ describe('migrate', () => {
     const r = loadWorkspace(JSON.stringify(old));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.value.schemaVersion).toBe(4);
+    expect(r.value.schemaVersion).toBe(5);
     // Sam has two roles in one team: one team, all hours. Kim is in no team and stays, without hours.
     expect(r.value.people).toEqual([
       { id: 'p1', name: 'Alex' },
@@ -93,8 +93,16 @@ describe('migrate', () => {
     expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA, customRegions: [] });
   });
 
-  it('rejects a schema 5 file as newer', () => {
-    expect(migrate({ schemaVersion: 5 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  it('rejects a schema 6 file as newer', () => {
+    expect(migrate({ schemaVersion: 6 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  });
+
+  it('migrates schema 4 to 5 by adding only an empty areas list', () => {
+    const old: Record<string, unknown> = { ...emptyWorkspace('2026-11-07'), schemaVersion: 4 };
+    delete old.areas;
+    expect(MIGRATIONS[4]!(old)).toEqual({ ...old, areas: [] });
+    const r = loadWorkspace(JSON.stringify(old));
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 5, areas: [] });
   });
 
   it('rejects newer schemas without touching the input', () => {

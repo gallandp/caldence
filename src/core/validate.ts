@@ -272,30 +272,27 @@ function checkEvent(
   });
 }
 
-function checkTeam(
+function checkCadence(c: Checker, v: unknown, p: string): number | undefined {
+  const cad = c.obj(v, p);
+  if (!cad) return undefined;
+  if (cad.kind === undefined) c.err(`${p}.kind`, 'error.required');
+  else if (!['sprint', 'flow', 'pi'].includes(cad.kind as string))
+    c.err(`${p}.kind`, 'error.enum.invalid');
+  c.num(cad, 'lengthWeeks', p, { min: 1, int: true, max: LIMITS.lengthWeeks });
+  c.date(cad, 'start', p);
+  return isNum(cad.lengthWeeks) && Number.isInteger(cad.lengthWeeks) && cad.lengthWeeks >= 1
+    ? cad.lengthWeeks * 7
+    : undefined;
+}
+
+/** Members (person + role, each pair once) and their weekly hours; shared by teams and areas. */
+function checkMembers(
   c: Checker,
   t: Obj,
   p: string,
   roleIds: Set<string>,
   personIds: Set<string>,
-  categoryIds: Set<string>,
 ): void {
-  c.str(t, 'name', p);
-  if (t.templateId !== undefined && typeof t.templateId !== 'string')
-    c.err(`${p}.templateId`, 'error.type');
-
-  const cad = c.obj(t.cadence, `${p}.cadence`);
-  let cadenceDays: number | undefined;
-  if (cad) {
-    if (isNum(cad.lengthWeeks) && Number.isInteger(cad.lengthWeeks) && cad.lengthWeeks >= 1)
-      cadenceDays = cad.lengthWeeks * 7;
-    if (cad.kind === undefined) c.err(`${p}.cadence.kind`, 'error.required');
-    else if (!['sprint', 'flow', 'pi'].includes(cad.kind as string))
-      c.err(`${p}.cadence.kind`, 'error.enum.invalid');
-    c.num(cad, 'lengthWeeks', `${p}.cadence`, { min: 1, int: true, max: LIMITS.lengthWeeks });
-    c.date(cad, 'start', `${p}.cadence`);
-  }
-
   const pairs = new Set<string>();
   c.each(
     t.members,
@@ -320,18 +317,17 @@ function checkTeam(
       else c.num(mh, personId, `${p}.memberHours`, { min: 0, max: LIMITS.hoursPerWeek });
     }
   }
+}
 
-  const a = c.obj(t.assumptions, `${p}.assumptions`);
-  if (a) {
-    const entries = Object.entries(a);
-    if (entries.length > LIMITS.assumptionsPerTeam) c.err(`${p}.assumptions`, 'error.list.tooLong');
-    for (const [k, v] of entries) {
-      if (k.length > LIMITS.textChars) c.err(`${p}.assumptions`, 'error.text.tooLong');
-      if (!isNum(v) || Math.abs(v) > LIMITS.assumptionValue)
-        c.err(`${p}.assumptions.${k}`, 'error.number.invalid');
-    }
-  }
-
+/** Cycles with their milestones, then the events that may point at them. */
+function checkCyclesAndEvents(
+  c: Checker,
+  t: Obj,
+  p: string,
+  roleIds: Set<string>,
+  categoryIds: Set<string>,
+  cadenceDays: number | undefined,
+): void {
   const cycles = new Map<string, Set<string>>();
   const cycleList = c.arr(t.cycles, `${p}.cycles`, LIMITS.cyclesPerTeam) ?? [];
   c.ids(cycleList, `${p}.cycles`);
@@ -350,6 +346,75 @@ function checkTeam(
   c.ids(events, `${p}.events`);
   c.each(events, `${p}.events`, (e, ep) =>
     checkEvent(c, e, ep, categoryIds, roleIds, cycles, cadenceDays),
+  );
+}
+
+function checkTeam(
+  c: Checker,
+  t: Obj,
+  p: string,
+  roleIds: Set<string>,
+  personIds: Set<string>,
+  categoryIds: Set<string>,
+): void {
+  c.str(t, 'name', p);
+  if (t.templateId !== undefined && typeof t.templateId !== 'string')
+    c.err(`${p}.templateId`, 'error.type');
+
+  const cadenceDays = checkCadence(c, t.cadence, `${p}.cadence`);
+  checkMembers(c, t, p, roleIds, personIds);
+
+  const a = c.obj(t.assumptions, `${p}.assumptions`);
+  if (a) {
+    const entries = Object.entries(a);
+    if (entries.length > LIMITS.assumptionsPerTeam) c.err(`${p}.assumptions`, 'error.list.tooLong');
+    for (const [k, v] of entries) {
+      if (k.length > LIMITS.textChars) c.err(`${p}.assumptions`, 'error.text.tooLong');
+      if (!isNum(v) || Math.abs(v) > LIMITS.assumptionValue)
+        c.err(`${p}.assumptions.${k}`, 'error.number.invalid');
+    }
+  }
+
+  checkCyclesAndEvents(c, t, p, roleIds, categoryIds, cadenceDays);
+}
+
+/**
+ * An area: like a team without assumptions, with an optional cadence and a list of member teams.
+ * `claimed` maps a team id to the area that already lists it, so a team in two areas is reported.
+ */
+function checkArea(
+  c: Checker,
+  a: Obj,
+  p: string,
+  ids: { roles: Set<string>; people: Set<string>; categories: Set<string>; teams: Set<string> },
+  claimed: Set<string>,
+): void {
+  c.str(a, 'name', p);
+  if (isStr(a.id) && ids.teams.has(a.id)) c.err(`${p}.id`, 'error.id.duplicate');
+
+  const teamIds = c.arr(a.teamIds, `${p}.teamIds`, LIMITS.teams) ?? [];
+  const own = new Set<string>();
+  teamIds.forEach((id, i) => {
+    const tp = `${p}.teamIds.${i}`;
+    if (!isStr(id) || !ids.teams.has(id)) return c.err(tp, 'error.ref.unknown');
+    if (own.has(id)) return c.err(tp, 'error.id.duplicate');
+    if (claimed.has(id)) return c.err(tp, 'error.area.teamTaken');
+    own.add(id);
+    claimed.add(id);
+  });
+
+  const cadenceDays =
+    a.cadence === undefined ? undefined : checkCadence(c, a.cadence, `${p}.cadence`);
+  checkMembers(c, a, p, ids.roles, ids.people);
+  // A cadence-day rule needs a cadence: without one any day is out of range. A broken cadence is
+  // reported once, at the cadence, like in a team.
+  checkCyclesAndEvents(
+    c,
+    a,
+    p,
+    ids.roles,
+    ids.categories,
+    a.cadence === undefined ? 0 : cadenceDays,
   );
 }
 
@@ -410,13 +475,23 @@ export function validate(input: unknown): Result<Workspace> {
   });
 
   const teams = c.arr(w.teams, 'teams', LIMITS.teams) ?? [];
-  const eventCount = teams.reduce<number>(
-    (n, t) => n + (isObj(t) && Array.isArray(t.events) ? t.events.length : 0),
-    0,
-  );
-  if (eventCount > LIMITS.events) c.err('teams', 'error.list.tooLong');
-  c.ids(teams, 'teams');
+  const areas = c.arr(w.areas, 'areas', LIMITS.areas) ?? [];
+  const count = (list: unknown[]): number =>
+    list.reduce<number>(
+      (n, t) => n + (isObj(t) && Array.isArray(t.events) ? t.events.length : 0),
+      0,
+    );
+  const teamEvents = count(teams);
+  // The limit is for teams and areas together; name the list that pushed it over.
+  if (teamEvents > LIMITS.events) c.err('teams', 'error.list.tooLong');
+  else if (teamEvents + count(areas) > LIMITS.events) c.err('areas', 'error.list.tooLong');
+  const teamIds = c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
+
+  c.ids(areas, 'areas');
+  const claimed = new Set<string>();
+  const known = { roles: roleIds, people: personIds, categories: categoryIds, teams: teamIds };
+  c.each(areas, 'areas', (a, p) => checkArea(c, a, p, known, claimed));
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
   checkCustomRegions(c, w.customRegions);

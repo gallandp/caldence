@@ -25,6 +25,9 @@ export function newId(prefix: string, taken: Iterable<string>): string {
 
 const ids = (list: { id: string }[]): string[] => list.map((x) => x.id);
 
+/** Team and area ids share one space (load keys hours by either), so a new id avoids both. */
+export const unitIds = (ws: Workspace): string[] => [...ids(ws.teams), ...ids(ws.areas)];
+
 function mapTeam(ws: Workspace, teamId: string, fn: (t: Team) => Team): Workspace {
   if (!ws.teams.some((t) => t.id === teamId)) return structuredClone(ws);
   const out = structuredClone(ws);
@@ -118,8 +121,11 @@ export function removeItem(
   const out = structuredClone(ws);
   (out[kind] as Item[]).splice(index, 1);
 
+  // Teams and areas hold members, hours and events the same way.
+  const units = [...out.teams, ...out.areas];
+
   if (kind === 'people') {
-    for (const t of out.teams) {
+    for (const t of units) {
       // A replacement that is already a member keeps its own hours (an entry or the default).
       const wasMember = t.members.some((m) => m.personId === replacementId);
       t.members = t.members.flatMap((m) =>
@@ -136,16 +142,16 @@ export function removeItem(
 
   const inUse =
     kind === 'roles'
-      ? ws.teams.some(
+      ? units.some(
           (t) =>
             t.members.some((m) => m.roleId === id) ||
             t.events.some((e) => e.participants.some((p) => p.roleId === id)),
         )
-      : ws.teams.some((t) => t.events.some((e) => e.categoryId === id));
+      : units.some((t) => t.events.some((e) => e.categoryId === id));
   if (inUse && replacementId === undefined) return fail(path, 'error.ref.inuse');
   if (replacementId === undefined) return { ok: true, value: out };
 
-  for (const t of out.teams) {
+  for (const t of units) {
     if (kind === 'roles') {
       t.members = uniqueBy(
         t.members.map((m) => (m.roleId === id ? { ...m, roleId: replacementId } : m)),
@@ -165,7 +171,7 @@ export function removeItem(
 // ---------- teams ----------
 
 export function addTeam(ws: Workspace, name: string, today: ISODate): [Workspace, string] {
-  const id = newId('t', ids(ws.teams));
+  const id = newId('t', unitIds(ws));
   const team: Team = {
     id,
     name,
@@ -203,17 +209,17 @@ export function updateTeam(
 export function duplicateTeam(ws: Workspace, teamId: string, name: string): [Workspace, string] {
   const src = ws.teams.find((t) => t.id === teamId);
   if (!src) return [structuredClone(ws), teamId];
-  const id = newId('t', ids(ws.teams));
+  const id = newId('t', unitIds(ws));
   const copy: Team = { ...structuredClone(src), id, name };
   return [{ ...structuredClone(ws), teams: [...structuredClone(ws.teams), copy] }, id];
 }
 
 export function removeTeam(ws: Workspace, teamId: string): Workspace {
   if (!ws.teams.some((t) => t.id === teamId)) return structuredClone(ws);
-  return {
-    ...structuredClone(ws),
-    teams: structuredClone(ws.teams.filter((t) => t.id !== teamId)),
-  };
+  const out = structuredClone(ws);
+  out.teams = out.teams.filter((t) => t.id !== teamId);
+  for (const a of out.areas) a.teamIds = a.teamIds.filter((id) => id !== teamId);
+  return out;
 }
 
 /**

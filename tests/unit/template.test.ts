@@ -239,6 +239,10 @@ describe('wrong files', () => {
     expect(!r.ok && r.errors).toContainEqual({ path: 'id', key: 'error.id.invalid' });
     expect(!r.ok && r.errors).toContainEqual({ path: 'team.events.0.id', key: 'error.id.invalid' });
   });
+  it('rejects areas', () => {
+    expect(keys(validateTemplate({ ...tpl(), areas: [] }))).toContain('template.error.notTemplate');
+  });
+
   it('rejects customRegions', () => {
     expect(keys(validateTemplate({ ...tpl(), customRegions: [] }))).toContain(
       'template.error.notTemplate',
