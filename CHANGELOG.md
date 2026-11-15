@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Area meetings: with an area selected, Meetings & cadence plans the area's own meetings and optional cadence. A role can be invited from every team ("Scrum Master · every team"); the form and the list name who that reaches, which team lacks the role and who has no hours in the area yet. Area meetings count as area time, not team time: Load, the hours check (0 h in an area without an entry), costs and the iCalendar export include them, and the area gets a calendar of its own (#165)
+
 ### Changed
 
 - The SAFe template now creates a Release Train above the team: Release Train Engineer and Product Management are roles of the train, and PI Planning, ART Sync, System Demo, Inspect & Adapt and the PI Planning preparation are train meetings that invite the team roles from every team. The team keeps the iteration events with a two-week cadence, and a second SAFe team joins the same Release Train (#169)

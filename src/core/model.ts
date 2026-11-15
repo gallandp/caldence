@@ -62,6 +62,12 @@ export type Rule =
   | { type: 'cycle-milestone'; cycleId: string; milestoneId: string; offsetDays: number }
   | { type: 'once'; date: ISODate };
 
+/**
+ * Who attends a meeting: everyone with the role in the unit. In an area, `fromTeams` also invites
+ * everyone with the role in every team of the area ("Product Owner from every team").
+ */
+export type Participant = CalEvent['participants'][number];
+
 export interface CalEvent {
   id: string;
   name: string;
@@ -70,7 +76,7 @@ export interface CalEvent {
   time: Time;
   duration: number;
   scaling?: { base: number; perUnit: number; assumption: string; grid: number };
-  participants: { roleId: string; share: number }[];
+  participants: { roleId: string; share: number; fromTeams?: boolean }[];
   preparation: number;
 }
 
@@ -150,7 +156,93 @@ export function unitTeamIds(ws: Workspace, unitId: string): string[] {
   return ws.areas.find((a) => a.id === unitId)?.teamIds ?? [unitId];
 }
 
+/**
+ * The units whose hours a selected unit counts: an area's teams and the area itself (its own
+ * meetings), or the team itself. Keys of WeekLoad.byTeamPerson.
+ */
+export function unitLoadIds(ws: Workspace, unitId: string): string[] {
+  const area = ws.areas.find((a) => a.id === unitId);
+  return area ? [...area.teamIds, area.id] : [unitId];
+}
+
 /** The area a team belongs to, if any. */
 export function areaOf(ws: Workspace, teamId: string): Area | undefined {
   return ws.areas.find((a) => a.teamIds.includes(teamId));
+}
+
+/** A cadence that never starts a period: an area without its own cadence. */
+const NO_CADENCE: Cadence = { kind: 'flow', lengthWeeks: 0, start: '0001-01-01' };
+
+/**
+ * An area seen as a team, so recurrence, load and cost code can expand and count its meetings.
+ * Without a cadence of its own no cadence-day rule matches; areas have no assumptions.
+ */
+export function areaAsTeam(area: Area): Team {
+  return {
+    id: area.id,
+    name: area.name,
+    cadence: area.cadence ?? NO_CADENCE,
+    members: area.members,
+    memberHours: area.memberHours,
+    assumptions: {},
+    cycles: area.cycles,
+    events: area.events,
+  };
+}
+
+/** Every unit with meetings: the teams, then the areas seen as teams. */
+export function units(ws: Workspace): Team[] {
+  return [...ws.teams, ...ws.areas.map(areaAsTeam)];
+}
+
+/**
+ * The people a participant stands for in a unit, each once: the unit's members with the role
+ * and, for "from every team" in an area, the members with the role in each of its teams.
+ * Resolved on every call, so it follows the teams as they change.
+ */
+export function attendees(ws: Workspace, unitId: string, p: Participant): string[] {
+  const area = ws.areas.find((a) => a.id === unitId);
+  const own = area ?? ws.teams.find((t) => t.id === unitId);
+  const lists = [own?.members ?? []];
+  if (area && p.fromTeams)
+    for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
+  const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
+  return [...new Set(ids)];
+}
+
+/** Teams of the area in which nobody holds a role that the meeting invites "from every team". */
+export function missingRoles(
+  ws: Workspace,
+  area: Area,
+  event: CalEvent,
+): { teamId: string; roleId: string }[] {
+  const out: { teamId: string; roleId: string }[] = [];
+  for (const p of event.participants) {
+    if (!p.fromTeams) continue;
+    for (const t of ws.teams) {
+      if (area.teamIds.includes(t.id) && !t.members.some((m) => m.roleId === p.roleId))
+        out.push({ teamId: t.id, roleId: p.roleId });
+    }
+  }
+  return out;
+}
+
+/**
+ * The areas whose own meetings a filter counts: with a person filter the areas where the person
+ * attends a meeting, with a team filter the selected area (none for a team), otherwise all.
+ */
+export function areasInScope(
+  ws: Workspace,
+  filter: { teamId?: string; personId?: string },
+): Team[] {
+  const { personId, teamId } = filter;
+  return ws.areas
+    .filter((a) =>
+      personId
+        ? a.events.some((e) =>
+            e.participants.some((p) => attendees(ws, a.id, p).includes(personId)),
+          )
+        : teamId === undefined || a.id === teamId,
+    )
+    .map(areaAsTeam);
 }

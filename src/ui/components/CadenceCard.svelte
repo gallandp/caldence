@@ -1,13 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { updateTeam } from '../../core/edit';
-  import type { Cadence, Team } from '../../core/model';
+  import { mondayOf } from '../../core/date';
+  import { setAreaCadence, updateTeam } from '../../core/edit';
+  import type { Area, Cadence, Team } from '../../core/model';
   import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { Problems } from '../state/problems.svelte';
-  import { activeTeamId } from '../state/workspace';
+  import { activeTeamId, localToday } from '../state/workspace';
   import FieldError from './FieldError.svelte';
 
-  let { team }: { team: Team } = $props();
+  /** With `area`, the cadence is the area's own and optional (`team` is the area as a team). */
+  let { team, area }: { team: Team; area?: Area } = $props();
+  /** An area without a cadence of its own. */
+  const none = $derived(!!area && !area.cadence);
 
   const uid = $props.id();
   const problems = new Problems(uid);
@@ -31,19 +35,44 @@
 
   /** "Sprint · 2 weeks · from 01/05/2027" */
   const summary = $derived(
-    [
-      $t('team.cadence.kind.' + team.cadence.kind),
-      $t(team.cadence.lengthWeeks === 1 ? 'meet.cadence.weeks.one' : 'meet.cadence.weeks.other', {
-        n: team.cadence.lengthWeeks,
-      }),
-      $t('meet.cadence.from', { date: formatDisplayDate($locale, team.cadence.start, 'short') }),
-    ].join(' · '),
+    none
+      ? $t('area.cadence.none')
+      : [
+          $t('team.cadence.kind.' + team.cadence.kind),
+          $t(
+            team.cadence.lengthWeeks === 1 ? 'meet.cadence.weeks.one' : 'meet.cadence.weeks.other',
+            {
+              n: team.cadence.lengthWeeks,
+            },
+          ),
+          $t('meet.cadence.from', {
+            date: formatDisplayDate($locale, team.cadence.start, 'short'),
+          }),
+        ].join(' · '),
   );
+
+  /** An area gets a cadence: a planning interval of 10 weeks from this Monday, then edited. */
+  function addCadence() {
+    if (!area) return;
+    const id = area.id;
+    const cadence: Cadence = { kind: 'pi', lengthWeeks: 10, start: mondayOf(localToday()) };
+    if (commit('cadence-kind', $t('team.cadence'), (ws) => setAreaCadence(ws, id, cadence)))
+      open = true;
+  }
+
+  function removeCadence() {
+    if (!area) return;
+    const id = area.id;
+    if (commit('cadence-remove', $t('team.cadence'), (ws) => setAreaCadence(ws, id, undefined)))
+      open = false;
+  }
 
   function setCadence(field: keyof Cadence, label: string, patch: Partial<Cadence>) {
     const { id, cadence } = team;
     commit(`cadence-${field}`, label, (ws) =>
-      updateTeam(ws, id, { cadence: { ...cadence, ...patch } }),
+      area
+        ? setAreaCadence(ws, id, { ...cadence, ...patch })
+        : updateTeam(ws, id, { cadence: { ...cadence, ...patch } }),
     );
   }
 
@@ -75,14 +104,16 @@
   <div class="line">
     <h3 id="{uid}-h">{$t('team.cadence')}</h3>
     <p class="summary">{summary}</p>
-    <button
-      type="button"
-      class="secondary"
-      aria-expanded={showFields}
-      aria-controls="{uid}-fields"
-      aria-label={showFields ? undefined : $t('meet.cadence.editLabel')}
-      onclick={toggle}>{$t(showFields ? 'meet.cadence.done' : 'meet.cadence.edit')}</button
-    >
+    {#if none}
+      <button type="button" class="secondary" onclick={addCadence}>{$t('area.cadence.add')}</button>
+    {:else}<button
+        type="button"
+        class="secondary"
+        aria-expanded={showFields}
+        aria-controls="{uid}-fields"
+        aria-label={showFields ? undefined : $t('meet.cadence.editLabel')}
+        onclick={toggle}>{$t(showFields ? 'meet.cadence.done' : 'meet.cadence.edit')}</button
+      >{/if}
   </div>
   <div id="{uid}-fields" hidden={!showFields}>
     {#if showFields}
@@ -134,6 +165,14 @@
             <FieldError {problems} id="cadence-start" />
           </div>
         </div>
+        {#if area}
+          <p class="remove">
+            <button type="button" class="secondary" onclick={removeCadence}
+              >{$t('area.cadence.remove')}</button
+            >
+          </p>
+          <FieldError {problems} id="cadence-remove" />
+        {/if}
       {/key}
     {/if}
   </div>
@@ -157,6 +196,9 @@
   .hint {
     margin: 1rem 0;
     color: var(--text-muted);
+  }
+  .remove {
+    margin: 0.75rem 0 0;
   }
   .grid {
     display: grid;
