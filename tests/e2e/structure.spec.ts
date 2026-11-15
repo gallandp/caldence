@@ -132,6 +132,51 @@ test('adding a person who is in no team puts them only in the area', async ({ pa
   await expect(page.getByRole('button', { name: '+ Person' })).toBeFocused();
 });
 
+test('a new role is created right in the area, from "+ Person" and from the card', async ({
+  page,
+}) => {
+  await openStructure(page);
+  await page.getByRole('button', { name: '+ Person' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add a person to Payments' });
+  await dialog.getByLabel('Person').fill('Nina Z.');
+  await dialog.getByLabel('Role in the area').selectOption({ label: 'New role …' });
+  await expect(dialog.getByLabel('New role name')).toBeFocused();
+  // Without a name nothing is added, and the error sits at the role name.
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('New role name')).toHaveAttribute('aria-invalid', 'true');
+  await dialog.getByLabel('New role name').fill('Area architect');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  const nina = page.locator('.zone.only').getByRole('button', { name: /Nina Z\./ });
+  await expect(nina).toContainText('Area architect');
+
+  // The card creates one too; Escape in the name field only cancels the new role.
+  await nina.click();
+  const card = page.getByRole('dialog', { name: 'Nina Z.' });
+  const select = card.getByLabel('Role in the area');
+  await select.selectOption({ label: 'New role …' });
+  const field = card.getByLabel('New role name');
+  await expect(field).toBeFocused();
+  await field.press('Escape');
+  await expect(card).toBeVisible();
+  await expect(field).toHaveCount(0);
+  await expect(select).toBeFocused();
+  await select.selectOption({ label: 'New role …' });
+  await card.getByLabel('New role name').press('Enter');
+  await expect(card.getByLabel('New role name')).toHaveAttribute('aria-invalid', 'true');
+  await card.getByLabel('New role name').fill('Coach');
+  await card.getByLabel('New role name').press('Enter');
+  await expect(nina).toContainText('Coach');
+  await expect(select.locator('option:checked')).toHaveText('Coach');
+
+  // Both roles are in the roles list on the structure page.
+  await page.getByText('Edit roles (').click();
+  const roles = page.getByRole('region', { name: 'Roles' });
+  await expect(roles.getByRole('textbox', { name: /Area architect/ })).toBeVisible();
+  await expect(roles.getByRole('textbox', { name: /Coach/ })).toBeVisible();
+});
+
 test('a meeting chip highlights its invitees and names a team without the role', async ({
   page,
 }) => {
@@ -231,6 +276,13 @@ for (const scheme of ['light', 'dark'] as const) {
       .click();
     const card = await new AxeBuilder({ page }).include('dialog[open]').analyze();
     expect(card.violations).toEqual([]);
+    await page
+      .getByRole('dialog', { name: 'Ivo Q.' })
+      .getByLabel('Role in the area')
+      .selectOption({ label: 'New role …' });
+    const creating = await new AxeBuilder({ page }).include('dialog[open]').analyze();
+    expect(creating.violations).toEqual([]);
+    await page.locator('dialog[open]').getByLabel('New role name').press('Escape');
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Table', exact: true }).click();
     const table = await new AxeBuilder({ page }).include('#panel-team').analyze();

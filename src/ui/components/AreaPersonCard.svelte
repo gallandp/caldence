@@ -1,12 +1,14 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { removeFromArea, setAreaHours, setAreaRole } from '../../core/areaEdit';
-  import { updateTeam } from '../../core/edit';
+  import { roleByName, updateTeam } from '../../core/edit';
+  import { LIMITS } from '../../core/limits';
   import { attendees, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
   import AreaIcon from './AreaIcon.svelte';
+  import { PALETTE } from './ColourField.svelte';
   import FieldError from './FieldError.svelte';
   import { Problems } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
@@ -33,7 +35,7 @@
 
   const uid = $props.id();
   const problems = new Problems(uid);
-  const { commit, fail, describe } = problems;
+  const { commit, fail, clear, describe } = problems;
   const errors = $derived(problems.errors);
 
   let dialog: HTMLDialogElement | undefined = $state();
@@ -156,13 +158,62 @@
     commit(`team-${teamId}`, label, (ws) => updateTeam(ws, teamId, { memberHours: hours }));
   }
 
-  function onRole(event: Event) {
+  /** The select's value for "New role …", which asks for the new role's name below it. */
+  const NEW = ':new';
+  let creating = $state(false);
+  $effect(() => {
+    void personId;
+    creating = false;
+  });
+
+  async function onRole(event: Event) {
     if (!personId) return;
     const value = (event.currentTarget as HTMLSelectElement).value;
+    if (value === NEW) {
+      creating = true;
+      clear('area-role');
+      await tick();
+      dialog?.querySelector<HTMLInputElement>('[data-new-role]')?.focus();
+      return;
+    }
+    creating = false;
     const id = personId;
     commit('area-role', $t('area.card.role'), (ws) =>
       setAreaRole(ws, area.id, id, value === '' ? null : value),
     );
+  }
+
+  /** Creates the role (or takes the one with that name) and makes it the person's area role. */
+  function onNewRole(event: Event) {
+    if (!personId) return;
+    const value = (event.currentTarget as HTMLInputElement).value.trim();
+    if (value === '') return fail('area-role', 'error.required', $t('settings.roles.add'));
+    if (value.length > LIMITS.textChars)
+      return fail('area-role', 'error.text.tooLong', $t('settings.roles.add'));
+    const id = personId;
+    const colour = PALETTE[roles.length % PALETTE.length]!.hex;
+    const done = commit('area-role', $t('area.card.role'), (ws) => {
+      const [next, roleId] = roleByName(ws, value, colour);
+      return setAreaRole(next, area.id, id, roleId);
+    });
+    if (done) {
+      creating = false;
+      void tick().then(() => dialog?.querySelector<HTMLElement>('[data-area-role]')?.focus());
+    }
+  }
+
+  function onNewRoleKeydown(event: KeyboardEvent) {
+    // Enter and leaving save (change), which does not fire for a field left empty.
+    const input = event.currentTarget as HTMLInputElement;
+    if (event.key === 'Enter' && input.value.trim() === '')
+      return fail('area-role', 'error.required', $t('settings.roles.add'));
+    // Escape cancels the new role only; the card stays open.
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    creating = false;
+    clear('area-role');
+    void tick().then(() => dialog?.querySelector<HTMLElement>('[data-area-role]')?.focus());
   }
 
   function remove() {
@@ -198,8 +249,11 @@
           <small>{p.areaRoleIds.map(roleName).join(', ')}</small>
         {:else}
           <select
-            value={p.areaRoleIds[0] ?? ''}
+            data-area-role
+            value={creating ? NEW : (p.areaRoleIds[0] ?? '')}
             aria-label={$t('area.card.role')}
+            aria-invalid={!creating && errors['area-role'] ? true : undefined}
+            aria-describedby={creating ? undefined : describe('area-role')}
             onchange={onRole}
           >
             <option value=""
@@ -208,7 +262,20 @@
                 : $t('area.card.noRole')}</option
             >
             {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+            <option value={NEW}>{$t('area.role.new')}</option>
           </select>
+          {#if creating}
+            <input
+              type="text"
+              data-new-role
+              placeholder={$t('area.role.placeholder')}
+              aria-label={$t('settings.roles.add')}
+              aria-invalid={errors['area-role'] ? true : undefined}
+              aria-describedby={describe('area-role')}
+              onchange={onNewRole}
+              onkeydown={onNewRoleKeydown}
+            />
+          {/if}
         {/if}
       </div>
       <span class="hours">
@@ -226,6 +293,7 @@
         />{$t('area.card.unit')}
       </span>
     </div>
+    <FieldError {problems} id="area-role" />
     <FieldError {problems} id="area-hours" />
     {#each p.teams as x (x.teamId)}
       <div class="row">
