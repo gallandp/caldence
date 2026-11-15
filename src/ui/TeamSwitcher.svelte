@@ -46,6 +46,20 @@
   let menu: HTMLDivElement | undefined = $state();
 
   const initials = $derived(nameInitials(current?.name ?? ''));
+  /** Long names are cut after two lines; the tooltip keeps the whole text. */
+  const pickTitle = $derived(
+    activeArea
+      ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
+      : active
+        ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
+            'team.switcher.meta',
+            {
+              kind: $t('team.cadence.kind.' + active.cadence.kind),
+              weeks: active.cadence.lengthWeeks,
+            },
+          )}`
+        : '',
+  );
 
   /** The list of teams and areas is a disclosure too, in the flow like the menu. */
   let listOpen = $state(false);
@@ -245,7 +259,7 @@
       {:else}
         <span class="avatar" aria-hidden="true">{initials}</span>
       {/if}
-      <span class="text">
+      <span class="text" title={pickTitle}>
         <span class="name"
           ><span class="label">{current.name}</span><svg
             class="chev"
@@ -257,7 +271,7 @@
           {#if activeArea}
             {$t('area.meta', { count: teamCount(activeArea) })}
           {:else if active}
-            {#if activeAreaOf}<b>{activeAreaOf.name}</b> ·
+            {#if activeAreaOf}<b>{activeAreaOf.name}</b>&#32;·&#32;
             {/if}{$t('team.switcher.meta', {
               kind: $t('team.cadence.kind.' + active.cadence.kind),
               weeks: active.cadence.lengthWeeks,
@@ -302,7 +316,11 @@
                 <span class="avatar mini area" aria-hidden="true">{@render areaIcon()}</span>
                 <span class="opt-name">{area.name}</span>
                 <span class="sr-only">{$t('area.option')}</span>
-                <span class="count">{teamCount(area)}</span>
+                <span class="count"
+                  ><span aria-hidden="true">{area.teamIds.length}</span><span class="sr-only"
+                    >{teamCount(area)}</span
+                  ></span
+                >
               </button>
               {#if area.teamIds.length > 0}
                 <ul class="kids">
@@ -447,7 +465,7 @@
     position: relative;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.5rem;
     padding: 0.5rem 0.35rem 0.5rem 0.5rem;
     border-radius: 0.85rem;
@@ -471,7 +489,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 0.5rem;
     padding: 0.1rem;
@@ -486,6 +504,10 @@
   :global(#app) .switcher button.pick:hover {
     background: rgb(255 255 255 / 0.06);
   }
+  /* Names wrap: icons stay on the first line. */
+  .pick > .avatar {
+    margin-top: 0.2rem;
+  }
   .text {
     flex: 1;
     min-width: 0;
@@ -494,22 +516,27 @@
   }
   .name {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.3rem;
     font-size: 0.95rem;
     font-weight: 650;
   }
-  .name .label {
+  /* Long names wrap to two lines, then end in an ellipsis; the tooltip has the rest. */
+  .name .label,
+  .meta {
     min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   .chev {
     flex: none;
     width: 0.9rem;
     height: 0.9rem;
-    margin-left: auto;
+    margin: 0.2rem 0 0 auto;
     fill: none;
     stroke: var(--side-text);
     stroke-width: 2.4;
@@ -590,7 +617,7 @@
   }
   :global(#app) .switcher .list button.opt {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 0.5rem;
     width: 100%;
@@ -612,17 +639,27 @@
     color: var(--accent-text);
     font-weight: 650;
   }
+  /* In the list, names wrap in full: it is where people tell similar names apart. */
   .opt-name {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    padding-top: 0.05rem;
+    overflow-wrap: anywhere;
   }
+  .list .avatar.mini {
+    margin-top: 0.05rem;
+  }
+  /* Only the number: the teams are listed right below. */
   .count {
-    margin-left: auto;
     flex: none;
-    font-size: 0.75rem;
-    font-weight: 500;
+    min-width: 1.25rem;
+    margin: 0.1rem 0 0 auto;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.1rem;
+    text-align: center;
     color: var(--text-muted);
   }
   @media (max-width: 60rem) {
@@ -638,12 +675,10 @@
   .meta {
     font-size: 0.75rem;
     color: var(--side-text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   :global(#app) .switcher button.toggle {
     flex: none;
+    margin-top: 0.3rem;
     display: grid;
     place-items: center;
     width: 1.75rem;
