@@ -5,13 +5,13 @@
 ### Added
 
 - Area meetings: with an area selected, Meetings & cadence plans the area's own meetings and optional cadence. A role can be invited from every team ("Scrum Master · every team"); the form and the list name who that reaches, which team lacks the role and who has no hours in the area yet. Area meetings count as area time, not team time: Load, the hours check (0 h in an area without an entry), costs and the iCalendar export include them, and the area gets a calendar of its own (#165)
+- With an area selected, Calendar (week, month, horizon) and Load also show the area's own meetings, marked with the area icon and name, and the area's cadence. "Show for" offers the area's teams to narrow the view to one of them; a single team still shows only its own meetings (#166)
 
 ## 1.35.0 – 2026-11-15
 
 ### Added
 
 - Areas: group teams under an area (Bereich, or your own level name) with ⋯ › Add area, choose its teams, rename or delete it. The sidebar switcher lists each area with its teams below it; with an area selected, Calendar and Load show all its teams together, and Meetings & cadence and Team offer its teams to pick (#164)
-- With an area selected, Calendar (week, month, horizon) and Load also show the area's own meetings, marked with the area icon and name, and the area's cadence. "Show for" offers the area's teams to narrow the view to one of them; a single team still shows only its own meetings (#166)
 
 ### Fixed
 
