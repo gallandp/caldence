@@ -495,28 +495,6 @@
   border-top: 0.25rem solid transparent;
   background-clip: padding-box;
 }
-#app .actions {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 0.25rem;
-}
-#app .actions button {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--accent-text);
-  padding: 0.3rem 0.55rem;
-  font-size: 0.85rem;
-}
-#app .actions button:hover {
-  background: var(--accent-soft);
-}
-#app .actions button:last-child {
-  color: var(--danger);
-}
-#app .actions button:last-child:hover {
-  background: var(--danger-soft);
-}
 #app .cat {
   display: inline-flex;
   align-items: center;

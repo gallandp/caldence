@@ -290,6 +290,26 @@ describe('hours per team', () => {
       { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
     ]);
   });
+
+  it('an area stands for its teams: capacity and FTE sum over them', () => {
+    const ws = twoTeams();
+    ws.areas = [
+      {
+        id: 'area',
+        name: 'A',
+        teamIds: ['alpha', 'beta'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        events: [],
+      },
+    ];
+    expect(capacity(ws, 'p1', 'area')).toBe(38);
+    // 12 / 38 over the area's teams is below 0.5.
+    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'area' })).toEqual([]);
+    ws.areas[0]!.teamIds = ['alpha'];
+    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'area' })).toHaveLength(1);
+  });
 });
 
 describe('ids that name Object.prototype members (security #40)', () => {

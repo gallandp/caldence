@@ -233,6 +233,18 @@ describe('weekRows', () => {
     expect(scopeTeams(ws, {}).map((t) => t.id)).toEqual(['t1', 't2']);
     expect(scopeTeams(ws, { teamId: 't2' }).map((t) => t.id)).toEqual(['t2']);
     expect(scopeTeams(ws, { personId: 'p1', teamId: 't2' }).map((t) => t.id)).toEqual(['t1']);
+    ws.areas = [
+      {
+        id: 'a1',
+        name: 'A',
+        teamIds: ['t2', 't1'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        events: [],
+      },
+    ];
+    expect(scopeTeams(ws, { teamId: 'a1' }).map((t) => t.id)).toEqual(['t1', 't2']);
   });
   it('reports school holidays', () => {
     const ws = base();

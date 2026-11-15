@@ -1,0 +1,131 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Page } from '@playwright/test';
+import {
+  currentUnit,
+  openExample,
+  pickUnit,
+  teamAction,
+  unitNames,
+  useFileFallback,
+} from './helpers';
+
+test.use({ locale: 'en-US' });
+test.beforeEach(async ({ page }) => {
+  await useFileFallback(page);
+});
+
+async function addArea(page: Page, name: string, teams: string[]) {
+  await teamAction(page, 'Add area');
+  const dialog = page.getByRole('dialog', { name: 'Add area' });
+  await dialog.getByLabel('Area name').fill(name);
+  for (const team of teams) await dialog.getByRole('checkbox', { name: team }).check();
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+test('an area groups teams in the switcher and is selected like a team', async ({ page }) => {
+  await openExample(page);
+  await addArea(page, 'Platform', ['Team Alpha']);
+  await expect(currentUnit(page)).toHaveText('Platform');
+  await expect(page.locator('.switcher .meta')).toHaveText('Area · 1 team');
+  // The area first, its team below it, then the teams without an area.
+  await expect(unitNames(page)).toHaveText(['Platform', 'Team Alpha', 'Team Beta']);
+  await page.locator('.switcher .pick').click();
+  await expect(
+    page.locator('.switcher .list').getByRole('button', { name: /^Platform\W+area\W+1 team$/ }),
+  ).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByText('No area', { exact: true })).toBeVisible();
+  // Arrow keys move through the list, Escape closes it.
+  await page.keyboard.press('ArrowDown');
+  await expect(
+    page.locator('.switcher .list').getByRole('button', { name: 'Team Alpha' }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.switcher .list')).toBeHidden();
+  await expect(page.locator('.switcher .pick')).toBeFocused();
+
+  // A team in the area names it in the card; the area can be picked again from the list.
+  await pickUnit(page, 'Team Alpha');
+  await expect(page.locator('.switcher .meta')).toContainText('Platform ·');
+  await pickUnit(page, 'Platform');
+});
+
+test('the views follow the area: Load sums its teams, Team offers them', async ({ page }) => {
+  await openExample(page);
+  await addArea(page, 'Platform', ['Team Alpha', 'Team Beta']);
+  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await expect(page.getByText(/^Hours in the teams of Platform/)).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Team' });
+  await expect(panel.getByText(/People and roles are assigned per team/)).toBeVisible();
+  await panel.getByRole('button', { name: 'Team Beta' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(currentUnit(page)).toHaveText('Team Beta');
+  // The team view replaces the list of teams; focus moves to the panel instead of getting lost.
+  await expect(page.locator('#panel-team')).toBeFocused();
+  await expect(panel.getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
+});
+
+test('rename an area, move a team into it after a question, delete it', async ({ page }) => {
+  await openExample(page);
+  await addArea(page, 'Platform', ['Team Alpha']);
+  await addArea(page, 'Data', []);
+
+  await teamAction(page, 'Rename area');
+  const rename = page.getByRole('dialog', { name: 'Rename area' });
+  await rename.getByLabel('Area name').fill('Insights');
+  await rename.getByRole('button', { name: 'Apply' }).click();
+  await expect(currentUnit(page)).toHaveText('Insights');
+
+  await teamAction(page, 'Choose teams …');
+  const choose = page.getByRole('dialog', { name: 'Teams in Insights' });
+  await expect(choose.getByText('in Platform')).toBeVisible();
+  await choose.getByRole('checkbox', { name: 'Team Alpha' }).check();
+  await expect(choose.getByText('from Platform')).toBeVisible();
+  await choose.getByRole('button', { name: 'Apply' }).click();
+  const move = page.getByRole('dialog', { name: 'Move teams?' });
+  await expect(move).toContainText('Moving to Insights: Team Alpha (was Platform).');
+  // Cancel keeps the choice open; Apply asks again.
+  await move.getByRole('button', { name: 'Cancel' }).click();
+  await expect(choose.getByRole('checkbox', { name: 'Team Alpha' })).toBeChecked();
+  await choose.getByRole('button', { name: 'Apply' }).click();
+  await move.getByRole('button', { name: 'Move' }).click();
+  await expect(unitNames(page)).toHaveText(['Platform', 'Insights', 'Team Alpha', 'Team Beta']);
+
+  await teamAction(page, 'Delete area');
+  const del = page.getByRole('dialog', { name: 'Delete Insights?' });
+  await expect(del).toContainText('Its teams stay with everything in them');
+  await del.getByRole('button', { name: 'Delete area' }).click();
+  await expect(unitNames(page)).toHaveText(['Platform', 'Team Alpha', 'Team Beta']);
+  await page.keyboard.press('Control+z');
+  await expect(unitNames(page)).toHaveText(['Platform', 'Insights', 'Team Alpha', 'Team Beta']);
+});
+
+test('the switcher works in the phone menu', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 760 });
+  await openExample(page);
+  await page.locator('.menu-toggle').click();
+  await addArea(page, 'Platform', ['Team Beta']);
+  await pickUnit(page, 'Team Beta');
+  await expect(page.locator('.switcher .meta')).toContainText('Platform ·');
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(width).toBeLessThanOrEqual(375);
+});
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(`axe finds no violations in the open switcher and the area dialog (${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await openExample(page);
+    await addArea(page, 'Platform', ['Team Alpha']);
+    await page.locator('.switcher .pick').click();
+    const list = await new AxeBuilder({ page }).include('.switcher').analyze();
+    expect(list.violations).toEqual([]);
+    await page.keyboard.press('Escape');
+    await teamAction(page, 'Choose teams …');
+    const dialog = await new AxeBuilder({ page }).include('dialog[open]').analyze();
+    expect(dialog.violations).toEqual([]);
+  });
+}

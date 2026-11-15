@@ -1,8 +1,17 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { addTeam, duplicateTeam, removeTeam, updateTeam } from '../core/edit';
+  import {
+    addTeam,
+    duplicateTeam,
+    removeArea,
+    removeTeam,
+    renameArea,
+    updateTeam,
+  } from '../core/edit';
+  import { areaOf, type Area } from '../core/model';
   import { initials as nameInitials } from './avatar';
   import { translate as t } from '../i18n';
+  import AreaDialog from './AreaDialog.svelte';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
 
@@ -11,10 +20,22 @@
   const uid = $props.id();
 
   const teams = $derived($workspace.teams);
+  const areas = $derived($workspace.areas);
+  /** The selection is a team or an area. */
   const active = $derived(teams.find((x) => x.id === $activeTeamId));
+  const activeArea = $derived(areas.find((x) => x.id === $activeTeamId));
+  const current = $derived(activeArea ?? active);
+  const activeAreaOf = $derived(active ? areaOf($workspace, active.id) : undefined);
+  const ungrouped = $derived(teams.filter((x) => !areaOf($workspace, x.id)));
+  const teamName = (id: string) => teams.find((x) => x.id === id)?.name ?? '';
+  const teamCount = (area: Area) =>
+    $t(area.teamIds.length === 1 ? 'area.count.one' : 'area.count.other', {
+      n: area.teamIds.length,
+    });
 
   let dialog: HTMLDialogElement | undefined;
-  let mode = $state<'add' | 'rename'>('add');
+  let mode = $state<'add' | 'rename' | 'renameArea'>('add');
+  let areaDialog: AreaDialog | undefined = $state();
   let name = $state('');
   let error = $state('');
   let confirming = $state(false);
@@ -24,7 +45,60 @@
   let toggle: HTMLButtonElement | undefined = $state();
   let menu: HTMLDivElement | undefined = $state();
 
-  const initials = $derived(nameInitials(active?.name ?? ''));
+  const initials = $derived(nameInitials(current?.name ?? ''));
+
+  /** The list of teams and areas is a disclosure too, in the flow like the menu. */
+  let listOpen = $state(false);
+  let pick: HTMLButtonElement | undefined = $state();
+  let list: HTMLDivElement | undefined = $state();
+
+  async function openList() {
+    menuOpen = false;
+    listOpen = !listOpen;
+    if (!listOpen) return;
+    await tick();
+    (
+      list?.querySelector<HTMLButtonElement>('button[aria-current="true"]') ??
+      list?.querySelector<HTMLButtonElement>('button')
+    )?.focus();
+  }
+
+  function choose(id: string) {
+    activeTeamId.set(id);
+    listOpen = false;
+    pick?.focus();
+  }
+
+  /** Arrow keys, Home and End move between the entries; Escape closes the list. */
+  function onListKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      listOpen = false;
+      pick?.focus();
+      return;
+    }
+    const options = [...(list?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    const i = options.indexOf(document.activeElement as HTMLButtonElement);
+    const last = options.length - 1;
+    const target =
+      event.key === 'ArrowDown'
+        ? Math.min(i + 1, last)
+        : event.key === 'ArrowUp'
+          ? Math.max(i - 1, 0)
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? last
+              : undefined;
+    if (target === undefined) return;
+    event.preventDefault();
+    options[target]?.focus();
+  }
+
+  function onListFocusout(event: FocusEvent) {
+    const next = event.relatedTarget as Node | null;
+    if (next && !list?.contains(next) && !pick?.contains(next)) listOpen = false;
+  }
 
   /** Focus goes back to the toggle first, so a dialog the action opens returns focus there. */
   function run(action: () => void) {
@@ -46,21 +120,27 @@
   }
 
   function onWindowPointer(event: PointerEvent) {
-    if (!menuOpen) return;
     const target = event.target as Node;
-    if (!menu?.contains(target) && !toggle?.contains(target)) menuOpen = false;
+    if (menuOpen && !menu?.contains(target) && !toggle?.contains(target)) menuOpen = false;
+    if (listOpen && !list?.contains(target) && !pick?.contains(target)) listOpen = false;
   }
 
   async function openMenu() {
+    listOpen = false;
     menuOpen = !menuOpen;
     if (!menuOpen) return;
     await tick();
     menu?.querySelector('button')?.focus();
   }
 
-  async function openDialog(next: 'add' | 'rename') {
+  async function openDialog(next: 'add' | 'rename' | 'renameArea') {
     mode = next;
-    name = next === 'rename' ? (active?.name ?? '') : '';
+    name =
+      next === 'rename'
+        ? (active?.name ?? '')
+        : next === 'renameArea'
+          ? (activeArea?.name ?? '')
+          : '';
     error = '';
     await tick();
     dialog?.showModal();
@@ -81,6 +161,14 @@
         return;
       }
       if (result.id) activeTeamId.set(result.id);
+    } else if (mode === 'renameArea') {
+      if (!activeArea) return dialog?.close();
+      const id = activeArea.id;
+      const result = workspace.apply((ws) => renameArea(ws, id, value));
+      if (!result.ok) {
+        error = result.errors[0]?.key ?? 'error.type';
+        return;
+      }
     } else if (active) {
       const id = active.id;
       const result = workspace.apply((ws) => updateTeam(ws, id, { name: value }));
@@ -99,11 +187,21 @@
     if (result.ok && result.id) activeTeamId.set(result.id);
   }
 
+  /** What deleting the area takes with it: its own meetings and people (teams stay). */
+  const areaLoss = $derived(
+    activeArea
+      ? {
+          events: activeArea.events.length,
+          people: new Set(activeArea.members.map((m) => m.personId)).size,
+        }
+      : { events: 0, people: 0 },
+  );
+
   async function onConfirm(choice: Choice) {
     confirming = false;
-    if (choice !== 'save' || !active) return;
-    const id = active.id;
-    workspace.apply((ws) => removeTeam(ws, id));
+    if (choice !== 'save' || !current) return;
+    const id = current.id;
+    workspace.apply((ws) => (activeArea ? removeArea(ws, id) : removeTeam(ws, id)));
     await tick();
     // Without teams the Calendar shows the start screen and this bar is gone; fall back to the main area.
     (toggle ?? document.getElementById(`${uid}-add`) ?? document.getElementById('main'))?.focus();
@@ -112,27 +210,65 @@
 
 <svelte:window onpointerdown={onWindowPointer} />
 
+{#snippet areaIcon()}
+  <svg viewBox="0 0 24 24" aria-hidden="true"
+    ><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /></svg
+  >
+{/snippet}
+
+{#snippet teamOption(id: string)}
+  <li>
+    <button
+      type="button"
+      class="opt"
+      aria-current={id === $activeTeamId ? 'true' : undefined}
+      onclick={() => choose(id)}
+    >
+      <span class="avatar mini" aria-hidden="true">{nameInitials(teamName(id))}</span>
+      <span class="opt-name">{teamName(id)}</span>
+    </button>
+  </li>
+{/snippet}
+
 <div class="switcher">
-  {#if active}
-    <span class="avatar" aria-hidden="true">{initials}</span>
-    <div class="field">
-      <label for="{uid}-select">{$t('team.switcher.label')}</label>
-      <select
-        id="{uid}-select"
-        value={active.id}
-        onchange={(e) => activeTeamId.set(e.currentTarget.value)}
-      >
-        {#each teams as team (team.id)}
-          <option value={team.id}>{team.name}</option>
-        {/each}
-      </select>
-      <span class="meta">
-        {$t('team.switcher.meta', {
-          kind: $t('team.cadence.kind.' + active.cadence.kind),
-          weeks: active.cadence.lengthWeeks,
-        })}
+  {#if current}
+    <button
+      type="button"
+      class="pick"
+      bind:this={pick}
+      aria-expanded={listOpen}
+      aria-controls="{uid}-list"
+      onclick={openList}
+    >
+      {#if activeArea}
+        <span class="avatar area" aria-hidden="true">{@render areaIcon()}</span>
+      {:else}
+        <span class="avatar" aria-hidden="true">{initials}</span>
+      {/if}
+      <span class="text">
+        <span class="name"
+          ><span class="label">{current.name}</span><svg
+            class="chev"
+            viewBox="0 0 24 24"
+            aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
+          ></span
+        >
+        <span class="meta">
+          {#if activeArea}
+            {$t('area.meta', { count: teamCount(activeArea) })}
+          {:else if active}
+            {#if activeAreaOf}<b>{activeAreaOf.name}</b> ·
+            {/if}{$t('team.switcher.meta', {
+              kind: $t('team.cadence.kind.' + active.cadence.kind),
+              weeks: active.cadence.lengthWeeks,
+            })}
+          {/if}
+        </span>
       </span>
-    </div>
+      <span class="sr-only"
+        >{$t(areas.length > 0 ? 'team.switcher.pickWithAreas' : 'team.switcher.pick')}</span
+      >
+    </button>
     <button
       type="button"
       class="toggle"
@@ -146,6 +282,50 @@
     </button>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
+      class="list"
+      id="{uid}-list"
+      bind:this={list}
+      hidden={!listOpen}
+      onkeydown={onListKeydown}
+      onfocusout={onListFocusout}
+    >
+      {#if areas.length > 0}
+        <ul>
+          {#each areas as area (area.id)}
+            <li>
+              <button
+                type="button"
+                class="opt"
+                aria-current={area.id === $activeTeamId ? 'true' : undefined}
+                onclick={() => choose(area.id)}
+              >
+                <span class="avatar mini area" aria-hidden="true">{@render areaIcon()}</span>
+                <span class="opt-name">{area.name}</span>
+                <span class="sr-only">{$t('area.option')}</span>
+                <span class="count">{teamCount(area)}</span>
+              </button>
+              {#if area.teamIds.length > 0}
+                <ul class="kids">
+                  {#each area.teamIds as id (id)}{@render teamOption(id)}{/each}
+                </ul>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        {#if ungrouped.length > 0}
+          <p class="group" id="{uid}-ungrouped">{$t('area.ungrouped')}</p>
+          <ul aria-labelledby="{uid}-ungrouped">
+            {#each ungrouped as team (team.id)}{@render teamOption(team.id)}{/each}
+          </ul>
+        {/if}
+      {:else}
+        <ul>
+          {#each teams as team (team.id)}{@render teamOption(team.id)}{/each}
+        </ul>
+      {/if}
+    </div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
       class="menu"
       id="{uid}-menu"
       bind:this={menu}
@@ -157,15 +337,30 @@
       <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
         >{$t('team.add')}</button
       >
+      <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button>
       <hr />
-      <button type="button" onclick={() => run(() => openDialog('rename'))}
-        >{$t('team.rename')}</button
-      >
-      <button type="button" onclick={() => run(duplicate)}>{$t('team.duplicate')}</button>
-      <hr />
-      <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
-        >{$t('team.delete')}</button
-      >
+      {#if activeArea}
+        {@const area = activeArea}
+        <button type="button" onclick={() => run(() => openDialog('renameArea'))}
+          >{$t('area.rename')}</button
+        >
+        <button type="button" onclick={() => run(() => areaDialog?.show(area))}
+          >{$t('area.teams')}</button
+        >
+        <hr />
+        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
+          >{$t('area.delete')}</button
+        >
+      {:else}
+        <button type="button" onclick={() => run(() => openDialog('rename'))}
+          >{$t('team.rename')}</button
+        >
+        <button type="button" onclick={() => run(duplicate)}>{$t('team.duplicate')}</button>
+        <hr />
+        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
+          >{$t('team.delete')}</button
+        >
+      {/if}
     </div>
   {:else}
     <p class="none">{$t('team.switcher.none')}</p>
@@ -193,9 +388,19 @@
   }}
 >
   <form onsubmit={submit}>
-    <h2 id="{uid}-title">{$t(mode === 'add' ? 'team.dialog.add' : 'team.dialog.rename')}</h2>
+    <h2 id="{uid}-title">
+      {$t(
+        mode === 'add'
+          ? 'team.dialog.add'
+          : mode === 'rename'
+            ? 'team.dialog.rename'
+            : 'area.rename',
+      )}
+    </h2>
     <div class="field">
-      <label for="{uid}-name">{$t('team.dialog.name')}</label>
+      <label for="{uid}-name"
+        >{$t(mode === 'renameArea' ? 'area.dialog.name' : 'team.dialog.name')}</label
+      >
       <input
         id="{uid}-name"
         type="text"
@@ -205,7 +410,9 @@
         oninput={() => (error = '')}
       />
       {#if error}
-        <p class="field-error" id="{uid}-err">{$t(error, { path: $t('team.dialog.name') })}</p>
+        <p class="field-error" id="{uid}-err">
+          {$t(error, { path: $t(mode === 'renameArea' ? 'area.dialog.name' : 'team.dialog.name') })}
+        </p>
       {/if}
     </div>
     <div class="actions">
@@ -215,11 +422,21 @@
   </form>
 </dialog>
 
+<AreaDialog bind:this={areaDialog} returnFocus={() => toggle?.focus()} />
+
 <ConfirmDialog
   open={confirming}
-  title={$t('team.delete.title', { name: active?.name ?? '' })}
-  message={$t('team.delete.message')}
-  confirmLabel={$t('team.delete')}
+  title={$t('team.delete.title', { name: current?.name ?? '' })}
+  message={activeArea
+    ? [
+        $t('area.delete.message'),
+        areaLoss.events + areaLoss.people > 0 ? $t('area.delete.goes', areaLoss) : '',
+        $t('area.undo'),
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : $t('team.delete.message')}
+  confirmLabel={$t(activeArea ? 'area.delete' : 'team.delete')}
   discard={false}
   onchoose={onConfirm}
 />
@@ -250,36 +467,168 @@
     font-size: 0.8rem;
     font-weight: 750;
   }
-  .switcher .field {
+  :global(#app) .switcher button.pick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding: 0.1rem;
+    border: 0;
+    border-radius: 0.6rem;
+    background: transparent;
+    box-shadow: none;
+    color: #fff;
+    font: inherit;
+    text-align: start;
+  }
+  :global(#app) .switcher button.pick:hover {
+    background: rgb(255 255 255 / 0.06);
+  }
+  .text {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
   }
-  .switcher label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  :global(#app) .switcher select {
-    width: 100%;
-    /* The shared select style reserves room for its chevron with !important. */
-    padding: 0 1.1rem 0 0 !important;
-    border: 0;
-    background-color: transparent;
-    background-position: right 0.1rem center;
-    box-shadow: none;
-    color: #fff;
+  .name {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
     font-size: 0.95rem;
     font-weight: 650;
-    text-overflow: ellipsis;
-    cursor: pointer;
   }
-  :global(#app) .switcher option {
-    color: #000;
+  .name .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chev {
+    flex: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-left: auto;
+    fill: none;
+    stroke: var(--side-text);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s;
+  }
+  .pick[aria-expanded='true'] .chev {
+    transform: rotate(180deg);
+  }
+  .meta b {
+    font-weight: 600;
+    color: #8ff0e2;
+  }
+  .avatar.area {
+    background: linear-gradient(135deg, #14b8a6, #22c3ee);
+  }
+  .avatar svg {
+    width: 1.1rem;
+    height: 1.1rem;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  .avatar.mini {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 0.4rem;
+    font-size: 0.6rem;
+  }
+  .avatar.mini svg {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+  /* The list of teams and areas, in the flow like the menu. */
+  .list {
+    flex-basis: 100%;
+    margin: 0.15rem -0.2rem 0 -0.35rem;
+    padding: 0.35rem;
+    max-height: min(60vh, 28rem);
+    overflow-y: auto;
+    border-radius: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    color: var(--text);
+  }
+  .list[hidden] {
+    display: none;
+  }
+  .list ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .list .kids {
+    position: relative;
+    margin-left: 1.2rem;
+    padding-left: 0.55rem;
+  }
+  .list .kids::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15rem;
+    bottom: 0.9rem;
+    border-left: 2px solid color-mix(in srgb, #14b8a6 50%, transparent);
+  }
+  .group {
+    margin: 0;
+    padding: 0.5rem 0.6rem 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  :global(#app) .switcher .list button.opt {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.55rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text);
+    font-weight: 500;
+    text-align: start;
+  }
+  :global(#app) .switcher .list button.opt:hover {
+    background: var(--surface-2);
+  }
+  :global(#app) .switcher .list button.opt[aria-current='true'] {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-weight: 650;
+  }
+  .opt-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .count {
+    margin-left: auto;
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  @media (max-width: 60rem) {
+    :global(#app) .switcher .list button.opt {
+      min-height: 2.75rem;
+    }
   }
   dialog .field {
     display: flex;

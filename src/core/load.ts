@@ -1,5 +1,5 @@
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
-import type { CalEvent, Rule, Team, Workspace } from './model';
+import { unitTeamIds, type CalEvent, type Rule, type Team, type Workspace } from './model';
 import { effectiveDuration, occurrences } from './recurrence';
 import { record } from './record';
 import type { HolidayIndex } from './regions';
@@ -127,9 +127,10 @@ export function fte(hours: number, hoursPerWeek: number): number {
  */
 export function capacity(ws: Workspace, personId: string, teamId?: string): number {
   const fallback = ws.settings.hoursPerWeek;
+  const scope = teamId === undefined ? undefined : new Set(unitTeamIds(ws, teamId));
   const teams = ws.teams.filter(
     (t) =>
-      (teamId === undefined || t.id === teamId) && t.members.some((m) => m.personId === personId),
+      (scope === undefined || scope.has(t.id)) && t.members.some((m) => m.personId === personId),
   );
   if (teams.length === 0) return fallback;
   return teams.reduce(
@@ -137,6 +138,11 @@ export function capacity(ws: Workspace, personId: string, teamId?: string): numb
       sum + (Object.hasOwn(t.memberHours, personId) ? t.memberHours[personId]! : fallback),
     0,
   );
+}
+
+/** A person's hours in a week in these teams. */
+export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: string): number {
+  return teamIds.reduce((sum, id) => sum + (week.byTeamPerson[id]?.[personId] ?? 0), 0);
 }
 
 /**
@@ -150,6 +156,7 @@ export function capacity(ws: Workspace, personId: string, teamId?: string): numb
 export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}): LoadWarning[] {
   const teamId = filter.personId ? undefined : filter.teamId;
   const { warnFactor, maxFte } = ws.settings.thresholds;
+  const scope = teamId === undefined ? [] : unitTeamIds(ws, teamId);
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
@@ -161,7 +168,7 @@ export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}):
       if (average > 0 && hours > warnFactor * usual) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
-      const fteHours = teamId ? (week.byTeamPerson[teamId]?.[person.id] ?? 0) : hours;
+      const fteHours = teamId ? hoursIn(week, scope, person.id) : hours;
       // Meetings without any weekly hours in the team are always too many.
       const over = hoursPerWeek > 0 ? fte(fteHours, hoursPerWeek) > maxFte : fteHours > 0;
       if (fteHours > 0 && over) {

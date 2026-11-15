@@ -1,13 +1,21 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openFixture, openTeamView, useFileFallback, teamAction } from './helpers';
+import {
+  openExample,
+  openFixture,
+  openTeamView,
+  useFileFallback,
+  teamAction,
+  pickUnit,
+  currentUnit,
+  unitNames,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
   await useFileFallback(page);
 });
 
-const teamSelect = (page: Page) => page.locator('.switcher select');
 const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Team' });
 
 async function addTeam(page: Page, name: string) {
@@ -22,8 +30,7 @@ test('a new team is selected and shows an empty members list with a hint', async
   await openExample(page);
   await openTeamView(page);
   await addTeam(page, 'Team B');
-  await expect(teamSelect(page)).toHaveValue(/.+/);
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team B');
+  await expect(currentUnit(page)).toHaveText('Team B');
   await expect(panel(page).getByText('No members yet')).toBeVisible();
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).toHaveCount(0);
 });
@@ -32,7 +39,7 @@ test('the team switcher changes what the team view shows', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
   await expect(panel(page).getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
-  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await pickUnit(page, 'Team Beta');
   await expect(panel(page).getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
 });
 
@@ -146,7 +153,7 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('region', { name: 'Your team is ready' })).toBeVisible();
   await openTeamView(page);
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Gamma');
+  await expect(currentUnit(page)).toHaveText('Team Gamma');
   await expect(panel(page).getByRole('list', { name: /^Members of/ })).toContainText(known!);
   await expect(page.getByLabel('Person', { exact: true }).first().locator('option')).toHaveCount(
     before,
@@ -160,19 +167,19 @@ test('deleting a team needs confirmation', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Delete Team Alpha?' });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
-  await expect(teamSelect(page).locator('option')).toHaveCount(2);
+  await expect(unitNames(page)).toHaveCount(2);
 
   await teamAction(page, 'Delete team');
   await dialog.getByRole('button', { name: 'Delete team' }).click();
-  await expect(teamSelect(page).locator('option')).toHaveCount(1);
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Beta');
+  await expect(unitNames(page)).toHaveCount(1);
+  await expect(currentUnit(page)).toHaveText('Team Beta');
 
   await teamAction(page, 'Delete team');
   await page
     .getByRole('dialog', { name: 'Delete Team Beta?' })
     .getByRole('button', { name: 'Delete team' })
     .click();
-  await expect(teamSelect(page)).toHaveCount(0);
+  await expect(currentUnit(page)).toHaveCount(0);
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
   await expect(panel(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add team' })).toBeFocused();
@@ -190,7 +197,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   // The new team's card replaces the button; focus lands on its actions.
   const actions = page.getByRole('button', { name: 'Team actions' });
   await expect(actions).toBeFocused();
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Keys');
+  await expect(currentUnit(page)).toHaveText('Keys');
 
   // The actions open with Enter, the first one takes focus, Escape closes them again.
   await page.keyboard.press('Enter');
@@ -209,7 +216,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await expect(page.getByLabel('Team name')).toHaveValue('Keys');
   await page.keyboard.type('Board');
   await page.keyboard.press('Enter');
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Board');
+  await expect(currentUnit(page)).toHaveText('Board');
   await expect(actions).toBeFocused();
 
   // Empty names are refused and Escape cancels.
@@ -223,7 +230,7 @@ test('adding and renaming a team works by keyboard alone', async ({ page }) => {
   await expect(page.getByText('must not be empty')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Board');
+  await expect(currentUnit(page)).toHaveText('Board');
 });
 
 test('a role filter is reset when the role is replaced and deleted', async ({ page }) => {
@@ -258,7 +265,7 @@ for (const locale of ['de', 'en'] as const) {
     expect((await axe()).violations).toEqual([]);
 
     // Name dialog, with an error shown.
-    await page.locator('.switcher .menu button').nth(2).click();
+    await page.locator('.switcher .menu button').nth(3).click();
     await page.getByRole('dialog').getByRole('textbox').fill('');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog').getByRole('textbox')).toHaveAttribute(
@@ -270,7 +277,7 @@ for (const locale of ['de', 'en'] as const) {
 
     // Confirm dialog.
     await page.locator('.switcher .toggle').click();
-    await page.locator('.switcher .menu button').nth(4).click();
+    await page.locator('.switcher .menu button').nth(5).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await axe()).violations).toEqual([]);
     await page.keyboard.press('Escape');
@@ -285,12 +292,12 @@ for (const locale of ['de', 'en'] as const) {
 
 test('the filter follows the active team', async ({ page }) => {
   await openExample(page);
-  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await pickUnit(page, 'Team Beta');
   await expect(page.getByText('All teams')).toHaveCount(0);
   await expect(page.locator('.context').getByLabel('Person')).toHaveValue('');
   await page.locator('.context').getByLabel('Person').selectOption({ label: 'Sam' });
   await expect(page.getByText('All teams')).toBeVisible();
-  await teamSelect(page).selectOption({ label: 'Team Alpha' });
+  await pickUnit(page, 'Team Alpha');
   await expect(page.getByText('All teams')).toBeVisible();
 });
 
@@ -302,7 +309,7 @@ test('a duplicated team is named in the UI language', async ({ page }) => {
     .selectOption('de');
   await page.getByRole('button', { name: 'Team-Aktionen' }).click();
   await page.getByRole('button', { name: 'Team duplizieren' }).click();
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (Kopie)');
+  await expect(currentUnit(page)).toHaveText('Team Alpha (Kopie)');
 });
 
 test('team actions return focus to their button and close when focus leaves', async ({ page }) => {

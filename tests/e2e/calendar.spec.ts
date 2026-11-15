@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
-import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
+import { openExample, openMenuIfNarrow, useFileFallback, pickUnit, currentUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -48,9 +48,7 @@ test('Christmas shows the holiday name in the UI language with 0 h', async ({ pa
 test('a skipped holiday meeting counts 0 h but is explained in the details', async ({ page }) => {
   // Ascension Day 2027-05-06 is a Thursday: Team Beta's weekly Replenishment is skipped.
   await openCalendar(page, '2027-05-10');
-  await page
-    .getByRole('combobox', { name: 'Team', exact: true })
-    .selectOption({ label: 'Team Beta' });
+  await pickUnit(page, 'Team Beta');
   const day = cellOf(page, '2027-05-06');
   await expect(day).toContainText('Ascension Day');
   await expect(day).toContainText('0.0 h');
@@ -66,9 +64,7 @@ test('day hours equal dayLoad of the example (constants checked by a unit test)'
 }) => {
   await openCalendar(page, '2027-03-15');
   // The constants are dayLoad for exactly this filter.
-  await page
-    .getByRole('combobox', { name: 'Team', exact: true })
-    .selectOption({ label: 'Team Alpha' });
+  await pickUnit(page, 'Team Alpha');
   for (const [d, h] of Object.entries(DAY_HOURS))
     await expect(cellOf(page, d)).toContainText(`${fmt('en', h)} h`);
   await expect(cellOf(page, '2027-03-02')).toContainText('1 meeting');
@@ -381,13 +377,13 @@ test('Edit in the day details switches to the team of the meeting', async ({ pag
   await openCalendar(page, '2027-05-10');
   const [alpha, beta] = example.teams;
   const meeting = beta!.events.find((e) => e.name === 'Replenishment')!;
-  await expect(page.locator('.switcher select')).toHaveValue(alpha!.id);
+  await expect(currentUnit(page)).toHaveText(alpha!.name);
   await page.getByLabel('Person').selectOption({ label: 'Alex' });
   await cellOf(page, '2027-05-13').click();
   await panel(page)
     .getByRole('button', { name: `Edit ${meeting.name}` })
     .click();
-  await expect(page.locator('.switcher select')).toHaveValue(beta!.id);
+  await expect(currentUnit(page)).toHaveText(beta!.name);
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue(meeting.name);
 });
 

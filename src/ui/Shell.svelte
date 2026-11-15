@@ -5,6 +5,7 @@
   import LanguageSwitch from './LanguageSwitch.svelte';
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
+  import AreaTeams from './components/AreaTeams.svelte';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -57,6 +58,8 @@
   let active = $state<ViewId>('calendar');
   /** Without teams the Calendar shows the start screen and the team bar steps aside. */
   const noTeams = $derived($workspace.teams.length === 0);
+  /** An area is selected: views that work per team offer its teams instead. */
+  const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -346,6 +349,8 @@
                   >
                 </div>
               </section>
+            {:else if (id === 'meetings' || id === 'team') && activeArea}
+              {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}
                 <SetupDone

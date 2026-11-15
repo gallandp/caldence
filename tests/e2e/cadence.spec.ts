@@ -1,13 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, teamAction, useFileFallback } from './helpers';
+import { openExample, teamAction, useFileFallback, pickUnit, currentUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
   await useFileFallback(page);
 });
 
-const teamSelect = (page: Page) => page.locator('.switcher select');
 const panel = (page: Page) =>
   page.getByRole('tabpanel', { name: /^(Meetings & cadence|Termine & Takt)$/ });
 const cadence = (page: Page) => panel(page).getByRole('region', { name: 'Cadence' });
@@ -42,11 +41,11 @@ test('the cadence is one line above the meetings and opens for changes', async (
 
 test('the cadence follows the team switcher and a duplicated team', async ({ page }) => {
   await openMeetings(page);
-  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await pickUnit(page, 'Team Beta');
   await expect(cadence(page)).toContainText('Flow · 1 week ·');
-  await teamSelect(page).selectOption({ label: 'Team Alpha' });
+  await pickUnit(page, 'Team Alpha');
   await teamAction(page, 'Duplicate team');
-  await expect(teamSelect(page).locator('option:checked')).toHaveText('Team Alpha (copy)');
+  await expect(currentUnit(page)).toHaveText('Team Alpha (copy)');
   await editCadence(page);
   await expect(cadence(page).getByLabel('Type')).toHaveValue('sprint');
   await expect(cadence(page).getByLabel('Length (weeks)')).toHaveValue('2');
@@ -176,7 +175,7 @@ test('another team starts with its cadence closed and no drafts of the first tea
   await openMeetings(page);
   await editCadence(page);
   await panel(page).getByLabel('New cycle name').fill('Draft');
-  await teamSelect(page).selectOption({ label: 'Team Beta' });
+  await pickUnit(page, 'Team Beta');
   await expect(cadence(page).getByRole('button', { name: 'Change cadence' })).toBeVisible();
   await expect(cadence(page).getByLabel('Length (weeks)')).toBeHidden();
   await expect(panel(page).getByLabel('New cycle name')).toHaveValue('');

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { unitTeamIds } from '../../core/model';
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
@@ -24,6 +25,9 @@
   } from '../state/files';
   import { pickFile } from '../state/picker';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
+  /** With an area selected, its first team. */
+  const firstTeamOf = (id: string | null) =>
+    id === null ? null : (unitTeamIds($workspace, id)[0] ?? null);
 
   let { onOpenMeetings }: { onOpenMeetings?: () => void } = $props();
 
@@ -84,8 +88,9 @@
         : ws.people.map((x) => ({ id: x.id, name: x.name })),
   );
   const chosen = $derived(
-    choices.find((c) => c.id === (pickedId[kind] ?? (kind === 'team' ? $activeTeamId : null))) ??
-      choices[0],
+    choices.find(
+      (c) => c.id === (pickedId[kind] ?? (kind === 'team' ? firstTeamOf($activeTeamId) : null)),
+    ) ?? choices[0],
   );
   const scope = $derived<Filter>(
     !chosen
