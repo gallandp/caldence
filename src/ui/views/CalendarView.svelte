@@ -21,14 +21,15 @@
     conflicts,
     dayLoad,
     filteredOccurrences,
-    scopeTeams,
+    scopeUnits,
     type FilteredOccurrence,
   } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
+  import AreaIcon from '../components/AreaIcon.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
   import WeeksView from './WeeksView.svelte';
-  import type { CalEvent, Category, Team } from '../../core/model';
+  import { units, type CalEvent, type Category, type Team } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
   import { filter, index, localToday, workspace } from '../state/workspace';
@@ -117,9 +118,9 @@
 
   // ---------- data ----------
 
-  /** Teams whose cadence and milestones are marked: the person's teams, or the team filter. */
-  const markerTeams = $derived(scopeTeams($workspace, $filter));
-  const hasEvents = $derived($workspace.teams.some((x) => x.events.length > 0));
+  /** Units whose cadence and milestones are marked: the person's, or the team or area filter. */
+  const markerTeams = $derived(scopeUnits($workspace, $filter));
+  const hasEvents = $derived(units($workspace).some((x) => x.events.length > 0));
 
   const loads = $derived(dayLoad($workspace, $index, $filter));
   const byDate = $derived.by(() => {
@@ -138,26 +139,33 @@
 
   const severalTeams = $derived($workspace.teams.length > 1);
 
-  /** Team, meeting and category of every meeting, by `teamId/eventId`. */
+  /** Team or area, meeting and category of every meeting, by `teamId/eventId`. */
   const lookup = $derived.by(() => {
     const categories = record<Category>();
     for (const c of $workspace.categories) categories[c.id] = c;
-    const map = record<{ team: Team; event: CalEvent; category?: Category }>();
-    for (const team of $workspace.teams)
+    const areaIds = new Set($workspace.areas.map((a) => a.id));
+    const map = record<{ team: Team; event: CalEvent; category?: Category; area: boolean }>();
+    for (const team of units($workspace))
       for (const event of team.events)
-        map[`${team.id}/${event.id}`] = { team, event, category: categories[event.categoryId] };
+        map[`${team.id}/${event.id}`] = {
+          team,
+          event,
+          category: categories[event.categoryId],
+          area: areaIds.has(team.id),
+        };
     return map;
   });
   const infoOf = (o: { teamId: string; eventId: string }) => lookup[`${o.teamId}/${o.eventId}`];
 
   function itemsOf(date: ISODate): DayItem[] {
     return (byDate[date] ?? []).map((o) => {
-      const { team, event, category } = infoOf(o) ?? {};
+      const { team, event, category, area } = infoOf(o) ?? {};
       const end = toMinutes(o.start) + o.duration;
       const about = [
         category?.name ?? event?.categoryId,
         event && team ? ruleSummary(event.rule, team, $t, $locale) : undefined,
-        severalTeams ? (team?.name ?? o.teamId) : undefined,
+        // An area meeting always names its area, so it stands out from the teams' meetings.
+        area || severalTeams ? (team?.name ?? o.teamId) : undefined,
       ].filter(Boolean);
       const roles = (event?.participants ?? []).map(
         (p) => $workspace.roles.find((r) => r.id === p.roleId)?.name ?? p.roleId,
@@ -173,6 +181,7 @@
         about: about.join(' · '),
         roles: roles.join($t('cal.list.sep')),
         colour: category?.colour,
+        area: area === true,
         hours: o.hours,
         skipped: o.skippedHoliday !== undefined,
       };
@@ -255,6 +264,7 @@
           start: o.start,
           name: info?.event.name ?? '',
           colour,
+          area: info?.area === true,
         };
       });
     const today = date === localToday();
@@ -589,7 +599,9 @@
                         >{/each}
                       {#each c.chips.slice(0, fit.shown) as chip (chip.key)}
                         <span class="chip" style:--c={chip.colour}
-                          ><span class="t">{chip.start}</span>{chip.name}</span
+                          ><span class="t">{chip.start}</span>{#if chip.area}<span class="area"
+                              ><AreaIcon /></span
+                            >{/if}{chip.name}</span
                         >
                       {/each}
                       {#if fit.more}<span class="more">+{c.chips.length - fit.shown}</span>{/if}
@@ -909,6 +921,10 @@
     background: color-mix(in srgb, var(--c) 16%, var(--surface));
     color: var(--text);
     font-weight: 550;
+  }
+  .chip .area {
+    color: var(--area);
+    margin-right: 0.25rem;
   }
   .chip .t {
     display: none;

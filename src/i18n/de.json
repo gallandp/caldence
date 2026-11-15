@@ -248,6 +248,7 @@
   "filter.person": "Person",
   "filter.all": "Alle",
   "filter.allTeams": "Alle {levelTeams}",
+  "filter.team": "{levelTeam}",
   "team.view.none": "Es gibt noch keine {levelTeams}. Wählen Sie in der Ansicht Kalender, wie Sie beginnen möchten, oder fügen Sie oben in der Seitenleiste etwas hinzu.",
   "team.help": "Legen Sie Personen und Rollen in ihren eigenen Karten an und ordnen Sie sie hier dem Team zu, mit ihren Wochenstunden in diesem Team.",
   "team.members": "Mitglieder",

@@ -248,6 +248,7 @@
   "filter.person": "Person",
   "filter.all": "All",
   "filter.allTeams": "All {levelTeamsLc}",
+  "filter.team": "{levelTeam}",
   "team.view.none": "There is no {levelTeamLc} yet. Choose how to start in the Calendar view, or add a {levelTeamLc} at the top of the sidebar.",
   "team.help": "Create people and roles in their own cards and assign them to the team here, with their weekly hours in this team.",
   "team.members": "Members",

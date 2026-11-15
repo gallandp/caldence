@@ -13,6 +13,8 @@
     /** The participating roles, comma separated; empty without participants. */
     roles: string;
     colour?: string;
+    /** An area's own meeting: marked with the area icon; its name is in `about`. */
+    area?: boolean;
     hours: number;
     skipped: boolean;
   }
@@ -20,6 +22,7 @@
 
 <script lang="ts">
   import { formatNumber, locale, translate as t } from '../../i18n';
+  import AreaIcon from './AreaIcon.svelte';
 
   interface Props {
     items: DayItem[];
@@ -33,7 +36,8 @@
   {#each items as item (item.key)}
     <li style:--c={item.colour ?? 'var(--border-strong)'} class:skipped={item.skipped}>
       <span class="name"
-        ><i class="dot" aria-hidden="true"></i><strong>{item.name}</strong><span class="hours"
+        ><i class="dot" aria-hidden="true"></i>{#if item.area}<span class="area"><AreaIcon /></span
+          >{/if}<strong>{item.name}</strong><span class="hours"
           >{$t('cal.hours', { hours: formatNumber($locale, item.hours, 1) })}</span
         ></span
       >
@@ -85,6 +89,10 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+  }
+  .area {
+    display: inline-flex;
+    color: var(--area);
   }
   .dot {
     flex: none;

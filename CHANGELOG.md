@@ -11,6 +11,7 @@
 ### Added
 
 - Areas: group teams under an area (Bereich, or your own level name) with ⋯ › Add area, choose its teams, rename or delete it. The sidebar switcher lists each area with its teams below it; with an area selected, Calendar and Load show all its teams together, and Meetings & cadence and Team offer its teams to pick (#164)
+- With an area selected, Calendar (week, month, horizon) and Load also show the area's own meetings, marked with the area icon and name, and the area's cadence. "Show for" offers the area's teams to narrow the view to one of them; a single team still shows only its own meetings (#166)
 
 ### Fixed
 

@@ -2,7 +2,7 @@
   import { onMount, type Snippet } from 'svelte';
   import { mondayOf } from '../../core/date';
   import { loadPerWeek, warnings } from '../../core/load';
-  import { schoolHolidayGap, scopeTeams, warnedWeeks, weekRows } from '../../core/views';
+  import { schoolHolidayGap, scopeUnits, warnedWeeks, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
@@ -15,15 +15,15 @@
 
   const settings = $derived($workspace.settings);
   const rows = $derived(weekRows($workspace, $index, $filter));
-  const teams = $derived(scopeTeams($workspace, $filter));
+  /** Teams in scope and, with an area selected, the area: their cadences are marked. */
+  const teams = $derived(scopeUnits($workspace, $filter));
   const several = $derived(teams.length > 1);
   /** Roles in workspace order that carry hours in at least one row. */
   const roles = $derived($workspace.roles.filter((r) => rows.some((row) => r.id in row.byRole)));
   const currentMonday = mondayOf(localToday());
 
-  const teamName = (id: string): string => $workspace.teams.find((x) => x.id === id)?.name ?? id;
-  const kindOf = (id: string): string =>
-    $workspace.teams.find((x) => x.id === id)?.cadence.kind ?? 'sprint';
+  const teamName = (id: string): string => teams.find((x) => x.id === id)?.name ?? id;
+  const kindOf = (id: string): string => teams.find((x) => x.id === id)?.cadence.kind ?? 'sprint';
   const withTeam = (label: string, id: string): string =>
     several ? $t('cal.withTeam', { label, team: teamName(id) }) : label;
   const hours = (n: number): string => formatNumber($locale, n, 1);
