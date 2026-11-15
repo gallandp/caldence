@@ -50,6 +50,32 @@ test('an area groups teams in the switcher and is selected like a team', async (
   await pickUnit(page, 'Platform');
 });
 
+test('long area names wrap instead of being cut off', async ({ page }) => {
+  const long = 'Platform Purchasing & Logistics North Europe Region';
+  await openExample(page);
+  await addArea(page, long, ['Team Alpha', 'Team Beta']);
+  await pickUnit(page, 'Team Alpha');
+  // The card names the area on up to two lines; the tooltip has the whole text.
+  await expect(page.locator('.switcher .text')).toHaveAttribute(
+    'title',
+    new RegExp(`^Team Alpha\\n${long.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} · `),
+  );
+  // The meta line stops after two lines instead of growing the card.
+  const meta = page.locator('.switcher .meta');
+  expect(await meta.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await page.locator('.switcher .pick').click();
+  const option = page.locator('.switcher .list .opt').first();
+  const name = option.locator('.opt-name');
+  await expect(name).toHaveText(long);
+  // The whole name shows: nothing is clipped, and the count is only a number.
+  expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  expect((await name.boundingBox())!.height).toBeGreaterThan(30);
+  await expect(option.locator('.count [aria-hidden]')).toHaveText('2');
+  await expect(option).toHaveAccessibleName(/2 teams$/);
+  const side = page.locator('.sidebar');
+  expect(await side.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
 test('the views follow the area: Load sums its teams, the area page offers them', async ({
   page,
 }) => {
