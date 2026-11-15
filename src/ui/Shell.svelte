@@ -349,7 +349,7 @@
                   >
                 </div>
               </section>
-            {:else if (id === 'meetings' || id === 'team') && activeArea}
+            {:else if id === 'team' && activeArea}
               {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}
@@ -381,6 +381,7 @@
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
+                  onSetHours={() => select('team', true)}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}

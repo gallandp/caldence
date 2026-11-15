@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import type { CalEvent, Category, Role, Team } from '../../core/model';
+  import type { Area, CalEvent, Category, Role, Team } from '../../core/model';
   import { translate as t } from '../../i18n';
-  import { localToday } from '../state/workspace';
+  import { localToday, workspace } from '../state/workspace';
   import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
+  import ParticipantReach from './ParticipantReach.svelte';
   import RuleFields from './RuleFields.svelte';
 
   let {
@@ -13,6 +14,8 @@
     roles,
     save,
     cancel,
+    area,
+    onSetHours,
   }: {
     /** The event to edit; an empty `id` is a new event. */
     event: CalEvent;
@@ -22,6 +25,10 @@
     /** Commits the event. Returns null on success, else error i18n keys by field path ('' = general). */
     save: (event: CalEvent, commit: boolean) => Record<string, string> | null;
     cancel: () => void;
+    /** Set for a meeting of an area: each role is then invited in the area or from every team. */
+    area?: Area;
+    /** Opens where a person's area hours are set. */
+    onSetHours?: () => void;
   } = $props();
 
   const uid = $props.id();
@@ -39,7 +46,7 @@
     assumption: string;
     grid: number | null;
     /** `key` only tells the rows apart while editing; it is not saved. */
-    participants: { key: number; roleId: string; share: number | null }[];
+    participants: { key: number; roleId: string; share: number | null; fromTeams: boolean }[];
     /** Percent, 0 to 100. */
     preparation: number | null;
   }
@@ -61,7 +68,7 @@
       perUnit: s?.perUnit ?? 5,
       assumption: s?.assumption ?? Object.keys(team.assumptions)[0] ?? '',
       grid: s?.grid ?? 5,
-      participants: e.participants.map((p) => ({ key: nextKey++, ...p })),
+      participants: e.participants.map((p) => ({ key: nextKey++, ...p, fromTeams: !!p.fromTeams })),
       preparation: Math.round(e.preparation * 10000) / 100,
     };
   }
@@ -122,7 +129,13 @@
   async function addParticipant() {
     const free = roles.find((r) => !draft.participants.some((p) => p.roleId === r.id));
     if (!free) return;
-    draft.participants.push({ key: nextKey++, roleId: free.id, share: 1 });
+    draft.participants.push({
+      key: nextKey++,
+      roleId: free.id,
+      share: 1,
+      // In an area, a role nobody holds there is most likely meant from the teams.
+      fromTeams: !!area && !area.members.some((m) => m.roleId === free.id),
+    });
     clearParticipantErrors();
     await tick();
     partsList?.querySelector<HTMLElement>('li:last-child select')?.focus();
@@ -165,7 +178,11 @@
       rule: toRule(d.rule),
       time: d.time.trim(),
       duration: n(d.duration),
-      participants: d.participants.map((p) => ({ roleId: p.roleId, share: n(p.share) })),
+      participants: d.participants.map((p) =>
+        area && p.fromTeams
+          ? { roleId: p.roleId, share: n(p.share), fromTeams: true }
+          : { roleId: p.roleId, share: n(p.share) },
+      ),
       preparation: Number.isNaN(n(d.preparation))
         ? Number.NaN
         : Number((n(d.preparation) / 100).toFixed(4)),
@@ -393,7 +410,9 @@
 
     <fieldset>
       <legend>{$t('meet.participants')}</legend>
-      <p class="hint" id="{uid}-share-hint">{$t('meet.participants.hint')}</p>
+      <p class="hint" id="{uid}-share-hint">
+        {$t('meet.participants.hint')}{#if area}. {$t('area.participants.hint')}{/if}
+      </p>
       {#if roles.length === 0}
         <p class="hint">{$t('meet.participants.noroles')}</p>
       {:else if draft.participants.length === 0}
@@ -401,9 +420,11 @@
       {/if}
       {#if draft.participants.length > 0}
         <!-- Column heads once; every field is named by its own aria-label. -->
-        <div class="parts-wrap">
+        <div class="parts-wrap" class:in-area={!!area}>
           <div class="part-grid part-heads" aria-hidden="true">
-            <span>{$t('meet.participants.role')}</span><span>{$t('meet.participants.share')}</span>
+            <span>{$t('meet.participants.role')}</span>{#if area}<span
+                >{$t('area.participants.who')}</span
+              >{/if}<span>{$t('meet.participants.share')}</span>
           </div>
           <ul class="parts" bind:this={partsList}>
             {#each draft.participants as p, i (p.key)}
@@ -422,6 +443,20 @@
                     {/each}
                   </select>
                 </div>
+                {#if area}
+                  <div class="field who">
+                    <select
+                      class:from-teams={p.fromTeams}
+                      data-field="participants.{i}.fromTeams"
+                      value={p.fromTeams ? 'teams' : 'area'}
+                      onchange={(e) => (p.fromTeams = e.currentTarget.value === 'teams')}
+                      aria-label={$t('area.participants.whoOf', { role: roleName(p.roleId) })}
+                    >
+                      <option value="area">{$t('area.participants.inArea')}</option>
+                      <option value="teams">{$t('area.participants.fromTeams')}</option>
+                    </select>
+                  </div>
+                {/if}
                 <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
                 <div class="field share">
                   <input
@@ -449,6 +484,16 @@
                 <!-- Errors span the row below its fields. -->
                 {@render err(`participants.${i}.roleId`, roleName(p.roleId))}
                 {@render err(`participants.${i}.share`, roleName(p.roleId))}
+                {@render err(`participants.${i}.fromTeams`, roleName(p.roleId))}
+                {#if area}
+                  <ParticipantReach
+                    ws={$workspace}
+                    {area}
+                    roleId={p.roleId}
+                    fromTeams={p.fromTeams}
+                    {onSetHours}
+                  />
+                {/if}
               </li>
             {/each}
           </ul>
@@ -563,6 +608,20 @@
     align-items: center;
     max-width: 34rem;
   }
+  .in-area .part-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 12rem) 5rem 2.5rem;
+    grid-template-areas: 'role who share remove';
+    max-width: 44rem;
+  }
+  .part-grid .who {
+    grid-area: who;
+  }
+  :global(#app) .who select.from-teams {
+    border-color: var(--area);
+    background-color: var(--area-soft);
+    color: var(--area);
+    font-weight: 600;
+  }
   .part-grid > .field-error {
     grid-column: 1 / -1;
     margin: 0;
@@ -600,6 +659,20 @@
     }
     .share-label {
       display: block;
+    }
+  }
+  @container (max-width: 30rem) {
+    .in-area .part-heads {
+      display: none;
+    }
+    .in-area .parts .part-grid {
+      grid-template-columns: minmax(0, 1fr) 5rem 2.5rem;
+      grid-template-areas:
+        'role role remove'
+        'who share .';
+    }
+    .in-area .share-label {
+      display: none;
     }
   }
   .part-heads {
