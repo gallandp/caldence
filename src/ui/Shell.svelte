@@ -6,6 +6,8 @@
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
+  import AreaOverview from './views/AreaOverview.svelte';
+  import { loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -20,7 +22,7 @@
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
-  import { activeTeamId, workspace } from './state/workspace';
+  import { activeTeamId, filter, workspace } from './state/workspace';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -85,6 +87,15 @@
     activeTeamId.set(teamId);
     editRequest = eventId;
     select('meetings');
+  }
+
+  /** A load cell in the area overview: Load for that team, showing that week. */
+  function openLoad(teamId: string, monday: string) {
+    activeTeamId.set(teamId);
+    // A person filter would hide the team's week.
+    filter.set({ teamId });
+    loadWeek.set({ teamId, monday });
+    select('load', true);
   }
 
   function select(id: ViewId, focus = false) {
@@ -350,7 +361,11 @@
                 </div>
               </section>
             {:else if id === 'team' && activeArea}
-              {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
+              {#if active === id}<AreaTeams area={activeArea} view={id} /><AreaOverview
+                  area={activeArea}
+                  onOpenLoad={openLoad}
+                  onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}
                 <SetupDone

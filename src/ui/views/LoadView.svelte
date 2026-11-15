@@ -13,6 +13,7 @@
     translate as t,
   } from '../../i18n';
   import CostCard from '../components/CostCard.svelte';
+  import WeekFocus from '../components/WeekFocus.svelte';
   import { filter, index, workspace } from '../state/workspace';
 
   const summary = $derived(loadSummary($workspace, $filter));
@@ -151,6 +152,7 @@
 </script>
 
 <div class="load stack">
+  <WeekFocus />
   {#if summary.byCategory.length === 0 && summary.byRole.length === 0}
     <p class="hint card">{$t('load.empty')}</p>
   {/if}
