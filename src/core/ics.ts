@@ -1,6 +1,14 @@
 import { APP_VERSION } from '../version';
 import { addDays, diffDays, toMinutes, weekday, type ISODate, type Time } from './date';
-import type { CalEvent, Rule, Team, Workspace } from './model';
+import {
+  areaAsTeam,
+  areasInScope,
+  attendees,
+  type CalEvent,
+  type Rule,
+  type Team,
+  type Workspace,
+} from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import type { HolidayIndex, HolidayName } from './regions';
 import { scopeTeams, type Filter } from './views';
@@ -157,13 +165,13 @@ function utcStamp(d: Date): string {
   return `${stamp(Math.floor(d.getTime() / 1000) * 1000)}Z`;
 }
 
-/** Events of a team in scope (role or person filter). */
-function eventsInScope(team: Team, scope: Filter): CalEvent[] {
+/** Events of a team or area in scope (role or person filter). */
+function eventsInScope(ws: Workspace, team: Team, scope: Filter): CalEvent[] {
   if (scope.personId) {
-    const roles = new Set(
-      team.members.filter((m) => m.personId === scope.personId).map((m) => m.roleId),
+    const personId = scope.personId;
+    return team.events.filter((e) =>
+      e.participants.some((p) => attendees(ws, team.id, p).includes(personId)),
     );
-    return team.events.filter((e) => e.participants.some((p) => roles.has(p.roleId)));
   }
   if (scope.roleId) {
     return team.events.filter((e) => e.participants.some((p) => p.roleId === scope.roleId));
@@ -176,7 +184,17 @@ function eventsInScope(team: Team, scope: Filter): CalEvent[] {
  * enabling an export button; the exported file may still be empty for a given period.
  */
 export function scopeHasEvents(ws: Workspace, scope: Filter): boolean {
-  return scopeTeams(ws, scope).some((team) => eventsInScope(team, scope).length > 0);
+  return exportUnits(ws, scope).some((team) => eventsInScope(ws, team, scope).length > 0);
+}
+
+/**
+ * Teams and areas whose meetings a scope exports. An area on its own gives its own meetings
+ * only: its teams have calendars of their own, so a ZIP of all calendars holds nothing twice.
+ */
+function exportUnits(ws: Workspace, scope: Filter): Team[] {
+  const area = ws.areas.find((a) => a.id === scope.teamId);
+  if (area) return [areaAsTeam(area)];
+  return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
 }
 
 /** An exported file and how many of its VEVENTs are recurring series and single entries. */
@@ -231,14 +249,14 @@ export function exportIcsWithCounts(
           'END:VALARM',
         ];
 
-  for (const team of scopeTeams(ws, opts.scope)) {
+  for (const team of exportUnits(ws, opts.scope)) {
     const byEvent = new Map<string, Occurrence[]>();
     for (const occ of occurrences(team, settings, index)) {
       const list = byEvent.get(occ.eventId);
       if (list) list.push(occ);
       else byEvent.set(occ.eventId, [occ]);
     }
-    for (const event of eventsInScope(team, opts.scope)) {
+    for (const event of eventsInScope(ws, team, opts.scope)) {
       const occs = byEvent.get(event.id);
       const first = occs?.[0];
       if (!occs || !first) continue;
@@ -341,7 +359,7 @@ export function exportIcsWithCounts(
   }
 
   if (opts.allDay.milestones) {
-    for (const team of scopeTeams(ws, opts.scope)) {
+    for (const team of exportUnits(ws, opts.scope)) {
       for (const cycle of team.cycles) {
         for (const m of cycle.milestones) {
           if (!inRange(m.date)) continue;

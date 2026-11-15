@@ -1,0 +1,186 @@
+<script lang="ts">
+  import { areaHours } from '../../core/load';
+  import { attendees, missingRoles, type Area, type Workspace } from '../../core/model';
+  import { translate as t } from '../../i18n';
+
+  /**
+   * Under a participant row of an area meeting: who the row reaches, the teams where nobody has
+   * the role, and the people without hours in the area.
+   */
+  let {
+    ws,
+    area,
+    roleId,
+    fromTeams,
+    onSetHours,
+  }: {
+    ws: Workspace;
+    area: Area;
+    roleId: string;
+    fromTeams: boolean;
+    onSetHours?: () => void;
+  } = $props();
+
+  /** Names shown before "+ n more". */
+  const MAX = 6;
+
+  const participant = $derived({ roleId, share: 1, fromTeams });
+  const people = $derived(attendees(ws, area.id, participant));
+  const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+  const roleName = $derived(ws.roles.find((r) => r.id === roleId)?.name ?? roleId);
+
+  /** "Mia (Alpha)": where a person invited from the teams has the role. */
+  function label(personId: string): string {
+    const where = [
+      ...(area.members.some((m) => m.personId === personId && m.roleId === roleId)
+        ? [area.name]
+        : []),
+      ...ws.teams
+        .filter(
+          (x) =>
+            area.teamIds.includes(x.id) &&
+            x.members.some((m) => m.personId === personId && m.roleId === roleId),
+        )
+        .map((x) => x.name),
+    ];
+    return `${nameOf(personId)} (${where.join(', ')})`;
+  }
+
+  const listed = $derived.by(() => {
+    const names = people.slice(0, MAX).map(label);
+    if (people.length > MAX) names.push($t('area.participants.more', { n: people.length - MAX }));
+    return names.join(', ');
+  });
+  const missing = $derived(
+    fromTeams
+      ? missingRoles(ws, area, {
+          id: '',
+          name: '',
+          categoryId: '',
+          rule: { type: 'weekly', weekday: 1 },
+          time: '00:00',
+          duration: 1,
+          participants: [participant],
+          preparation: 0,
+        }).map((m) => ws.teams.find((x) => x.id === m.teamId)?.name ?? m.teamId)
+      : [],
+  );
+  const noHours = $derived(people.filter((id) => areaHours(ws, area.id, id) === 0).map(nameOf));
+</script>
+
+<div class="reach">
+  {#if people.length === 0}
+    <p class="who">{$t('area.participants.nobody')}</p>
+  {:else if fromTeams}
+    <p class="who">
+      <span class="dot" aria-hidden="true"></span>{$t(
+        people.length === 1 ? 'area.participants.resolved.one' : 'area.participants.resolved.other',
+        { n: people.length, names: listed },
+      )}
+    </p>
+  {:else}
+    <ul class="chips">
+      {#each people as id (id)}<li>{nameOf(id)}</li>{/each}
+    </ul>
+  {/if}
+  {#each missing as team (team)}
+    <p class="warn" role="note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
+      >{$t('area.missingRole', { team, role: roleName })}
+    </p>
+  {/each}
+  {#if noHours.length > 0}
+    <p class="warn" role="note">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
+      ><span class="grow"
+        >{$t(
+          noHours.length === 1
+            ? 'area.participants.noHours.one'
+            : 'area.participants.noHours.other',
+          { names: noHours.join(', ') },
+        )}</span
+      >
+      {#if onSetHours}
+        <button type="button" class="link" onclick={onSetHours}
+          >{$t('area.participants.setHours')}</button
+        >
+      {/if}
+    </p>
+  {/if}
+</div>
+
+<style>
+  .reach {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  p {
+    margin: 0;
+  }
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: linear-gradient(90deg, var(--area) 50%, var(--accent) 50%);
+  }
+  .chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .chips li {
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    background: var(--area-soft);
+    color: var(--area);
+    font-weight: 600;
+  }
+  .warn {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 600;
+  }
+  .warn svg {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .grow {
+    flex: 1;
+  }
+  :global(#app) .reach button.link {
+    border: 0;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+    min-height: 0;
+    font-weight: 600;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+</style>

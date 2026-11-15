@@ -262,6 +262,7 @@ function checkEvent(
   roleIds: Set<string>,
   cycles: Map<string, Set<string>>,
   cadenceDays: number | undefined,
+  inArea: boolean,
 ): void {
   c.str(e, 'name', p);
   c.ref(e, 'categoryId', p, categoryIds);
@@ -284,6 +285,11 @@ function checkEvent(
     if (pt.share === undefined) c.err(`${pp}.share`, 'error.required');
     else if (!isNum(pt.share) || pt.share <= 0 || pt.share > 1)
       c.err(`${pp}.share`, 'error.share.range');
+    // "Role X from every team" exists only in an area, which has teams to invite from.
+    if (pt.fromTeams !== undefined) {
+      if (!inArea) c.err(`${pp}.fromTeams`, 'error.fromTeams.team');
+      else if (typeof pt.fromTeams !== 'boolean') c.err(`${pp}.fromTeams`, 'error.type');
+    }
   });
 }
 
@@ -342,6 +348,7 @@ function checkCyclesAndEvents(
   roleIds: Set<string>,
   categoryIds: Set<string>,
   cadenceDays: number | undefined,
+  inArea = false,
 ): void {
   const cycles = new Map<string, Set<string>>();
   const cycleList = c.arr(t.cycles, `${p}.cycles`, LIMITS.cyclesPerTeam) ?? [];
@@ -360,7 +367,7 @@ function checkCyclesAndEvents(
   const events = c.arr(t.events, `${p}.events`) ?? [];
   c.ids(events, `${p}.events`);
   c.each(events, `${p}.events`, (e, ep) =>
-    checkEvent(c, e, ep, categoryIds, roleIds, cycles, cadenceDays),
+    checkEvent(c, e, ep, categoryIds, roleIds, cycles, cadenceDays, inArea),
   );
 }
 
@@ -430,6 +437,7 @@ function checkArea(
     ids.roles,
     ids.categories,
     a.cadence === undefined ? 0 : cadenceDays,
+    true,
   );
 }
 
