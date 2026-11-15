@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Sidebar switcher: long area and team names wrap instead of being cut off; an area's team count is a small number badge, and the selected unit's name shows on up to two lines with the full text as a tooltip (#190)
+
 ## 1.35.0 – 2026-11-15
 
 ### Added
