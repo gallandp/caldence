@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createUpdate,
   FLUSH_TIMEOUT_MS,
+  RELOAD_FALLBACK_MS,
   UPDATE_CHECK_MS,
   type RegisterOptions,
   type UpdateEnv,
@@ -10,16 +11,18 @@ import {
 
 function fakeEnv() {
   const timers: { ms: number; fn: () => void }[] = [];
+  const later: { ms: number; fn: () => void }[] = [];
   const visible: (() => void)[] = [];
   const state = { online: true };
   const reloadPage = vi.fn();
   const env: UpdateEnv = {
     every: (ms, fn) => void timers.push({ ms, fn }),
+    later: (ms, fn) => void later.push({ ms, fn }),
     onVisible: (fn) => void visible.push(fn),
     online: () => state.online,
     reloadPage,
   };
-  return { env, timers, visible, state, reloadPage };
+  return { env, timers, later, visible, state, reloadPage };
 }
 
 function setup(beforeReload: () => void | Promise<void> = () => {}) {
@@ -139,6 +142,81 @@ describe('update service', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  /** A registration whose waiting worker changes state when the test says so. */
+  function waitingRegistration() {
+    const listeners: (() => void)[] = [];
+    const sw = {
+      state: 'installed',
+      addEventListener: (_type: string, fn: () => void) => void listeners.push(fn),
+    };
+    const registration = { waiting: sw, update: vi.fn(async () => {}) };
+    const setState = (state: string) => {
+      sw.state = state;
+      listeners.forEach((fn) => fn());
+    };
+    return { registration: registration as unknown as ServiceWorkerRegistration, setState };
+  }
+
+  it('reload reloads the page itself, also when the new worker never takes control', async () => {
+    // An uncontrolled page (hard reload) gets no controllerchange (#181).
+    const s = setup();
+    await s.update.reload();
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it('reload waits until the waiting worker is activated', async () => {
+    const s = setup();
+    const { registration, setState } = waitingRegistration();
+    s.handlers().onRegisteredSW!('sw.js', registration);
+    const done = s.update.reload();
+    await vi.waitFor(() => expect(s.updateSW).toHaveBeenCalled());
+    setState('activating');
+    await Promise.resolve();
+    expect(s.reloadPage).not.toHaveBeenCalled();
+    setState('activated');
+    await done;
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it('reload gives up waiting after RELOAD_FALLBACK_MS', async () => {
+    const s = setup();
+    const { registration } = waitingRegistration();
+    s.handlers().onRegisteredSW!('sw.js', registration);
+    const done = s.update.reload();
+    await vi.waitFor(() => expect(s.later.map((l) => l.ms)).toEqual([RELOAD_FALLBACK_MS]));
+    expect(s.reloadPage).not.toHaveBeenCalled();
+    s.later[0]!.fn();
+    await done;
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it('reload does not reload twice or save twice when the new worker takes control', async () => {
+    const s = setup();
+    const { registration, setState } = waitingRegistration();
+    s.handlers().onRegisteredSW!('sw.js', registration);
+    const done = s.update.reload();
+    await vi.waitFor(() => expect(s.updateSW).toHaveBeenCalled());
+    s.handlers().onNeedReload!();
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+    setState('activated');
+    await done;
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+    expect(s.before).toHaveBeenCalledOnce();
+  });
+
+  it('reload without service worker support still reloads the page', async () => {
+    const env = fakeEnv();
+    const update = createUpdate(
+      () => {
+        throw new Error('no service worker');
+      },
+      vi.fn(),
+      env.env,
+    );
+    await update.reload();
+    expect(env.reloadPage).toHaveBeenCalledOnce();
   });
 
   it('a reload caused by another tab saves first, then reloads the page', async () => {

@@ -10,6 +10,12 @@
 
 - Dialog buttons no longer look like the small row actions of tables (#164)
 
+## 1.34.2 – 2026-11-15
+
+### Fixed
+
+- New-version notice: Reload now always loads the new version, also after a hard reload while another Caldence tab is open (#181)
+
 ## 1.34.1 – 2026-11-15
 
 ### Fixed
