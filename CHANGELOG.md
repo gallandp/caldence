@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.37.0 – 2026-11-15
+
+### Changed
+
+- Area overview: compare team cadences and load, see the area's steering (#195)
+- Calendar and Load show the whole area when an area is selected (#166) (#188)
+- SAFe template creates a Release Train area (#187)
+
 ## 1.36.0 – 2026-11-15
 
 ### Added
