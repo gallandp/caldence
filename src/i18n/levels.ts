@@ -12,6 +12,10 @@ export interface LevelWords {
   teamsLc: string;
   /** "im Team", "in der Unit", "in the product"; own names: "auf Ebene Squad". */
   inTeam: string;
+  /** "im Bereich", "in der Abteilung", "in the area"; own names: "auf Ebene Tribe". */
+  inArea: string;
+  /** "Im Team" at the start of a phrase. */
+  inTeamCap: string;
 }
 
 /**
@@ -23,6 +27,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
   if (names && !('preset' in names)) {
     const { area, team } = names;
     const inTeam = t(locale, 'level.custom.inTeam', { name: team });
+    const inArea = t(locale, 'level.custom.inArea', { name: area });
+    const inTeamCap = t(locale, 'level.custom.inTeamCap', { name: team });
     return {
       area,
       areaLc: area,
@@ -32,6 +38,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
       teams: team,
       teamsLc: team,
       inTeam,
+      inArea,
+      inTeamCap,
     };
   }
   const word = (k: string) => t(locale, `level.${names?.preset ?? 'area'}.${k}`);
@@ -44,6 +52,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
     teams: word('teams'),
     teamsLc: lc(word('teams')),
     inTeam: word('inTeam'),
+    inArea: word('inArea'),
+    inTeamCap: word('inTeamCap'),
   };
 }
 
@@ -58,5 +68,7 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelTeams: w.teams,
     levelTeamsLc: w.teamsLc,
     levelInTeam: w.inTeam,
+    levelInArea: w.inArea,
+    levelInTeamCap: w.inTeamCap,
   };
 }
