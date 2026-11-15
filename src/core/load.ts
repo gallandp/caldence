@@ -129,6 +129,11 @@ export function fte(hours: number, hoursPerWeek: number): number {
   return hoursPerWeek > 0 ? hours / hoursPerWeek : 0;
 }
 
+/** Meeting hours above maxFte of the weekly hours; meetings without any weekly hours always are. */
+export function overMax(hours: number, capacity: number, maxFte: number): boolean {
+  return hours > 0 && (capacity > 0 ? fte(hours, capacity) > maxFte : true);
+}
+
 /** A person's weekly hours in an area: their entry there, or 0 (area time is set on purpose). */
 export function areaHours(ws: Workspace, areaId: string, personId: string): number {
   const area = ws.areas.find((a) => a.id === areaId);
@@ -183,9 +188,7 @@ export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}):
   const scope = teamId === undefined ? [] : unitLoadIds(ws, teamId);
   // Areas whose own meetings are checked: all of them, the selected one, none for one team.
   const areas = ws.areas.filter((a) => teamId === undefined || a.id === teamId);
-  const tooMuch = (hours: number, capacity: number): boolean =>
-    // Meetings without any weekly hours are always too many.
-    hours > 0 && (capacity > 0 ? fte(hours, capacity) > maxFte : true);
+  const tooMuch = (hours: number, capacity: number) => overMax(hours, capacity, maxFte);
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);

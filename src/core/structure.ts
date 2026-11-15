@@ -1,4 +1,4 @@
-import { capacity } from './load';
+import { areaHours, capacity } from './load';
 import { attendees, type Area, type Workspace } from './model';
 
 /** The three groups of people around an area, named the same in every view. */
@@ -41,8 +41,8 @@ const personIds = (members: { personId: string }[]): string[] => [
   ...new Set(members.map((m) => m.personId)),
 ];
 
-const hoursOf = (area: Area, personId: string): number =>
-  Object.hasOwn(area.memberHours, personId) ? area.memberHours[personId]! : 0;
+const hoursOf = (ws: Workspace, area: Area, personId: string): number =>
+  areaHours(ws, area.id, personId);
 
 /**
  * The structure of an area: who works only in the area, in a team and in the area, or only in a
@@ -59,7 +59,7 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
   const areaMembers = personIds(area.members);
   const inArea = new Set([
     ...areaMembers,
-    ...Object.keys(area.memberHours).filter((id) => hoursOf(area, id) > 0),
+    ...Object.keys(area.memberHours).filter((id) => hoursOf(ws, area, id) > 0),
     ...invited,
   ]);
   const teamPeople = personIds(teams.flatMap((t) => t.members));
@@ -86,7 +86,7 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
       const otherHours = ws.teams
         .filter((t) => !own.has(t.id) && t.members.some((m) => m.personId === personId))
         .reduce((sum, t) => sum + capacity(ws, personId, t.id), 0);
-      const areaHours = hoursOf(area, personId);
+      const areaHours = hoursOf(ws, area, personId);
       const areaRoleIds = area.members.filter((m) => m.personId === personId).map((m) => m.roleId);
       const group: Group = mine.length === 0 ? 'area' : inArea.has(personId) ? 'both' : 'team';
       return {

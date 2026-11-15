@@ -143,4 +143,10 @@ describe('area person edits', () => {
   it('refuses an unknown area', () => {
     expect(setAreaHours(ws(), 'nope', 'alex', 1).ok).toBe(false);
   });
+
+  it('refuses hours the file format does not allow, like every other area edit', () => {
+    expect(setAreaHours(ws(), 'zv', 'alex', -3).ok).toBe(false);
+    expect(setAreaHours(ws(), 'zv', 'alex', Number.NaN).ok).toBe(false);
+    expect(addAreaPerson(ws(), 'zv', 'alex', 'nope', null).ok).toBe(false);
+  });
 });
