@@ -8,6 +8,8 @@
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import AreaStructure from '../components/AreaStructure.svelte';
+  import RoleList from '../components/RoleList.svelte';
+  import { workspace } from '../state/workspace';
 
   /**
    * The upper level's page while an area is selected: one sidebar entry, two pages behind a
@@ -31,6 +33,11 @@
   </div>
   {#if page === 'structure'}
     <AreaStructure {area} />
+    <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
+    <details class="roles">
+      <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>
+      <RoleList />
+    </details>
   {:else}
     {@render overview()}
   {/if}
@@ -42,6 +49,21 @@
     flex-direction: column;
     gap: 1rem;
     min-width: 0;
+  }
+  .roles {
+    max-width: 44rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .roles summary {
+    width: fit-content;
+    padding-block: 0.6rem;
+    color: var(--accent-text);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .roles[open] summary {
+    margin-bottom: 0.75rem;
   }
   .subtitle {
     margin: -0.5rem 0 0;

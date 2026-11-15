@@ -78,6 +78,13 @@ export function addItem(ws: Workspace, kind: ListKind, data: ItemData): [Workspa
   return [{ ...structuredClone(ws), [kind]: [...structuredClone(ws[kind]), item] }, id];
 }
 
+/** The role with this name (ignoring case and spaces), or a new one with that name and colour. */
+export function roleByName(ws: Workspace, name: string, colour: string): [Workspace, string] {
+  const key = name.trim().toLowerCase();
+  const known = ws.roles.find((r) => r.name.trim().toLowerCase() === key);
+  return known ? [ws, known.id] : addItem(ws, 'roles', { name: name.trim(), colour });
+}
+
 type Patch<T> = Partial<Omit<T, 'id'>>;
 
 export function updateItem(ws: Workspace, kind: 'roles', id: string, patch: Patch<Role>): Workspace;

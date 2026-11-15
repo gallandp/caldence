@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addAreaPerson } from '../../core/areaEdit';
-  import { addItem } from '../../core/edit';
+  import { addItem, roleByName } from '../../core/edit';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
+  import { PALETTE } from './ColourField.svelte';
   import FieldError from './FieldError.svelte';
   import { Problems } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
@@ -21,15 +22,21 @@
   let name = $state('');
   let roleId = $state('');
   let hours = $state<number | null>(null);
+  let newRole = $state('');
 
+  /** The select's value for "New role …": a role is created with the person. */
+  const NEW = 'new';
   const roles = $derived($workspace.roles);
-  const roleChoice = $derived(roles.some((r) => r.id === roleId) ? roleId : (roles[0]?.id ?? ''));
+  const roleChoice = $derived(
+    roleId === NEW || roles.some((r) => r.id === roleId) ? roleId : (roles[0]?.id ?? NEW),
+  );
 
   export async function show(from?: HTMLElement) {
     trigger = from;
     name = '';
     hours = null;
-    if (!roles.some((r) => r.id === roleId)) roleId = roles[0]?.id ?? '';
+    newRole = '';
+    if (!roles.some((r) => r.id === roleId)) roleId = roles[0]?.id ?? NEW;
     clear('add');
     await tick();
     dialog?.showModal();
@@ -45,7 +52,9 @@
     event.preventDefault();
     const value = name.trim();
     if (value === '') return fail('add', 'error.required', $t('area.add.person'));
-    if (roleChoice === '') return fail('add', 'error.required', $t('area.card.role'));
+    const roleNew = newRole.trim();
+    if (roleChoice === NEW && roleNew === '')
+      return fail('add', 'error.required', $t('settings.roles.add'));
     // A blank field keeps the hours of someone already in the area (a new person: 0 h).
     const h = hours;
     if (h !== null && (!Number.isFinite(h) || h < 0))
@@ -59,7 +68,10 @@
       let id = known?.id;
       if (id === undefined) [next, id] = addItem(next, 'people', { name: value });
       added = id;
-      return addAreaPerson(next, area.id, id, roleChoice, h);
+      let role = roleChoice;
+      if (role === NEW)
+        [next, role] = roleByName(next, roleNew, PALETTE[ws.roles.length % PALETTE.length]!.hex);
+      return addAreaPerson(next, area.id, id, role, h);
     });
     if (!done || added === undefined) return;
     dialog?.close();
@@ -74,50 +86,56 @@
   oncancel={(e) => (e.preventDefault(), close())}
 >
   <h2 id="{uid}-title">{$t('area.add.title', { name: area.name })}</h2>
-  {#if roles.length === 0}
-    <p>{$t('team.members.needs')}</p>
-    <div class="actions">
-      <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
-    </div>
-  {:else}
-    <form onsubmit={submit}>
+  <form onsubmit={submit}>
+    <label>
+      {$t('area.add.person')}
+      <input
+        type="text"
+        list="{uid}-people"
+        placeholder={$t('team.members.person.placeholder')}
+        bind:value={name}
+        aria-invalid={errors.add ? true : undefined}
+        aria-describedby={describe('add')}
+      />
+    </label>
+    <datalist id="{uid}-people">
+      {#each $workspace.people as p (p.id)}<option value={p.name}></option>{/each}
+    </datalist>
+    <label>
+      {$t('area.card.role')}
+      <select value={roleChoice} onchange={(e) => (roleId = e.currentTarget.value)}>
+        {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+        <option value={NEW}>{$t('area.role.new')}</option>
+      </select>
+    </label>
+    {#if roleChoice === NEW}
       <label>
-        {$t('area.add.person')}
+        {$t('settings.roles.add')}
         <input
           type="text"
-          list="{uid}-people"
-          placeholder={$t('team.members.person.placeholder')}
-          bind:value={name}
-          aria-invalid={errors.add ? true : undefined}
+          data-new-role
+          placeholder={$t('area.role.placeholder')}
+          bind:value={newRole}
           aria-describedby={describe('add')}
         />
       </label>
-      <datalist id="{uid}-people">
-        {#each $workspace.people as p (p.id)}<option value={p.name}></option>{/each}
-      </datalist>
-      <label>
-        {$t('area.card.role')}
-        <select bind:value={roleId}>
-          {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-        </select>
-      </label>
-      <label>
-        {$t('area.add.hours')}
-        <input type="number" min="0" step="0.5" bind:value={hours} placeholder="0" />
-      </label>
-      <p class="help">
-        {$t('area.structure.help', {
-          areaOnly: $t('area.group.areaOnly'),
-          both: $t('area.group.both'),
-        })}
-      </p>
-      <FieldError {problems} id="add" />
-      <div class="actions">
-        <button type="submit">{$t('area.dialog.add')}</button>
-        <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
-      </div>
-    </form>
-  {/if}
+    {/if}
+    <label>
+      {$t('area.add.hours')}
+      <input type="number" min="0" step="0.5" bind:value={hours} placeholder="0" />
+    </label>
+    <p class="help">
+      {$t('area.structure.help', {
+        areaOnly: $t('area.group.areaOnly'),
+        both: $t('area.group.both'),
+      })}
+    </p>
+    <FieldError {problems} id="add" />
+    <div class="actions">
+      <button type="submit">{$t('area.dialog.add')}</button>
+      <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
+    </div>
+  </form>
 </dialog>
 
 <style>
