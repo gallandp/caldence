@@ -6,6 +6,9 @@
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
+  import AreaView from './views/AreaView.svelte';
+  import AreaOverview from './views/AreaOverview.svelte';
+  import { loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -20,7 +23,7 @@
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
-  import { activeTeamId, workspace } from './state/workspace';
+  import { activeTeamId, filter, workspace } from './state/workspace';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -60,6 +63,8 @@
   const noTeams = $derived($workspace.teams.length === 0);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
+  /** With an area selected, the Team entry is the area's page and carries the upper level name. */
+  const viewKey = (id: ViewId) => (id === 'team' && activeArea ? 'view.area' : `view.${id}`);
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -85,6 +90,15 @@
     activeTeamId.set(teamId);
     editRequest = eventId;
     select('meetings');
+  }
+
+  /** A load cell in the area overview: Load for that team, showing that week. */
+  function openLoad(teamId: string, monday: string) {
+    activeTeamId.set(teamId);
+    // A person filter would hide the team's week.
+    filter.set({ teamId });
+    loadWeek.set({ teamId, monday });
+    select('load', true);
   }
 
   function select(id: ViewId, focus = false) {
@@ -130,7 +144,8 @@
 
   function onShortcut(event: KeyboardEvent) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    if (event.repeat || document.querySelector('dialog[open]')) return;
+    // A modal dialog has its own keys; the structure view's person card is not modal.
+    if (event.repeat || document.querySelector('dialog:modal')) return;
     const key = event.key.toLowerCase();
     if (key === 's') {
       const field = commitFocused();
@@ -260,7 +275,7 @@
             onkeydown={onKeydown}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
-            <span>{$t('view.' + id)}</span>
+            <span>{$t(viewKey(id))}</span>
           </button>
         {/each}
       </div>
@@ -320,7 +335,9 @@
           hidden={active !== id}
         >
           <h2 class:sr-only={id === 'calendar' && noTeams}>
-            {$t('view.' + id)}
+            {id === 'team' && activeArea
+              ? $t('area.view.title', { name: activeArea.name })
+              : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
             {#if id === 'calendar' && noTeams}
@@ -349,8 +366,19 @@
                   >
                 </div>
               </section>
-            {:else if (id === 'meetings' || id === 'team') && activeArea}
-              {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
+            {:else if id === 'team' && activeArea}
+              {#if active === id}
+                <AreaView area={activeArea}>
+                  {#snippet overview()}
+                    <AreaTeams area={activeArea} view="team" />
+                    <AreaOverview
+                      area={activeArea}
+                      onOpenLoad={openLoad}
+                      onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                    />
+                  {/snippet}
+                </AreaView>
+              {/if}
             {:else if id === 'calendar'}
               {#if setupDone}
                 <SetupDone
@@ -381,6 +409,7 @@
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
+                  onSetHours={activeArea ? () => select('team', true) : undefined}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}

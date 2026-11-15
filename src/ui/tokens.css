@@ -28,6 +28,12 @@
   --warn: light-dark(#9a5b00, #ffc670);
   --warn-soft: light-dark(#fff5e1, #33270f);
   --hot: light-dark(#ea580c, #fb923c);
+  --area: light-dark(#0b7a6b, #5fd9c4); /* area level: text, icons, meaningful borders */
+  --area-soft: light-dark(#e3f5f1, #0f2d2a); /* area level: backgrounds */
+  --area-line: light-dark(
+    #7cc9bd,
+    #2b6f66
+  ); /* decorative only: tree and connection lines (aria-hidden) */
   --ok: light-dark(#0b6b47, #6fdcaa);
   --ok-soft: light-dark(#e3f5ec, #10301f);
   --side-bg: light-dark(#0e1124, #070914);

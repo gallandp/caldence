@@ -1,10 +1,14 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
 import { newId, unitIds } from './edit';
 import { migrate } from './migrate';
+import type { LevelNames } from './levels';
 import {
   CURRENT_SCHEMA,
   emptyWorkspace,
+  type Area,
+  type CalEvent,
   type Category,
+  type Cycle,
   type Role,
   type Rule,
   type Team,
@@ -22,6 +26,18 @@ export interface Template {
   roles: Role[];
   categories: Category[];
   team: Omit<Team, 'id' | 'members' | 'memberHours' | 'templateId'>;
+  /**
+   * Optional area above the team, e.g. a Release Train with its PI events. Applying the template
+   * creates it once; a second team from the same template joins it. Its roles are the template
+   * roles that no team meeting uses.
+   */
+  area?: TemplateArea;
+}
+
+export interface TemplateArea extends Pick<Area, 'name' | 'cycles' | 'events'> {
+  cadence: NonNullable<Area['cadence']>;
+  /** Level names the workspace takes when this is its first area and it has none yet. */
+  levelNames?: LevelNames;
 }
 
 const fail = <T>(errors: ValidationError[]): Result<T> => ({ ok: false, errors });
@@ -41,6 +57,11 @@ export function validateTemplate(input: unknown): Result<Template> {
     return fail([{ path: 'customRegions', key: 'template.error.notTemplate' }]);
   // Areas hold people and their hours; a template is one team without people.
   if ('areas' in input) return fail([{ path: 'areas', key: 'template.error.notTemplate' }]);
+  const area = input.area;
+  if (isObj(area) && ('members' in area || 'memberHours' in area))
+    return fail([{ path: 'area.members', key: 'template.error.personal' }]);
+  if (isObj(area) && 'teamIds' in area)
+    return fail([{ path: 'area.teamIds', key: 'template.error.notTemplate' }]);
 
   const m = migrate(input);
   if (!m.ok) return fail([{ path: 'schemaVersion', key: m.key }]);
@@ -65,10 +86,17 @@ export function validateTemplate(input: unknown): Result<Template> {
     errors.push({ path: 'description', key: 'error.text.tooLong' });
 
   const base = emptyWorkspace('2000-01-01');
+  const tplArea = value.area === undefined ? undefined : isObj(value.area) ? value.area : null;
+  if (tplArea === null) errors.push({ path: 'area', key: 'error.type' });
+  if (tplArea && tplArea.cadence === undefined)
+    errors.push({ path: 'area.cadence', key: 'error.required' });
   const temp = {
     schemaVersion: value.schemaVersion,
     id: 'template',
-    settings: base.settings,
+    settings:
+      tplArea?.levelNames === undefined
+        ? base.settings
+        : { ...base.settings, levelNames: tplArea.levelNames },
     roles: value.roles,
     people: [],
     categories: value.categories,
@@ -76,14 +104,31 @@ export function validateTemplate(input: unknown): Result<Template> {
       value.team === undefined
         ? undefined
         : [{ ...(value.team as object), id: 'team', members: [], memberHours: {} }],
-    areas: [],
+    areas: tplArea
+      ? [
+          {
+            ...tplArea,
+            levelNames: undefined,
+            id: 'area',
+            teamIds: ['team'],
+            members: [],
+            memberHours: {},
+          },
+        ]
+      : [],
     customRegions: [],
   };
-  const r = validate(temp);
+  const r = validate(JSON.parse(JSON.stringify(temp)));
   if (!r.ok) {
     for (const e of r.errors) {
-      if (e.path === 'teams') continue;
-      errors.push({ ...e, path: e.path.replace(/^teams\.0(?=\.|$)/, 'team') });
+      if (e.path === 'teams' || e.path === 'areas') continue;
+      errors.push({
+        ...e,
+        path: e.path
+          .replace(/^teams\.0(?=\.|$)/, 'team')
+          .replace(/^areas\.0(?=\.|$)/, 'area')
+          .replace(/^settings\.levelNames/, 'area.levelNames'),
+      });
     }
     if (value.team === undefined) errors.push({ path: 'team', key: 'error.required' });
   }
@@ -103,6 +148,16 @@ export function loadTemplate(text: string): Result<Template> {
 }
 
 const norm = (s: string): string => s.trim().toLowerCase();
+
+/** Template roles of the area alone: roles no team meeting uses (e.g. Release Train Engineer). */
+export function areaRoleIds(template: Template): Set<string> {
+  if (!template.area) return new Set();
+  const inTeam = new Set(template.team.events.flatMap((e) => e.participants.map((p) => p.roleId)));
+  const own = template.area.events.flatMap((e) =>
+    e.participants.filter((p) => !(p as { fromTeams?: boolean }).fromTeams).map((p) => p.roleId),
+  );
+  return new Set(own.filter((id) => !inTeam.has(id)));
+}
 
 function shiftRule(rule: Rule, shift: number): Rule {
   switch (rule.type) {
@@ -144,11 +199,45 @@ export function applyTemplate(
   const roleMap = mapItems('roles', 'r');
   const catMap = mapItems('categories', 'c');
 
+  // A second team from a template with an area joins the area that holds the first one.
+  // If its teams were all removed, the empty area with the template's name is taken again.
+  const joined = tpl.area
+    ? (out.areas.find((a) =>
+        a.teamIds.some((id) => out.teams.find((t) => t.id === id)?.templateId === tpl.id),
+      ) ?? out.areas.find((a) => a.teamIds.length === 0 && norm(a.name) === norm(tpl.area!.name)))
+    : undefined;
+
   const cadenceStart = tpl.team.cadence.start;
-  const wd = weekday(cadenceStart);
-  let newStart = opts.today;
-  while (weekday(newStart) !== wd) newStart = addDays(newStart, 1);
-  const shift = diffDays(newStart, cadenceStart);
+  let shift: number;
+  if (joined?.cadence && tpl.area) {
+    // Keep the new team's iterations in step with the area's increments: start with the first
+    // increment on or after today.
+    const period = joined.cadence.lengthWeeks * 7;
+    const behind = diffDays(opts.today, joined.cadence.start);
+    const periods = behind > 0 ? Math.ceil(behind / period) : 0;
+    shift = diffDays(addDays(joined.cadence.start, periods * period), tpl.area.cadence.start);
+  } else {
+    const wd = weekday(cadenceStart);
+    let newStart = opts.today;
+    while (weekday(newStart) !== wd) newStart = addDays(newStart, 1);
+    shift = diffDays(newStart, cadenceStart);
+  }
+
+  const shiftCycles = (cycles: Cycle[]): Cycle[] =>
+    cycles.map((c) => ({
+      ...c,
+      milestones: c.milestones.map((m) => ({ ...m, date: addDays(m.date, shift) })),
+    }));
+  const mapEvents = (events: CalEvent[]): CalEvent[] =>
+    events.map((e) => ({
+      ...e,
+      categoryId: catMap.get(e.categoryId) ?? e.categoryId,
+      rule: shiftRule(e.rule, shift),
+      participants: e.participants.map((p) => ({
+        ...p,
+        roleId: roleMap.get(p.roleId) ?? p.roleId,
+      })),
+    }));
 
   const teamId = newId('t', unitIds(out));
   const team: Team = {
@@ -158,22 +247,28 @@ export function applyTemplate(
     templateId: tpl.id,
     members: [],
     memberHours: {},
-    cadence: { ...tpl.team.cadence, start: newStart },
-    cycles: tpl.team.cycles.map((c) => ({
-      ...c,
-      milestones: c.milestones.map((m) => ({ ...m, date: addDays(m.date, shift) })),
-    })),
-    events: tpl.team.events.map((e) => ({
-      ...e,
-      categoryId: catMap.get(e.categoryId) ?? e.categoryId,
-      rule: shiftRule(e.rule, shift),
-      participants: e.participants.map((p) => ({
-        ...p,
-        roleId: roleMap.get(p.roleId) ?? p.roleId,
-      })),
-    })),
+    cadence: { ...tpl.team.cadence, start: addDays(cadenceStart, shift) },
+    cycles: shiftCycles(tpl.team.cycles),
+    events: mapEvents(tpl.team.events),
   };
   out.teams.push(team);
+
+  if (joined) joined.teamIds.push(teamId);
+  else if (tpl.area) {
+    const { levelNames, ...area } = tpl.area;
+    if (levelNames && out.areas.length === 0 && !out.settings.levelNames)
+      out.settings.levelNames = levelNames;
+    out.areas.push({
+      ...area,
+      id: newId('a', unitIds(out)),
+      teamIds: [teamId],
+      cadence: { ...area.cadence, start: addDays(area.cadence.start, shift) },
+      members: [],
+      memberHours: {},
+      cycles: shiftCycles(area.cycles),
+      events: mapEvents(area.events),
+    });
+  }
 
   const r = validate(out);
   if (!r.ok) return fail(r.errors);

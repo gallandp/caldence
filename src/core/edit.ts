@@ -1,5 +1,16 @@
 import { mondayOf, type ISODate } from './date';
-import type { CalEvent, Category, Cycle, Person, Role, Settings, Team, Workspace } from './model';
+import {
+  areaAsTeam,
+  type Cadence,
+  type CalEvent,
+  type Category,
+  type Cycle,
+  type Person,
+  type Role,
+  type Settings,
+  type Team,
+  type Workspace,
+} from './model';
 import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
 import { record } from './record';
 import { isBuiltinRegion, type Region } from './regions';
@@ -35,12 +46,43 @@ function mapTeam(ws: Workspace, teamId: string, fn: (t: Team) => Team): Workspac
   return out;
 }
 
+/**
+ * Like mapTeam for a team or an area: an area is handed over as a team (see areaAsTeam), and its
+ * cycles and events are taken back. Meetings and cycles are edited the same way in both.
+ */
+function mapUnit(ws: Workspace, unitId: string, fn: (t: Team) => Team): Workspace {
+  if (ws.teams.some((t) => t.id === unitId)) return mapTeam(ws, unitId, fn);
+  const out = structuredClone(ws);
+  out.areas = out.areas.map((a) => {
+    if (a.id !== unitId) return a;
+    const { cycles, events } = fn(areaAsTeam(a));
+    return { ...a, cycles, events };
+  });
+  return out;
+}
+
+/** A team or area with the path of its list in the file, e.g. `areas.0`. */
+function findUnit(ws: Workspace, unitId: string): { unit: Team; path: string } | undefined {
+  const ti = ws.teams.findIndex((t) => t.id === unitId);
+  if (ti >= 0) return { unit: ws.teams[ti]!, path: `teams.${ti}` };
+  const ai = ws.areas.findIndex((a) => a.id === unitId);
+  if (ai >= 0) return { unit: areaAsTeam(ws.areas[ai]!), path: `areas.${ai}` };
+  return undefined;
+}
+
 // ---------- roles, people, categories ----------
 
 export function addItem(ws: Workspace, kind: ListKind, data: ItemData): [Workspace, string] {
   const id = newId(PREFIX[kind], ids(ws[kind]));
   const item = { ...structuredClone(data), id } as Item;
   return [{ ...structuredClone(ws), [kind]: [...structuredClone(ws[kind]), item] }, id];
+}
+
+/** The role with this name (ignoring case and spaces), or a new one with that name and colour. */
+export function roleByName(ws: Workspace, name: string, colour: string): [Workspace, string] {
+  const key = name.trim().toLowerCase();
+  const known = ws.roles.find((r) => r.name.trim().toLowerCase() === key);
+  return known ? [ws, known.id] : addItem(ws, 'roles', { name: name.trim(), colour });
 }
 
 type Patch<T> = Partial<Omit<T, 'id'>>;
@@ -97,8 +139,11 @@ function mergeParticipants(list: CalEvent['participants']): CalEvent['participan
   const out: CalEvent['participants'] = [];
   for (const p of list) {
     const hit = out.find((o) => o.roleId === p.roleId);
-    if (hit) hit.share = Math.min(1, hit.share + p.share);
-    else out.push({ ...p });
+    if (hit) {
+      hit.share = Math.min(1, hit.share + p.share);
+      // "From every team" reaches the area's members too, so the merged entry keeps it.
+      if (p.fromTeams) hit.fromTeams = true;
+    } else out.push({ ...p });
   }
   return out;
 }
@@ -275,6 +320,22 @@ export function setAreaTeams(
   return v.ok ? { ok: true, value: out } : v;
 }
 
+/** Sets or clears an area's own cadence; without one, its meetings cannot follow a cadence. */
+export function setAreaCadence(
+  ws: Workspace,
+  areaId: string,
+  cadence: Cadence | undefined,
+): Result<Workspace> {
+  if (!ws.areas.some((a) => a.id === areaId)) return fail(`areas.${areaId}`, 'error.ref.unknown');
+  const out = structuredClone(ws);
+  for (const a of out.areas) {
+    if (a.id !== areaId) continue;
+    if (cadence) a.cadence = structuredClone(cadence);
+    else delete a.cadence;
+  }
+  return validate(out);
+}
+
 /** Removes an area with its own people, cycles and meetings; its teams stay, without an area. */
 export function removeArea(ws: Workspace, areaId: string): Workspace {
   const out = structuredClone(ws);
@@ -324,9 +385,9 @@ export function renameAssumption(
  * milestone that the new cycle lacks. An unknown team leaves the workspace unchanged.
  */
 export function upsertCycle(ws: Workspace, teamId: string, cycle: Cycle): Result<Workspace> {
-  const ti = ws.teams.findIndex((t) => t.id === teamId);
-  const team = ws.teams[ti];
-  if (!team) return { ok: true, value: structuredClone(ws) };
+  const found = findUnit(ws, teamId);
+  if (!found) return { ok: true, value: structuredClone(ws) };
+  const { unit: team, path } = found;
   const ci = team.cycles.findIndex((x) => x.id === cycle.id);
   if (ci >= 0) {
     const have = new Set(cycle.milestones.map((m) => m.id));
@@ -336,11 +397,11 @@ export function upsertCycle(ws: Workspace, teamId: string, cycle: Cycle): Result
         e.rule.cycleId === cycle.id &&
         !have.has(e.rule.milestoneId),
     );
-    if (missing) return fail(`teams.${ti}.cycles.${ci}.milestones`, 'error.ref.inuse');
+    if (missing) return fail(`${path}.cycles.${ci}.milestones`, 'error.ref.inuse');
   }
   return {
     ok: true,
-    value: mapTeam(ws, teamId, (t) => {
+    value: mapUnit(ws, teamId, (t) => {
       const c = structuredClone(cycle);
       if (c.id === '') c.id = newId('cy', ids(t.cycles));
       const i = t.cycles.findIndex((x) => x.id === c.id);
@@ -352,24 +413,25 @@ export function upsertCycle(ws: Workspace, teamId: string, cycle: Cycle): Result
 }
 
 export function removeCycle(ws: Workspace, teamId: string, cycleId: string): Result<Workspace> {
-  const ti = ws.teams.findIndex((t) => t.id === teamId);
-  const team = ws.teams[ti];
-  if (!team) return fail(`teams.${teamId}`, 'error.ref.unknown');
+  const found = findUnit(ws, teamId);
+  if (!found) return fail(`teams.${teamId}`, 'error.ref.unknown');
+  const { unit: team, path } = found;
   const ci = team.cycles.findIndex((c) => c.id === cycleId);
-  if (ci < 0) return fail(`teams.${ti}.cycles.${cycleId}`, 'error.ref.unknown');
+  if (ci < 0) return fail(`${path}.cycles.${cycleId}`, 'error.ref.unknown');
   if (team.events.some((e) => e.rule.type === 'cycle-milestone' && e.rule.cycleId === cycleId))
-    return fail(`teams.${ti}.cycles.${ci}`, 'error.ref.inuse');
+    return fail(`${path}.cycles.${ci}`, 'error.ref.inuse');
   return {
     ok: true,
-    value: mapTeam(ws, teamId, (t) => ({ ...t, cycles: t.cycles.filter((c) => c.id !== cycleId) })),
+    value: mapUnit(ws, teamId, (t) => ({ ...t, cycles: t.cycles.filter((c) => c.id !== cycleId) })),
   };
 }
 
 // ---------- events ----------
 
+/** Adds or replaces a meeting of a team or area (an empty id creates one). */
 export function upsertEvent(ws: Workspace, teamId: string, event: CalEvent): [Workspace, string] {
   let id = event.id;
-  const out = mapTeam(ws, teamId, (t) => {
+  const out = mapUnit(ws, teamId, (t) => {
     const e = structuredClone(event);
     if (e.id === '') e.id = newId('e', ids(t.events));
     id = e.id;
@@ -386,13 +448,13 @@ export function duplicateEvent(
   teamId: string,
   eventId: string,
 ): [Workspace, string] {
-  const src = ws.teams.find((t) => t.id === teamId)?.events.find((e) => e.id === eventId);
+  const src = findUnit(ws, teamId)?.unit.events.find((e) => e.id === eventId);
   if (!src) return [structuredClone(ws), eventId];
   return upsertEvent(ws, teamId, { ...structuredClone(src), id: '' });
 }
 
 export function removeEvent(ws: Workspace, teamId: string, eventId: string): Workspace {
-  return mapTeam(ws, teamId, (t) => ({ ...t, events: t.events.filter((e) => e.id !== eventId) }));
+  return mapUnit(ws, teamId, (t) => ({ ...t, events: t.events.filter((e) => e.id !== eventId) }));
 }
 
 /**

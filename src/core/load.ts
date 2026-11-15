@@ -1,5 +1,14 @@
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
-import { unitTeamIds, type CalEvent, type Rule, type Team, type Workspace } from './model';
+import {
+  attendees,
+  units,
+  unitLoadIds,
+  unitTeamIds,
+  type CalEvent,
+  type Rule,
+  type Team,
+  type Workspace,
+} from './model';
 import { effectiveDuration, occurrences } from './recurrence';
 import { record } from './record';
 import type { HolidayIndex } from './regions';
@@ -90,7 +99,8 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
     });
   }
 
-  for (const team of ws.teams) {
+  // Teams and areas alike: an area's meetings count for the area, never for one of its teams.
+  for (const team of units(ws)) {
     const events = new Map(team.events.map((e) => [e.id, e]));
     for (const occ of occurrences(team, ws.settings, index)) {
       if (occ.skippedHoliday) continue;
@@ -102,14 +112,12 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
         const hours = occurrenceHours(event, occ.duration, p.share);
         const roles = (week.byTeamRole[team.id] ??= record());
         roles[p.roleId] = (roles[p.roleId] ?? 0) + hours;
-        for (const m of team.members) {
-          if (m.roleId === p.roleId) {
-            week.byPerson[m.personId] = (week.byPerson[m.personId] ?? 0) + hours;
-            const inTeam = (week.byTeamPerson[team.id] ??= record());
-            inTeam[m.personId] = (inTeam[m.personId] ?? 0) + hours;
-            if (regular)
-              week.regularByPerson[m.personId] = (week.regularByPerson[m.personId] ?? 0) + hours;
-          }
+        for (const personId of attendees(ws, team.id, p)) {
+          week.byPerson[personId] = (week.byPerson[personId] ?? 0) + hours;
+          const inUnit = (week.byTeamPerson[team.id] ??= record());
+          inUnit[personId] = (inUnit[personId] ?? 0) + hours;
+          if (regular)
+            week.regularByPerson[personId] = (week.regularByPerson[personId] ?? 0) + hours;
         }
       }
     }
@@ -121,9 +129,21 @@ export function fte(hours: number, hoursPerWeek: number): number {
   return hoursPerWeek > 0 ? hours / hoursPerWeek : 0;
 }
 
+/** Meeting hours above maxFte of the weekly hours; meetings without any weekly hours always are. */
+export function overMax(hours: number, capacity: number, maxFte: number): boolean {
+  return hours > 0 && (capacity > 0 ? fte(hours, capacity) > maxFte : true);
+}
+
+/** A person's weekly hours in an area: their entry there, or 0 (area time is set on purpose). */
+export function areaHours(ws: Workspace, areaId: string, personId: string): number {
+  const area = ws.areas.find((a) => a.id === areaId);
+  return area && Object.hasOwn(area.memberHours, personId) ? area.memberHours[personId]! : 0;
+}
+
 /**
- * Weekly hours a person has: in one team (their entry there or the workspace default), or summed
- * over all their teams. A person in no team has the workspace default.
+ * Weekly hours a person has: in one team (their entry there or the workspace default), in an
+ * area (their hours in its teams plus their area hours), or summed over all their teams and
+ * areas. A person in no team and without area hours has the workspace default.
  */
 export function capacity(ws: Workspace, personId: string, teamId?: string): number {
   const fallback = ws.settings.hoursPerWeek;
@@ -132,12 +152,19 @@ export function capacity(ws: Workspace, personId: string, teamId?: string): numb
     (t) =>
       (scope === undefined || scope.has(t.id)) && t.members.some((m) => m.personId === personId),
   );
-  if (teams.length === 0) return fallback;
-  return teams.reduce(
+  const areas = ws.areas.filter(
+    (a) => (teamId === undefined || a.id === teamId) && Object.hasOwn(a.memberHours, personId),
+  );
+  if (teams.length === 0 && areas.length === 0) {
+    // An area counts only its own hours, so its people have 0 there without an entry.
+    return teamId !== undefined && ws.areas.some((a) => a.id === teamId) ? 0 : fallback;
+  }
+  const inTeams = teams.reduce(
     (sum, t) =>
       sum + (Object.hasOwn(t.memberHours, personId) ? t.memberHours[personId]! : fallback),
     0,
   );
+  return areas.reduce((sum, a) => sum + a.memberHours[personId]!, inTeams);
 }
 
 /** A person's hours in a week in these teams. */
@@ -149,14 +176,19 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
  * Flags weeks above warnFactor x the person's usual load and weeks above maxFte. The usual load
  * of a week is the person's average, or their recurring meetings that week if that is more, so
  * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
- * and cycle milestones on top of them are. The FTE check follows the filter: with a team filter
- * (and no person) it compares a member's hours in that team with their hours there, otherwise
- * all hours with the hours summed over their teams.
+ * and cycle milestones on top of them are. The FTE check follows the filter: with a team or area
+ * filter (and no person) it compares a member's hours there with their hours there, otherwise
+ * all hours with the hours summed over their teams and areas. Area meetings are also checked on
+ * their own against the person's area hours, so meetings in an area where someone has no hours
+ * (0 h without an entry) are flagged even when their team hours would cover them.
  */
 export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}): LoadWarning[] {
   const teamId = filter.personId ? undefined : filter.teamId;
   const { warnFactor, maxFte } = ws.settings.thresholds;
-  const scope = teamId === undefined ? [] : unitTeamIds(ws, teamId);
+  const scope = teamId === undefined ? [] : unitLoadIds(ws, teamId);
+  // Areas whose own meetings are checked: all of them, the selected one, none for one team.
+  const areas = ws.areas.filter((a) => teamId === undefined || a.id === teamId);
+  const tooMuch = (hours: number, capacity: number) => overMax(hours, capacity, maxFte);
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
@@ -169,14 +201,32 @@ export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}):
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
       const fteHours = teamId ? hoursIn(week, scope, person.id) : hours;
-      // Meetings without any weekly hours in the team are always too many.
-      const over = hoursPerWeek > 0 ? fte(fteHours, hoursPerWeek) > maxFte : fteHours > 0;
-      if (fteHours > 0 && over) {
-        result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
-      }
+      const over =
+        tooMuch(fteHours, hoursPerWeek) ||
+        areas.some((a) =>
+          tooMuch(week.byTeamPerson[a.id]?.[person.id] ?? 0, areaHours(ws, a.id, person.id)),
+        );
+      if (over) result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
     }
   }
   return result.sort(
     (a, b) => a.monday.localeCompare(b.monday) || a.personId.localeCompare(b.personId),
   );
+}
+
+/** Average hours per week of a unit's recurring meetings for each person attending them. */
+export function weeklyHoursByPerson(ws: Workspace, unitId: string): Record<string, number> {
+  const out = record<number>();
+  const team = units(ws).find((u) => u.id === unitId);
+  if (!team) return out;
+  for (const event of team.events) {
+    const perWeek = occurrencesPerWeek(event.rule, team);
+    if (perWeek === 0) continue;
+    const minutes = effectiveDuration(event, team);
+    for (const p of event.participants) {
+      const hours = perWeek * occurrenceHours(event, minutes, p.share);
+      for (const id of attendees(ws, team.id, p)) out[id] = (out[id] ?? 0) + hours;
+    }
+  }
+  return out;
 }

@@ -3,7 +3,7 @@
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
   import { capacity } from '../../core/load';
   import { record } from '../../core/record';
-  import ColourField, { PALETTE } from '../components/ColourField.svelte';
+  import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { locale, translate as t } from '../../i18n';
@@ -375,25 +375,7 @@
         </ListEditor>
       </div>
       <div class="card">
-        <ListEditor
-          kind="roles"
-          items={$workspace.roles}
-          heading={$t('settings.roles')}
-          hint={$t('team.roles.hint')}
-          addLabel={$t('settings.roles.add')}
-          create={(name) => ({
-            name,
-            colour: PALETTE[$workspace.roles.length % PALETTE.length]!.hex,
-          })}
-        >
-          {#snippet extra(role, ctx)}
-            <ColourField
-              value={role.colour}
-              label={$t('colour.of', { name: role.name })}
-              onchange={(colour) => ctx.update({ colour })}
-            />
-          {/snippet}
-        </ListEditor>
+        <RoleList />
       </div>
       <!-- Like Members, Assumptions start afresh with each epoch (see Problems). -->
       {#key epoch}

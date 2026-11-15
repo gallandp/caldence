@@ -409,7 +409,9 @@ describe('exportIcs UIDs, scope and reminder', () => {
 
 describe('exportIcs fix round 1', () => {
   it('gives milestones of two teams from the same template distinct UIDs', () => {
-    const tpl = builtinTemplate('safe', 'en');
+    // A team template with its own cycle (SAFe keeps its cycle in the area).
+    const safe = builtinTemplate('safe', 'en');
+    const tpl = { ...safe, area: undefined, team: { ...safe.team, cycles: safe.area!.cycles } };
     let ws = example();
     for (const name of ['Train A', 'Train B']) {
       const r = applyTemplate(ws, tpl, { name, today: '2027-01-04' });

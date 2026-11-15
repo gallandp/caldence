@@ -21,6 +21,7 @@ import {
   removeTeam,
   renameArea,
   renameAssumption,
+  roleByName,
   setAreaTeams,
   updateItem,
   updateSettings,
@@ -94,6 +95,21 @@ describe('list items', () => {
     expect(moveItem(ws, 'roles', 'r1', -1)).toEqual(ws);
     expect(moveItem(ws, 'roles', 'r2', 1)).toEqual(ws);
     expect(moveItem(ws, 'roles', 'nope', 1)).toEqual(ws);
+  });
+});
+
+describe('roleByName', () => {
+  it('reuses a role with the same name in any case', () => {
+    const ws = base();
+    const [next, id] = roleByName(ws, '  developer ', '#000000');
+    expect(id).toBe('r1');
+    expect(next).toBe(ws);
+  });
+  it('adds a new role with the given colour', () => {
+    const ws = base();
+    const [next, id] = roleByName(ws, 'Head of area', '#123456');
+    expect(next.roles.at(-1)).toEqual({ id, name: 'Head of area', colour: '#123456' });
+    expect(ws.roles).toHaveLength(1);
   });
 });
 

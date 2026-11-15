@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { costSummary, meetingCost } from '../../core/cost';
+  import { meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import type { CalEvent } from '../../core/model';
+  import { areaAsTeam, type CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
@@ -10,6 +10,8 @@
   import { formatDisplayDate, formatEuro, formatNumber, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
+  import AreaIcon from '../components/AreaIcon.svelte';
+  import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
   import CyclesCard from '../components/CyclesCard.svelte';
@@ -33,12 +35,22 @@
     edit?: string;
     /** Called once that meeting is open, so that it is not opened again. */
     onEditOpened?: () => void;
+    /** Opens where a person's hours in an area are set. */
+    onSetHours?: () => void;
   }
-  let { edit, onEditOpened }: Props = $props();
+  let { edit, onEditOpened, onSetHours }: Props = $props();
 
   const { canUndo } = workspace;
 
-  const team = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
+  /** With an area selected, its own meetings: the area is planned like a team (see areaAsTeam). */
+  const area = $derived($workspace.areas.find((x) => x.id === $activeTeamId));
+  const team = $derived(
+    $workspace.teams.find((x) => x.id === $activeTeamId) ?? (area ? areaAsTeam(area) : undefined),
+  );
+  /** The words before and after the area's name in the line under the title. */
+  const intro = $derived(
+    area ? $t('area.view.meetingsIntro', { name: '\u0000' }).split('\u0000') : [],
+  );
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
 
@@ -55,7 +67,7 @@
   onMount(() => {
     const stop = [
       workspace.subscribe((ws) => {
-        const next = JSON.stringify([ws.teams, ws.categories, ws.roles]);
+        const next = JSON.stringify([ws.teams, ws.areas, ws.categories, ws.roles]);
         if (!isOwnChange() && next !== signature) editing = null;
         signature = next;
       }),
@@ -122,9 +134,8 @@
   // ---------- costs: only with an hourly rate ----------
 
   const rate = $derived($workspace.settings.hourlyRate);
-  const costs = $derived(
-    rate && team ? costSummary($workspace, $index, { teamId: team.id }, rate) : null,
-  );
+  // Only this page's meetings: for an area its own, not those of its teams.
+  const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
   const euro = (n: number) => formatEuro($locale, n);
 
   let query = $state('');
@@ -155,7 +166,7 @@
     sortKey === key ? (sortDir === 1 ? 'ascending' : 'descending') : 'none';
 
   const costOf = (e: CalEvent) =>
-    rate && team ? meetingCost(team, e, effectiveDuration(e, team), rate) : 0;
+    rate && team ? meetingCost($workspace, team, e, effectiveDuration(e, team), rate) : 0;
   const weekCostOf = (e: CalEvent) => (team ? occurrencesPerWeek(e.rule, team) * costOf(e) : 0);
 
   const ordered = $derived(
@@ -221,10 +232,21 @@
 
   // ---------- form ----------
 
-  /** A new meeting invites every role the team's members have, or the first role without members. */
+  /**
+   * A new meeting invites every role the team's members have, or the first role without members.
+   * In an area these are the area's own roles; without any, its teams' first role from every team.
+   */
   function blankEvent(): CalEvent {
     const first = roles[0];
     const memberRoles = roles.filter((r) => team?.members.some((m) => m.roleId === r.id));
+    const fromTeams = area !== undefined && memberRoles.length === 0;
+    // An area without roles of its own invites the first role its teams have, from every team.
+    const teamRole = roles.find((r) =>
+      $workspace.teams.some(
+        (x) => area?.teamIds.includes(x.id) && x.members.some((m) => m.roleId === r.id),
+      ),
+    );
+    const firstRole = fromTeams ? (teamRole ?? first) : first;
     return {
       id: '',
       name: '',
@@ -235,8 +257,12 @@
       participants:
         memberRoles.length > 0
           ? memberRoles.map((r) => ({ roleId: r.id, share: 1 }))
-          : first
-            ? [{ roleId: first.id, share: 1 }]
+          : firstRole
+            ? [
+                fromTeams
+                  ? { roleId: firstRole.id, share: 1, fromTeams }
+                  : { roleId: firstRole.id, share: 1 },
+              ]
             : [],
       preparation: 0,
     };
@@ -258,6 +284,9 @@
   function save(event: CalEvent, doCommit = true): Record<string, string> | null {
     if (!team) return { '': 'error.type' };
     const ti = $workspace.teams.findIndex((x) => x.id === team.id);
+    const base = area
+      ? `areas.${$workspace.areas.findIndex((x) => x.id === team.id)}`
+      : `teams.${ti}`;
     const ei =
       event.id === '' ? team.events.length : team.events.findIndex((e) => e.id === event.id);
     const teamId = team.id;
@@ -268,7 +297,7 @@
       if (doCommit) void close();
       return null;
     }
-    const mapped = fieldErrors(result.errors, `teams.${ti}.events.${ei}`);
+    const mapped = fieldErrors(result.errors, `${base}.events.${ei}`);
     return Object.keys(mapped).length > 0 ? mapped : { '': result.errors[0]?.key ?? 'error.type' };
   }
 
@@ -308,7 +337,13 @@
   {#if !team}
     <p class="empty card">{$t('meet.none')}</p>
   {:else}
-    <CadenceCard {team} />
+    {#if area}
+      <p class="area-intro">
+        <span class="area-mark"><AreaIcon /></span>
+        <span>{intro[0]}<strong>{area.name}</strong>{intro[1]}</span>
+      </p>
+    {/if}
+    <CadenceCard {team} {area} />
     {#if costs && rate}
       <CostCard summary={costs} {rate} />
     {/if}
@@ -379,7 +414,16 @@
       {#if editing}
         <p class="empty" id="meet-open-note">{$t('meet.openform')}</p>
         {#key editing.key}
-          <EventForm event={editing.event} {team} {categories} {roles} {save} cancel={close} />
+          <EventForm
+            event={editing.event}
+            {team}
+            {categories}
+            {roles}
+            {save}
+            cancel={close}
+            {area}
+            {onSetHours}
+          />
         {/key}
       {/if}
 
@@ -511,34 +555,43 @@
                       </td>
                     {/if}
                     <td class="c-people">
-                      <ul class="roles">
-                        {#each event.participants as p, pi (pi)}
-                          {@const name = roleName(p.roleId)}
-                          {@const colour = roleOf(p.roleId)?.colour ?? '#4b5470'}
-                          {@const label =
-                            p.share < 1
-                              ? $t('meet.role.share', {
-                                  role: name,
-                                  share: formatNumber($locale, p.share * 100, 0),
-                                })
-                              : name}
-                          <!-- Focusable by tap but not by Tab, so a touch screen can show the name too. -->
-                          <li class="role" class:part={p.share < 1} data-tip={label} tabindex="-1">
-                            <span
-                              class="ini"
-                              style:background={colour}
-                              style:color={inkOn(colour)}
-                              aria-hidden="true">{initials(name)}</span
+                      {#if area}
+                        <AreaMeetingWho {area} {event} />
+                      {:else}
+                        <ul class="roles">
+                          {#each event.participants as p, pi (pi)}
+                            {@const name = roleName(p.roleId)}
+                            {@const colour = roleOf(p.roleId)?.colour ?? '#4b5470'}
+                            {@const label =
+                              p.share < 1
+                                ? $t('meet.role.share', {
+                                    role: name,
+                                    share: formatNumber($locale, p.share * 100, 0),
+                                  })
+                                : name}
+                            <!-- Focusable by tap but not by Tab, so a touch screen can show the name too. -->
+                            <li
+                              class="role"
+                              class:part={p.share < 1}
+                              data-tip={label}
+                              tabindex="-1"
                             >
-                            {#if p.share < 1}<span class="share" aria-hidden="true"
-                                >{$t('meet.role.shareOnly', {
-                                  share: formatNumber($locale, p.share * 100, 0),
-                                })}</span
-                              >{/if}
-                            <span class="sr-only">{label}</span>
-                          </li>
-                        {/each}
-                      </ul>
+                              <span
+                                class="ini"
+                                style:background={colour}
+                                style:color={inkOn(colour)}
+                                aria-hidden="true">{initials(name)}</span
+                              >
+                              {#if p.share < 1}<span class="share" aria-hidden="true"
+                                  >{$t('meet.role.shareOnly', {
+                                    share: formatNumber($locale, p.share * 100, 0),
+                                  })}</span
+                                >{/if}
+                              <span class="sr-only">{label}</span>
+                            </li>
+                          {/each}
+                        </ul>
+                      {/if}
                     </td>
                     <td class="c-actions">
                       <div class="icons">
@@ -656,6 +709,20 @@
 </div>
 
 <style>
+  .area-intro {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    color: var(--text-muted);
+  }
+  .area-intro strong {
+    color: var(--text);
+  }
+  .area-mark {
+    display: inline-flex;
+    color: var(--area);
+  }
   .empty {
     color: var(--text-muted);
   }
