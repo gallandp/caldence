@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import de from '../../src/i18n/de.json';
 import en from '../../src/i18n/en.json';
 import { detectLocale, formatDisplayDate, formatNumber, formatPercent, t } from '../../src/i18n';
+import { levelParams, levelWords } from '../../src/i18n/levels';
 
 function walk(dir: string, ext: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -34,8 +35,19 @@ describe('catalogues', () => {
   });
 
   it('use the same placeholders in both languages', () => {
-    const ph = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
-    for (const k of Object.keys(de) as (keyof typeof de)[]) expect(ph(de[k]), k).toEqual(ph(en[k]));
+    // Level names ({levelTeam}, {levelTeamLc}, …) are filled in for every text; each language
+    // picks the forms its grammar needs, but only names that exist.
+    const levelNames = Object.keys(levelParams(levelWords(undefined, 'en'))).map((n) => `{${n}}`);
+    const all = (s: string) => s.match(/\{\w+\}/g) ?? [];
+    const ph = (s: string) =>
+      all(s)
+        .filter((p) => !p.startsWith('{level'))
+        .sort();
+    for (const k of Object.keys(de) as (keyof typeof de)[]) {
+      expect(ph(de[k]), k).toEqual(ph(en[k]));
+      for (const p of [...all(de[k]), ...all(en[k])].filter((p) => p.startsWith('{level')))
+        expect(levelNames, `${k} ${p}`).toContain(p);
+    }
   });
 });
 

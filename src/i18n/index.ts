@@ -3,6 +3,7 @@ import type { ISODate } from '../core/date';
 import type { Settings } from '../core/model';
 import de from './de.json';
 import en from './en.json';
+import { levelParams, levelWords, type LevelWords } from './levels';
 
 export type Locale = 'de' | 'en';
 type Params = Record<string, string | number>;
@@ -19,12 +20,15 @@ export function detectLocale(settings?: Settings, languages?: readonly string[])
   return 'en';
 }
 
-export function t(locale: Locale, key: string, params?: Params): string {
+/** `fallback` fills placeholders that `params` leaves open (the level names, see `translate`). */
+export function t(locale: Locale, key: string, params?: Params, fallback?: Params): string {
   const text = catalogues[locale][key];
   if (text === undefined) return key;
-  return text.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    params && name in params ? String(params[name]) : whole,
-  );
+  return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    if (params && name in params) return String(params[name]);
+    if (fallback && name in fallback) return String(fallback[name]);
+    return whole;
+  });
 }
 
 export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | 'long'): string {
@@ -64,8 +68,13 @@ export function formatPercent(locale: Locale, fraction: number): string {
 }
 
 export const locale = writable<Locale>(detectLocale());
-/** Store of a translate function; import as `translate as t` in components and use `$t(key)`. */
-export const translate = derived(
-  locale,
-  ($locale) => (key: string, params?: Params) => t($locale, key, params),
-);
+/** The workspace's names for the two levels; App keeps it in step with settings and locale. */
+export const levels = writable<LevelWords>(levelWords(undefined, detectLocale()));
+/**
+ * Store of a translate function; import as `translate as t` in components and use `$t(key)`.
+ * Every text can use the level names as `{levelTeam}`, `{levelTeamsLc}` and so on.
+ */
+export const translate = derived([locale, levels], ([$locale, $levels]) => {
+  const defaults = levelParams($levels);
+  return (key: string, params?: Params) => t($locale, key, params, defaults);
+});

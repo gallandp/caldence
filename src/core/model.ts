@@ -1,5 +1,6 @@
 import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
+import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
 export const CURRENT_SCHEMA = 5;
@@ -15,6 +16,8 @@ export interface Settings {
   thresholds: { warnFactor: number; maxFte: number };
   /** Optional euros per person and hour; without it no costs are shown. */
   hourlyRate?: number;
+  /** Names of the two levels; without it Bereich/Team (Area/Team). */
+  levelNames?: LevelNames;
 }
 
 export interface Role {

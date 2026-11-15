@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Settings › Names: call the levels Bereich/Team, Abteilung/Team, Plattform/Produkt, Chapter/Unit, Release Train/Team or your own names; the sidebar, team menu and buttons follow (#163)
+
 ## 1.33.0 – 2026-11-15
 
 ### Added
