@@ -16,6 +16,8 @@ export type RegisterFn = (options?: RegisterOptions) => (reloadPage?: boolean) =
 export interface UpdateEnv {
   /** Runs `fn` every `ms` milliseconds. */
   every(ms: number, fn: () => void): void;
+  /** Runs `fn` once after `ms` milliseconds. */
+  later(ms: number, fn: () => void): void;
   /** Runs `fn` whenever the page becomes visible again. */
   onVisible(fn: () => void): void;
   online(): boolean;
@@ -33,9 +35,15 @@ export interface UpdateService {
 export const UPDATE_CHECK_MS = 60 * 60 * 1000;
 /** A save that does not finish in this time must not block the reload. */
 export const FLUSH_TIMEOUT_MS = 3000;
+/**
+ * How long reload() waits for the new worker to take control before reloading itself.
+ * An uncontrolled page (after a hard reload) or a worker that is no longer waiting never does.
+ */
+export const RELOAD_FALLBACK_MS = 1500;
 
 export const browserUpdateEnv: UpdateEnv = {
   every: (ms, fn) => void setInterval(fn, ms),
+  later: (ms, fn) => void setTimeout(fn, ms),
   onVisible: (fn) =>
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') fn();
@@ -53,6 +61,13 @@ export function createUpdate(
   const needRefresh = writable(false);
   const offlineReady = writable(false);
   let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
+  let reloading = false;
+
+  function reloadOnce() {
+    if (reloading) return;
+    reloading = true;
+    env.reloadPage();
+  }
 
   /** Saves first; a failing or hanging save must not block the update (autosave holds earlier state). */
   async function save(): Promise<void> {
@@ -86,7 +101,7 @@ export function createUpdate(
       onNeedRefresh: () => needRefresh.set(true),
       onOfflineReady: () => offlineReady.set(true),
       onNeedReload: () => {
-        void save().then(() => env.reloadPage());
+        void save().then(reloadOnce);
       },
       onRegisteredSW: (_url, registration) => watch(registration),
     });
@@ -98,7 +113,12 @@ export function createUpdate(
     offlineReady: readonly(offlineReady),
     async reload() {
       await save();
-      await updateSW?.(true);
+      try {
+        await updateSW?.(true);
+      } catch {
+        // The reload below still brings the new version.
+      }
+      env.later(RELOAD_FALLBACK_MS, reloadOnce);
     },
     dismiss() {
       needRefresh.set(false);

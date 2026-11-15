@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createUpdate,
   FLUSH_TIMEOUT_MS,
+  RELOAD_FALLBACK_MS,
   UPDATE_CHECK_MS,
   type RegisterOptions,
   type UpdateEnv,
@@ -10,16 +11,18 @@ import {
 
 function fakeEnv() {
   const timers: { ms: number; fn: () => void }[] = [];
+  const later: { ms: number; fn: () => void }[] = [];
   const visible: (() => void)[] = [];
   const state = { online: true };
   const reloadPage = vi.fn();
   const env: UpdateEnv = {
     every: (ms, fn) => void timers.push({ ms, fn }),
+    later: (ms, fn) => void later.push({ ms, fn }),
     onVisible: (fn) => void visible.push(fn),
     online: () => state.online,
     reloadPage,
   };
-  return { env, timers, visible, state, reloadPage };
+  return { env, timers, later, visible, state, reloadPage };
 }
 
 function setup(beforeReload: () => void | Promise<void> = () => {}) {
@@ -139,6 +142,39 @@ describe('update service', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('reload reloads the page itself when the new worker never takes control', async () => {
+    // An uncontrolled page (hard reload) or a worker that is no longer waiting gets no controllerchange.
+    const s = setup();
+    await s.update.reload();
+    expect(s.later.map((l) => l.ms)).toEqual([RELOAD_FALLBACK_MS]);
+    expect(s.reloadPage).not.toHaveBeenCalled();
+    s.later[0]!.fn();
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it('reload does not reload twice when the new worker takes control', async () => {
+    const s = setup();
+    await s.update.reload();
+    s.handlers().onNeedReload!();
+    await vi.waitFor(() => expect(s.reloadPage).toHaveBeenCalledOnce());
+    s.later[0]!.fn();
+    expect(s.reloadPage).toHaveBeenCalledOnce();
+  });
+
+  it('reload without service worker support still reloads the page', async () => {
+    const env = fakeEnv();
+    const update = createUpdate(
+      () => {
+        throw new Error('no service worker');
+      },
+      vi.fn(),
+      env.env,
+    );
+    await update.reload();
+    env.later[0]!.fn();
+    expect(env.reloadPage).toHaveBeenCalledOnce();
   });
 
   it('a reload caused by another tab saves first, then reloads the page', async () => {
