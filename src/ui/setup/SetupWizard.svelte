@@ -175,9 +175,9 @@
               <span class="name" id="{uid}-way-{id}-name">{tpl.name}</span>
               <span class="desc" id="{uid}-way-{id}-desc"
                 >{$t('setup.tpl.desc', {
-                  kind: $t('team.cadence.kind.' + tpl.team.cadence.kind),
-                  weeks: tpl.team.cadence.lengthWeeks,
-                  events: tpl.team.events.length,
+                  kind: $t('team.cadence.kind.' + (tpl.area ?? tpl.team).cadence.kind),
+                  weeks: (tpl.area ?? tpl.team).cadence.lengthWeeks,
+                  events: tpl.team.events.length + (tpl.area?.events.length ?? 0),
                 })}</span
               >
             </span>

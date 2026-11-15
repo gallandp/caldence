@@ -189,7 +189,11 @@
         <ul>
           <li>{$t('templates.preview.roles', { count: imported.roles.length })}</li>
           <li>{$t('templates.preview.categories', { count: imported.categories.length })}</li>
-          <li>{$t('templates.preview.events', { count: imported.team.events.length })}</li>
+          <li>
+            {$t('templates.preview.events', {
+              count: imported.team.events.length + (imported.area?.events.length ?? 0),
+            })}
+          </li>
           <li>
             {$t('templates.preview.cadence', {
               kind: $t('team.cadence.kind.' + imported.team.cadence.kind),

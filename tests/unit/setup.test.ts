@@ -109,4 +109,44 @@ describe('setupTeam', () => {
     });
     expect(r.ok).toBe(false);
   });
+
+  it('puts people with a SAFe area role into the Release Train, not the team', () => {
+    const safe = builtinTemplate('safe', 'en');
+    const id = (name: string) => safe.roles.find((r) => r.name === name)!.id;
+    const r = setupTeam(emptyWorkspace(today), {
+      template: safe,
+      name: 'Alpha',
+      start: today,
+      members: [
+        { name: 'Anna', roleId: id('Product Owner') },
+        { name: 'Rita', roleId: id('Release Train Engineer') },
+      ],
+    });
+    if (!r.ok) throw new Error('setup');
+    const [out, teamId] = r.value;
+    const team = out.teams.find((t) => t.id === teamId)!;
+    const area = out.areas[0]!;
+    const person = (name: string) => out.people.find((p) => p.name === name)!.id;
+    expect(team.members.map((m) => m.personId)).toEqual([person('Anna')]);
+    expect(area.members.map((m) => m.personId)).toEqual([person('Rita')]);
+    expect(area.memberHours).toEqual({ [person('Rita')]: out.settings.hoursPerWeek });
+  });
+
+  it('gives no extra area hours to someone who is also in the team', () => {
+    const safe = builtinTemplate('safe', 'en');
+    const id = (name: string) => safe.roles.find((r) => r.name === name)!.id;
+    const r = setupTeam(emptyWorkspace(today), {
+      template: safe,
+      name: 'Alpha',
+      start: today,
+      members: [
+        { name: 'Kim', roleId: id('Release Train Engineer') },
+        { name: 'Kim', roleId: id('Product Owner') },
+      ],
+    });
+    if (!r.ok) throw new Error('setup');
+    const area = r.value[0].areas[0]!;
+    expect(area.members).toHaveLength(1);
+    expect(area.memberHours).toEqual({});
+  });
 });
