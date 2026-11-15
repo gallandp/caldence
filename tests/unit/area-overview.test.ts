@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compareCadences, segments, stepReasons, teamLoad } from '../../src/core/areaOverview';
+import {
+  areaMeetingHours,
+  compareCadences,
+  segments,
+  stepReasons,
+  teamLoad,
+} from '../../src/core/areaOverview';
 import { loadPerWeek } from '../../src/core/load';
 import { emptyWorkspace, type Area, type Cadence, type Team } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
@@ -189,5 +195,55 @@ describe('teamLoad', () => {
     const t = team('alpha', sprint(2));
     const ws = workspace([t]);
     expect(teamLoad(ws, t, loadPerWeek(ws, noIndex()))[0]).toMatchObject({ share: 0, warn: false });
+  });
+});
+
+describe('areaMeetingHours', () => {
+  it('counts every attendee, including "from every team", per week', () => {
+    const ws = workspace([
+      team('alpha', sprint(2), { members: [{ personId: 'p1', roleId: 'po' }] }),
+      team('beta', sprint(2), {
+        members: [
+          { personId: 'p2', roleId: 'po' },
+          { personId: 'p1', roleId: 'po' },
+        ],
+      }),
+    ]);
+    const a = area(['alpha', 'beta']);
+    a.members = [{ personId: 'p3', roleId: 'pm' }];
+    a.events = [
+      {
+        id: 'forum',
+        name: 'PO forum',
+        categoryId: 'c1',
+        rule: { type: 'weekly', weekday: 2 },
+        time: '10:00',
+        duration: 60,
+        participants: [
+          { roleId: 'pm', share: 1 },
+          { roleId: 'po', share: 1, fromTeams: true },
+        ],
+        preparation: 0.5,
+      },
+      {
+        id: 'once',
+        name: 'Kick-off',
+        categoryId: 'c1',
+        rule: { type: 'once', date: '2027-01-05' },
+        time: '10:00',
+        duration: 60,
+        participants: [{ roleId: 'pm', share: 1 }],
+        preparation: 0,
+      },
+    ];
+    ws.areas = [a];
+    const [forum, once] = areaMeetingHours(ws, a);
+    // 1.5 h each for the PM and the two distinct POs.
+    expect(forum).toMatchObject({
+      perWeek: 4.5,
+      recurring: true,
+      attendees: [['p3'], ['p1', 'p2']],
+    });
+    expect(once).toMatchObject({ perWeek: 0, recurring: false });
   });
 });

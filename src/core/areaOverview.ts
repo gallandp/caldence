@@ -1,6 +1,7 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
-import { capacity, fte, type WeekLoad } from './load';
-import type { Area, Cadence, Team, Workspace } from './model';
+import { capacity, fte, occurrenceHours, occurrencesPerWeek, type WeekLoad } from './load';
+import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
+import { effectiveDuration } from './recurrence';
 
 /**
  * The area overview (#168): team cadences compared with the area cadence, and the load of each
@@ -171,5 +172,35 @@ export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell
       if (h > 0 && (cap > 0 ? share > maxFte : true)) warn = true;
     }
     return { monday: week.monday, share: people.length > 0 ? total / people.length : 0, warn };
+  });
+}
+
+export interface AreaMeetingHours {
+  eventId: string;
+  /** Hours per week of all attendees together; 0 for one-off and milestone meetings. */
+  perWeek: number;
+  /** Whether the meeting comes back on its own (not once, not tied to a milestone). */
+  recurring: boolean;
+  /** Attendees per participant line, in the event's order. */
+  attendees: string[][];
+}
+
+/** Each area meeting's weekly hours (recurring average, all attendees) and who attends. */
+export function areaMeetingHours(ws: Workspace, area: Area): AreaMeetingHours[] {
+  const unit = areaAsTeam(area);
+  return area.events.map((event) => {
+    const perWeek = occurrencesPerWeek(event.rule, unit);
+    const minutes = effectiveDuration(event, unit);
+    const lists = event.participants.map((p) => attendees(ws, area.id, p));
+    const hours = event.participants.reduce(
+      (sum, p, i) => sum + perWeek * occurrenceHours(event, minutes, p.share) * lists[i]!.length,
+      0,
+    );
+    return {
+      eventId: event.id,
+      perWeek: hours,
+      recurring: event.rule.type !== 'once' && event.rule.type !== 'cycle-milestone',
+      attendees: lists,
+    };
   });
 }

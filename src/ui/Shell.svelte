@@ -6,6 +6,8 @@
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
+  import AreaOverview from './views/AreaOverview.svelte';
+  import { loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -85,6 +87,13 @@
     activeTeamId.set(teamId);
     editRequest = eventId;
     select('meetings');
+  }
+
+  /** A load cell in the area overview: Load for that team, showing that week. */
+  function openLoad(teamId: string, monday: string) {
+    activeTeamId.set(teamId);
+    loadWeek.set(monday);
+    select('load', true);
   }
 
   function select(id: ViewId, focus = false) {
@@ -349,7 +358,13 @@
                   >
                 </div>
               </section>
-            {:else if (id === 'meetings' || id === 'team') && activeArea}
+            {:else if id === 'team' && activeArea}
+              {#if active === id}<AreaOverview
+                  area={activeArea}
+                  onOpenLoad={openLoad}
+                  onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                />{/if}
+            {:else if id === 'meetings' && activeArea}
               {#if active === id}<AreaTeams area={activeArea} view={id} />{/if}
             {:else if id === 'calendar'}
               {#if setupDone}
