@@ -41,6 +41,8 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
       });
     return out;
   },
+  // 4 -> 5: teams can be grouped into areas; existing files have none.
+  4: (w) => ({ ...(w as Record<string, unknown>), areas: [] }),
 };
 
 export type MigrateResult =

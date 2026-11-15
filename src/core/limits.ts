@@ -12,9 +12,10 @@ export const LIMITS = {
   yearMax: 2200,
   /** Planning horizon in years. */
   horizonYears: 5,
-  /** Events of all teams together. */
+  /** Events of all teams and areas together. */
   events: 500,
   teams: 50,
+  areas: 50,
   roles: 200,
   people: 1000,
   categories: 200,
