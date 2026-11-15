@@ -153,7 +153,10 @@ const norm = (s: string): string => s.trim().toLowerCase();
 export function areaRoleIds(template: Template): Set<string> {
   if (!template.area) return new Set();
   const inTeam = new Set(template.team.events.flatMap((e) => e.participants.map((p) => p.roleId)));
-  return new Set(template.roles.map((r) => r.id).filter((id) => !inTeam.has(id)));
+  const own = template.area.events.flatMap((e) =>
+    e.participants.filter((p) => !(p as { fromTeams?: boolean }).fromTeams).map((p) => p.roleId),
+  );
+  return new Set(own.filter((id) => !inTeam.has(id)));
 }
 
 function shiftRule(rule: Rule, shift: number): Rule {
@@ -197,17 +200,22 @@ export function applyTemplate(
   const catMap = mapItems('categories', 'c');
 
   // A second team from a template with an area joins the area that holds the first one.
+  // If its teams were all removed, the empty area with the template's name is taken again.
   const joined = tpl.area
-    ? out.areas.find((a) =>
+    ? (out.areas.find((a) =>
         a.teamIds.some((id) => out.teams.find((t) => t.id === id)?.templateId === tpl.id),
-      )
+      ) ?? out.areas.find((a) => a.teamIds.length === 0 && norm(a.name) === norm(tpl.area!.name)))
     : undefined;
 
   const cadenceStart = tpl.team.cadence.start;
   let shift: number;
   if (joined?.cadence && tpl.area) {
-    // Keep the new team's iterations in step with the area's increments.
-    shift = diffDays(joined.cadence.start, tpl.area.cadence.start);
+    // Keep the new team's iterations in step with the area's increments: start with the first
+    // increment on or after today.
+    const period = joined.cadence.lengthWeeks * 7;
+    const behind = diffDays(opts.today, joined.cadence.start);
+    const periods = behind > 0 ? Math.ceil(behind / period) : 0;
+    shift = diffDays(addDays(joined.cadence.start, periods * period), tpl.area.cadence.start);
   } else {
     const wd = weekday(cadenceStart);
     let newStart = opts.today;

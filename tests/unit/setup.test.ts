@@ -131,4 +131,22 @@ describe('setupTeam', () => {
     expect(area.members.map((m) => m.personId)).toEqual([person('Rita')]);
     expect(area.memberHours).toEqual({ [person('Rita')]: out.settings.hoursPerWeek });
   });
+
+  it('gives no extra area hours to someone who is also in the team', () => {
+    const safe = builtinTemplate('safe', 'en');
+    const id = (name: string) => safe.roles.find((r) => r.name === name)!.id;
+    const r = setupTeam(emptyWorkspace(today), {
+      template: safe,
+      name: 'Alpha',
+      start: today,
+      members: [
+        { name: 'Kim', roleId: id('Release Train Engineer') },
+        { name: 'Kim', roleId: id('Product Owner') },
+      ],
+    });
+    if (!r.ok) throw new Error('setup');
+    const area = r.value[0].areas[0]!;
+    expect(area.members).toHaveLength(1);
+    expect(area.memberHours).toEqual({});
+  });
 });

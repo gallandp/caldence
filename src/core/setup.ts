@@ -50,6 +50,7 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     input.template ? [...areaRoleIds(input.template)].map(roleFor).filter((id) => id) : [],
   );
 
+  const toArea = new Set<string>();
   for (const member of input.members) {
     const name = member.name.trim();
     const roleId = roleFor(member.roleId);
@@ -63,9 +64,14 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     const unit = area && areaRoles.has(roleId) ? area : out.teams.find((t) => t.id === teamId)!;
     if (unit.members.some((m) => m.personId === personId && m.roleId === roleId)) continue;
     unit.members.push({ personId, roleId });
-    // A missing area entry means 0 h; someone who is only in the area works there full time.
-    if (unit === area) unit.memberHours[personId] ??= out.settings.hoursPerWeek;
+    if (unit === area) toArea.add(personId);
   }
+  // A missing area entry means 0 h; someone who is only in the area works there full time.
+  const team = out.teams.find((t) => t.id === teamId)!;
+  const area = out.areas.find((a) => a.teamIds.includes(teamId));
+  for (const id of toArea)
+    if (area && !team.members.some((m) => m.personId === id))
+      area.memberHours[id] ??= out.settings.hoursPerWeek;
 
   const checked = validate(out);
   if (!checked.ok) return checked;

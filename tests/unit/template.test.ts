@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import {
   applyTemplate,
+  areaRoleIds,
   loadTemplate,
   teamToTemplate,
   validateTemplate,
@@ -176,8 +177,50 @@ describe('applyTemplate', () => {
     expect(ws.areas).toHaveLength(1);
     expect(ws.areas[0]!.teamIds).toEqual([ws.teams[0]!.id, teamId]);
     expect(ws.areas[0]!.events).toHaveLength(6);
-    expect(ws.teams[1]!.cadence.start).toBe('2027-02-15');
+    expect(ws.teams[1]!.cadence.start).toBe('2027-04-26');
     expect(ws.roles).toHaveLength(5);
+  });
+
+  it('SAFe starts a joining team with the first increment on or after today', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    // Area starts 2027-02-15 with 10-week increments: the next one after 2027-05-01 is 2027-07-05.
+    const r = applyTemplate(first.value[0], safe, { name: 'B', today: '2027-05-01' });
+    expect(r.ok && r.value[0].teams[1]!.cadence.start).toBe('2027-07-05');
+    const exact = applyTemplate(first.value[0], safe, { name: 'C', today: '2027-04-26' });
+    expect(exact.ok && exact.value[0].teams[1]!.cadence.start).toBe('2027-04-26');
+  });
+
+  it('SAFe takes the empty Release Train again after its teams were removed', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    const ws = first.value[0];
+    ws.teams = [];
+    ws.areas[0]!.teamIds = [];
+    const r = applyTemplate(ws, safe, { name: 'B', today: '2027-02-10' });
+    if (!r.ok) throw new Error('second');
+    expect(r.value[0].areas).toHaveLength(1);
+    expect(r.value[0].areas[0]!.teamIds).toEqual([r.value[1]]);
+  });
+
+  it('counts as area roles only those the area invites as themselves', () => {
+    const safe = structuredClone(BUILTIN_TEMPLATES.safe.en);
+    safe.roles.push({ id: 'r-arch', name: 'Architect', colour: '#334155' });
+    safe.area!.events[0]!.participants.push({
+      roleId: 'r-arch',
+      share: 1,
+      fromTeams: true,
+    } as never);
+    expect([...areaRoleIds(safe)].sort()).toEqual(['r-pm', 'r-rte']);
+    expect(areaRoleIds(BUILTIN_TEMPLATES.scrum.en).size).toBe(0);
   });
 
   it('SAFe keeps level names the workspace already has', () => {
@@ -304,6 +347,32 @@ describe('wrong files', () => {
     (t.team as { events: { time: string }[] }).events[0]!.time = 'x';
     const r = validateTemplate(t);
     expect(!r.ok && r.errors[0]!.path).toBe('team.events.0.time');
+  });
+  it('checks an area and maps its error paths to area.', () => {
+    const safe = (): Record<string, unknown> => structuredClone(BUILTIN_TEMPLATES.safe.en) as never;
+    type A = { events: { time: string }[]; cadence?: unknown; levelNames?: unknown };
+    const errs = (t: Record<string, unknown>) => {
+      const r = validateTemplate(t);
+      return r.ok ? [] : r.errors.map((e) => `${e.path} ${e.key}`);
+    };
+    let t = safe();
+    (t.area as A).events[0]!.time = 'x';
+    expect(errs(t)[0]).toMatch(/^area\.events\.0\.time /);
+    t = safe();
+    delete (t.area as A).cadence;
+    expect(errs(t)).toContain('area.cadence error.required');
+    t = safe();
+    (t.area as A).levelNames = { preset: 'nope' };
+    expect(errs(t)).toContain('area.levelNames.preset error.enum.invalid');
+    t = safe();
+    t.area = 5;
+    expect(errs(t)).toContain('area error.type');
+    t = safe();
+    (t.area as Record<string, unknown>).members = [];
+    expect(errs(t)).toEqual(['area.members template.error.personal']);
+    t = safe();
+    (t.area as Record<string, unknown>).teamIds = [];
+    expect(errs(t)).toEqual(['area.teamIds template.error.notTemplate']);
   });
   it('rejects ids with line breaks or other unsafe characters (security #39)', () => {
     const t = tpl();
