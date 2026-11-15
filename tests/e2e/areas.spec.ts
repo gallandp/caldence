@@ -59,7 +59,7 @@ test('the views follow the area: Load sums its teams, Team offers them', async (
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   const panel = page.getByRole('tabpanel', { name: 'Team' });
   await expect(panel.getByText(/People and roles are assigned per team/)).toBeVisible();
-  await panel.getByRole('button', { name: 'Team Beta' }).focus();
+  await panel.getByRole('button', { name: 'Team Beta', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(currentUnit(page)).toHaveText('Team Beta');
   // The team view replaces the list of teams; focus moves to the panel instead of getting lost.

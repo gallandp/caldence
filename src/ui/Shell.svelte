@@ -22,7 +22,7 @@
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
-  import { activeTeamId, workspace } from './state/workspace';
+  import { activeTeamId, filter, workspace } from './state/workspace';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -92,7 +92,9 @@
   /** A load cell in the area overview: Load for that team, showing that week. */
   function openLoad(teamId: string, monday: string) {
     activeTeamId.set(teamId);
-    loadWeek.set(monday);
+    // A person filter would hide the team's week.
+    filter.set({ teamId });
+    loadWeek.set({ teamId, monday });
     select('load', true);
   }
 
@@ -359,7 +361,7 @@
                 </div>
               </section>
             {:else if id === 'team' && activeArea}
-              {#if active === id}<AreaOverview
+              {#if active === id}<AreaTeams area={activeArea} view={id} /><AreaOverview
                   area={activeArea}
                   onOpenLoad={openLoad}
                   onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}

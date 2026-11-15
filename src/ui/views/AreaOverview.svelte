@@ -47,7 +47,10 @@
     const today = mondayOf(localToday());
     const first = mondayOf(ws.settings.horizon.from);
     const last = mondayOf(ws.settings.horizon.to);
-    return today < first ? first : today > last ? first : today;
+    // Near the end of the horizon the window ends with it instead of shrinking.
+    const latest = addDays(last, -(WEEKS - 1) * 7);
+    const end = latest > first ? latest : first;
+    return today < first ? first : today > end ? end : today;
   });
   const weekCount = $derived(
     Math.max(1, Math.min(WEEKS, diffDays(mondayOf(ws.settings.horizon.to), from) / 7 + 1)),
@@ -137,8 +140,8 @@
           { n: formatNumber($locale, r.weeks, 0), m: formatNumber($locale, r.reference, 0) },
         );
       case 'offset':
-        return $t(r.days === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
-          n: formatNumber($locale, r.days, 0),
+        return $t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
+          n: formatNumber($locale, r.weeks, 0),
         });
     }
   }
@@ -156,6 +159,12 @@
       })}`;
     return label;
   }
+  function segDates(c: Cadence, s: Segment): string {
+    return $t('overview.seg.dates', {
+      from: formatDisplayDate($locale, s.start, 'short'),
+      to: formatDisplayDate($locale, addDays(s.start, c.lengthWeeks * 7 - 1), 'short'),
+    });
+  }
   function segTitle(c: Cadence, s: Segment): string {
     const end = addDays(s.start, c.lengthWeeks * 7 - 1);
     return $t('overview.seg.title', {
@@ -167,7 +176,9 @@
   }
 
   /** Mondays on which an area period starts (week labels are emphasised there). */
-  const areaStarts = $derived(new Set(comparison.areaSegments.map((s) => mondays[s.fromWeek])));
+  const areaStarts = $derived(
+    new Set(comparison.areaSegments.filter((s) => s.start >= from).map((s) => mondays[s.fromWeek])),
+  );
 
   /** Heat level 0-4 relative to the maximum share, so the ramp reads the same in every file. */
   function level(cell: LoadCell): number {
@@ -210,6 +221,11 @@
         (x) => ', ' + $t('overview.steer.inTeam', { hours: hours(x.hours), team: teamName(x.id) }),
       )
       .join('');
+  /** People with the role in the area's teams (area-level holders have their own chip). */
+  const fromTeams = (roleId: string) =>
+    new Set(
+      teams.flatMap((x) => x.members.filter((m) => m.roleId === roleId).map((m) => m.personId)),
+    ).size;
   const unit = $derived(areaAsTeam(area));
   const whenText = (e: Area['events'][number]) =>
     $t('overview.steer.when', {
@@ -251,7 +267,7 @@
       >
     </div>
     <div class="card kpi" data-kpi="warn">
-      <span class="label">{$t('overview.kpi.warn')}</span>
+      <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
       <b>{formatNumber($locale, warnedMondays.length, 0)}</b>
       <span class="label"
         >{$t('overview.kpi.warn.sub', { n: formatNumber($locale, weekCount, 0) })}</span
@@ -307,7 +323,10 @@
                 <span
                   class="seg area"
                   style:grid-column="{s.fromWeek + 1} / span {s.span}"
-                  title={segTitle(area.cadence, s)}>{segLabel(area.cadence, s)}</span
+                  title={segTitle(area.cadence, s)}
+                  >{segLabel(area.cadence, s)}<span class="sr-only"
+                    >, {segDates(area.cadence, s)}</span
+                  ></span
                 >
               {/each}
             </div>
@@ -331,9 +350,9 @@
                   class:off={s.off}
                   style:grid-column="{s.fromWeek + 1} / span {s.span}"
                   title={segTitle(row.cadence, s)}
-                  >{segLabel(row.cadence, s, i === 0)}{#if s.off}<span class="sr-only">
-                      ({$t('overview.seg.off')})</span
-                    >{/if}</span
+                  >{segLabel(row.cadence, s, i === 0)}<span class="sr-only"
+                    >, {segDates(row.cadence, s)}{s.off ? `, ${$t('overview.seg.off')}` : ''}</span
+                  ></span
                 >
               {/each}
             </div>
@@ -470,19 +489,19 @@
                     <small>{whenText(event)}</small>
                   </td>
                   <td class="who">
-                    {#each event.participants as p, j (p.roleId + (p.fromTeams ? '*' : ''))}
+                    {#each event.participants as p, j (j)}
                       {#if p.fromTeams}
                         <span class="chip from"
                           ><i class="dot" aria-hidden="true"></i>{$t('area.fromTeams.count', {
                             role: roleName(p.roleId),
-                            n: formatNumber($locale, m?.attendees[j]?.length ?? 0, 0),
+                            n: formatNumber($locale, fromTeams(p.roleId), 0),
                           })}</span
                         >
                       {:else}
                         <span class="chip area-role">{roleName(p.roleId)}</span>
                       {/if}
                     {/each}
-                    {#each missing as gap (gap.teamId + gap.roleId)}
+                    {#each missing as gap, k (k)}
                       <span class="missing"
                         ><svg viewBox="0 0 24 24" aria-hidden="true"
                           ><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
@@ -517,7 +536,7 @@
     --h0: var(--surface-2);
     --h1: light-dark(#dcd8ff, #2c2760);
     --h2: light-dark(#b3a9ff, #463d9a);
-    --h3: light-dark(#7e6ef2, #6d5fd6);
+    --h3: light-dark(#6a58ea, #8a7cf0);
     --h4: light-dark(#4a37d6, #a99dff);
     --label: 9.5rem;
     min-width: 0;

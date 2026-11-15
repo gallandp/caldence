@@ -46,7 +46,10 @@ test('the area overview compares cadences, shows load and the area steering', as
   await expect(cadence.locator('[data-team-row="team-delta"]')).toContainText(
     'starts on Wednesday',
   );
-  await expect(cadence.locator('.seg.area')).toHaveText(['PI 1', 'PI 2']);
+  await expect(cadence.locator('.seg.area')).toHaveText([
+    /^PI 1, 01\/04\/2027 to 03\/14\/2027$/,
+    /^PI 2, /,
+  ]);
 
   // One row of twelve week cells per team.
   const load = overview.locator('[data-load]');
@@ -59,8 +62,8 @@ test('the area overview compares cadences, shows load and the area steering', as
   await expect(roles).toContainText('Head of area · 32.0 h in the area');
   await expect(roles.locator('li', { hasText: 'Pia' })).toContainText('0 h · set hours');
   const forum = overview.locator('[data-meeting="ev-po-forum"]');
-  await expect(forum).toContainText('Product Owner · every team (4)');
-  // Ruth, the four team POs: 5 h a week.
+  await expect(forum).toContainText('Product Owner · every team (3)');
+  // Ruth, Pia (area PO) and the three team POs: 5 h a week.
   await expect(forum.locator('td.num')).toHaveText('5.0');
   // Only Team Beta has developers.
   await expect(overview.locator('[data-meeting="ev-planning"] .missing')).toHaveCount(3);

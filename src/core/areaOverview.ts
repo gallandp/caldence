@@ -12,7 +12,7 @@ import { effectiveDuration } from './recurrence';
 export type StepReason =
   | { kind: 'weekday'; weekday: number }
   | { kind: 'length'; weeks: number; reference: number }
-  | { kind: 'offset'; days: number };
+  | { kind: 'offset'; weeks: number };
 
 export interface Segment {
   /** First day of the period, possibly before the window. */
@@ -106,7 +106,8 @@ export function stepReasons(team: Cadence, reference: Cadence, fromArea: boolean
   if (!fits) reasons.push({ kind: 'length', weeks: t, reference: r });
   if (reasons.length === 0) {
     const days = mod(diffDays(team.start, reference.start), t * 7);
-    if (days !== 0) reasons.push({ kind: 'offset', days: Math.min(days, t * 7 - days) });
+    // Same weekday here, so the offset is whole weeks.
+    if (days !== 0) reasons.push({ kind: 'offset', weeks: Math.min(days, t * 7 - days) / 7 });
   }
   return reasons;
 }
@@ -134,9 +135,8 @@ export function compareCadences(
       if (!reference.fromArea) return { ...s, off: true };
       // A period is off when it starts on another weekday or runs over an area period start.
       const length = team.cadence.lengthWeeks * 7;
-      const crosses = Array.from({ length: length - 1 }, (_, d) => d + 1).some(
-        (d) => mod(diffDays(addDays(s.start, d), reference.cadence.start), refLength) === 0,
-      );
+      const o = mod(diffDays(s.start, reference.cadence.start), refLength);
+      const crosses = o === 0 ? length > refLength : o + length > refLength;
       return { ...s, off: weekday(s.start) !== weekday(reference.cadence.start) || crosses };
     });
     return { teamId: team.id, cadence: team.cadence, inStep, reasons, segments: segs };
@@ -179,7 +179,7 @@ export interface AreaMeetingHours {
   eventId: string;
   /** Hours per week of all attendees together; 0 for one-off and milestone meetings. */
   perWeek: number;
-  /** Whether the meeting comes back on its own (not once, not tied to a milestone). */
+  /** Whether the meeting comes back on its own (it has a weekly average). */
   recurring: boolean;
   /** Attendees per participant line, in the event's order. */
   attendees: string[][];
@@ -199,7 +199,7 @@ export function areaMeetingHours(ws: Workspace, area: Area): AreaMeetingHours[] 
     return {
       eventId: event.id,
       perWeek: hours,
-      recurring: event.rule.type !== 'once' && event.rule.type !== 'cycle-milestone',
+      recurring: perWeek > 0,
       attendees: lists,
     };
   });

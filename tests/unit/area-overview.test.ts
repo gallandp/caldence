@@ -106,7 +106,7 @@ describe('stepReasons', () => {
   });
 
   it('names an offset in days', () => {
-    expect(stepReasons(sprint(2, '2027-01-11'), pi, true)).toEqual([{ kind: 'offset', days: 7 }]);
+    expect(stepReasons(sprint(2, '2027-01-11'), pi, true)).toEqual([{ kind: 'offset', weeks: 1 }]);
   });
 
   it('needs the same length when teams are compared with each other', () => {

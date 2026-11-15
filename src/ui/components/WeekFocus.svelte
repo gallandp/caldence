@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { isoWeek } from '../../core/date';
   import { capacity, fte, hoursIn, loadPerWeek } from '../../core/load';
   import { unitTeamIds } from '../../core/model';
@@ -12,7 +12,9 @@
   const uid = $props.id();
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
   const week = $derived(
-    $loadWeek ? loadPerWeek($workspace, $index).find((w) => w.monday === $loadWeek) : undefined,
+    $loadWeek && $loadWeek.teamId === teamId
+      ? loadPerWeek($workspace, $index).find((w) => w.monday === $loadWeek.monday)
+      : undefined,
   );
   const maxFte = $derived($workspace.settings.thresholds.maxFte);
   const rows = $derived.by(() => {
@@ -40,6 +42,8 @@
         })
       : '',
   );
+
+  onDestroy(() => loadWeek.set(null));
 
   let card: HTMLElement | undefined = $state();
   // Brought into view when a week is picked from the area overview.
