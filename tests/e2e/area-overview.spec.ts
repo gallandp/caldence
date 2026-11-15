@@ -23,7 +23,12 @@ async function openOverview(page: Page) {
   await openWorkspaceFile(page, ws);
   await pickUnit(page, 'Payments');
   await openMenuIfNarrow(page);
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  // With an area selected the Team entry is the area's page; the overview is its second page.
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Cadence & load' })
+    .click();
   const overview = page.locator('[data-area-overview]');
   await expect(overview).toBeVisible();
   return overview;

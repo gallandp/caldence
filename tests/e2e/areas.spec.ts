@@ -50,21 +50,27 @@ test('an area groups teams in the switcher and is selected like a team', async (
   await pickUnit(page, 'Platform');
 });
 
-test('the views follow the area: Load sums its teams, Team offers them', async ({ page }) => {
+test('the views follow the area: Load sums its teams, the area page offers them', async ({
+  page,
+}) => {
   await openExample(page);
   await addArea(page, 'Platform', ['Team Alpha', 'Team Beta']);
   await page.getByRole('tab', { name: 'Load', exact: true }).click();
   await expect(page.getByText(/^Hours in the teams of Platform/)).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Team', exact: true }).click();
-  const panel = page.getByRole('tabpanel', { name: 'Team' });
+  // With an area selected the Team entry is the area's page; its second page lists the teams.
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Area' });
+  await panel.getByRole('button', { name: 'Cadence & load' }).click();
   await expect(panel.getByText(/People and roles are assigned per team/)).toBeVisible();
   await panel.getByRole('button', { name: 'Team Beta', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(currentUnit(page)).toHaveText('Team Beta');
   // The team view replaces the list of teams; focus moves to the panel instead of getting lost.
   await expect(page.locator('#panel-team')).toBeFocused();
-  await expect(panel.getByRole('list', { name: 'Members of Team Beta' })).toBeVisible();
+  await expect(
+    page.locator('#panel-team').getByRole('list', { name: 'Members of Team Beta' }),
+  ).toBeVisible();
 });
 
 test('rename an area, move a team into it after a question, delete it', async ({ page }) => {
