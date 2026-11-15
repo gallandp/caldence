@@ -161,17 +161,18 @@
         <legend><h3 tabindex="-1" bind:this={heading}>{$t('setup.way')}</h3></legend>
         {#each ids as id (id)}
           {@const tpl = builtinTemplate(id, $locale)}
-          <div class="choice">
+          <label class="choice">
             <input
               type="radio"
               id="{uid}-way-{id}"
               name="{uid}-way"
               value={id}
+              aria-labelledby="{uid}-way-{id}-name"
               aria-describedby="{uid}-way-{id}-desc"
               bind:group={choice}
             />
             <span>
-              <label for="{uid}-way-{id}">{tpl.name}</label>
+              <span class="name" id="{uid}-way-{id}-name">{tpl.name}</span>
               <span class="desc" id="{uid}-way-{id}-desc"
                 >{$t('setup.tpl.desc', {
                   kind: $t('team.cadence.kind.' + tpl.team.cadence.kind),
@@ -180,22 +181,23 @@
                 })}</span
               >
             </span>
-          </div>
+          </label>
         {/each}
-        <div class="choice">
+        <label class="choice">
           <input
             type="radio"
             id="{uid}-way-none"
             name="{uid}-way"
             value="none"
+            aria-labelledby="{uid}-way-none-name"
             aria-describedby="{uid}-way-none-desc"
             bind:group={choice}
           />
           <span>
-            <label for="{uid}-way-none">{$t('setup.none')}</label>
+            <span class="name" id="{uid}-way-none-name">{$t('setup.none')}</span>
             <span class="desc" id="{uid}-way-none-desc">{$t('setup.none.desc')}</span>
           </span>
-        </div>
+        </label>
       </fieldset>
     {:else if step === 2}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.team')}</h3>
@@ -365,12 +367,14 @@
   .choice input {
     margin-top: 0.3rem;
   }
-  .choice label {
+  .name {
     font-weight: 600;
-    cursor: pointer;
   }
   .desc {
     display: block;
+    /* The card is a label now; keep the description at body size, not the label size. */
+    font-size: 1rem;
+    font-weight: 400;
     color: var(--text-muted);
   }
   .field {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Plan new, step 1: a click anywhere on an option card (also on its description) picks that way of working (#174)
+
 ## 1.34.0 – 2026-11-15
 
 ### Added
