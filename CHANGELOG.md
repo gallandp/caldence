@@ -5,6 +5,7 @@
 ### Added
 
 - Areas: group teams under an area (Bereich, or your own level name) with ⋯ › Add area, choose its teams, rename or delete it. The sidebar switcher lists each area with its teams below it; with an area selected, Calendar and Load show all its teams together, and Meetings & cadence and Team offer its teams to pick (#164)
+- Area overview "Cadence & load": compares each team's sprints or periods with the area cadence (or, without one, with the cadence most teams share) and names why a team is out of step; the meeting load of each team per week sits on the same 12-week axis, and a cell opens Load at that week. Key figures and the area's own roles and meetings with their weekly hours complete the page. It only compares; no cadence is changed (#168)
 
 ### Fixed
 
