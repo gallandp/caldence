@@ -6,11 +6,20 @@
 
   let roleId = $state('');
   let personId = $state('');
+  /** With an area selected: one of its teams, or '' for the whole area. */
+  let teamId = $state('');
+
+  const area = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
+  const areaTeams = $derived(
+    area ? $workspace.teams.filter((team) => area.teamIds.includes(team.id)) : [],
+  );
 
   // A filter must not point at something that was deleted or replaced by an undo or an opened file.
   $effect(() => {
     if (roleId !== '' && !$workspace.roles.some((r) => r.id === roleId)) roleId = '';
     if (personId !== '' && !$workspace.people.some((p) => p.id === personId)) personId = '';
+    // Also when another team or area is picked, or the team leaves the area.
+    if (teamId !== '' && !areaTeams.some((team) => team.id === teamId)) teamId = '';
   });
 
   // The person view spans all teams; otherwise the filter follows the active team.
@@ -18,7 +27,8 @@
     if (personId !== '') filter.set({ personId });
     else {
       const next: { teamId?: string; roleId?: string } = {};
-      if ($activeTeamId !== null) next.teamId = $activeTeamId;
+      if (teamId !== '') next.teamId = teamId;
+      else if ($activeTeamId !== null) next.teamId = $activeTeamId;
       if (roleId !== '') next.roleId = roleId;
       filter.set(next);
     }
@@ -27,6 +37,17 @@
 
 <div class="filters" role="region" aria-label={$t('filter.label')}>
   <span class="for">{$t('filter.label')}</span>
+  {#if area}
+    <div class="field">
+      <label for="{uid}-team">{$t('filter.team')}</label>
+      <select id="{uid}-team" bind:value={teamId} disabled={personId !== ''}>
+        <option value="">{$t('filter.allTeams')}</option>
+        {#each areaTeams as team (team.id)}
+          <option value={team.id}>{team.name}</option>
+        {/each}
+      </select>
+    </div>
+  {/if}
   <div class="field">
     <label for="{uid}-role">{$t('filter.role')}</label>
     <select id="{uid}-role" bind:value={roleId} disabled={personId !== ''}>

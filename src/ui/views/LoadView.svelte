@@ -2,7 +2,7 @@
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import { capacity, fte, hoursIn, loadPerWeek, warnings } from '../../core/load';
-  import { unitTeamIds } from '../../core/model';
+  import { unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -13,6 +13,7 @@
     translate as t,
   } from '../../i18n';
   import CostCard from '../components/CostCard.svelte';
+  import WeekFocus from '../components/WeekFocus.svelte';
   import { filter, index, workspace } from '../state/workspace';
 
   const summary = $derived(loadSummary($workspace, $filter));
@@ -29,9 +30,9 @@
 
   /** With a team or area filter the person table shows its members and their hours in it. */
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
-  /** The team's id, or an area's teams. */
-  const teamIds = $derived(teamId ? unitTeamIds($workspace, teamId) : undefined);
   const area = $derived($workspace.areas.find((a) => a.id === teamId));
+  /** The team's id, or an area's teams and the area itself (its own meetings count there). */
+  const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
     $filter.personId
       ? $workspace.people.filter((p) => p.id === $filter.personId)
@@ -151,6 +152,7 @@
 </script>
 
 <div class="load stack">
+  <WeekFocus />
   {#if summary.byCategory.length === 0 && summary.byRole.length === 0}
     <p class="hint card">{$t('load.empty')}</p>
   {/if}

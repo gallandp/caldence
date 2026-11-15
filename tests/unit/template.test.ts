@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import {
   applyTemplate,
+  areaRoleIds,
   loadTemplate,
   teamToTemplate,
   validateTemplate,
@@ -106,25 +107,142 @@ describe('applyTemplate', () => {
     expect(planning.participants.some((p) => p.roleId === 'x')).toBe(true);
   });
 
-  it('shifts SAFe milestones and anchors with the cadence start', () => {
+  it('SAFe creates a Release Train area above the team with the PI events', () => {
     const safe = BUILTIN_TEMPLATES.safe.en;
     const r = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
       name: 'ART',
       today: '2027-02-10',
     });
     if (!r.ok) throw new Error('apply');
-    const team = r.value[0].teams[0]!;
-    expect(team.cadence.start).toBe('2027-02-15');
-    const ms = team.cycles[0]!.milestones.map((m) => m.date);
-    expect(ms).toEqual(['2027-04-22', '2027-04-26']);
-    const iterationEnd = new Set(['Iteration Review', 'Iteration Retrospective', 'System Demo']);
+    const [ws, teamId] = r.value;
+    expect(ws.settings.levelNames).toEqual({ preset: 'train' });
+    expect(ws.areas).toHaveLength(1);
+    const area = ws.areas[0]!;
+    const team = ws.teams[0]!;
+    expect(team.id).toBe(teamId);
+    expect(area.id).not.toBe(team.id);
+    expect(area.name).toBe('Release Train');
+    expect(area.teamIds).toEqual([teamId]);
+    expect(area.members).toEqual([]);
+    expect(area.memberHours).toEqual({});
+    expect(area.cadence).toEqual({ kind: 'pi', lengthWeeks: 10, start: '2027-02-15' });
+    expect(team.cadence).toEqual({ kind: 'sprint', lengthWeeks: 2, start: '2027-02-15' });
+    expect(area.cycles[0]!.milestones.map((m) => m.date)).toEqual(['2027-04-22', '2027-04-26']);
+    expect(team.cycles).toEqual([]);
+
+    const roleName = (id: string) => ws.roles.find((x) => x.id === id)!.name;
+    expect(area.events.map((e) => e.name)).toEqual([
+      'PI Planning day 1',
+      'PI Planning day 2',
+      'ART Sync',
+      'System Demo',
+      'Inspect & Adapt',
+      'PI Planning preparation',
+    ]);
+    expect(team.events.map((e) => e.name)).toEqual([
+      'Iteration Planning',
+      'Team Sync',
+      'Iteration Review',
+      'Iteration Retrospective',
+    ]);
+    // Area roles are invited as themselves, team roles "from every team".
+    const areaRoles = new Set(['Release Train Engineer', 'Product Management']);
+    for (const e of area.events)
+      for (const p of e.participants)
+        expect((p as { fromTeams?: boolean }).fromTeams, `${e.name}/${roleName(p.roleId)}`).toBe(
+          areaRoles.has(roleName(p.roleId)) ? undefined : true,
+        );
+    // RTE and Product Management are no longer stuffed into the team.
     for (const e of team.events)
+      for (const p of e.participants) expect(areaRoles.has(roleName(p.roleId))).toBe(false);
+    for (const e of [...team.events, ...area.events])
       if (e.rule.type === 'every-n-weeks')
-        expect(e.rule.anchor).toBe(iterationEnd.has(e.name) ? '2027-02-22' : '2027-02-15');
+        expect(e.rule.anchor).toBe(
+          ['Iteration Review', 'Iteration Retrospective', 'System Demo'].includes(e.name)
+            ? '2027-02-22'
+            : '2027-02-15',
+        );
+  });
+
+  it('SAFe puts a second team into the same area, in step with its increments', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    const second = applyTemplate(first.value[0], safe, { name: 'B', today: '2027-03-03' });
+    if (!second.ok) throw new Error('second');
+    const [ws, teamId] = second.value;
+    expect(ws.areas).toHaveLength(1);
+    expect(ws.areas[0]!.teamIds).toEqual([ws.teams[0]!.id, teamId]);
+    expect(ws.areas[0]!.events).toHaveLength(6);
+    expect(ws.teams[1]!.cadence.start).toBe('2027-04-26');
+    expect(ws.roles).toHaveLength(5);
+  });
+
+  it('SAFe starts a joining team with the first increment on or after today', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    // Area starts 2027-02-15 with 10-week increments: the next one after 2027-05-01 is 2027-07-05.
+    const r = applyTemplate(first.value[0], safe, { name: 'B', today: '2027-05-01' });
+    expect(r.ok && r.value[0].teams[1]!.cadence.start).toBe('2027-07-05');
+    const exact = applyTemplate(first.value[0], safe, { name: 'C', today: '2027-04-26' });
+    expect(exact.ok && exact.value[0].teams[1]!.cadence.start).toBe('2027-04-26');
+  });
+
+  it('SAFe takes the empty Release Train again after its teams were removed', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    const ws = first.value[0];
+    ws.teams = [];
+    ws.areas[0]!.teamIds = [];
+    const r = applyTemplate(ws, safe, { name: 'B', today: '2027-02-10' });
+    if (!r.ok) throw new Error('second');
+    expect(r.value[0].areas).toHaveLength(1);
+    expect(r.value[0].areas[0]!.teamIds).toEqual([r.value[1]]);
+  });
+
+  it('counts as area roles only those the area invites as themselves', () => {
+    const safe = structuredClone(BUILTIN_TEMPLATES.safe.en);
+    safe.roles.push({ id: 'r-arch', name: 'Architect', colour: '#334155' });
+    safe.area!.events[0]!.participants.push({
+      roleId: 'r-arch',
+      share: 1,
+      fromTeams: true,
+    } as never);
+    expect([...areaRoleIds(safe)].sort()).toEqual(['r-pm', 'r-rte']);
+    expect(areaRoleIds(BUILTIN_TEMPLATES.scrum.en).size).toBe(0);
+  });
+
+  it('SAFe keeps level names the workspace already has', () => {
+    const base = emptyWorkspace('2027-02-10');
+    base.settings.levelNames = { preset: 'department' };
+    const r = applyTemplate(base, BUILTIN_TEMPLATES.safe.en, { name: 'A', today: '2027-02-10' });
+    expect(r.ok && r.value[0].settings.levelNames).toEqual({ preset: 'department' });
+  });
+
+  it('Scrum and Kanban create no area', () => {
+    for (const id of ['scrum', 'kanban'] as const) {
+      expect(BUILTIN_TEMPLATES[id].en.area).toBeUndefined();
+      const r = applyTemplate(emptyWorkspace('2027-02-10'), BUILTIN_TEMPLATES[id].en, {
+        name: 'A',
+        today: '2027-02-10',
+      });
+      expect(r.ok && r.value[0].areas).toEqual([]);
+    }
   });
 
   for (const loc of LOCALES)
-    it(`SAFe.${loc}: review, retrospective and demo first fall in the iteration's second week`, () => {
+    it(`SAFe.${loc}: review and retrospective first fall in the iteration's second week`, () => {
       const r = applyTemplate(emptyWorkspace('2027-02-10'), BUILTIN_TEMPLATES.safe[loc], {
         name: 'ART',
         today: '2027-02-10',
@@ -134,7 +252,7 @@ describe('applyTemplate', () => {
       const team = ws.teams[0]!;
       const start = team.cadence.start;
       const occ = occurrences(team, ws.settings, workspaceIndex(ws));
-      const ids = ['e-itreview', 'e-itretro', 'e-demo'];
+      const ids = ['e-itreview', 'e-itretro'];
       for (const id of ids) {
         const first = occ.find((o) => o.eventId === id)!;
         expect(first, id).toBeDefined();
@@ -229,6 +347,32 @@ describe('wrong files', () => {
     (t.team as { events: { time: string }[] }).events[0]!.time = 'x';
     const r = validateTemplate(t);
     expect(!r.ok && r.errors[0]!.path).toBe('team.events.0.time');
+  });
+  it('checks an area and maps its error paths to area.', () => {
+    const safe = (): Record<string, unknown> => structuredClone(BUILTIN_TEMPLATES.safe.en) as never;
+    type A = { events: { time: string }[]; cadence?: unknown; levelNames?: unknown };
+    const errs = (t: Record<string, unknown>) => {
+      const r = validateTemplate(t);
+      return r.ok ? [] : r.errors.map((e) => `${e.path} ${e.key}`);
+    };
+    let t = safe();
+    (t.area as A).events[0]!.time = 'x';
+    expect(errs(t)[0]).toMatch(/^area\.events\.0\.time /);
+    t = safe();
+    delete (t.area as A).cadence;
+    expect(errs(t)).toContain('area.cadence error.required');
+    t = safe();
+    (t.area as A).levelNames = { preset: 'nope' };
+    expect(errs(t)).toContain('area.levelNames.preset error.enum.invalid');
+    t = safe();
+    t.area = 5;
+    expect(errs(t)).toContain('area error.type');
+    t = safe();
+    (t.area as Record<string, unknown>).members = [];
+    expect(errs(t)).toEqual(['area.members template.error.personal']);
+    t = safe();
+    (t.area as Record<string, unknown>).teamIds = [];
+    expect(errs(t)).toEqual(['area.teamIds template.error.notTemplate']);
   });
   it('rejects ids with line breaks or other unsafe characters (security #39)', () => {
     const t = tpl();

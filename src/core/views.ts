@@ -1,6 +1,14 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
 import { fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
-import { unitTeamIds, type Settings, type Team, type Workspace } from './model';
+import {
+  areasInScope,
+  attendees,
+  unitTeamIds,
+  type CalEvent,
+  type Settings,
+  type Team,
+  type Workspace,
+} from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
 import {
@@ -57,15 +65,40 @@ export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
   return ws.teams.filter((t) => ids.has(t.id));
 }
 
-/** The people a filter is about: the selected person, or the members of the teams in scope. */
+/**
+ * Units whose meetings are in scope: the teams of scopeTeams, then the areas of areasInScope
+ * (as teams, see areaAsTeam). A selected area brings its teams and itself; a single team never
+ * brings its area; a person brings every area they attend a meeting of; no filter brings all.
+ */
+export function scopeUnits(ws: Workspace, filter: Filter): Team[] {
+  return [...scopeTeams(ws, filter), ...areasInScope(ws, filter)];
+}
+
+/**
+ * The people a filter is about: the selected person, or the members of the units in scope
+ * (an area's own people included), each once.
+ */
 export function scopePeople(ws: Workspace, filter: Filter): Set<string> {
   if (filter.personId) return new Set([filter.personId]);
   return new Set(
-    scopeTeams(ws, filter).flatMap((team) =>
-      team.members
+    scopeUnits(ws, filter).flatMap((unit) =>
+      unit.members
         .filter((m) => !filter.roleId || m.roleId === filter.roleId)
         .map((m) => m.personId),
     ),
+  );
+}
+
+/**
+ * Whether each participant of an event counts for the filter: with a person filter the ones the
+ * person attends (an area's "from every team" included), with a role filter that role.
+ */
+function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter): boolean[] {
+  const personId = filter.personId;
+  return event.participants.map((p) =>
+    personId
+      ? attendees(ws, unitId, p).includes(personId)
+      : !filter.roleId || p.roleId === filter.roleId,
   );
 }
 
@@ -91,25 +124,21 @@ type Attributed = { occ: Occurrence; byRole: Record<string, number> };
 /** Per-occurrence hours by role, restricted by the filter (person wins over role). */
 function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attributed[] {
   const out: Attributed[] = [];
-  for (const team of scopeTeams(ws, filter)) {
-    const events = new Map(team.events.map((e) => [e.id, e]));
-    const personRoles = filter.personId
-      ? new Set(team.members.filter((m) => m.personId === filter.personId).map((m) => m.roleId))
-      : undefined;
-    if (personRoles?.size === 0) continue;
-    for (const occ of occurrences(team, ws.settings, index)) {
+  for (const unit of scopeUnits(ws, filter)) {
+    const events = new Map(unit.events.map((e) => [e.id, e]));
+    const wanted = new Map(unit.events.map((e) => [e.id, counted(ws, unit.id, e, filter)]));
+    if (![...wanted.values()].some((w) => w.includes(true))) continue;
+    for (const occ of occurrences(unit, ws.settings, index)) {
       const event = events.get(occ.eventId);
-      if (!event) continue;
+      const counts = wanted.get(occ.eventId);
+      if (!event || !counts?.includes(true)) continue;
       const byRole = record<number>();
-      let attends = false;
-      for (const p of event.participants) {
-        if (personRoles ? !personRoles.has(p.roleId) : filter.roleId && p.roleId !== filter.roleId)
-          continue;
-        attends = true;
+      event.participants.forEach((p, i) => {
+        if (!counts[i]) return;
         const hours = occ.skippedHoliday ? 0 : occurrenceHours(event, occ.duration, p.share);
         byRole[p.roleId] = (byRole[p.roleId] ?? 0) + hours;
-      }
-      if (attends) out.push({ occ, byRole });
+      });
+      out.push({ occ, byRole });
     }
   }
   return out;
@@ -145,7 +174,7 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   const first = mondayOf(ws.settings.horizon.from);
   const last = mondayOf(ws.settings.horizon.to);
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
-  const teams = scopeTeams(ws, filter);
+  const teams = scopeUnits(ws, filter);
   const rows: WeekRow[] = [];
   const perWeek: Record<string, number>[] = Array.from({ length: count }, () => record<number>());
   for (const { occ, byRole } of attributed(ws, index, filter)) {
@@ -213,24 +242,21 @@ export function loadSummary(
   const seenRoles = new Set<string>();
   const seenCats = new Set<string>();
   const hpw = ws.settings.hoursPerWeek;
-  for (const team of scopeTeams(ws, filter)) {
-    const personRoles = filter.personId
-      ? new Set(team.members.filter((m) => m.personId === filter.personId).map((m) => m.roleId))
-      : undefined;
-    if (personRoles?.size === 0) continue;
-    const wanted = (roleId: string): boolean =>
-      personRoles ? personRoles.has(roleId) : !filter.roleId || roleId === filter.roleId;
-    for (const event of team.events) {
+  for (const unit of scopeUnits(ws, filter)) {
+    // Only the participants the filter counts, so an area's "from every team" follows the person.
+    const events = unit.events.map((event) => {
       seenCats.add(event.categoryId);
-      for (const p of event.participants) if (wanted(p.roleId)) seenRoles.add(p.roleId);
-    }
-    const base = weeklyBaseLoad(team);
+      const counts = counted(ws, unit.id, event, filter);
+      const participants = event.participants.filter((_, i) => counts[i]);
+      for (const p of participants) seenRoles.add(p.roleId);
+      return { ...event, participants };
+    });
+    const base = weeklyBaseLoad({ ...unit, events });
     for (const [roleId, h] of Object.entries(base.byRole)) {
-      if (wanted(roleId)) roleHours[roleId] = (roleHours[roleId] ?? 0) + h;
+      roleHours[roleId] = (roleHours[roleId] ?? 0) + h;
     }
     for (const [categoryId, roles] of Object.entries(base.byCategory)) {
       for (const [roleId, h] of Object.entries(roles)) {
-        if (!wanted(roleId)) continue;
         catHours[categoryId] = (catHours[categoryId] ?? 0) + h;
         const row = (matrix[categoryId] ??= record());
         row[roleId] = (row[roleId] ?? 0) + h;
