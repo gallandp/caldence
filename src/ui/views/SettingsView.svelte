@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
-  import { LEVEL_PRESETS, levelWords, type LevelPreset } from '../../core/levels';
+  import { LEVEL_PRESETS, type LevelPreset } from '../../core/levels';
+  import { levelWords } from '../../i18n/levels';
   import { LIMITS } from '../../core/limits';
   import type { Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
@@ -240,13 +241,13 @@
         : 'custom',
   );
   const presetLabel = (preset: LevelPreset) => {
-    const w = levelWords({ levelNames: { preset } }, settings.locale);
-    return `${w.area} / ${w.team}`;
+    const w = levelWords({ preset }, settings.locale);
+    return $t('level.preset', { area: w.area, team: w.team });
   };
   function onLevelChoice(event: Event) {
     const value = (event.currentTarget as HTMLSelectElement).value;
     if (value === 'custom') {
-      const w = levelWords(settings, settings.locale);
+      const w = levelWords(settings.levelNames, settings.locale);
       commit(['levelNames.area', 'levelNames.team'], {
         levelNames: { area: w.area, team: w.team },
       });

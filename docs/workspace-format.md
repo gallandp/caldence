@@ -31,6 +31,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
 | `thresholds` | `{ warnFactor, maxFte }` | Load warning limits, both above 0. |
 | `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Load show what meetings cost; without it, no costs are shown. |
+| `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty. Without it: `area`. |
 
 ### Team
 

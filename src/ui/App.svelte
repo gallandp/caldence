@@ -1,7 +1,7 @@
 <script lang="ts">
   import { levels, locale } from '../i18n';
   import { onMount } from 'svelte';
-  import { levelWords } from '../core/levels';
+  import { levelWords } from '../i18n/levels';
   import { translate as t } from '../i18n';
   import { autosave, restoreWithTimeout, wantsReset } from './state/autosave';
   import { workspace } from './state/workspace';
@@ -12,9 +12,14 @@
   import './theme.css';
 
   // The UI language is a workspace setting.
+  // The UI language and the level names are workspace settings. Derived first, so that an edit
+  // elsewhere in the workspace does not rebuild every translated text.
+  const uiLocale = $derived($workspace.settings.locale);
+  const levelKey = $derived(JSON.stringify($workspace.settings.levelNames ?? null));
+  $effect(() => locale.set(uiLocale));
   $effect(() => {
-    locale.set($workspace.settings.locale);
-    levels.set(levelWords($workspace.settings, $workspace.settings.locale));
+    const names = JSON.parse(levelKey) as Parameters<typeof levelWords>[0] | null;
+    levels.set(levelWords(names ?? undefined, uiLocale));
   });
 
   const { dirty, fileName, version } = workspace;

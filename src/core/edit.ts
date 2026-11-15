@@ -380,6 +380,7 @@ export function updateSettings(ws: Workspace, patch: Partial<Settings>): Workspa
   const settings = { ...structuredClone(ws.settings), ...structuredClone(patch) };
   // An emptied hourly rate turns costs off: the key goes, rather than staying as undefined.
   if (settings.hourlyRate === undefined) delete settings.hourlyRate;
+  if (settings.levelNames === undefined) delete settings.levelNames;
   return { ...structuredClone(ws), settings };
 }
 

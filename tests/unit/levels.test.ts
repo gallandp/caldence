@@ -1,53 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { levelParams, levelWords } from '../../src/core/levels';
 import { emptyWorkspace } from '../../src/core/model';
 import { validate } from '../../src/core/validate';
+import { t } from '../../src/i18n';
+import { levelParams, levelWords } from '../../src/i18n/levels';
 
 describe('levelWords', () => {
   it('defaults to Bereich/Team and Area/Team', () => {
-    const de = levelWords({}, 'de');
-    expect([de.area, de.team, de.teams, de.inArea, de.inTeam]).toEqual([
+    const de = levelWords(undefined, 'de');
+    expect([de.area, de.team, de.teams, de.inTeam]).toEqual([
       'Bereich',
       'Team',
       'Teams',
-      'im Bereich',
       'im Team',
     ]);
-    expect([de.onlyArea, de.both, de.onlyTeam]).toEqual([
-      'Nur im Bereich',
-      'Im Team und im Bereich',
-      'Nur im Team',
-    ]);
-    const en = levelWords({}, 'en');
-    expect([en.area, en.teamLc, en.teamsLc, en.onlyArea]).toEqual([
+    const en = levelWords(undefined, 'en');
+    expect([en.area, en.teamLc, en.teamsLc, en.inTeam]).toEqual([
       'Area',
       'team',
       'teams',
-      'Only in the area',
+      'in the team',
     ]);
   });
 
-  it('uses the articles of each preset in German', () => {
-    const p = levelWords({ levelNames: { preset: 'platform' } }, 'de');
-    expect([p.area, p.team, p.teams, p.both]).toEqual([
+  it('uses the words of each preset', () => {
+    const p = levelWords({ preset: 'platform' }, 'de');
+    expect([p.area, p.team, p.teams, p.inTeam]).toEqual([
       'Plattform',
       'Produkt',
       'Produkte',
-      'Im Produkt und in der Plattform',
+      'im Produkt',
     ]);
-    const c = levelWords({ levelNames: { preset: 'chapter' } }, 'de');
-    expect(c.onlyTeam).toBe('Nur in der Unit');
+    expect(levelWords({ preset: 'chapter' }, 'de').inTeam).toBe('in der Unit');
   });
 
-  it('uses own names without articles', () => {
-    const w = levelWords({ levelNames: { area: 'Cluster', team: 'Squad' } }, 'de');
-    expect([w.area, w.teams, w.inTeam, w.onlyArea]).toEqual([
-      'Cluster',
-      'Squad',
-      'auf Ebene Squad',
-      'Nur auf Ebene Cluster',
-    ]);
+  it('uses own names as typed, in phrases without articles', () => {
+    const w = levelWords({ area: 'Cluster', team: 'Squad' }, 'de');
+    expect([w.area, w.teams, w.inTeam]).toEqual(['Cluster', 'Squad', 'auf Ebene Squad']);
     expect(levelParams(w).levelTeam).toBe('Squad');
+  });
+
+  it('fills level placeholders that a text uses, own params first', () => {
+    const fallback = levelParams(levelWords({ preset: 'platform' }, 'en'));
+    expect(t('en', 'team.add', undefined, fallback)).toBe(
+      t('en', 'team.add', { levelTeamLc: 'product' }),
+    );
+    expect(t('en', 'app.version', { version: '1' }, { version: '2' })).toBe('Version 1');
   });
 });
 
@@ -68,6 +65,8 @@ describe('settings.levelNames', () => {
       { path: 'settings.levelNames.preset', key: 'error.enum.invalid' },
     ]);
     const b = validate(withNames({ area: 'Cluster', team: ' ' }));
-    expect(!b.ok && b.errors).toEqual([{ path: 'settings.levelNames.team', key: 'error.type' }]);
+    expect(!b.ok && b.errors).toEqual([
+      { path: 'settings.levelNames.team', key: 'error.required' },
+    ]);
   });
 });

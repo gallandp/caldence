@@ -182,8 +182,12 @@ function checkSettings(c: Checker, v: unknown): void {
       if (!(LEVEL_PRESETS as readonly unknown[]).includes(n.preset))
         c.err('settings.levelNames.preset', 'error.enum.invalid');
     } else if (n) {
-      c.str(n, 'area', 'settings.levelNames');
-      c.str(n, 'team', 'settings.levelNames');
+      for (const k of ['area', 'team']) {
+        // A level needs a name; an emptied field reads as missing.
+        if (typeof n[k] === 'string' && n[k].trim() === '')
+          c.err(`settings.levelNames.${k}`, 'error.required');
+        else c.str(n, k, 'settings.levelNames');
+      }
     }
   }
 }
