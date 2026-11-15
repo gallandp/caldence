@@ -6,7 +6,7 @@
   import { activeTeamId, workspace } from '../state/workspace';
 
   /** A view that works per team shows this while an area is selected: the area's teams to pick. */
-  let { area, view }: { area: Area; view: 'meetings' | 'team' } = $props();
+  let { area, view }: { area: Area; view: 'team' } = $props();
 
   /** The view replaces this panel; focus goes to the view's panel so it is not lost. */
   async function open(id: string) {
