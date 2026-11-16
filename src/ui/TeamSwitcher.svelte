@@ -562,7 +562,7 @@
     width: 1.35rem;
     height: 1.35rem;
     border-radius: 0.4rem;
-    font-size: 0.6rem;
+    font-size: 0.68rem;
   }
   .avatar.mini svg {
     width: 0.85rem;
