@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Team assumptions are labelled by a plain name instead of a technical key, in normal type; the example workspace calls its assumption "Number of stakeholders" ("Anzahl Stakeholder" in German), and a taken name gets a clear message (#210)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
