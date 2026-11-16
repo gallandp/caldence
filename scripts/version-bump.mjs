@@ -53,13 +53,23 @@ export function cleanEntry(text) {
     .replace(/^([+-]) /, '\\$1 ');
 }
 
+/** Text without HTML comments; an unclosed "<!--" or a stray "-->" is dropped too. */
+function stripComments(text) {
+  let out = text;
+  for (let prev = ''; prev !== out;) {
+    prev = out;
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+  }
+  return out.replace(/<!--|-->/g, '');
+}
+
 /** Parses "### Category" headings and "- entry" lines into [category, entries[]] pairs. */
 function parseSections(markdown) {
   const sections = new Map();
   let current = 'Changed';
   let last = null;
   let fenced = false;
-  for (const raw of markdown.replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/)) {
+  for (const raw of stripComments(markdown).split(/\r?\n/)) {
     const line = raw.trimEnd();
     if (/^\s*(```|~~~)/.test(line)) {
       fenced = !fenced;
@@ -111,7 +121,7 @@ export function mergeSections(...markdowns) {
 
 /** The "## Changelog" section of a PR description, up to the next "#" or "##" heading. */
 export function changelogSection(body) {
-  const lines = (body ?? '').replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/);
+  const lines = stripComments(body ?? '').split(/\r?\n/);
   const start = lines.findIndex((l) => /^##\s+changelog\s*$/i.test(l.trim()));
   if (start === -1) return '';
   const rest = lines.slice(start + 1);
