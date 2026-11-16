@@ -2,9 +2,13 @@
 
 ## Unreleased
 
+## 1.43.0 – 2026-11-16
+
 ### Changed
 
 - Month calendar: meeting names wrap to two lines before they are cut off, and further meetings of a day read "+2 more" instead of "+2" (#211)
+- Calendar month view on phones: all seven days fit the screen without sideways scrolling; each day shows its number and a dot per meeting in the category colour, and tapping a day opens its details (#208) (#219)
+- Touch screens: buttons, segmented controls and fields have hit areas of at least 44 × 44 px; small icon buttons keep their look and get a larger invisible hit area. Mouse and trackpad keep the compact sizes (#214) (#223)
 
 ## 1.42.2 – 2026-11-16
 
