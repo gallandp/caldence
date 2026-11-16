@@ -329,6 +329,41 @@ test('the month fits a laptop screen and keeps its roomy rows on large ones', as
   await expect(cellOf(page, '2027-05-13').locator('.more')).toHaveCount(0);
 });
 
+test('meeting names wrap to two lines and the rest is counted as "+n more"', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openCalendar(page, '2027-01-15');
+  const kickoff = cellOf(page, '2027-01-11').locator('.chip', { hasText: 'Kick-off Workshop' });
+  await expect(kickoff).toBeVisible();
+  // At most two lines and nothing clipped: the whole name is readable.
+  const { lines, clipped } = await kickoff.evaluate((el) => ({
+    lines: Math.round(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)),
+    clipped: el.scrollHeight > el.clientHeight,
+  }));
+  expect(lines).toBeLessThanOrEqual(2);
+  expect(clipped).toBe(false);
+  await expect(cellOf(page, '2027-01-07').locator('.more')).toHaveText('+2 more');
+  // A name in two lines does not stretch the fitted week.
+  const heights = await panel(page)
+    .locator('tbody tr')
+    .evaluateAll((rows) => rows.map((tr) => Math.round(tr.getBoundingClientRect().height)));
+  // The last week has no bottom border.
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+
+  // Roomy rows keep their default height too, also in a month with many meetings.
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  for (const month of ['January', 'March']) {
+    if (month === 'March') {
+      await page.getByRole('button', { name: 'Next month' }).click();
+      await page.getByRole('button', { name: 'Next month' }).click();
+    }
+    await expect(panel(page).getByRole('grid', { name: `${month} 2027` })).toBeVisible();
+    const roomy = await panel(page)
+      .locator('tbody tr')
+      .evaluateAll((rows) => rows.map((tr) => Math.round(tr.getBoundingClientRect().height)));
+    expect(Math.max(...roomy) - Math.min(...roomy)).toBeLessThanOrEqual(1);
+  }
+});
+
 test('today is exposed as the current date, not only by its colour', async ({ page }) => {
   await openCalendar(page, '2027-03-17');
   await expect(cellOf(page, '2027-03-17')).toHaveAttribute('aria-current', 'date');
@@ -402,6 +437,8 @@ test('the day details close with Escape in the grid and with a click outside', a
 test('the legend names exactly the categories of the meetings shown in the month', async ({
   page,
 }) => {
+  // Tall enough for the roomy rows that show every meeting.
+  await page.setViewportSize({ width: 1280, height: 1100 });
   await openCalendar(page, '2027-01-15');
   const legend = panel(page).getByRole('list', { name: 'Categories' });
   const colours = await panel(page)
