@@ -53,14 +53,22 @@ export function cleanEntry(text) {
     .replace(/^([+-]) /, '\\$1 ');
 }
 
-/** Text without HTML comments; an unclosed "<!--" or a stray "-->" is dropped too. */
+/**
+ * Text without HTML comments, such as the hints in the PR template. An unclosed comment runs to
+ * the end. This only finds the entries; it is not an HTML sanitiser (GitHub renders the result).
+ */
 function stripComments(text) {
-  let out = text;
-  for (let prev = ''; prev !== out;) {
-    prev = out;
-    out = out.replace(/<!--[\s\S]*?-->/g, '');
+  let out = '';
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf('<!--', at);
+    if (open === -1) return out + text.slice(at);
+    out += text.slice(at, open);
+    const ends = ['-->', '--!>'].map((e) => [text.indexOf(e, open + 4), e.length]);
+    const [end, len] = ends.filter(([i]) => i !== -1).sort((x, y) => x[0] - y[0])[0] ?? [-1, 0];
+    if (end === -1) return out;
+    at = end + len;
   }
-  return out.replace(/<!--|-->/g, '');
 }
 
 /** Parses "### Category" headings and "- entry" lines into [category, entries[]] pairs. */
