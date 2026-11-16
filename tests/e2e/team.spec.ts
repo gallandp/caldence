@@ -9,6 +9,7 @@ import {
   pickUnit,
   currentUnit,
   unitNames,
+  setLanguage,
 } from './helpers';
 
 test.use({ locale: 'en-US' });
@@ -248,10 +249,7 @@ test('a role filter is reset when the role is replaced and deleted', async ({ pa
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations in the team view (${locale})`, async ({ page }) => {
     await openExample(page);
-    await page
-      .getByRole('complementary')
-      .getByLabel(/Language|Sprache/)
-      .selectOption(locale);
+    await setLanguage(page, locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
     await page.locator('#tab-team').click();
     const axe = () =>
@@ -303,10 +301,7 @@ test('the filter follows the active team', async ({ page }) => {
 
 test('a duplicated team is named in the UI language', async ({ page }) => {
   await openExample(page);
-  await page
-    .getByRole('complementary')
-    .getByLabel(/Language|Sprache/)
-    .selectOption('de');
+  await setLanguage(page, 'de');
   await page.getByRole('button', { name: 'Team-Aktionen' }).click();
   await page.getByRole('button', { name: 'Team duplizieren' }).click();
   await expect(currentUnit(page)).toHaveText('Team Alpha (Kopie)');

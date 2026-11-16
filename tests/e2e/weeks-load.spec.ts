@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
+import { openExample, useFileFallback, setLanguage } from './helpers';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -41,8 +41,7 @@ async function openView(
 ) {
   await page.clock.setFixedTime(new Date(`${today}T12:00:00`));
   await openExample(page);
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(lang);
+  await setLanguage(page, lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
   if (view === 'weeks') return showRange(page, lang);
   await page.getByRole('tab', { name: tabName[view][lang], exact: true }).click();
@@ -250,7 +249,7 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
   const total = ROLE_HOURS.reduce((sum, r) => sum + r.hours, 0);
   await expect(tiles.locator('[data-total] .value')).toHaveText(`${fmt('en', total)} h / week`);
   // Switching the language reformats the numbers.
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   const roleDe = page
     .getByRole('tabpanel', { name: 'Auslastung' })
     .getByRole('list', { name: 'Überblick' })

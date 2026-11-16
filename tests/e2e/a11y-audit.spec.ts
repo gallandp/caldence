@@ -2,7 +2,7 @@
 // docs/accessibility/audit-2026.md; keep the test names in step with the report.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openMenuIfNarrow, useFileFallback } from './helpers';
+import { openMenuIfNarrow, useFileFallback, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -49,8 +49,7 @@ async function loadExample(page: Page, locale: Locale) {
   await expect(page.getByRole('grid').or(discard)).toBeVisible();
   if (await discard.isVisible()) await discard.click();
   await expect(page.getByRole('grid')).toBeVisible();
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(locale);
+  await setLanguage(page, locale);
   await expect(page.locator('html')).toHaveAttribute('lang', locale);
 }
 
@@ -148,8 +147,7 @@ for (const locale of ['de', 'en'] as const) {
       await page.setViewportSize({ width, height: 800 });
       await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
       await page.goto('/');
-      await openMenuIfNarrow(page);
-      await page.getByLabel(/Language|Sprache/).selectOption(locale);
+      await setLanguage(page, locale);
       expect(await reflowProblems(page), 'start screen').toEqual([]);
       await loadExample(page, locale);
       for (const name of views[locale]) {

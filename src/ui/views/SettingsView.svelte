@@ -16,6 +16,7 @@
   import { pickFile } from '../state/picker';
   import { FALLBACK_ZONES, supportedZones } from '../state/zones';
   import { index, workspace } from '../state/workspace';
+  import ThemeSwitch from '../ThemeSwitch.svelte';
 
   const settings = $derived($workspace.settings);
 
@@ -385,6 +386,8 @@
         />
         {@render err('hoursPerWeek', $t('settings.hoursPerWeek'))}
       </div>
+
+      <div class="wide"><ThemeSwitch /></div>
     </div>
 
     <fieldset aria-describedby={describe('workdays')}>
@@ -558,6 +561,10 @@
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     gap: var(--space);
     margin-bottom: var(--space);
+  }
+  /* The appearance switch takes a row of its own: its three labels do not fit one column. */
+  .wide {
+    grid-column: 1 / -1;
   }
   .field {
     display: flex;

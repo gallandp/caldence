@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction, currentUnit, unitNames } from './helpers';
+import { useFileFallback, teamAction, currentUnit, unitNames, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -176,8 +176,8 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
   await start(page);
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
-  await page.getByLabel(/Language|Sprache/).selectOption('de');
-  await page.getByLabel(/Language|Sprache/).selectOption('en');
+  await setLanguage(page, 'de');
+  await setLanguage(page, 'en');
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
@@ -216,7 +216,7 @@ for (const locale of ['de', 'en'] as const) {
     test(`axe finds no violations on the start screen (${locale}, ${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await start(page);
-      await page.getByLabel(/Language|Sprache/).selectOption(locale);
+      await setLanguage(page, locale);
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       const axe = () =>
         new AxeBuilder({ page })

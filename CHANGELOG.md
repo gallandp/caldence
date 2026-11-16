@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Language and appearance (light, dark, match system) are now set only in Workspace settings › General; the sidebar no longer shows them. Saved choices keep working (#212)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed

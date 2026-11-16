@@ -1,6 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, teamAction, useFileFallback, pickUnit, currentUnit } from './helpers';
+import {
+  openExample,
+  teamAction,
+  useFileFallback,
+  pickUnit,
+  currentUnit,
+  setLanguage,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -144,11 +151,7 @@ test('each cycle names its number of milestones', async ({ page }) => {
 for (const lang of ['de', 'en'] as const) {
   test(`axe finds no violations in cadence and cycles (${lang})`, async ({ page }) => {
     await openMeetings(page);
-    if (lang === 'de')
-      await page
-        .getByRole('complementary')
-        .getByLabel(/Language|Sprache/)
-        .selectOption('de');
+    if (lang === 'de') await setLanguage(page, 'de');
     await panel(page)
       .getByRole('button', { name: lang === 'de' ? 'Takt ändern' : 'Change cadence' })
       .click();

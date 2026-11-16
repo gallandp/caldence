@@ -88,3 +88,24 @@ export async function openMenuIfNarrow(page: Page) {
     await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
   }).toPass();
 }
+
+/**
+ * Switches the UI language in Settings (the only place it lives) and returns to the view that was
+ * open before. On narrow screens the views menu is left open.
+ */
+export async function setLanguage(page: Page, locale: 'de' | 'en') {
+  const before = await page.locator('[role="tab"][aria-selected="true"]').getAttribute('id');
+  await openMenuIfNarrow(page);
+  await page.locator('#tab-settings').click();
+  await page
+    .locator('#panel-settings')
+    .getByLabel(/Language|Sprache/)
+    .selectOption(locale);
+  await expect(page.locator('html')).toHaveAttribute('lang', locale);
+  if (before && before !== 'tab-settings') {
+    await openMenuIfNarrow(page);
+    await page.locator(`#${before}`).click();
+  }
+  // On narrow screens the menu stays open, as it was when the switch sat in it.
+  await openMenuIfNarrow(page);
+}

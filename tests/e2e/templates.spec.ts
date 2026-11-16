@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { currentUnit, openExample, openMenuIfNarrow, unitNames, useFileFallback } from './helpers';
+import {
+  currentUnit,
+  openExample,
+  openMenuIfNarrow,
+  unitNames,
+  useFileFallback,
+  setLanguage,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -267,7 +274,7 @@ test('no horizontal page scroll at 375 px', async ({ page }) => {
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations in the templates view and dialog (${locale})`, async ({ page }) => {
     await openTemplates(page);
-    await page.getByLabel(/Language|Sprache/).selectOption(locale);
+    await setLanguage(page, locale);
     const run = async (label: string) => {
       const results = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { setLanguage } from './helpers';
 
 const locales = ['de', 'en'] as const;
 const schemes = ['light', 'dark'] as const;
@@ -33,7 +34,7 @@ for (const locale of locales) {
     test(`axe finds no violations (${locale}, ${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto('/');
-      await page.getByLabel(/Language|Sprache/).selectOption(locale);
+      await setLanguage(page, locale);
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       for (const name of tabNames[locale]) {
         await page.getByRole('tab', { name, exact: true }).click();
@@ -130,11 +131,10 @@ test('reduced motion disables transitions', async ({ page }) => {
 
 test('switching the language updates lang and labels', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
   await expect(page.getByRole('tab', { name: 'Kalender' })).toBeVisible();
-  await expect(page.getByLabel('Sprache')).toBeVisible();
-  await page.getByLabel('Sprache').selectOption('en');
+  await setLanguage(page, 'en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeVisible();
 });
