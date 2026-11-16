@@ -157,7 +157,7 @@
     const key = newKey.trim();
     if (key === '') return fail('as-add', 'team.assumption.error.empty', $t('team.assumption.new'));
     if (Object.hasOwn(assumptions, key))
-      return fail('as-add', 'error.id.duplicate', $t('team.assumption.new'));
+      return fail('as-add', 'team.assumption.error.duplicate', '');
     const value = parseValue(newValue);
     if (value === null)
       return fail('as-add', 'error.number.invalid', $t('team.assumption.newValue'));
@@ -189,6 +189,8 @@
     if (next === '')
       return fail(`as-${key}`, 'team.assumption.error.empty', $t('team.assumption.key'));
     if (next === key) return;
+    if (Object.hasOwn(team.assumptions, next))
+      return fail(`as-${key}`, 'team.assumption.error.duplicate', '');
     if (
       commit(`as-${key}`, $t('team.assumption.key'), (ws) =>
         renameAssumption(ws, teamId, key, next),
@@ -395,7 +397,7 @@
                 <li>
                   <div class="row line-row">
                     <input
-                      class="grow key"
+                      class="grow"
                       type="text"
                       data-as-key={key}
                       value={key}
@@ -627,9 +629,6 @@
   }
   .value {
     width: 6.5rem;
-  }
-  :global(#app) .team .key {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   .add {
     display: inline-flex;

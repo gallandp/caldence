@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
-import { openExample, openMenuIfNarrow, useFileFallback, pickUnit, currentUnit } from './helpers';
+import { openExample, setLanguage, useFileFallback, pickUnit, currentUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -21,8 +21,7 @@ const cellOf = (page: Page, date: string) => panel(page).locator(`td[data-date="
 async function openCalendar(page: Page, today: string, lang: 'de' | 'en' = 'en') {
   await page.clock.setFixedTime(new Date(`${today}T12:00:00`));
   await openExample(page);
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(lang);
+  await setLanguage(page, lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
   // Close the menu again on narrow screens.
   if (await page.locator('.menu-toggle').isVisible()) await page.locator('.menu-toggle').click();
@@ -34,7 +33,7 @@ test('Christmas shows the holiday name in the UI language with 0 h', async ({ pa
   const day = cellOf(page, '2027-12-25');
   await expect(day).toContainText('1. Weihnachtstag');
   await expect(day).toContainText('0,0 h');
-  await page.getByLabel('Sprache').selectOption('en');
+  await setLanguage(page, 'en');
   await expect(panel(page).getByRole('grid', { name: 'December 2027' })).toBeVisible();
   await expect(day).toContainText('Christmas Day');
   await expect(day).toContainText('0.0 h');

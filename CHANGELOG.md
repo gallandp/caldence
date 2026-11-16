@@ -6,6 +6,31 @@
 
 - Month calendar: meeting names wrap to two lines before they are cut off, and further meetings of a day read "+2 more" instead of "+2" (#211)
 
+## 1.42.1 – 2026-11-16
+
+### Fixed
+
+- Manual: the phone paragraph describes the bottom tab bar and the ⋯ menu instead of the old menu button (#209)
+
+## 1.42.0 – 2026-11-16
+
+### Changed
+
+- Language and appearance only in Settings (#212) (#224)
+
+## 1.41.0 – 2026-11-16
+
+### Changed
+
+- Language and appearance (light, dark, match system) are now set only in Workspace settings › General; the sidebar no longer shows them. Saved choices keep working (#212)
+- Phones: a tab bar at the bottom shows Calendar, Load, Meetings and Team with one tap; Templates, Settings, Import / Export, Help and the links moved into the file bar's "…" menu, which replaces the menu button (#209)
+
+## 1.40.0 – 2026-11-16
+
+### Changed
+
+- Team assumptions are labelled by a plain name instead of a technical key, in normal type; the example workspace calls its assumption "Number of stakeholders" ("Anzahl Stakeholder" in German), and a taken name gets a clear message (#210)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
