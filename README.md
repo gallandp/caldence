@@ -18,8 +18,8 @@ Status: stable, see the [latest release](https://github.com/gallandp/caldence/re
 - **Team:** create people and roles where they are assigned; a person can hold several roles and work different weekly hours in each team (for example 20 h in one team and 18 h in another). Assumptions such as the team size scale meeting durations.
 - **Meetings & cadence:** the team's cadence (sprint, flow or program increment), cycles with milestones and the meetings in one place. Repeat rules: weekly, selected weekdays, every n weeks, monthly nth weekday, cadence day, cycle milestone and once. The meetings table sorts by meeting, next date or cost and groups by category; on phones each meeting is a card.
 - **Calendar:** Week, Month and Horizon (every week of the planning horizon in one table), with public and school holidays, the cadence and milestones, and filters for one role or one person across all teams.
-- **Load:** hours per week, role and person with FTE, a weekly chart and load warnings that ignore peaks that come back with the cadence.
-- **Meeting costs (optional):** with an hourly rate, Meetings and Load show what meetings cost per week and over the horizon.
+- **Meeting load:** hours per week, role and person with their share in meetings, a weekly chart, and warnings for weeks over the one limit (share of weekly hours in meetings, set in Settings) or with a load spike; peaks that come back with the cadence are ignored.
+- **Meeting costs (optional):** with an hourly rate, Meetings and Meeting load show what meetings cost per week and over the horizon.
 - Templates for Scrum, Kanban and SAFe, plus your own template files.
 - Calendar export and import as `.ics` files (Outlook, Google Calendar, Apple Calendar), also one file per team as a ZIP.
 - Region files: import your own holiday data.

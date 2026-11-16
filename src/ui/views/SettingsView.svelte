@@ -57,12 +57,14 @@
     commit([key], { [key]: n });
   }
 
+  /** The limit is stored as a share (0.6) but entered in percent (60). */
   function onThreshold(key: 'warnFactor' | 'maxFte', event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const n = Number(input.value);
     const path = `thresholds.${key}`;
     if (!Number.isFinite(n) || input.value.trim() === '') return fail(path);
-    commit([path], { thresholds: { ...settings.thresholds, [key]: n } });
+    const value = key === 'maxFte' ? n / 100 : n;
+    commit([path], { thresholds: { ...settings.thresholds, [key]: value } });
   }
 
   /** An empty rate turns costs off. */
@@ -472,16 +474,19 @@
         </div>
         <div class="field">
           <label for="set-fte">{$t('settings.maxFte')}</label>
-          <input
-            id="set-fte"
-            type="number"
-            min="0"
-            step="0.05"
-            value={settings.thresholds.maxFte}
-            aria-invalid={errors['thresholds.maxFte'] ? 'true' : undefined}
-            aria-describedby={describe('thresholds.maxFte')}
-            onchange={(e) => onThreshold('maxFte', e)}
-          />
+          <span class="rate-row">
+            <input
+              id="set-fte"
+              type="number"
+              min="0"
+              step="1"
+              value={Math.round(settings.thresholds.maxFte * 100)}
+              aria-invalid={errors['thresholds.maxFte'] ? 'true' : undefined}
+              aria-describedby={describe('thresholds.maxFte')}
+              onchange={(e) => onThreshold('maxFte', e)}
+            />
+            <span>%</span>
+          </span>
           {@render err('thresholds.maxFte', $t('settings.maxFte'))}
         </div>
       </div>

@@ -215,8 +215,8 @@ test('the switch keeps one sidebar entry and shows the other page', async ({ pag
   await openStructure(page);
   await expect(page.getByRole('tab', { name: 'Team', exact: true })).toHaveCount(0);
   const pages = page.getByRole('group', { name: 'Page' });
-  await pages.getByRole('button', { name: 'Cadence & load' }).click();
-  await expect(pages.getByRole('button', { name: 'Cadence & load' })).toHaveAttribute(
+  await pages.getByRole('button', { name: 'Overview' }).click();
+  await expect(pages.getByRole('button', { name: 'Overview' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );

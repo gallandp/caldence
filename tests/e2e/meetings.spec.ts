@@ -177,7 +177,7 @@ test('the table shows when, the next date and the participants with their share'
   await page.clock.setFixedTime(new Date('2027-01-12T09:00:00'));
   await openMeetings(page);
   const headers = panel(page).getByRole('columnheader');
-  await expect(headers).toHaveText(['Meeting', 'When', 'Next', 'Participants', 'Actions']);
+  await expect(headers).toHaveText(['Meeting', 'When', 'Next', 'Invited', 'Actions']);
   // Weekly Sync is on Tuesdays at 09:30: today (Tuesday, January 12) counts until it ends.
   const sync = row(page, 'Weekly Sync');
   await expect(sync.locator('time')).toHaveAttribute('datetime', '2027-01-12');
@@ -307,7 +307,7 @@ test('Escape cancels, and Edit returns focus to its button', async ({ page }) =>
 test('a role listed twice is refused inline before saving', async ({ page }) => {
   await openMeetings(page);
   const form = await startNew(page, 'Dup roles');
-  await form.getByRole('button', { name: 'Add participant' }).click();
+  await form.getByRole('button', { name: 'Invite role' }).click();
   const roles = form.getByLabel('Role', { exact: true });
   // Product Owner and Scrum Master (the roles of the members) plus the added one.
   await expect(roles).toHaveCount(3);
@@ -540,7 +540,7 @@ test('participants are aligned rows: role, share and remove, with column heads o
 }) => {
   await openMeetings(page);
   const form = await startNew(page, 'Rows');
-  await form.getByRole('button', { name: 'Add participant' }).click();
+  await form.getByRole('button', { name: 'Invite role' }).click();
   const roles = form.getByLabel('Role', { exact: true });
   await expect(roles).toHaveCount(3);
   // The new row's role takes the focus (all roles are used, so the add button is disabled).
@@ -559,7 +559,7 @@ test('participants are aligned rows: role, share and remove, with column heads o
   expect(Math.abs(r!.y - s!.y)).toBeLessThan(3);
   await remove.click();
   await expect(roles).toHaveCount(2);
-  await expect(form.getByRole('button', { name: 'Add participant' })).toBeFocused();
+  await expect(form.getByRole('button', { name: 'Invite role' })).toBeFocused();
 
   // A share out of range is explained under its row, naming the role.
   await form.getByLabel('Share (0–1): Scrum Master').fill('2');

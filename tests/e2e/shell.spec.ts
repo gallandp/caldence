@@ -34,8 +34,11 @@ test('the vertical view list also follows ArrowDown and ArrowUp', async ({ page 
   await expect(list).toHaveAttribute('aria-orientation', 'vertical');
   await page.getByRole('tab', { name: 'Calendar' }).focus();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('tab', { name: 'Load' })).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'Load' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await page.keyboard.press('ArrowUp');
   await expect(page.getByRole('tab', { name: 'Calendar' })).toBeFocused();
 });
@@ -114,9 +117,9 @@ test('Save stands out only while there are unsaved changes', async ({ page }) =>
 test('the views are grouped, with Help last', async ({ page }) => {
   await page.goto('/');
   const list = page.getByRole('tablist');
-  // Dividers (decorative) before Meetings, Workspace settings and Help.
+  // Dividers (decorative) before Meetings, Settings and Help.
   const before = list.locator('.group + [role="tab"]');
-  await expect(before).toHaveText(['Meetings & cadence', 'Workspace settings', 'Help']);
+  await expect(before).toHaveText(['Meetings & cadence', 'Settings', 'Help']);
   await expect(list.locator('.group').first()).toHaveAttribute('aria-hidden', 'true');
   await expect(list.getByRole('tab').last()).toHaveText('Help');
 });
@@ -147,17 +150,17 @@ test('on wide screens the view title and the filters share one row', async ({ pa
 test('the role and person filters show only where they apply', async ({ page }) => {
   await openExample(page);
   const filters = page.locator('.bar.context');
-  for (const name of ['Calendar', 'Load']) {
+  for (const name of ['Calendar', 'Meeting load']) {
     await page.getByRole('tab', { name, exact: true }).click();
     await expect(filters).toBeVisible();
   }
   await page.getByRole('combobox', { name: 'Role' }).selectOption({ label: 'Product Owner' });
-  for (const name of ['Meetings & cadence', 'Team', 'Templates', 'Workspace settings', 'Help']) {
+  for (const name of ['Meetings & cadence', 'Team', 'Templates', 'Settings', 'Help']) {
     await page.getByRole('tab', { name, exact: true }).click();
     await expect(filters).toBeHidden();
   }
   // Hidden, not reset: the choice is still there on return.
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Role' })).not.toHaveValue('');
 });
 
@@ -226,7 +229,7 @@ test('on phones a tab bar shows the main views and the menu holds the others', a
   await expect(page.getByRole('button', { name: /^Menu:/ })).toBeHidden();
   const tabbar = page.getByRole('navigation', { name: 'Views' });
   const tabs = tabbar.getByRole('button');
-  await expect(tabs).toHaveText(['Calendar', 'Load', 'Meetings', 'Team']);
+  await expect(tabs).toHaveText(['Calendar', 'Meeting load', 'Meetings', 'Team']);
   await expect(tabbar.getByRole('button', { name: 'Calendar' })).toHaveAttribute(
     'aria-current',
     'page',
@@ -256,7 +259,7 @@ test('on phones a tab bar shows the main views and the menu holds the others', a
 
   // The other views are in the file bar's menu; there is no "More" tab.
   const more = page.getByRole('button', { name: 'More', exact: true });
-  for (const name of ['Templates', 'Workspace settings', 'Import / Export', 'Help']) {
+  for (const name of ['Templates', 'Settings', 'Import / Export', 'Help']) {
     await expect(tabbar.getByRole('button', { name })).toHaveCount(0);
     await more.click();
     await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();

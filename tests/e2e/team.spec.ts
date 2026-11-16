@@ -120,14 +120,14 @@ test('assumptions are added, changed, renamed to a free name only, and removed',
   const key = panel(page).getByLabel('Name of assumption bugs');
   await key.fill('stories');
   await key.blur();
-  await expect(panel(page).getByText('already has an assumption with this name')).toBeVisible();
+  await expect(panel(page).getByText('already is an assumption with this name')).toBeVisible();
   await expect(key).toHaveValue('stories');
 
   await panel(page).getByLabel('New name').fill('bugs');
   await panel(page).getByLabel('New value').fill('');
   await panel(page).getByRole('button', { name: 'Add assumption' }).click();
   await expect(
-    panel(page).getByText('already has an assumption with this name').first(),
+    panel(page).getByText('already is an assumption with this name').first(),
   ).toBeVisible();
 
   await key.fill('defects');
@@ -147,8 +147,8 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await dialog.getByLabel('Team name').fill('Team Gamma');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByText('Step 3 of 3')).toBeVisible();
-  const hint = await dialog.getByText(/Already in the workspace: /).textContent();
-  const known = /Already in the workspace: ([^,.]+)/.exec(hint ?? '')?.[1];
+  const hint = await dialog.getByText(/Already in this file: /).textContent();
+  const known = /Already in this file: ([^,.]+)/.exec(hint ?? '')?.[1];
   expect(known).toBeTruthy();
   // The wizard sits outside the context bar, so the bar's small uppercase labels stay out of it.
   await expect(dialog.locator('label').first()).toHaveCSS('text-transform', 'none');
@@ -364,7 +364,7 @@ test('the team view folds the workspace-wide people and roles away (#231)', asyn
   await openTeamView(page);
   const team = panel(page);
   const people = team.getByRole('region', { name: 'People', exact: true });
-  await expect(team.getByText('All people and roles in the workspace')).toBeVisible();
+  await expect(team.getByText('All people and roles in this file')).toBeVisible();
   await expect(team.getByText('2 people, 3 roles')).toBeVisible();
   await expect(people).toBeHidden();
   await expect(team.getByRole('region', { name: 'Roles', exact: true })).toBeHidden();

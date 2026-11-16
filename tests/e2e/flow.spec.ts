@@ -90,10 +90,10 @@ async function expectEverything(page: Page) {
   const options = unitNames(page);
   await expect(options).toHaveText(['Team A', 'Team B']);
 
-  await tab(page, 'Load').click();
+  await tab(page, 'Meeting load').click();
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
   await expect(
-    panel(page, 'Load')
+    panel(page, 'Meeting load')
       .getByRole('list', { name: 'Summary' })
       .locator('[data-role] .hours')
       .first(),
@@ -125,9 +125,9 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await addMemberAndMeeting(page, 'Team B', false);
 
   // The person filter combines both teams.
-  await tab(page, 'Load').click();
+  await tab(page, 'Meeting load').click();
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Kim' });
-  const load = panel(page, 'Load');
+  const load = panel(page, 'Meeting load');
   // Both meetings count one hour of Product Owner each week.
   await expect(
     load.getByRole('list', { name: 'Summary' }).locator('[data-role] .hours').first(),
@@ -223,7 +223,7 @@ test('the help view shows the platform key and the German texts', async ({ page 
   await expect(
     panel(page, 'Hilfe').getByRole('heading', {
       level: 3,
-      name: 'So wird die Auslastung berechnet',
+      name: 'So wird die Terminlast berechnet',
     }),
   ).toBeVisible();
   await setLanguage(page, 'en');
@@ -234,6 +234,9 @@ test('the help view shows the platform key and the German texts', async ({ page 
     panel(page, 'Help').getByRole('heading', { level: 3, name: 'Import into your calendar' }),
   ).toBeVisible();
   await expect(
-    panel(page, 'Help').getByRole('heading', { level: 3, name: 'How the load is calculated' }),
+    panel(page, 'Help').getByRole('heading', {
+      level: 3,
+      name: 'How the meeting load is calculated',
+    }),
   ).toBeVisible();
 });
