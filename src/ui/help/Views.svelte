@@ -171,6 +171,7 @@
       labels={{
         general: 'settings.general',
         language: 'lang.label',
+        appearance: 'theme.label',
         region: 'settings.region',
         timezone: 'settings.timezone',
         hpw: 'settings.hoursPerWeek',

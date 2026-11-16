@@ -6,6 +6,25 @@
 
 - Touch screens: buttons, segmented controls and fields have hit areas of at least 44 × 44 px; small icon buttons keep their look and get a larger invisible hit area. Mouse and trackpad keep the compact sizes (#214)
 
+## 1.42.1 – 2026-11-16
+
+### Fixed
+
+- Manual: the phone paragraph describes the bottom tab bar and the ⋯ menu instead of the old menu button (#209)
+
+## 1.42.0 – 2026-11-16
+
+### Changed
+
+- Language and appearance only in Settings (#212) (#224)
+
+## 1.41.0 – 2026-11-16
+
+### Changed
+
+- Language and appearance (light, dark, match system) are now set only in Workspace settings › General; the sidebar no longer shows them. Saved choices keep working (#212)
+- Phones: a tab bar at the bottom shows Calendar, Load, Meetings and Team with one tap; Templates, Settings, Import / Export, Help and the links moved into the file bar's "…" menu, which replaces the menu button (#209)
+
 ## 1.40.0 – 2026-11-16
 
 ### Changed
