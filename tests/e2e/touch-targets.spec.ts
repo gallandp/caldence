@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow } from './helpers';
+import { openExample, showView } from './helpers';
 
 /** Width and height of a control's hit area, including an invisible ::after around it (#214). */
 function hitArea(page: Page, name: string) {
@@ -35,8 +35,7 @@ test.describe('touch screen', () => {
     // Small icon buttons keep their look: only the invisible hit area grows.
     expect((await hitArea(page, 'Team actions')).visual.width).toBeLessThan(44);
 
-    await openMenuIfNarrow(page);
-    await page.getByRole('tab', { name: 'Team', exact: true }).click();
+    await showView(page, 'Team');
     const chip = await hitArea(page, 'Remove Alex (Product Owner)');
     expect(chip.width).toBeGreaterThanOrEqual(44);
     expect(chip.height).toBeGreaterThanOrEqual(44);
