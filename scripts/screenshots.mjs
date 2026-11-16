@@ -18,7 +18,7 @@ mkdirSync(out, { recursive: true });
 const NOW = new Date('2027-01-13T09:00:00');
 const tabNames = {
   calendar: { en: 'Calendar', de: 'Kalender' },
-  load: { en: 'Load', de: 'Auslastung' },
+  load: { en: 'Meeting load', de: 'Terminlast' },
   meetings: { en: 'Meetings & cadence', de: 'Termine & Takt' },
   templates: { en: 'Templates', de: 'Vorlagen' },
   exchange: { en: 'Import / Export', de: 'Import / Export' },
