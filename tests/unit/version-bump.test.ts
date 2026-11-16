@@ -1,8 +1,13 @@
+import * as prettier from 'prettier';
 import { describe, expect, it } from 'vitest';
 import {
   bump,
+  changelogSection,
+  cleanEntry,
   escapeRegExp,
   highestLabel,
+  mergeSections,
+  prChanges,
   releaseChangelog,
   versionNotes,
 } from '../../scripts/version-bump.mjs';
@@ -48,8 +53,12 @@ describe('releaseChangelog', () => {
     expect(r.changelog).not.toMatch(/\n\n\n/);
     expect(r.notes).toBe('### Changed\n\n- Maintenance release without changes to the app.');
   });
-  it('ignores the fallback when Unreleased has entries', () => {
-    expect(releaseChangelog(log, '0.2.0', '2026-11-07', '- Bump x (#5)').notes).toBe('- Added x');
+  it('adds the PR entries to the Unreleased entries, grouped by category', () => {
+    const old =
+      '# Changelog\n\n## Unreleased\n\n### Fixed\n\n- A\n\n## 0.1.0 – 2026-01-01\n\n- Old\n';
+    expect(releaseChangelog(old, '0.2.0', '2026-11-07', '### Added\n\n- B (#5)').notes).toBe(
+      '### Added\n\n- B (#5)\n\n### Fixed\n\n- A',
+    );
   });
 });
 
@@ -84,5 +93,118 @@ describe('escapeRegExp', () => {
     const s = '1.2.3+build(1)[x]*?^$|{}\\';
     expect(new RegExp(`^${escapeRegExp(s)}$`).test(s)).toBe(true);
     expect(new RegExp(`^${escapeRegExp('1.2.3')}$`).test('1x2x3')).toBe(false);
+  });
+});
+
+describe('changelogSection', () => {
+  it('returns the lines under "## Changelog" up to the next heading of level 1 or 2', () => {
+    const body =
+      '## What and why\n\nText\n\n## Changelog\n\n### Fixed\n\n- A\n\n## Checklist\n\n- [ ] x';
+    expect(changelogSection(body).trim()).toBe('### Fixed\n\n- A');
+  });
+  it('is empty without the section, or without a body', () => {
+    expect(changelogSection('## What and why\n\n- x')).toBe('');
+    expect(changelogSection(null)).toBe('');
+  });
+  it('ignores a quoted heading such as one in Dependabot release notes', () => {
+    expect(changelogSection('> ## Changelog\n> - x')).toBe('');
+  });
+});
+
+describe('mergeSections', () => {
+  it('joins entries of the same category in the usual order', () => {
+    expect(mergeSections('### Fixed\n\n- A', '### Added\n\n- B\n\n### Fixed\n\n- C')).toBe(
+      '### Added\n\n- B\n\n### Fixed\n\n- A\n- C',
+    );
+  });
+  it('files entries without heading under Changed and keeps wrapped lines with their entry', () => {
+    expect(mergeSections('- A\n  continued')).toBe('### Changed\n\n- A continued');
+  });
+});
+
+describe('prChanges (release PR collects the entries of merged PRs)', () => {
+  it('takes the "## Changelog" section of each PR and names the PR', () => {
+    const prs = [
+      {
+        number: 7,
+        title: 'T7',
+        body: '## Changelog\n\n### Fixed\n\n- Avatars legible (#215)',
+        association: 'OWNER',
+      },
+      {
+        number: 8,
+        title: 'T8',
+        body: '## Changelog\n\n<!-- hint -->\n### Added\n\n- New view (#8)',
+        association: 'OWNER',
+      },
+    ];
+    expect(prChanges(prs)).toBe(
+      '### Added\n\n- New view (#8)\n\n### Fixed\n\n- Avatars legible (#215) (#7)',
+    );
+  });
+  it('uses the title when a PR has no entries, and the title only for Dependabot', () => {
+    const prs = [
+      {
+        number: 9,
+        title: 'Fix x',
+        body: '## Changelog\n\n<!-- one line per change -->\n',
+        association: 'OWNER',
+      },
+      {
+        number: 10,
+        title: 'Bump y',
+        body: '## Changelog\n\n- y 2.0',
+        author: 'dependabot[bot]',
+        association: 'NONE',
+      },
+    ];
+    expect(prChanges(prs)).toBe('### Changed\n\n- Fix x (#9)\n- Bump y (#10)');
+  });
+  it('skips a PR that still wrote its entry into CHANGELOG.md', () => {
+    expect(prChanges([{ number: 3, title: 'Old', body: '', editedChangelog: true }])).toBe('');
+  });
+});
+
+describe('cleanEntry (CHANGELOG.md must pass prettier --check)', () => {
+  const nasty = [
+    'Support *.ics import of *recurring* events',
+    '__bold__, *it*, **strong** and a  double space',
+    '* starts like a list',
+    '+ starts like a list',
+    '2 * 3 = 6 and snake_case_name',
+    'Thanks @someone, see `a*b` and `@x`',
+    'Bump @types/node, see [types](https://www.npmjs.com/package/@types/node) and <https://a.de/x*y>',
+  ];
+  it.each(nasty)('writes %j the way Prettier keeps it', async (text) => {
+    const md = `# Changelog\n\n## 1.0.0 – 2026-01-01\n\n### Changed\n\n- ${cleanEntry(text)}\n`;
+    expect(await prettier.format(md, { parser: 'markdown', printWidth: 100 })).toBe(md);
+  });
+  it('keeps link targets and scoped package names whole', () => {
+    expect(cleanEntry('Bump @types/node, [t](https://n.de/@types/node) <https://a.de/x*y>')).toBe(
+      'Bump `@types/node`, [t](https://n.de/@types/node) <https://a.de/x*y>',
+    );
+  });
+  it('turns mentions into code, so a release notifies nobody, and leaves code spans alone', () => {
+    expect(cleanEntry('Thanks @someone, mail a@b.de, `a*b`')).toBe(
+      'Thanks `@someone`, mail a@b.de, `a*b`',
+    );
+  });
+});
+
+describe('prChanges edge cases', () => {
+  const pr = (body: string) => ({ number: 4, title: 'Title', body, association: 'MEMBER' });
+  it("uses only the title of an outside contributor's PR, whose description can change later", () => {
+    const outside = { ...pr('## Changelog\n\n- Visit evil.example'), association: 'CONTRIBUTOR' };
+    expect(prChanges([outside])).toBe('### Changed\n\n- Title (#4)');
+  });
+  it('ignores headings inside comments, bare dashes, fenced code and paragraphs', () => {
+    const body =
+      '## Changelog\n<!--\n## not the end\n-->\n- One\n-\n- Two\n```\ncode\n```\nA paragraph.\n#### Note\n- Three';
+    expect(prChanges([pr(body)])).toBe('### Changed\n\n- One (#4)\n- Two (#4)\n- Three (#4)');
+  });
+  it('matches categories in any case and files unknown ones under Changed', () => {
+    expect(prChanges([pr('## Changelog\n### fixed\n- A\n### Bug fixes\n- B')])).toBe(
+      '### Changed\n\n- B (#4)\n\n### Fixed\n\n- A (#4)',
+    );
   });
 });

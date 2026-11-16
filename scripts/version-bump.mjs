@@ -1,7 +1,8 @@
 // Version helper for the release workflow.
 // Library: bump(), releaseChangelog(), highestLabel(), versionNotes().
 // CLI: node scripts/version-bump.mjs <label|none-given> [date]   bumps package.json and CHANGELOG.md
-//      (uses release-changes.md, if present, when Unreleased is empty)
+//      (adds release-changes.md, if present, to the Unreleased entries)
+//      node scripts/version-bump.mjs changes < prs.json          writes release-changes.md
 //      node scripts/version-bump.mjs level < labels.txt          prints the largest bump of the labels
 //      node scripts/version-bump.mjs notes <version>             writes release-notes.md
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,12 +21,154 @@ export function bump(version, label) {
   return `${major}.${minor}.${hotfix + 1}`;
 }
 
+/** Changelog categories in the order they appear in a release. */
+const CATEGORIES = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
+
+/** Known category for a "###" heading in any case; anything else counts as "Changed". */
+function category(name) {
+  return CATEGORIES.find((c) => c.toLowerCase() === name.trim().toLowerCase()) ?? 'Changed';
+}
+
+/**
+ * One entry as Prettier writes it (CI runs `prettier --check` on CHANGELOG.md): single spaces,
+ * `_emphasis_` and `**strong**`, a literal leading list marker escaped. Mentions become code, so
+ * a release never notifies anyone.
+ */
+export function cleanEntry(text) {
+  // Code spans, link targets and autolinks stay as written; only the text between them changes.
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(`[^`]*`|\]\([^)]*\)|<[a-z]+:[^>\s]*>|https?:\/\/\S+)/i)
+    .map((part, i) =>
+      i % 2
+        ? part
+        : part
+            .replace(/__(?=\S)(.+?)(?<=\S)__/g, '**$1**')
+            .replace(/(?<![*\w\\])\*(?=[^\s*])([^*]*?[^\s*])\*(?![*\w])/g, '_$1_')
+            .replace(/(?<![*\\])\*(?!\*)(?<!\*\*)/g, '\\*')
+            .replace(/(^|[^\w])@([A-Za-z0-9][\w-]*(?:\/[\w.-]+)?)/g, '$1`@$2`'),
+    )
+    .join('')
+    .replace(/^([+-]) /, '\\$1 ');
+}
+
+/**
+ * Text without HTML comments, such as the hints in the PR template. An unclosed comment runs to
+ * the end. This only finds the entries; it is not an HTML sanitiser (GitHub renders the result).
+ */
+function stripComments(text) {
+  let out = '';
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf('<!--', at);
+    if (open === -1) return out + text.slice(at);
+    out += text.slice(at, open);
+    const ends = ['-->', '--!>'].map((e) => [text.indexOf(e, open + 4), e.length]);
+    const [end, len] = ends.filter(([i]) => i !== -1).sort((x, y) => x[0] - y[0])[0] ?? [-1, 0];
+    if (end === -1) return out;
+    at = end + len;
+  }
+}
+
+/** Parses "### Category" headings and "- entry" lines into [category, entries[]] pairs. */
+function parseSections(markdown) {
+  const sections = new Map();
+  let current = 'Changed';
+  let last = null;
+  let fenced = false;
+  for (const raw of stripComments(markdown).split(/\r?\n/)) {
+    const line = raw.trimEnd();
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
+      last = null;
+      continue;
+    }
+    if (fenced) continue;
+    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+    if (heading) {
+      if (heading[1] === '###') current = category(heading[2]);
+      last = null;
+      continue;
+    }
+    const entry = /^ {0,3}[-*+]\s+(.*\S.*)$/.exec(line);
+    if (entry) {
+      if (!sections.has(current)) sections.set(current, []);
+      last = sections.get(current);
+      last.push(entry[1]);
+    } else if (/^\s+\S/.test(line) && last) {
+      // An indented line (wrapped text or a nested list item) belongs to the entry above.
+      last[last.length - 1] += ` ${line.trim().replace(/^[-*+]\s+/, '')}`;
+    } else {
+      // A blank line, a bare "-" left from the template, or a paragraph ends the entry.
+      last = null;
+    }
+  }
+  for (const [c, entries] of sections) sections.set(c, entries.map(cleanEntry).filter(Boolean));
+  return sections;
+}
+
+/** Joins changelog sections ("### Changed" with "- " entries), keeping the usual category order. */
+export function mergeSections(...markdowns) {
+  const all = new Map();
+  for (const md of markdowns) {
+    for (const [category, entries] of parseSections(md)) {
+      all.set(category, [...(all.get(category) ?? []), ...entries]);
+    }
+  }
+  return CATEGORIES.filter((c) => all.get(c)?.length)
+    .map(
+      (c) =>
+        `### ${c}\n\n${all
+          .get(c)
+          .map((e) => `- ${e}`)
+          .join('\n')}`,
+    )
+    .join('\n\n');
+}
+
+/** The "## Changelog" section of a PR description, up to the next "#" or "##" heading. */
+export function changelogSection(body) {
+  const lines = stripComments(body ?? '').split(/\r?\n/);
+  const start = lines.findIndex((l) => /^##\s+changelog\s*$/i.test(l.trim()));
+  if (start === -1) return '';
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => /^#{1,2}\s/.test(l));
+  return (end === -1 ? rest : rest.slice(0, end)).join('\n');
+}
+
+/** Authors whose PR description is used; others can still edit it after the merge unseen. */
+const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+
+/**
+ * Changelog entries of the PRs merged since the last release, as sections. A PR gives the
+ * entries in its "## Changelog" section, or else its title under "Changed". A PR that still
+ * added its entry under Unreleased in CHANGELOG.md (`editedChangelog`) adds nothing. Only the
+ * descriptions of the repository's own people count (`association`), so not a Dependabot PR's
+ * release notes nor an outside contributor's later edit. Each entry names the PR, unless it
+ * already does.
+ */
+export function prChanges(prs) {
+  const parts = prs.map((pr) => {
+    if (pr.editedChangelog) return '';
+    const ref = `#${pr.number}`;
+    const tag = (e) => (new RegExp(`${escapeRegExp(ref)}\\b`).test(e) ? e : `${e} (${ref})`);
+    const trusted = TRUSTED.includes(pr.association ?? '') && pr.author !== 'dependabot[bot]';
+    const sections = parseSections(trusted ? changelogSection(pr.body) : '');
+    if (sections.size === 0) return `### Changed\n\n- ${tag(cleanEntry(pr.title))}`;
+    return [...sections]
+      .map(([c, entries]) => `### ${c}\n\n${entries.map((e) => `- ${tag(e)}`).join('\n')}`)
+      .join('\n\n');
+  });
+  return mergeSections(...parts);
+}
+
 /**
  * Moves the Unreleased entries under a new version heading; returns new text and the notes.
- * When Unreleased is empty (only Dependabot PRs, say), `fallback` (list lines such as the
- * merged PR titles) or a short default becomes a "Changed" section.
+ * `changes` (sections built from the merged PRs, see prChanges) are added to them. With
+ * neither, a short default becomes a "Changed" section.
  */
-export function releaseChangelog(changelog, version, date, fallback = '') {
+export function releaseChangelog(changelog, version, date, changes = '') {
   const heading = '## Unreleased';
   const start = changelog.indexOf(heading);
   if (start === -1) throw new Error('CHANGELOG.md has no "## Unreleased" section');
@@ -33,9 +176,10 @@ export function releaseChangelog(changelog, version, date, fallback = '') {
   const next = changelog.indexOf('\n## ', bodyStart);
   const end = next === -1 ? changelog.length : next + 1;
   const found = changelog.slice(bodyStart, end).trim();
+  const extra = changes.trim();
   const notes =
-    found ||
-    `### Changed\n\n${fallback.trim() || '- Maintenance release without changes to the app.'}`;
+    (extra ? mergeSections(found, extra) : found) ||
+    '### Changed\n\n- Maintenance release without changes to the app.';
   const rest = changelog.slice(end);
   const released = `## ${version} – ${date}\n\n${notes}\n`;
   const head = changelog.slice(0, start);
@@ -78,6 +222,19 @@ function main(argv) {
     console.log(highestLabel(labels));
     return;
   }
+  if (argv[2] === 'unreleased') {
+    // The Unreleased section of a CHANGELOG.md on stdin (empty when there is none).
+    const text = readFileSync(0, 'utf8');
+    const start = text.indexOf('## Unreleased');
+    const next = start === -1 ? -1 : text.indexOf('\n## ', start + 1);
+    console.log(start === -1 ? '' : text.slice(start, next === -1 ? undefined : next).trim());
+    return;
+  }
+  if (argv[2] === 'changes') {
+    const prs = JSON.parse(readFileSync(0, 'utf8'));
+    writeFileSync('release-changes.md', `${prChanges(prs)}\n`);
+    return;
+  }
   if (argv[2] === 'notes') {
     writeFileSync(
       'release-notes.md',
@@ -94,7 +251,7 @@ function main(argv) {
   if (changed) {
     pkg.version = next;
     writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-    // Optional list of merged PRs, written by the release workflow.
+    // Entries of the merged PRs, written by the release workflow (`changes`).
     const fallback = existsSync('release-changes.md')
       ? readFileSync('release-changes.md', 'utf8')
       : '';
