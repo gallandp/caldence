@@ -848,13 +848,18 @@
   .mark.area {
     color: var(--area);
   }
-  /* The switcher's team badge, small. */
+  /* The switcher's team badge, small; initials stay at least 10 px and widen it if needed (#215). */
   .mark.team {
+    width: auto;
+    min-width: 0.875rem;
+    box-sizing: border-box;
+    padding: 0 0.15rem;
     border-radius: 0.3rem;
     background: linear-gradient(135deg, #8b7bff, #22c3ee);
     color: #fff;
-    font-size: 0.5rem;
+    font-size: 0.625rem;
     font-weight: 750;
+    line-height: 1;
   }
   .start {
     padding: 2.5rem;
