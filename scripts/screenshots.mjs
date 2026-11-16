@@ -66,8 +66,14 @@ async function shoot(
     const page = await context.newPage();
     await page.clock.setFixedTime(NOW);
     await page.goto(base);
-    await page.getByLabel(/Language|Sprache/).selectOption(locale);
+    // The language lives in Settings; the start screen is the Calendar view.
+    await page.locator('#tab-settings').click();
+    await page
+      .locator('#panel-settings')
+      .getByLabel(/Language|Sprache/)
+      .selectOption(locale);
     await page.locator(`html[lang="${locale}"]`).waitFor();
+    await page.locator('#tab-calendar').click();
     await steps(page, locale);
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({ path });

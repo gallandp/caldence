@@ -152,7 +152,6 @@ test('rename an area, move a team into it after a question, delete it', async ({
 test('the switcher works in the phone menu', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 760 });
   await openExample(page);
-  await page.locator('.menu-toggle').click();
   await addArea(page, 'Platform', ['Team Beta']);
   await pickUnit(page, 'Team Beta');
   await expect(page.locator('.switcher .meta')).toContainText('Platform ·');
