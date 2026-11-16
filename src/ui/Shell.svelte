@@ -39,6 +39,8 @@
     'help',
   ] as const;
   type ViewId = (typeof views)[number];
+  /** Phones: these four are tabs at the bottom, the others sit in the file bar's menu. */
+  const primary: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
   /** A thin divider starts a new group above these views (planning, workspace, help); the list
       itself stays one tablist for the arrow keys. */
   const groupBefore: ReadonlySet<ViewId> = new Set(['meetings', 'settings', 'help']);
@@ -307,7 +309,32 @@
   </aside>
 
   <div class="content">
-    <WorkspaceBar bind:this={bar} filters={FILTERED.includes(active)} />
+    <WorkspaceBar bind:this={bar} filters={FILTERED.includes(active)}>
+      {#snippet menu(close)}
+        <div class="more-group" aria-hidden="true"></div>
+        {#each views.filter((id) => !primary.includes(id)) as id (id)}
+          <button
+            type="button"
+            class="more-view"
+            aria-current={active === id ? 'page' : undefined}
+            onclick={() => {
+              close();
+              select(id);
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
+            {$t(viewKey(id))}
+          </button>
+        {/each}
+        <div class="more-group" aria-hidden="true"></div>
+        {#each legal as page (page)}
+          <a class="more-link" href="./{page}.html">{$t('legal.' + page)}</a>
+        {/each}
+        <a class="more-link" href={REPO_URL} target="_blank" rel="noopener noreferrer"
+          >{$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span></a
+        >
+      {/snippet}
+    </WorkspaceBar>
     <SetupWizard
       bind:this={planWizard}
       oncreated={() => {
@@ -441,6 +468,20 @@
     </main>
   </div>
 </div>
+
+<!-- Phones: the main views are one tap away at the bottom, in reach of the thumb (HIG tab bars). -->
+<nav class="tabbar" aria-label={$t('nav.views')}>
+  {#each primary as id (id)}
+    <button
+      type="button"
+      aria-current={active === id ? 'page' : undefined}
+      onclick={() => select(id)}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
+      <span>{$t(id === 'meetings' ? 'view.meetings.short' : viewKey(id))}</span>
+    </button>
+  {/each}
+</nav>
 
 <style>
   .skip {
@@ -841,6 +882,127 @@
     }
     main {
       padding: 0 1rem 2rem;
+    }
+  }
+  .tabbar {
+    display: none;
+  }
+  @media (max-width: 40rem) {
+    /* The tab bar and the file bar's menu replace the menu button. */
+    :global(#app) .menu-toggle,
+    .side-nav.open {
+      display: none;
+    }
+    main {
+      /* Room for the tab bar, so the end of a view is not hidden behind it. */
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
+    .tabbar {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      padding: 0.3rem 0.25rem calc(0.3rem + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      -webkit-backdrop-filter: blur(18px) saturate(1.6);
+      backdrop-filter: blur(18px) saturate(1.6);
+    }
+    :global(#app) .tabbar button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      min-width: 0;
+      min-height: 3.1rem;
+      padding: 0.3rem 0.15rem;
+      border: 0;
+      border-radius: 0.75rem;
+      background: transparent;
+      box-shadow: none;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tabbar span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tabbar svg {
+      width: 1.9rem;
+      height: 1.5rem;
+      padding: 0.1rem 0.6rem;
+      border: 1.5px solid transparent;
+      border-radius: 999px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      box-sizing: content-box;
+    }
+    /* The current tab: accent colour and an outlined pill around its icon, a mark that is not
+       only colour (WCAG 1.4.1), like the pressed view mode in the calendar. */
+    :global(#app) .tabbar button[aria-current='page'] {
+      color: var(--accent);
+    }
+    .tabbar [aria-current='page'] svg {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+  }
+  @media (max-width: 40rem) and (forced-colors: active) {
+    .tabbar [aria-current='page'] svg {
+      border-color: Highlight;
+    }
+  }
+  /* The views without a tab and the links, in the file bar's menu on phones. */
+  .more-group,
+  .more-view,
+  .more-link {
+    display: none;
+  }
+  @media (max-width: 40rem) {
+    .more-group {
+      display: block;
+      height: 1px;
+      margin: 0.25rem 0.5rem;
+      background: var(--border);
+    }
+    :global(#app .content > .bar .more-panel) button.more-view {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    :global(#app .content > .bar .more-panel) button.more-view::before {
+      content: none;
+    }
+    .more-view svg {
+      width: 1rem;
+      height: 1rem;
+      flex: none;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    :global(#app .content > .bar .more-panel) button.more-view[aria-current='page'] {
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .more-link {
+      display: flex;
+      align-items: center;
+      min-height: 2.5rem;
+      padding: 0 0.7rem;
+      color: var(--text);
+      font-size: 0.9rem;
     }
   }
 </style>

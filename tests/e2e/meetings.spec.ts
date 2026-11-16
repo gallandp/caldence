@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback, teamAction, pickUnit } from './helpers';
+import { openExample, showView, useFileFallback, teamAction, pickUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -23,8 +23,7 @@ async function rowAction(page: Page, action: 'Duplicate' | 'Delete', name: strin
 
 async function openMeetings(page: Page) {
   await openExample(page);
-  await openMenuIfNarrow(page);
-  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await showView(page, 'Meetings & cadence');
   await expect(panel(page).getByRole('table', { name: 'Meetings of Team Alpha' })).toBeVisible();
 }
 

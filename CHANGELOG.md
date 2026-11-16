@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Phones: a tab bar at the bottom shows Calendar, Load, Meetings and Team with one tap; Templates, Settings, Import / Export, Help and the links moved into the file bar's "…" menu, which replaces the menu button (#209)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed

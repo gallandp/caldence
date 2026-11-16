@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { currentUnit, openExample, openMenuIfNarrow, unitNames, useFileFallback } from './helpers';
+import { currentUnit, openExample, showView, unitNames, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -255,8 +255,7 @@ test('duplicate team names are allowed and do not crash', async ({ page }) => {
 test('no horizontal page scroll at 375 px', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await openExample(page);
-  await openMenuIfNarrow(page);
-  await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+  await showView(page, 'Templates');
   await expect(panel(page).getByRole('button', { name: 'Export template…' })).toBeVisible();
   const fits = await page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,

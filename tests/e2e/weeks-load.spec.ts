@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openMenuIfNarrow, useFileFallback } from './helpers';
+import { openExample, setLanguage, showView, useFileFallback } from './helpers';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -26,7 +26,7 @@ const rangeName = { de: 'Zeitraum', en: 'Horizon' };
 
 /** The weeks table is the calendar's Horizon level. */
 async function showRange(page: Page, lang: Lang = 'en') {
-  await page.getByRole('tab', { name: tabName.weeks[lang], exact: true }).click();
+  await showView(page, tabName.weeks[lang]);
   const panel = page.getByRole('tabpanel', { name: tabName.weeks[lang] });
   await panel.getByRole('button', { name: rangeName[lang], exact: true }).click();
   return panel;
@@ -41,11 +41,10 @@ async function openView(
 ) {
   await page.clock.setFixedTime(new Date(`${today}T12:00:00`));
   await openExample(page);
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(lang);
+  await setLanguage(page, lang);
   await expect(page.locator('html')).toHaveAttribute('lang', lang);
   if (view === 'weeks') return showRange(page, lang);
-  await page.getByRole('tab', { name: tabName[view][lang], exact: true }).click();
+  await showView(page, tabName[view][lang]);
   return page.getByRole('tabpanel', { name: tabName[view][lang] });
 }
 
