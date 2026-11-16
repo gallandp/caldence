@@ -2,7 +2,7 @@
 // docs/accessibility/audit-2026.md; keep the test names in step with the report.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openMenuIfNarrow, useFileFallback } from './helpers';
+import { setLanguage, showView as pickView, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -49,14 +49,12 @@ async function loadExample(page: Page, locale: Locale) {
   await expect(page.getByRole('grid').or(discard)).toBeVisible();
   if (await discard.isVisible()) await discard.click();
   await expect(page.getByRole('grid')).toBeVisible();
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(locale);
+  await setLanguage(page, locale);
   await expect(page.locator('html')).toHaveAttribute('lang', locale);
 }
 
 async function showView(page: Page, name: string) {
-  await openMenuIfNarrow(page);
-  await page.getByRole('tab', { name, exact: true }).click();
+  await pickView(page, name);
   await expect(page.getByRole('tabpanel', { name, exact: true })).toBeVisible();
 }
 
@@ -131,6 +129,18 @@ async function extraMarks(a: Locator, b: Locator, forced: boolean) {
   return (await marks(a, forced)).filter((m) => !other.includes(m));
 }
 
+/** The view's tab: in the sidebar, or on phones (640 px and below) in the bottom tab bar. */
+function viewTab(page: Page, name: string) {
+  return (page.viewportSize()?.width ?? Infinity) > 640
+    ? page.getByRole('tab', { name, exact: true })
+    : page.locator('nav.tabbar').getByRole('button', { name, exact: true });
+}
+
+/** Where a tab shows that it is selected: the tab itself, or the pill around a tab bar icon. */
+function mark(tab: Locator) {
+  return tab.page().viewportSize()!.width > 640 ? tab : tab.locator('svg');
+}
+
 /** Presses Tab (or Shift+Tab) until `target` has the focus. */
 async function tabTo(page: Page, target: Locator, key = 'Tab', max = 60) {
   for (let i = 0; i < max; i++) {
@@ -148,8 +158,7 @@ for (const locale of ['de', 'en'] as const) {
       await page.setViewportSize({ width, height: 800 });
       await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
       await page.goto('/');
-      await openMenuIfNarrow(page);
-      await page.getByLabel(/Language|Sprache/).selectOption(locale);
+      await setLanguage(page, locale);
       expect(await reflowProblems(page), 'start screen').toEqual([]);
       await loadExample(page, locale);
       for (const name of views[locale]) {
@@ -186,9 +195,7 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
   // the scrolling tables of all views together.
   let scrolled = 0;
   for (const name of ['Meetings & cadence', 'Help', 'Import / Export']) {
-    await openMenuIfNarrow(page);
-    const tab = page.getByRole('tab', { name, exact: true });
-    await tab.click();
+    await pickView(page, name);
     if (name === 'Import / Export') {
       // The import review table appears once an .ics file is chosen.
       const chooser = page.waitForEvent('filechooser');
@@ -248,19 +255,28 @@ for (const width of [1280, 320]) {
     await page.emulateMedia({ forcedColors: 'active' });
     await loadExample(page, 'en');
 
-    const selected = page.getByRole('tab', { name: 'Calendar', exact: true });
+    const selected = viewTab(page, 'Calendar');
+    const button = page.getByRole('button', { name: 'Today', exact: true });
     // Focus by keyboard: after the click on the example the tab has the focus without a ring.
     await page.keyboard.press('Tab');
-    await tabTo(page, selected, 'Shift+Tab');
-    expect(await focusVisible(selected), 'focused tab').toBe(true);
-
-    const button = page.getByRole('button', { name: 'Today', exact: true });
-    await tabTo(page, button);
-    expect(await focusVisible(button), 'focused button').toBe(true);
+    if (width > 640) {
+      await tabTo(page, selected, 'Shift+Tab');
+      expect(await focusVisible(selected), 'focused tab').toBe(true);
+      await tabTo(page, button);
+      expect(await focusVisible(button), 'focused button').toBe(true);
+    } else {
+      // Phones: the tab bar comes last in the page and is reached with Tab.
+      await tabTo(page, button);
+      expect(await focusVisible(button), 'focused button').toBe(true);
+      await tabTo(page, selected);
+      expect(await focusVisible(selected), 'focused tab').toBe(true);
+    }
 
     // The selected tab must differ from the others by more than colour: a border or an underline.
-    const other = page.getByRole('tab', { name: 'Load', exact: true });
-    expect(await extraMarks(selected, other, true), 'selected tab marks').not.toEqual([]);
+    const other = viewTab(page, 'Load');
+    expect(await extraMarks(mark(selected), mark(other), true), 'selected tab marks').not.toEqual(
+      [],
+    );
   });
 }
 
@@ -300,10 +316,13 @@ for (const width of [320, 800]) {
     // Below 60rem the bar beside the selected tab is hidden; a lighter pill alone is too faint.
     await page.setViewportSize({ width, height: 800 });
     await loadExample(page, 'en');
-    const selected = page.getByRole('tab', { name: 'Calendar', exact: true });
-    await expect(selected).toHaveAttribute('aria-selected', 'true');
-    const other = page.getByRole('tab', { name: 'Load', exact: true });
-    const outlined = (await extraMarks(selected, other, false)).filter(
+    const selected = viewTab(page, 'Calendar');
+    await expect(selected).toHaveAttribute(
+      width > 640 ? 'aria-selected' : 'aria-current',
+      /true|page/,
+    );
+    const other = viewTab(page, 'Load');
+    const outlined = (await extraMarks(mark(selected), mark(other), false)).filter(
       (m) => m.includes('border') || m.includes('underline'),
     );
     expect(outlined, 'selected tab marks').not.toEqual([]);

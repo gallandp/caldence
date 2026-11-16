@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openWorkspaceFile, teamAction } from './helpers';
+import { openWorkspaceFile, teamAction, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -360,12 +360,16 @@ test('rows have visible labels', async ({ page }) => {
 
 test('a stale error and draft disappear when the workspace changes elsewhere', async ({ page }) => {
   await openExample(page);
-  const to = page.getByLabel('Horizon to');
+  await setLanguage(page, 'de');
+  const to = page.getByLabel('Zeitraum bis');
   await to.fill('2026-01-01');
-  await expect(page.getByText(/before its start/)).toBeVisible();
-  await page.getByRole('complementary').getByLabel('Language').selectOption('de');
+  await expect(page.getByText(/liegt vor dem Beginn/)).toBeVisible();
+  // Undo (outside a field) takes back the language: a change this view did not make.
+  await page.locator('#set-general').click();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByText(/liegt vor dem Beginn|before its start/)).toHaveCount(0);
-  await expect(page.getByLabel('Zeitraum bis')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
 
 test('colour radios can be chosen with the arrow keys', async ({ page }) => {

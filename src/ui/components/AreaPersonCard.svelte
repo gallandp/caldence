@@ -481,6 +481,10 @@
       max-width: none;
       max-height: 85vh;
       border-radius: 1rem 1rem 0 0;
+      /* viewport-fit=cover: keep clear of the notch and the home indicator. */
+      padding-left: max(1.125rem, env(safe-area-inset-left, 0px));
+      padding-right: max(1.125rem, env(safe-area-inset-right, 0px));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
     }
   }
 </style>
