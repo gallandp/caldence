@@ -15,7 +15,7 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 const views = {
   de: [
     'Kalender',
-    'Auslastung',
+    'Terminlast',
     'Termine & Takt',
     'Team',
     'Vorlagen',
@@ -25,11 +25,11 @@ const views = {
   ],
   en: [
     'Calendar',
-    'Load',
+    'Meeting load',
     'Meetings & cadence',
     'Team',
     'Templates',
-    'Workspace settings',
+    'Settings',
     'Import / Export',
     'Help',
   ],
@@ -273,7 +273,7 @@ for (const width of [1280, 320]) {
     }
 
     // The selected tab must differ from the others by more than colour: a border or an underline.
-    const other = viewTab(page, 'Load');
+    const other = viewTab(page, 'Meeting load');
     expect(await extraMarks(mark(selected), mark(other), true), 'selected tab marks').not.toEqual(
       [],
     );
@@ -321,7 +321,7 @@ for (const width of [320, 800]) {
       width > 640 ? 'aria-selected' : 'aria-current',
       /true|page/,
     );
-    const other = viewTab(page, 'Load');
+    const other = viewTab(page, 'Meeting load');
     const outlined = (await extraMarks(mark(selected), mark(other), false)).filter(
       (m) => m.includes('border') || m.includes('underline'),
     );
@@ -364,8 +364,8 @@ test('keyboard only: start screen, example, calendar, day details and export', a
 
   // The tabs follow the arrow keys.
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('tab', { name: 'Load', exact: true })).toBeFocused();
-  await expect(page.getByRole('tabpanel', { name: 'Load' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Meeting load', exact: true })).toBeFocused();
+  await expect(page.getByRole('tabpanel', { name: 'Meeting load' })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Meetings & cadence', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowLeft');

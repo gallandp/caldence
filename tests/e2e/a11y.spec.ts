@@ -7,7 +7,7 @@ const schemes = ['light', 'dark'] as const;
 const tabNames = {
   de: [
     'Kalender',
-    'Auslastung',
+    'Terminlast',
     'Termine & Takt',
     'Team',
     'Vorlagen',
@@ -17,11 +17,11 @@ const tabNames = {
   ],
   en: [
     'Calendar',
-    'Load',
+    'Meeting load',
     'Meetings & cadence',
     'Team',
     'Templates',
-    'Workspace settings',
+    'Settings',
     'Import / Export',
     'Help',
   ],
@@ -106,7 +106,7 @@ test('view tabs follow the ARIA tab pattern', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(tabs.nth(1)).toBeFocused();
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel')).toHaveAccessibleName('Load');
+  await expect(page.getByRole('tabpanel')).toHaveAccessibleName('Meeting load');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await expect(tabs.last()).toBeFocused();

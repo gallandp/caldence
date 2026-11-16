@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function openSettings(page: Page) {
-  await page.getByRole('tab', { name: /^(Workspace settings|Einstellungen)$/ }).click();
+  await page.getByRole('tab', { name: /^(Settings|Einstellungen)$/ }).click();
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }
 
@@ -114,7 +114,7 @@ test('deleting a person in a team asks for confirmation', async ({ page }) => {
   await openExample(page, 'team');
   await page.getByRole('button', { name: 'Delete Alex' }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete Alex?' });
-  await expect(dialog).toContainText('member of 2 team(s)');
+  await expect(dialog).toContainText('2 membership(s) in teams');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByLabel('Name of Alex')).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete Alex' }).click();
@@ -158,7 +158,7 @@ test('the language field switches the whole UI', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Einstellungen' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Allgemein' })).toBeVisible();
   await expect(page.getByLabel('Zeitzone')).toBeVisible();
-  await expect(page.getByText(/Gilt für den ganzen Arbeitsbereich/)).toBeVisible();
+  await expect(page.getByText(/Gilt für die ganze Datei/)).toBeVisible();
 });
 
 /** Imports a region file through the file input (fallback path). */

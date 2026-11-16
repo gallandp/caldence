@@ -7,7 +7,7 @@ test.use({ locale: 'en-US' });
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true }).click();
 
 async function setRate(page: Page, value: string) {
-  await tab(page, 'Workspace settings');
+  await tab(page, 'Settings');
   const field = page.getByLabel('Hourly rate (optional)');
   await field.fill(value);
   await field.press('Enter');
@@ -19,7 +19,7 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await tab(page, 'Meetings & cadence');
   await expect(page.getByRole('columnheader', { name: 'Cost' })).toHaveCount(0);
   await expect(page.locator('[data-costs]')).toHaveCount(0);
-  await tab(page, 'Load');
+  await tab(page, 'Meeting load');
   await expect(page.locator('[data-costs]')).toHaveCount(0);
 
   await setRate(page, '100');
@@ -32,7 +32,7 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   const card = page.locator('[data-costs]');
   await expect(card.getByRole('heading', { name: 'Costs' })).toBeVisible();
   await expect(card).toContainText('At €100 per hour and person');
-  await tab(page, 'Load');
+  await tab(page, 'Meeting load');
   await expect(page.locator('[data-costs] [data-cost-week]')).toContainText('/ week');
 
   await setRate(page, '');
@@ -49,7 +49,7 @@ test('an hourly rate of 0 shows an error and is not committed', async ({ page })
   await expect(page.locator('[data-costs]')).toHaveCount(0);
 });
 
-for (const view of ['Meetings & cadence', 'Load', 'Workspace settings']) {
+for (const view of ['Meetings & cadence', 'Meeting load', 'Settings']) {
   test(`axe finds no violations with costs in ${view}`, async ({ page }) => {
     await openExample(page);
     await setRate(page, '85');

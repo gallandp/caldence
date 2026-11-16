@@ -96,7 +96,7 @@
           const most = Math.max(...mondays.map(hoursThen));
           return $t(`load.warn.${kind}`, {
             factor: formatNumber($locale, warnFactor, 1),
-            fte: formatNumber($locale, maxFte, 2),
+            limit: formatPercent($locale, maxFte),
             weeks:
               named.length > NAMED_WEEKS
                 ? $t('load.warn.span', {
@@ -210,7 +210,7 @@
         <tr data-person={p.person.id}>
           <th scope="row">{p.person.name}</th>
           <td class="num">{hours(p.average)}</td>
-          <td class="num">{formatNumber($locale, p.fte, 2)}</td>
+          <td class="num">{formatPercent($locale, p.fte)}</td>
           <td class="num">
             {#if p.peak}
               {$t('load.peak', { week: weekLabel(p.peak.monday), hours: hours(p.peak.hours) })}
@@ -293,7 +293,7 @@
     <p class="note">
       {$t('load.warnings.rule', {
         factor: formatNumber($locale, $workspace.settings.thresholds.warnFactor, 1),
-        fte: formatNumber($locale, $workspace.settings.thresholds.maxFte, 2),
+        limit: formatPercent($locale, $workspace.settings.thresholds.maxFte),
       })}
     </p>
     {#if warningItems.length === 0}

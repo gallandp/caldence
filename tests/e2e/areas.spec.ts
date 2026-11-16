@@ -81,13 +81,13 @@ test('the views follow the area: Load sums its teams, the area page offers them'
 }) => {
   await openExample(page);
   await addArea(page, 'Platform', ['Team Alpha', 'Team Beta']);
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   await expect(page.getByText(/^Hours in the teams of Platform/)).toBeVisible();
 
   // With an area selected the Team entry is the area's page; its second page lists the teams.
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
   const panel = page.getByRole('tabpanel', { name: 'Area' });
-  await panel.getByRole('button', { name: 'Cadence & load' }).click();
+  await panel.getByRole('button', { name: 'Overview' }).click();
   await expect(panel.getByText(/People and roles are assigned per team/)).toBeVisible();
   await panel.getByRole('button', { name: 'Team Beta', exact: true }).focus();
   await page.keyboard.press('Enter');

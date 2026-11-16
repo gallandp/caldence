@@ -67,7 +67,7 @@ test('the wizard without a template creates an empty team', async ({ page }) => 
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByLabel('Team name')).toHaveValue('My team');
   await dialog.getByRole('button', { name: 'Next' }).click();
-  await expect(dialog.getByText(/no roles yet/)).toBeVisible();
+  await expect(dialog.getByText(/no roles here yet/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Back' }).click();
   await dialog.getByLabel('Team name').fill('');
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -113,7 +113,7 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await dialog.getByLabel('Horizon to').fill('2027-12-31');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
@@ -185,7 +185,7 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
 
 test('the views that need a team offer the same way in', async ({ page }) => {
   await start(page);
-  for (const name of ['Load', 'Meetings & cadence', 'Team']) {
+  for (const name of ['Meeting load', 'Meetings & cadence', 'Team']) {
     await page.getByRole('tab', { name, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name });
     await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();

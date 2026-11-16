@@ -35,7 +35,7 @@ Validation errors use the keys `error.required`, `error.type`, `error.date.inval
 
 ## Importing a region file
 
-In **Workspace settings**, next to the region select, **Import region file…** opens a `.json` region file. The file is read on this device only; nothing is uploaded or fetched.
+In **Settings**, next to the region select, **Import region file…** opens a `.json` region file. The file is read on this device only; nothing is uploaded or fetched.
 
 - A valid file is added to the workspace and selected in one step, so one undo (Ctrl+Z) removes it again and restores the previous region.
 - The imported region is stored in the workspace file itself (`customRegions`, schema 3). Whoever opens the workspace file gets the region with it; nothing else needs to be shared.
