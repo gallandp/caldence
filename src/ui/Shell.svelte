@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { translate as t } from '../i18n';
+  import { levels, translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import LanguageSwitch from './LanguageSwitch.svelte';
   import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
+  import AreaIcon from './components/AreaIcon.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
+  import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
   import { loadWeek } from './state/focus';
@@ -65,6 +67,11 @@
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
   const viewKey = (id: ViewId) => (id === 'team' && activeArea ? 'view.area' : `view.${id}`);
+  /** Views whose numbers depend on the selected team or area name it above the headline. */
+  const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
+  const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
+  const scopeName = $derived(noTeams ? undefined : (activeArea ?? activeTeam)?.name);
+  const scope = $derived(`${scopeName} · ${activeArea ? $levels.area : $levels.team}`);
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -334,6 +341,16 @@
           tabindex="0"
           hidden={active !== id}
         >
+          {#if scopeName !== undefined && SCOPED.includes(id)}
+            <p class="scope" title={scope}>
+              {#if activeArea}
+                <span class="mark area"><AreaIcon /></span>
+              {:else}
+                <span class="mark team" aria-hidden="true">{initials(scopeName)}</span>
+              {/if}
+              <span class="scope-text">{scope}</span>
+            </p>
+          {/if}
           <h2 class:sr-only={id === 'calendar' && noTeams}>
             {id === 'team' && activeArea
               ? $t('area.view.title', { name: activeArea.name })
@@ -783,6 +800,43 @@
     font-size: 1.75rem;
     font-weight: 780;
     letter-spacing: -0.025em;
+  }
+  /* Information, not a control: quiet text directly above the headline. */
+  .scope {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 1.25rem 0 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .scope + h2 {
+    margin-top: 0;
+  }
+  .scope-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 1rem;
+    height: 1rem;
+  }
+  .mark.area {
+    color: var(--area);
+  }
+  /* The switcher's team badge, small. */
+  .mark.team {
+    border-radius: 0.3rem;
+    background: linear-gradient(135deg, #8b7bff, #22c3ee);
+    color: #fff;
+    font-size: 0.5rem;
+    font-weight: 750;
   }
   .start {
     padding: 2.5rem;

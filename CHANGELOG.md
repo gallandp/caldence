@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Calendar, Load, Meetings & cadence and the team or area page name the selected team or area in a quiet line above the headline, with the configured level name (#196)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
