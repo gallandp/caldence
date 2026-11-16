@@ -41,6 +41,23 @@ test.describe('touch screen', () => {
     expect(chip.width).toBeGreaterThanOrEqual(44);
     expect(chip.height).toBeGreaterThanOrEqual(44);
     expect(chip.visual.width).toBeLessThan(44);
+
+    // Wrapped role chips: a tap at the edge of a remove button's hit area still hits that button.
+    const hitsOwnButton = await page
+      .getByRole('button', { name: 'Remove Alex (Product Owner)', exact: true })
+      .evaluate((el) => {
+        const chip = el.closest('.chip')!;
+        for (let i = 0; i < 8; i++) chip.after(chip.cloneNode(true));
+        const box = el.getBoundingClientRect();
+        const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+        return [
+          [x, y + 21],
+          [x, y - 21],
+          [x + 21, y],
+          [x - 21, y],
+        ].every(([px, py]) => document.elementFromPoint(px!, py!)?.closest('button') === el);
+      });
+    expect(hitsOwnButton).toBe(true);
   });
 });
 
