@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction, pickUnit, unitNames, setLanguage } from './helpers';
+import {
+  openPeoplePool,
+  useFileFallback,
+  teamAction,
+  pickUnit,
+  unitNames,
+  setLanguage,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -72,6 +79,7 @@ async function expectEverything(page: Page) {
     await expect(page.getByLabel(`Weekly hours of Kim in ${team}`)).toHaveValue(
       team === 'Team A' ? '20' : '10',
     );
+    await openPeoplePool(page);
     await expect(page.getByLabel('Name of Kim')).toBeVisible();
     await expect(page.getByLabel('Name of Product Owner')).toBeVisible();
     await expect(page.getByLabel('Name of Developer')).toBeVisible();

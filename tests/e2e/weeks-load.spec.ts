@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, setLanguage, showView, useFileFallback } from './helpers';
+import { openExample, openPeoplePool, setLanguage, showView, useFileFallback } from './helpers';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -309,6 +309,7 @@ test('the chart summarises the hours per week and marks weeks with a warning', a
 test('a person without meetings shows no peak week', async ({ page }) => {
   const panel = await openView(page, 'load');
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await openPeoplePool(page);
   const people = page.getByRole('region', { name: 'People', exact: true });
   await people.getByLabel('New person name').fill('Robin');
   await people.getByRole('button', { name: 'Add', exact: true }).click();
