@@ -35,7 +35,7 @@
         { "personId": "person-sam", "roleId": "role-sm" }
       ],
       "memberHours": { "person-alex": 16, "person-sam": 20 },
-      "assumptions": { "stakeholders": 6 },
+      "assumptions": { "Number of stakeholders": 6 },
       "cycles": [
         {
           "id": "cycle-release",
@@ -103,7 +103,12 @@
           "rule": { "type": "monthly-nth-weekday", "weekday": 4, "nth": 1 },
           "time": "15:00",
           "duration": 60,
-          "scaling": { "base": 30, "perUnit": 5, "assumption": "stakeholders", "grid": 15 },
+          "scaling": {
+            "base": 30,
+            "perUnit": 5,
+            "assumption": "Number of stakeholders",
+            "grid": 15
+          },
           "participants": [{ "roleId": "role-po", "share": 1 }],
           "preparation": 0.25
         },

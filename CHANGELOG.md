@@ -6,6 +6,12 @@
 
 - Phones: a tab bar at the bottom shows Calendar, Load, Meetings and Team with one tap; Templates, Settings, Import / Export, Help and the links moved into the file bar's "…" menu, which replaces the menu button (#209)
 
+## 1.40.0 – 2026-11-16
+
+### Changed
+
+- Team assumptions are labelled by a plain name instead of a technical key, in normal type; the example workspace calls its assumption "Number of stakeholders" ("Anzahl Stakeholder" in German), and a taken name gets a clear message (#210)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
