@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Avatar initials in the team switcher and the area structure are at least 10 px and still fit, so they stay legible (#215)
+
 ## 1.42.1 – 2026-11-16
 
 ### Fixed
