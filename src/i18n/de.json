@@ -482,6 +482,7 @@
   "cal.milestone": "Meilenstein: {name}",
   "cal.hours": "{hours} h",
   "cal.meetings.one": "{n} Termin",
+  "cal.more": "+{n} weitere",
   "cal.meetings.other": "{n} Termine",
   "cal.overlap.mark": "Hat Überschneidung",
   "cal.overlap": "Überschneidung: {a} ({teamA}) und {b} ({teamB})",
