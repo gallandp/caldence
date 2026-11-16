@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   bump,
+  changelogSection,
   escapeRegExp,
   highestLabel,
+  mergeSections,
+  prChanges,
   releaseChangelog,
   versionNotes,
 } from '../../scripts/version-bump.mjs';
@@ -48,8 +51,12 @@ describe('releaseChangelog', () => {
     expect(r.changelog).not.toMatch(/\n\n\n/);
     expect(r.notes).toBe('### Changed\n\n- Maintenance release without changes to the app.');
   });
-  it('ignores the fallback when Unreleased has entries', () => {
-    expect(releaseChangelog(log, '0.2.0', '2026-11-07', '- Bump x (#5)').notes).toBe('- Added x');
+  it('adds the PR entries to the Unreleased entries, grouped by category', () => {
+    const old =
+      '# Changelog\n\n## Unreleased\n\n### Fixed\n\n- A\n\n## 0.1.0 – 2026-01-01\n\n- Old\n';
+    expect(releaseChangelog(old, '0.2.0', '2026-11-07', '### Added\n\n- B (#5)').notes).toBe(
+      '### Added\n\n- B (#5)\n\n### Fixed\n\n- A',
+    );
   });
 });
 
@@ -84,5 +91,57 @@ describe('escapeRegExp', () => {
     const s = '1.2.3+build(1)[x]*?^$|{}\\';
     expect(new RegExp(`^${escapeRegExp(s)}$`).test(s)).toBe(true);
     expect(new RegExp(`^${escapeRegExp('1.2.3')}$`).test('1x2x3')).toBe(false);
+  });
+});
+
+describe('changelogSection', () => {
+  it('returns the lines under "## Changelog" up to the next heading of level 1 or 2', () => {
+    const body =
+      '## What and why\n\nText\n\n## Changelog\n\n### Fixed\n\n- A\n\n## Checklist\n\n- [ ] x';
+    expect(changelogSection(body).trim()).toBe('### Fixed\n\n- A');
+  });
+  it('is empty without the section, or without a body', () => {
+    expect(changelogSection('## What and why\n\n- x')).toBe('');
+    expect(changelogSection(null)).toBe('');
+  });
+  it('ignores a quoted heading such as one in Dependabot release notes', () => {
+    expect(changelogSection('> ## Changelog\n> - x')).toBe('');
+  });
+});
+
+describe('mergeSections', () => {
+  it('joins entries of the same category in the usual order', () => {
+    expect(mergeSections('### Fixed\n\n- A', '### Added\n\n- B\n\n### Fixed\n\n- C')).toBe(
+      '### Added\n\n- B\n\n### Fixed\n\n- A\n- C',
+    );
+  });
+  it('files entries without heading under Changed and keeps wrapped lines with their entry', () => {
+    expect(mergeSections('- A\n  continued')).toBe('### Changed\n\n- A continued');
+  });
+});
+
+describe('prChanges (release PR collects the entries of merged PRs)', () => {
+  it('takes the "## Changelog" section of each PR and names the PR', () => {
+    const prs = [
+      { number: 7, title: 'T7', body: '## Changelog\n\n### Fixed\n\n- Avatars legible (#215)' },
+      {
+        number: 8,
+        title: 'T8',
+        body: '## Changelog\n\n<!-- hint -->\n### Added\n\n- New view (#8)',
+      },
+    ];
+    expect(prChanges(prs)).toBe(
+      '### Added\n\n- New view (#8)\n\n### Fixed\n\n- Avatars legible (#215) (#7)',
+    );
+  });
+  it('uses the title when a PR has no entries, and the title only for Dependabot', () => {
+    const prs = [
+      { number: 9, title: 'Fix x', body: '## Changelog\n\n<!-- one line per change -->\n' },
+      { number: 10, title: 'Bump y', body: '## Changelog\n\n- y 2.0', author: 'dependabot[bot]' },
+    ];
+    expect(prChanges(prs)).toBe('### Changed\n\n- Fix x (#9)\n- Bump y (#10)');
+  });
+  it('skips a PR that still wrote its entry into CHANGELOG.md', () => {
+    expect(prChanges([{ number: 3, title: 'Old', body: '', editedChangelog: true }])).toBe('');
   });
 });

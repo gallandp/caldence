@@ -1,0 +1,79 @@
+name: Release merge
+
+# Publishes the day's changes in one release. The release PR "Release X.Y.Z" (release.yml)
+# collects every PR merged since the last release; once a day this workflow merges it, if CI is
+# green on it, and starts release.yml on main, because a merge made with GITHUB_TOKEN starts no
+# push run. release.yml then publishes the release and starts deploy.yml, which waits for the
+# maintainer's approval as before: one approval a day instead of one per PR.
+#
+# Start it by hand (Actions › Release merge › Run workflow) for a release right away.
+# It merges only if release/next is exactly main plus the version commit of github-actions[bot].
+# It never checks out or runs code; it only calls the GitHub API.
+
+on:
+  schedule:
+    # 17:00 UTC: 18:00 in Berlin in winter, 19:00 in summer. GitHub may start it a little late.
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-merge
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      # To start release.yml (see the last line).
+      actions: write
+    steps:
+      - name: Merge the release PR once its checks are green
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        # Waits up to 40 minutes, for example when a PR merged shortly before rebuilt the
+        # release PR and its CI is still running.
+        run: |
+          for i in $(seq 1 80); do
+            pr=$(gh api "repos/$REPO/pulls?state=open&head=${REPO%%/*}:release/next" \
+              --jq '[.[] | select(.user.login == "github-actions[bot]")][0] // empty | "\(.number) \(.head.sha)"')
+            if [ -z "$pr" ]; then
+              echo "No release PR: nothing was merged since the last release."
+              exit 0
+            fi
+            read -r number sha <<< "$pr"
+            read -r ahead behind author < <(gh api "repos/$REPO/compare/main...$sha" \
+              --jq '"\(.ahead_by) \(.behind_by) \(.commits[-1].author.login // "none")"')
+            if [ "$behind" = 0 ]; then
+              if [ "$ahead" != 1 ] || [ "$author" != "github-actions[bot]" ]; then
+                echo "::error::release/next holds more than the version commit ($ahead commits, last by $author); merge it by hand after a look."
+                exit 1
+              fi
+              # The latest run of each required job of ci.yml on the release PR.
+              states=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
+                --jq '[.check_runs[] | select(.name == "check" or .name == "deploy-smoke")
+                  | "\(.name)=\(.conclusion // .status)"] | sort | join(" ")')
+              echo "Release PR #$number at $sha: ${states:-no checks yet}"
+              if [ "$states" = "check=success deploy-smoke=success" ]; then
+                gh pr merge "$number" --repo "$REPO" --merge --match-head-commit "$sha"
+                gh workflow run release.yml --repo "$REPO" --ref main
+                exit 0
+              fi
+              if grep -qE '=(failure|cancelled|timed_out|action_required|startup_failure|stale)' <<< "$states"; then
+                echo "::error::CI is not green on release PR #$number ($states); fix it, then run this workflow by hand."
+                exit 1
+              fi
+            else
+              echo "release/next is $behind commits behind main; waiting for the rebuilt release PR."
+            fi
+            sleep 30
+          done
+          echo "::error::The release PR did not become ready within 40 minutes; run this workflow again later."
+          exit 1
