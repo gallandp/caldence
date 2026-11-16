@@ -6,6 +6,10 @@
 
 - Calendar, Load, Meetings & cadence and the team or area page name the selected team or area in a quiet line above the headline, with the configured level name (#196)
 
+### Changed
+
+- Team assumptions are labelled by a plain name instead of a technical key, in normal type; the example workspace calls its assumption "Number of stakeholders" ("Anzahl Stakeholder" in German), and a taken name gets a clear message (#210)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed

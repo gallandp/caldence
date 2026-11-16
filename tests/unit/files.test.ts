@@ -369,4 +369,13 @@ describe('exampleWorkspace', () => {
     expect(names('en')).toEqual(['Scrum events', 'Alignment', 'Stakeholders']);
     expect(names('de')).toEqual(['Scrum-Events', 'Abstimmung', 'Stakeholder']);
   });
+
+  it('names the assumption in the UI language and keeps the scaling rule on it', () => {
+    const alpha = (locale?: string) => exampleWorkspace(locale).teams[0]!;
+    const scaled = (locale?: string) =>
+      alpha(locale).events.flatMap((e) => (e.scaling ? [e.scaling.assumption] : []));
+    expect(alpha().assumptions).toEqual({ 'Number of stakeholders': 6 });
+    expect(alpha('de').assumptions).toEqual({ 'Anzahl Stakeholder': 6 });
+    expect(scaled('de')).toEqual(['Anzahl Stakeholder']);
+  });
 });
