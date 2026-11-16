@@ -77,11 +77,54 @@ export async function teamAction(page: Page, name: string) {
   await button.click();
 }
 
+/** Tab bar labels that are shorter than the view's name. */
+const TAB_LABEL: Record<string, string> = {
+  'Meetings & cadence': 'Meetings',
+  'Termine & Takt': 'Termine',
+};
+
+/**
+ * Shows a view the way the screen offers it: the sidebar tab, the tab in the menu (below 960 px),
+ * or on phones (640 px and below) the bottom tab bar or the file bar's "…" menu.
+ */
+export async function showView(page: Page, name: string) {
+  if ((page.viewportSize()?.width ?? Infinity) > 640) {
+    await openMenuIfNarrow(page);
+    await page.getByRole('tab', { name, exact: true }).click();
+    return;
+  }
+  const tab = page
+    .locator('nav.tabbar')
+    .getByRole('button', { name: TAB_LABEL[name] ?? name, exact: true });
+  if ((await tab.count()) > 0) return tab.click();
+  const more = page.locator('.content > .bar button.more');
+  // A click before the app has hydrated does nothing, so click until the menu reports open.
+  await expect(async () => {
+    if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
+  }).toPass();
+  await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();
+}
+
+/**
+ * Picks the UI language in the sidebar. Phones do not show the sidebar's language switch, so the
+ * window is widened for the pick and narrowed again.
+ */
+export async function setLanguage(page: Page, lang: string) {
+  const size = page.viewportSize();
+  const phone = size !== null && size.width <= 640;
+  if (phone) await page.setViewportSize({ width: 1280, height: size.height });
+  await openMenuIfNarrow(page);
+  await page.getByLabel(/Language|Sprache/).selectOption(lang);
+  if (phone) await page.setViewportSize(size);
+}
+
 /** On narrow screens the views, language and appearance sit in a menu: open it if it is closed. */
 export async function openMenuIfNarrow(page: Page) {
   const toggle = page.locator('.menu-toggle');
-  // The menu button replaces the side bar below 60rem (960 px).
-  if ((page.viewportSize()?.width ?? Infinity) > 960) return;
+  // The menu button replaces the side bar below 60rem (960 px); on phones the tab bar replaces it.
+  const width = page.viewportSize()?.width ?? Infinity;
+  if (width > 960 || width <= 640) return;
   // A click before the app has hydrated does nothing, so click until the menu reports open.
   await expect(async () => {
     if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();

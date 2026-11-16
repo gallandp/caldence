@@ -191,8 +191,8 @@ test('appearance overrides the system scheme and is remembered', async ({ page }
   expect(await bg()).toBe(systemDark);
 });
 
-test('on narrow screens the views open from a menu', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('on tablets the views open from a menu', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 900 });
   await openExample(page);
   const toggle = page.getByRole('button', { name: /^Menu:/ });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -214,6 +214,60 @@ test('on narrow screens the views open from a menu', async ({ page }) => {
   await expect(toggle).toBeFocused();
 });
 
+test('on phones a tab bar shows the main views and the menu holds the others', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExample(page);
+  await expect(page.getByRole('button', { name: /^Menu:/ })).toBeHidden();
+  const tabbar = page.getByRole('navigation', { name: 'Views' });
+  const tabs = tabbar.getByRole('button');
+  await expect(tabs).toHaveText(['Calendar', 'Load', 'Meetings', 'Team']);
+  await expect(tabbar.getByRole('button', { name: 'Calendar' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
+  // One tap shows a view and marks its tab.
+  await tabbar.getByRole('button', { name: 'Meetings' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Meetings & cadence' })).toBeVisible();
+  await expect(tabbar.getByRole('button', { name: 'Meetings' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(tabbar.getByRole('button', { name: 'Calendar' })).not.toHaveAttribute(
+    'aria-current',
+  );
+
+  // Fixed at the bottom, also after scrolling, and nothing scrolls sideways.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const box = (await tabbar.boundingBox())!;
+  expect(Math.round(box.y + box.height)).toBe(844);
+  // The end of the view stays above the tab bar.
+  const end = (await page
+    .getByRole('tabpanel', { name: 'Meetings & cadence' })
+    .evaluate((el) => el.getBoundingClientRect().bottom))!;
+  expect(end).toBeLessThanOrEqual(box.y);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  // The other views are in the file bar's menu; there is no "More" tab.
+  const more = page.getByRole('button', { name: 'More', exact: true });
+  for (const name of ['Templates', 'Workspace settings', 'Import / Export', 'Help']) {
+    await expect(tabbar.getByRole('button', { name })).toHaveCount(0);
+    await more.click();
+    await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();
+    await expect(page.getByRole('tabpanel', { name, exact: true })).toBeVisible();
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('main')).toBeFocused();
+    await expect(tabbar.locator('[aria-current]')).toHaveCount(0);
+  }
+  await more.click();
+  await expect(page.locator('.more-panel').getByRole('link', { name: /GitHub/ })).toBeVisible();
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    const result = await new AxeBuilder({ page }).analyze();
+    expect(result.violations).toEqual([]);
+  }
+});
+
 test('on narrow screens the file bar is one row with Save and a menu for the rest', async ({
   page,
 }) => {
@@ -222,7 +276,7 @@ test('on narrow screens the file bar is one row with Save and a menu for the res
   await openExample(page);
   const bar = page.locator('.content > .bar:not(.context)');
   const save = bar.getByRole('button', { name: 'Save', exact: true });
-  const more = bar.getByRole('button', { name: 'More file actions' });
+  const more = bar.getByRole('button', { name: 'More', exact: true });
   await expect(save).toBeVisible();
   await expect(bar.getByRole('button', { name: 'New', exact: true })).toBeHidden();
   const name = (await bar.locator('.name').boundingBox())!;
