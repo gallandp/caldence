@@ -4,6 +4,7 @@ import {
   openExample,
   openFixture,
   openTeamView,
+  openPeoplePool,
   useFileFallback,
   teamAction,
   pickUnit,
@@ -240,6 +241,7 @@ test('a role filter is reset when the role is replaced and deleted', async ({ pa
   await openExample(page);
   await page.locator('.context').getByLabel('Role').selectOption({ label: 'Developer' });
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await openPeoplePool(page);
   await page.getByRole('button', { name: 'Delete Developer' }).click();
   await page
     .getByRole('dialog', { name: 'Replace Developer' })
@@ -344,9 +346,10 @@ test('people and roles are created in the team view, hours count per team', asyn
   await openExample(page);
   await openTeamView(page);
   const team = panel(page);
+  await openPeoplePool(page);
   await team.getByLabel('New person name').fill('Kim');
   await team.getByLabel('New person name').press('Enter');
-  await expect(team.getByText('not in a team yet')).toBeVisible();
+  await expect(team.getByText('not assigned yet')).toBeVisible();
   await team.getByLabel('Person', { exact: true }).fill('Kim');
   await team.getByLabel('Hrs/week in team').fill('12');
   await team.getByRole('button', { name: 'Add member' }).click();
@@ -354,4 +357,30 @@ test('people and roles are created in the team view, hours count per team', asyn
   await expect(team.getByText('Team Alpha 12 h', { exact: true })).toBeVisible();
   // Alex is in both example teams with 16 h each.
   await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
+});
+
+test('the team view folds the workspace-wide people and roles away (#231)', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  const people = team.getByRole('region', { name: 'People', exact: true });
+  await expect(team.getByText('All people and roles in the workspace')).toBeVisible();
+  await expect(team.getByText('2 people, 3 roles')).toBeVisible();
+  await expect(people).toBeHidden();
+  await expect(team.getByRole('region', { name: 'Roles', exact: true })).toBeHidden();
+  await openPeoplePool(page);
+  await expect(people).toBeVisible();
+});
+
+test('the folded people and roles open by themselves while there are no roles', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await openTeamView(page);
+  await teamAction(page, 'Add team');
+  const dialog = page.getByRole('dialog', { name: 'Add team' });
+  await dialog.getByLabel('Team name').fill('Alpha');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('First create a role under Roles below.')).toBeVisible();
+  await expect(page.getByLabel('New role name')).toBeVisible();
 });

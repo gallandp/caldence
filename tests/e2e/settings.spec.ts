@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openWorkspaceFile, teamAction, setLanguage } from './helpers';
+import { openPeoplePool, openWorkspaceFile, teamAction, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -24,7 +24,10 @@ async function openExample(page: Page, view: 'settings' | 'team' = 'settings') {
   await page.getByRole('button', { name: 'Open the example' }).click();
   await expect(page.getByText('Untitled')).toBeVisible();
   if (view === 'settings') await openSettings(page);
-  else await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  else {
+    await page.getByRole('tab', { name: 'Team', exact: true }).click();
+    await openPeoplePool(page);
+  }
 }
 
 const roleNames = (page: Page) =>

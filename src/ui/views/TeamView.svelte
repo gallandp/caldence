@@ -35,6 +35,12 @@
   const people = $derived($workspace.people);
   const roles = $derived($workspace.roles);
   const defaultHours = $derived($workspace.settings.hoursPerWeek);
+  // The workspace pools start folded; without roles nobody can be assigned, so they unfold
+  // to put the roles list right there.
+  let poolOpen = $state(false);
+  $effect(() => {
+    if (roles.length === 0) poolOpen = true;
+  });
   /** The team's members, one entry per person with their roles in member order. */
   const grouped = $derived.by(() => {
     const out: { personId: string; roleIds: string[] }[] = [];
@@ -223,7 +229,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"
       ><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" /></svg
     >
-    <p>{$t('team.help')}</p>
+    <p>{$t('team.help', { team: team?.name ?? '' })}</p>
   </div>
 {/snippet}
 
@@ -363,25 +369,6 @@
           {/if}
         </section>
       {/key}
-      <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
-      <div class="card">
-        <ListEditor
-          kind="people"
-          items={$workspace.people}
-          heading={$t('settings.people')}
-          hint={$t('team.people.hint')}
-          addLabel={$t('settings.people.add')}
-          create={(name) => ({ name })}
-          confirmRemove={confirmPerson}
-        >
-          {#snippet extra(person)}
-            <span class="teams-of">{teamsOf(person.id)}</span>
-          {/snippet}
-        </ListEditor>
-      </div>
-      <div class="card">
-        <RoleList />
-      </div>
       <!-- Like Members, Assumptions start afresh with each epoch (see Problems). -->
       {#key epoch}
         <section class="card" aria-labelledby="{uid}-assumptions-h">
@@ -466,10 +453,64 @@
         </section>
       {/key}
     </div>
+    <!-- The workspace-wide pools, folded away so the page shows only this team's people (#231). -->
+    <details class="pool" bind:open={poolOpen}>
+      <summary
+        >{$t('team.pool')}
+        <span class="count"
+          >{$t($workspace.people.length === 1 ? 'overview.people.one' : 'overview.people.other', {
+            n: $workspace.people.length,
+          })}, {$t(
+            $workspace.roles.length === 1 ? 'team.pool.roles.one' : 'team.pool.roles.other',
+            { n: $workspace.roles.length },
+          )}</span
+        ></summary
+      >
+      <p class="hint">{$t('team.pool.hint', { team: team.name })}</p>
+      <div class="cards">
+        <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
+        <div class="card">
+          <ListEditor
+            kind="people"
+            items={$workspace.people}
+            heading={$t('settings.people')}
+            hint={$t('team.people.hint')}
+            addLabel={$t('settings.people.add')}
+            create={(name) => ({ name })}
+            confirmRemove={confirmPerson}
+          >
+            {#snippet extra(person)}
+              <span class="teams-of">{teamsOf(person.id)}</span>
+            {/snippet}
+          </ListEditor>
+        </div>
+        <div class="card">
+          <RoleList />
+        </div>
+      </div>
+    </details>
   {/if}
 </div>
 
 <style>
+  .pool {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .pool summary {
+    width: fit-content;
+    min-height: 2.75rem;
+    padding-block: 0.6rem;
+    color: var(--accent-text);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pool .count {
+    margin-left: 0.5rem;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
   /* Cards flow in reading order: at most two per row, one below the other on a phone. */
   .cards {
     display: grid;
