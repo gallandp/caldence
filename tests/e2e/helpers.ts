@@ -77,11 +77,41 @@ export async function teamAction(page: Page, name: string) {
   await button.click();
 }
 
-/** On narrow screens the views, language and appearance sit in a menu: open it if it is closed. */
+/** Tab bar labels that are shorter than the view's name. */
+const TAB_LABEL: Record<string, string> = {
+  'Meetings & cadence': 'Meetings',
+  'Termine & Takt': 'Termine',
+};
+
+/**
+ * Shows a view the way the screen offers it: the sidebar tab, the tab in the menu (below 960 px),
+ * or on phones (640 px and below) the bottom tab bar or the file bar's "…" menu.
+ */
+export async function showView(page: Page, name: string) {
+  if ((page.viewportSize()?.width ?? Infinity) > 640) {
+    await openMenuIfNarrow(page);
+    await page.getByRole('tab', { name, exact: true }).click();
+    return;
+  }
+  const tab = page
+    .locator('nav.tabbar')
+    .getByRole('button', { name: TAB_LABEL[name] ?? name, exact: true });
+  if ((await tab.count()) > 0) return tab.click();
+  const more = page.locator('.content > .bar button.more');
+  // A click before the app has hydrated does nothing, so click until the menu reports open.
+  await expect(async () => {
+    if ((await more.getAttribute('aria-expanded')) === 'false') await more.click();
+    await expect(more).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
+  }).toPass();
+  await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();
+}
+
+/** On narrow screens the views sit in a menu: open it if it is closed. */
 export async function openMenuIfNarrow(page: Page) {
   const toggle = page.locator('.menu-toggle');
-  // The menu button replaces the side bar below 60rem (960 px).
-  if ((page.viewportSize()?.width ?? Infinity) > 960) return;
+  // The menu button replaces the side bar below 60rem (960 px); on phones the tab bar replaces it.
+  const width = page.viewportSize()?.width ?? Infinity;
+  if (width > 960 || width <= 640) return;
   // A click before the app has hydrated does nothing, so click until the menu reports open.
   await expect(async () => {
     if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
@@ -95,8 +125,13 @@ export async function openMenuIfNarrow(page: Page) {
  */
 export async function setLanguage(page: Page, locale: 'de' | 'en') {
   const before = await page.locator('[role="tab"][aria-selected="true"]').getAttribute('id');
+  // Phones hide the view list behind the tab bar and the "…" menu, whose labels are translated:
+  // the hidden view tabs still switch views when clicked from script.
+  const phone = (page.viewportSize()?.width ?? Infinity) <= 640;
+  const open = (id: string) =>
+    phone ? page.locator(`#${id}`).dispatchEvent('click') : page.locator(`#${id}`).click();
   await openMenuIfNarrow(page);
-  await page.locator('#tab-settings').click();
+  await open('tab-settings');
   await page
     .locator('#panel-settings')
     .getByLabel(/Language|Sprache/)
@@ -104,7 +139,7 @@ export async function setLanguage(page: Page, locale: 'de' | 'en') {
   await expect(page.locator('html')).toHaveAttribute('lang', locale);
   if (before && before !== 'tab-settings') {
     await openMenuIfNarrow(page);
-    await page.locator(`#${before}`).click();
+    await open(before);
   }
   // On narrow screens the menu stays open, as it was when the switch sat in it.
   await openMenuIfNarrow(page);

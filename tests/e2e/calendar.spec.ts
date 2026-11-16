@@ -3,7 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
-import { openExample, useFileFallback, pickUnit, currentUnit, setLanguage } from './helpers';
+import { openExample, setLanguage, useFileFallback, pickUnit, currentUnit } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
