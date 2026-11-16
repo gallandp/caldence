@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Manual: the phone paragraph describes the bottom tab bar and the ⋯ menu instead of the old menu button (#209)
+
 ## 1.42.0 – 2026-11-16
 
 ### Changed
