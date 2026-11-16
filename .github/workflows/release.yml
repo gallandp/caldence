@@ -93,18 +93,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         # Each PR's "## Changelog" section, or its title; release:none PRs add nothing. A PR that
-        # still edited CHANGELOG.md itself (written before this change) is marked, so its entry is
-        # not added twice. PR text is only ever handled as data by the script, never as shell.
+        # still added its entry under "## Unreleased" in CHANGELOG.md (written before this flow)
+        # is marked, so its entry is not added twice. PR text is only ever handled as data by the
+        # script, never as shell.
         run: |
           version=$(node -p "require('./package.json').version")
           for sha in $(git rev-list --first-parent "v$version..HEAD"); do
             gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" \
               --jq '.[] | select([.labels[].name] | index("release:none") | not)
-                | {number, title, body, author: .user.login}'
+                | {number, title, body, author: .user.login, association: .author_association}'
           done | jq -s 'unique_by(.number)' > prs.json
           for n in $(jq '.[].number' prs.json); do
-            files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$n/files" --jq '.[].filename')
-            edited=$(grep -qx CHANGELOG.md <<< "$files" && echo true || echo false)
+            patch=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$n/files" \
+              --jq '.[] | select(.filename == "CHANGELOG.md") | .patch // ""')
+            edited=false
+            if grep -q '## Unreleased' <<< "$patch" && grep -qE '^\+(- |### )' <<< "$patch"; then
+              edited=true
+            fi
             jq --argjson n "$n" --argjson e "$edited" \
               'map(if .number == $n then .editedChangelog = $e else . end)' prs.json > prs.tmp
             mv prs.tmp prs.json
@@ -134,7 +139,7 @@ jobs:
           {
             echo "Merging this PR publishes Caldence $VERSION ($LEVEL)."
             echo
-            echo "It is rebuilt from main whenever another PR with a release label is merged,"
+            echo "It is rebuilt from main whenever another PR is merged,"
             echo "and merged automatically once a day (18:00 Berlin winter time) when CI is green."
             echo
             cat release-notes.md

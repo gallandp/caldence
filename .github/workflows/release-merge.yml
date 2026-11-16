@@ -56,18 +56,31 @@ jobs:
                 echo "::error::release/next holds more than the version commit ($ahead commits, last by $author); merge it by hand after a look."
                 exit 1
               fi
-              # The latest run of each required job of ci.yml on the release PR.
-              states=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" \
-                --jq '[.check_runs[] | select(.name == "check" or .name == "deploy-smoke")
-                  | "\(.name)=\(.conclusion // .status)"] | sort | join(" ")')
-              echo "Release PR #$number at $sha: ${states:-no checks yet}"
-              if [ "$states" = "check=success deploy-smoke=success" ]; then
+              # The latest run of each job of ci.yml on the release PR: "ok" when both passed,
+              # "wait" while one is missing or running, otherwise "fail".
+              verdict=$(gh api "repos/$REPO/commits/$sha/check-runs?filter=latest&per_page=100" \
+                --jq '[.check_runs[] | select(.app.slug == "github-actions")
+                    | select(.name == "check" or .name == "deploy-smoke")]
+                  | group_by(.name) | map(max_by(.started_at))
+                  | (map(select(.status == "completed"))) as $done
+                  | if any($done[]; .conclusion != "success") then "fail"
+                    elif ($done | length) == 2 then "ok" else "wait" end')
+              echo "Release PR #$number at $sha: CI $verdict"
+              if [ "$verdict" = ok ]; then
+                base=$(gh api "repos/$REPO/commits/main" --jq .sha)
                 gh pr merge "$number" --repo "$REPO" --merge --match-head-commit "$sha"
                 gh workflow run release.yml --repo "$REPO" --ref main
+                # A PR merged into main in the seconds between the check and the merge ships in
+                # this release without its changelog entry; say so, so it can be added by hand.
+                merge=$(gh api "repos/$REPO/pulls/$number" --jq .merge_commit_sha)
+                parent=$(gh api "repos/$REPO/commits/$merge" --jq '.parents[0].sha')
+                if [ "$parent" != "$base" ]; then
+                  echo "::warning::main moved during the merge ($base to $parent); check the changelog of this release."
+                fi
                 exit 0
               fi
-              if grep -qE '=(failure|cancelled|timed_out|action_required|startup_failure|stale)' <<< "$states"; then
-                echo "::error::CI is not green on release PR #$number ($states); fix it, then run this workflow by hand."
+              if [ "$verdict" = fail ]; then
+                echo "::error::CI is not green on release PR #$number; fix it, then run this workflow by hand."
                 exit 1
               fi
             else

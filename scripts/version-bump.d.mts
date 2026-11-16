@@ -18,6 +18,8 @@ export function prChanges(
     title: string;
     body?: string | null;
     author?: string;
+    association?: string;
     editedChangelog?: boolean;
   }[],
 ): string;
+export function cleanEntry(text: string): string;

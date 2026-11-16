@@ -24,29 +24,69 @@ export function bump(version, label) {
 /** Changelog categories in the order they appear in a release. */
 const CATEGORIES = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
 
+/** Known category for a "###" heading in any case; anything else counts as "Changed". */
+function category(name) {
+  return CATEGORIES.find((c) => c.toLowerCase() === name.trim().toLowerCase()) ?? 'Changed';
+}
+
+/**
+ * One entry as Prettier writes it (CI runs `prettier --check` on CHANGELOG.md): single spaces,
+ * `_emphasis_` and `**strong**`, a literal leading list marker escaped. Mentions become code, so
+ * a release never notifies anyone.
+ */
+export function cleanEntry(text) {
+  // Code spans stay as written; only the text between them is changed.
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(`[^`]*`)/)
+    .map((part, i) =>
+      i % 2
+        ? part
+        : part
+            .replace(/__(?=\S)(.+?)(?<=\S)__/g, '**$1**')
+            .replace(/(?<![*\w\\])\*(?=[^\s*])([^*]*?[^\s*])\*(?![*\w])/g, '_$1_')
+            .replace(/(?<![*\\])\*(?!\*)(?<!\*\*)/g, '\\*')
+            .replace(/(^|[^\w])@([A-Za-z0-9][\w-]*)/g, '$1`@$2`'),
+    )
+    .join('')
+    .replace(/^([+-]) /, '\\$1 ');
+}
+
 /** Parses "### Category" headings and "- entry" lines into [category, entries[]] pairs. */
 function parseSections(markdown) {
   const sections = new Map();
-  let category = 'Changed';
+  let current = 'Changed';
   let last = null;
+  let fenced = false;
   for (const raw of markdown.replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/)) {
     const line = raw.trimEnd();
-    const heading = /^###\s+(.+)$/.exec(line);
-    if (heading) {
-      category = heading[1].trim();
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced;
       last = null;
       continue;
     }
-    const entry = /^\s*[-*]\s+(.+)$/.exec(line);
-    if (entry && !/^\s{2,}/.test(line)) {
-      if (!sections.has(category)) sections.set(category, []);
-      last = sections.get(category);
-      last.push(entry[1].trim());
-    } else if (line.trim() && last) {
-      // A wrapped entry or a nested list line belongs to the entry above.
-      last[last.length - 1] += ` ${line.trim().replace(/^[-*]\s+/, '')}`;
+    if (fenced) continue;
+    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+    if (heading) {
+      if (heading[1] === '###') current = category(heading[2]);
+      last = null;
+      continue;
+    }
+    const entry = /^[-*+]\s+(.*\S.*)$/.exec(line);
+    if (entry) {
+      if (!sections.has(current)) sections.set(current, []);
+      last = sections.get(current);
+      last.push(entry[1]);
+    } else if (/^\s+\S/.test(line) && last) {
+      // An indented line (wrapped text or a nested list item) belongs to the entry above.
+      last[last.length - 1] += ` ${line.trim().replace(/^[-*+]\s+/, '')}`;
+    } else {
+      // A blank line, a bare "-" left from the template, or a paragraph ends the entry.
+      last = null;
     }
   }
+  for (const [c, entries] of sections) sections.set(c, entries.map(cleanEntry).filter(Boolean));
   return sections;
 }
 
@@ -58,9 +98,7 @@ export function mergeSections(...markdowns) {
       all.set(category, [...(all.get(category) ?? []), ...entries]);
     }
   }
-  const known = CATEGORIES.filter((c) => all.has(c));
-  const other = [...all.keys()].filter((c) => !CATEGORIES.includes(c));
-  return [...known, ...other]
+  return CATEGORIES.filter((c) => all.get(c)?.length)
     .map(
       (c) =>
         `### ${c}\n\n${all
@@ -73,7 +111,7 @@ export function mergeSections(...markdowns) {
 
 /** The "## Changelog" section of a PR description, up to the next "#" or "##" heading. */
 export function changelogSection(body) {
-  const lines = (body ?? '').split(/\r?\n/);
+  const lines = (body ?? '').replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/);
   const start = lines.findIndex((l) => /^##\s+changelog\s*$/i.test(l.trim()));
   if (start === -1) return '';
   const rest = lines.slice(start + 1);
@@ -81,20 +119,25 @@ export function changelogSection(body) {
   return (end === -1 ? rest : rest.slice(0, end)).join('\n');
 }
 
+/** Authors whose PR description is used; others can still edit it after the merge unseen. */
+const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+
 /**
  * Changelog entries of the PRs merged since the last release, as sections. A PR gives the
  * entries in its "## Changelog" section, or else its title under "Changed". A PR that still
- * wrote its entry into CHANGELOG.md (`editedChangelog`) adds nothing, as does a Dependabot PR's
- * body (its release notes are not ours). Each entry names the PR, unless it already does.
+ * added its entry under Unreleased in CHANGELOG.md (`editedChangelog`) adds nothing. Only the
+ * descriptions of the repository's own people count (`association`), so not a Dependabot PR's
+ * release notes nor an outside contributor's later edit. Each entry names the PR, unless it
+ * already does.
  */
 export function prChanges(prs) {
   const parts = prs.map((pr) => {
     if (pr.editedChangelog) return '';
     const ref = `#${pr.number}`;
     const tag = (e) => (new RegExp(`${escapeRegExp(ref)}\\b`).test(e) ? e : `${e} (${ref})`);
-    const body = pr.author === 'dependabot[bot]' ? '' : changelogSection(pr.body);
-    const sections = parseSections(body);
-    if (sections.size === 0) return `### Changed\n\n- ${tag(pr.title.trim())}`;
+    const trusted = TRUSTED.includes(pr.association ?? '') && pr.author !== 'dependabot[bot]';
+    const sections = parseSections(trusted ? changelogSection(pr.body) : '');
+    if (sections.size === 0) return `### Changed\n\n- ${tag(cleanEntry(pr.title))}`;
     return [...sections]
       .map(([c, entries]) => `### ${c}\n\n${entries.map((e) => `- ${tag(e)}`).join('\n')}`)
       .join('\n\n');
