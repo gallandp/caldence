@@ -39,7 +39,7 @@ const rowsOf = (page: Page) => panel(page).locator('tbody tr');
 
 test('exporting the example team downloads a file that matches the status', async ({ page }) => {
   await openExchange(page);
-  await panel(page).getByLabel('Choose team').selectOption({ label: 'Team Alpha' });
+  await panel(page).getByLabel('Selected team').selectOption({ label: 'Team Alpha' });
   const { text, name } = await exportText(page);
   expect(name).toBe('caldence-team-alpha.ics');
   const status = await panel(page).getByRole('status').textContent();

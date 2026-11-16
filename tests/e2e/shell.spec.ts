@@ -117,7 +117,7 @@ test('Save stands out only while there are unsaved changes', async ({ page }) =>
 test('the views are grouped, with Help last', async ({ page }) => {
   await page.goto('/');
   const list = page.getByRole('tablist');
-  // Dividers (decorative) before Meetings, Workspace settings and Help.
+  // Dividers (decorative) before Meetings, Settings and Help.
   const before = list.locator('.group + [role="tab"]');
   await expect(before).toHaveText(['Meetings & cadence', 'Settings', 'Help']);
   await expect(list.locator('.group').first()).toHaveAttribute('aria-hidden', 'true');

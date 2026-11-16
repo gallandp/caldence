@@ -479,8 +479,8 @@
               id="set-fte"
               type="number"
               min="0"
-              step="5"
-              value={Math.round(settings.thresholds.maxFte * 1000) / 10}
+              step="1"
+              value={Math.round(settings.thresholds.maxFte * 100)}
               aria-invalid={errors['thresholds.maxFte'] ? 'true' : undefined}
               aria-describedby={describe('thresholds.maxFte')}
               onchange={(e) => onThreshold('maxFte', e)}

@@ -69,7 +69,7 @@ test('the area is a calendar of its own, also in the ZIP of all teams', async ({
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
   const panel = page.getByRole('tabpanel', { name: 'Import / Export' });
   // The selected area is preselected; its file holds its own meetings only.
-  await expect(panel.getByLabel('Choose team')).toHaveValue(/.+/);
+  await expect(panel.getByLabel('Selected team')).toHaveValue(/.+/);
   let download = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Export .ics…' }).click();
   let file = await download;

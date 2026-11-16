@@ -39,7 +39,7 @@ test('the area overview compares cadences, shows load and the area steering', as
   // Gamma's 3-week sprints and Delta's Wednesday start are out of step.
   const kpi = overview.locator('[data-kpi="cadence"]');
   await expect(kpi.locator('b')).toHaveText('2 of 4');
-  await expect(kpi.locator('.tag')).toHaveText('Out of step: Team Gamma and Team Delta');
+  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Gamma and Team Delta');
   const cadence = overview.locator('[data-cadence]');
   await expect(cadence.locator('[data-team-row="team-alpha"]')).toContainText('aligned');
   await expect(cadence.locator('[data-team-row="team-gamma"]')).toContainText(
