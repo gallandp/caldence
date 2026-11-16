@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction, pickUnit, unitNames } from './helpers';
+import { useFileFallback, teamAction, pickUnit, unitNames, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -176,7 +176,7 @@ for (const locale of ['de', 'en'] as const) {
     test(`axe finds no violations in the help view (${locale}, ${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto('/');
-      await page.getByLabel(/Language|Sprache/).selectOption(locale);
+      await setLanguage(page, locale);
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       await page
         .getByRole('tab', { name: locale === 'de' ? 'Hilfe' : 'Help', exact: true })
@@ -197,7 +197,7 @@ test('the help view shows the platform key and the German texts', async ({ page 
   await tab(page, 'Help').click();
   const keys = panel(page, 'Help').getByRole('table', { name: 'Keyboard shortcuts' });
   await expect(keys.getByRole('row').nth(1)).toContainText(/^(Ctrl|⌘)\+S\s*Save$/);
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   await expect(panel(page, 'Hilfe').getByRole('heading', { name: 'Erste Schritte' })).toBeVisible();
   await expect(panel(page, 'Hilfe').getByRole('table', { name: 'Tastenkürzel' })).toContainText(
     /Strg|⌘/,
@@ -218,7 +218,7 @@ test('the help view shows the platform key and the German texts', async ({ page 
       name: 'So wird die Auslastung berechnet',
     }),
   ).toBeVisible();
-  await page.getByLabel('Sprache').selectOption('en');
+  await setLanguage(page, 'en');
   await expect(
     panel(page, 'Help').getByRole('heading', { level: 3, name: 'Templates' }),
   ).toBeVisible();

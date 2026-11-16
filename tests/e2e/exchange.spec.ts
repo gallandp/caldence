@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, showView, openWorkspaceFile, useFileFallback } from './helpers';
+import { openExample, showView, openWorkspaceFile, useFileFallback, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -231,7 +231,7 @@ test('a time zone this browser does not know still loads, is flagged and blocks 
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations with the import table filled (${locale})`, async ({ page }) => {
     await openExchange(page);
-    await page.getByLabel(/Language|Sprache/).selectOption(locale);
+    await setLanguage(page, locale);
     await chooseIcs(page, OUTLOOK, 'outlook-sample.ics');
     await expect(rowsOf(page)).toHaveCount(6);
     await panel(page).locator('details summary').click();

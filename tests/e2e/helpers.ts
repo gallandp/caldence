@@ -106,20 +106,7 @@ export async function showView(page: Page, name: string) {
   await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();
 }
 
-/**
- * Picks the UI language in the sidebar. Phones do not show the sidebar's language switch, so the
- * window is widened for the pick and narrowed again.
- */
-export async function setLanguage(page: Page, lang: string) {
-  const size = page.viewportSize();
-  const phone = size !== null && size.width <= 640;
-  if (phone) await page.setViewportSize({ width: 1280, height: size.height });
-  await openMenuIfNarrow(page);
-  await page.getByLabel(/Language|Sprache/).selectOption(lang);
-  if (phone) await page.setViewportSize(size);
-}
-
-/** On narrow screens the views, language and appearance sit in a menu: open it if it is closed. */
+/** On narrow screens the views sit in a menu: open it if it is closed. */
 export async function openMenuIfNarrow(page: Page) {
   const toggle = page.locator('.menu-toggle');
   // The menu button replaces the side bar below 60rem (960 px); on phones the tab bar replaces it.
@@ -130,4 +117,30 @@ export async function openMenuIfNarrow(page: Page) {
     if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 1000 });
   }).toPass();
+}
+
+/**
+ * Switches the UI language in Settings (the only place it lives) and returns to the view that was
+ * open before. On narrow screens the views menu is left open.
+ */
+export async function setLanguage(page: Page, locale: 'de' | 'en') {
+  const before = await page.locator('[role="tab"][aria-selected="true"]').getAttribute('id');
+  // Phones hide the view list behind the tab bar and the "…" menu, whose labels are translated:
+  // the hidden view tabs still switch views when clicked from script.
+  const phone = (page.viewportSize()?.width ?? Infinity) <= 640;
+  const open = (id: string) =>
+    phone ? page.locator(`#${id}`).dispatchEvent('click') : page.locator(`#${id}`).click();
+  await openMenuIfNarrow(page);
+  await open('tab-settings');
+  await page
+    .locator('#panel-settings')
+    .getByLabel(/Language|Sprache/)
+    .selectOption(locale);
+  await expect(page.locator('html')).toHaveAttribute('lang', locale);
+  if (before && before !== 'tab-settings') {
+    await openMenuIfNarrow(page);
+    await open(before);
+  }
+  // On narrow screens the menu stays open, as it was when the switch sat in it.
+  await openMenuIfNarrow(page);
 }

@@ -22,73 +22,78 @@
 </script>
 
 <div class="theme">
-  <span id="theme-label" class="sr-only">{$t('theme.label')}</span>
+  <span id="theme-label">{$t('theme.label')}</span>
   <div class="options" role="radiogroup" aria-labelledby="theme-label">
     {#each THEMES as option, i (option)}
       <button
         type="button"
         role="radio"
         aria-checked={$theme === option}
-        aria-label={$t('theme.' + option)}
-        title={$t('theme.' + option)}
         tabindex={$theme === option ? 0 : -1}
         bind:this={buttons[i]}
         onclick={() => setTheme(option)}
         onkeydown={(e) => onKeydown(e, i)}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[option]} /></svg>
+        <span>{$t('theme.' + option)}</span>
       </button>
     {/each}
   </div>
 </div>
 
 <style>
-  /* #app beats the shared button styles in theme.css. */
+  /* A segmented control in Settings. #app beats the shared button styles in theme.css. */
   .theme {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    color: var(--side-text);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  /* Same look as the field labels next to it. */
+  #theme-label {
     font-size: 0.85rem;
+    font-weight: 550;
   }
   .options {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
     padding: 2px;
-    border-radius: 999px;
-    background: rgb(255 255 255 / 0.08);
-    border: 1px solid rgb(255 255 255 / 0.35);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
   }
   :global(#app) .options button {
-    display: grid;
-    place-items: center;
-    width: 2rem;
-    height: 1.75rem;
-    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    min-height: 2rem;
+    padding: 0 0.6rem;
+    white-space: nowrap;
     border: 0;
-    border-radius: 999px;
-    color: var(--side-text);
+    border-radius: calc(var(--radius) - 2px);
+    color: var(--text);
     background: transparent;
     cursor: pointer;
     box-shadow: none;
-    font-size: inherit;
+    font: inherit;
   }
-  /* Stays on the dark sidebar: the light hover of other buttons would hide the icon. */
   :global(#app) .options button:not([aria-checked='true']):hover {
-    color: #fff;
-    background: rgb(255 255 255 / 0.16);
+    background: var(--accent-soft);
   }
   :global(#app) .options button[aria-checked='true'] {
-    color: #120e33;
-    background: #c2b9ff;
+    color: var(--on-accent);
+    background: var(--accent);
   }
   :global(#app) .options button:focus-visible {
-    outline: 2px solid #c2b9ff;
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
   svg {
     width: 1rem;
     height: 1rem;
+    flex: none;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
@@ -96,9 +101,8 @@
     stroke-linejoin: round;
   }
   @media (forced-colors: active) {
-    .theme,
     :global(#app) .options button {
-      color: CanvasText;
+      color: ButtonText;
     }
     :global(#app) .options button[aria-checked='true'] {
       color: HighlightText;

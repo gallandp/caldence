@@ -33,7 +33,7 @@ test('Christmas shows the holiday name in the UI language with 0 h', async ({ pa
   const day = cellOf(page, '2027-12-25');
   await expect(day).toContainText('1. Weihnachtstag');
   await expect(day).toContainText('0,0 h');
-  await page.getByLabel('Sprache').selectOption('en');
+  await setLanguage(page, 'en');
   await expect(panel(page).getByRole('grid', { name: 'December 2027' })).toBeVisible();
   await expect(day).toContainText('Christmas Day');
   await expect(day).toContainText('0.0 h');

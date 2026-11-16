@@ -164,8 +164,13 @@ test('the role and person filters show only where they apply', async ({ page }) 
 test('appearance overrides the system scheme and is remembered', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
+  // Language and appearance live only in Settings, not in the sidebar.
+  const sidebar = page.getByRole('complementary');
+  await expect(sidebar.getByRole('radiogroup')).toHaveCount(0);
+  await expect(sidebar.getByRole('combobox')).toHaveCount(0);
+  await page.locator('#tab-settings').click();
   const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  const group = page.getByRole('radiogroup', { name: 'Appearance' });
+  const group = page.locator('#panel-settings').getByRole('radiogroup', { name: 'Appearance' });
   await expect(group.getByRole('radio', { name: 'Match system' })).toHaveAttribute(
     'aria-checked',
     'true',
@@ -178,6 +183,7 @@ test('appearance overrides the system scheme and is remembered', async ({ page }
   expect(light).not.toBe(systemDark);
 
   await page.reload();
+  await page.locator('#tab-settings').click();
   await expect(group.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
   expect(await bg()).toBe(light);
 
