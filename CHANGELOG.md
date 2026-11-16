@@ -6,6 +6,8 @@
 
 - Touch screens: buttons, segmented controls and fields have hit areas of at least 44 × 44 px; small icon buttons keep their look and get a larger invisible hit area. Mouse and trackpad keep the compact sizes (#214)
 
+## 1.42.2 – 2026-11-16
+
 ### Fixed
 
 - Avatar initials in the team switcher and the area structure are at least 10 px and still fit, so they stay legible (#215)
