@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scope eyebrow – preview (#196)</title>
+    <!-- The app's real tokens, so colours and contrast match. -->
+    <link rel="stylesheet" href="../../src/ui/tokens.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: var(--font);
+        background: #d9dbe6;
+        color: #0f1426;
+      }
+      .caption {
+        margin: 24px 0 8px;
+        font: 600 13px var(--font);
+      }
+      .caption:first-child {
+        margin-top: 0;
+      }
+      .row {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .light {
+        color-scheme: light;
+      }
+      .dark {
+        color-scheme: dark;
+      }
+
+      /* A cut-out of the shell: sidebar, filter bar, headline. */
+      .frame {
+        display: grid;
+        grid-template-columns: 15.5rem minmax(0, 1fr);
+        width: 980px;
+        height: 230px;
+        overflow: hidden;
+        border-radius: 12px;
+        background: var(--bg);
+        color: var(--text);
+        box-shadow: 0 8px 24px -8px rgb(15 20 38 / 0.3);
+      }
+      .frame.phone {
+        grid-template-columns: minmax(0, 1fr);
+        width: 390px;
+        height: 300px;
+      }
+      .side {
+        padding: 1rem;
+        background: var(--side-bg);
+        color: var(--side-text);
+      }
+      .pick {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 0.8rem;
+        background: rgb(255 255 255 / 0.06);
+      }
+      .pick b {
+        display: block;
+        color: #fff;
+        font-size: 0.9rem;
+      }
+      .pick small {
+        font-size: 0.75rem;
+      }
+      .avatar {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 0.6rem;
+        background: linear-gradient(135deg, #8b7bff, #22c3ee);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 750;
+      }
+      .avatar.area {
+        background: linear-gradient(135deg, #14b8a6, #22c3ee);
+      }
+      .content {
+        position: relative;
+        min-width: 0;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        height: 3rem;
+        padding: 0 1rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+      .menu {
+        width: 1.25rem;
+        height: 0.9rem;
+        border-block: 2px solid currentColor;
+        position: relative;
+      }
+      .menu::after {
+        content: '';
+        position: absolute;
+        inset: 50% 0 auto;
+        border-top: 2px solid currentColor;
+        transform: translateY(-1px);
+      }
+      .filebar {
+        height: 2.6rem;
+        border-bottom: 1px solid var(--border);
+        background: color-mix(in srgb, var(--surface) 70%, transparent);
+      }
+      /* Wide: the filters share the headline's row (as in theme.css). */
+      .filters {
+        position: absolute;
+        top: calc(2.6rem + 1px + 1.25rem);
+        right: 2rem;
+        height: 2.625rem;
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .phone .filters {
+        position: static;
+        height: auto;
+        padding: 0.75rem 1rem 0;
+      }
+      .select {
+        padding: 0.45rem 2rem 0.45rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      main {
+        padding: 0 2rem;
+      }
+      .phone main {
+        padding: 0 1rem;
+      }
+      .card {
+        height: 6rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+      }
+
+      /* From here on: the same rules as in src/ui/Shell.svelte. */
+      h2 {
+        margin: 1.25rem 0 1rem;
+        font-size: 1.75rem;
+        font-weight: 780;
+        letter-spacing: -0.025em;
+      }
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.25rem 0 0.125rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 0.875rem;
+        color: var(--text-muted);
+      }
+      .eyebrow + h2 {
+        margin-top: 0;
+      }
+      /* Shell.svelte does this with @container (max-width: 55.99rem). */
+      .phone .eyebrow {
+        margin-top: 0.75rem;
+      }
+      .eyebrow-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .mark {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 0.875rem;
+        height: 0.875rem;
+      }
+      .mark.area {
+        color: var(--area);
+      }
+      .mark.team {
+        border-radius: 0.3rem;
+        background: linear-gradient(135deg, #8b7bff, #22c3ee);
+        color: #fff;
+        font-size: 0.5rem;
+        font-weight: 750;
+      }
+      .area-icon {
+        width: 1em;
+        height: 1em;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="area" viewBox="0 0 24 24">
+        <path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" />
+      </symbol>
+    </svg>
+
+    <p class="caption">1 · Hell, Bereich gewählt (Auslastung)</p>
+    <div class="frame light">
+      <aside class="side">
+        <div class="pick">
+          <span class="avatar area"
+            ><svg class="area-icon" style="color: #fff"><use href="#area" /></svg
+          ></span>
+          <span><b>Mausi</b><small>Bereich · 2 Teams</small></span>
+        </div>
+      </aside>
+      <div class="content">
+        <div class="filebar"></div>
+        <div class="filters">
+          <span class="select">Alle Rollen</span><span class="select">Alle Personen</span>
+        </div>
+        <main>
+          <p class="eyebrow" title="Mausi · Bereich">
+            <span class="mark area"><svg class="area-icon"><use href="#area" /></svg></span>
+            <span class="eyebrow-text">Mausi · Bereich</span>
+          </p>
+          <h2>Auslastung</h2>
+          <div class="card"></div>
+        </main>
+      </div>
+    </div>
+
+    <p class="caption">2 · Dunkel, Team gewählt (Kalender)</p>
+    <div class="frame dark">
+      <aside class="side">
+        <div class="pick">
+          <span class="avatar">TA</span>
+          <span><b>Team Alpha</b><small>Mausi · Sprint · 2 Wochen</small></span>
+        </div>
+      </aside>
+      <div class="content">
+        <div class="filebar"></div>
+        <div class="filters">
+          <span class="select">Alle Rollen</span><span class="select">Alle Personen</span>
+        </div>
+        <main>
+          <p class="eyebrow" title="Team Alpha · Team">
+            <span class="mark team">TA</span>
+            <span class="eyebrow-text">Team Alpha · Team</span>
+          </p>
+          <h2>Kalender</h2>
+          <div class="card"></div>
+        </main>
+      </div>
+    </div>
+
+    <p class="caption">
+      3 · Phone 390 px, langer Name gekürzt (hell und dunkel); 4 · Einstellungen ohne Zeile
+    </p>
+    <div class="row">
+      <div class="frame phone light">
+        <div class="content">
+          <div class="topbar"><span class="menu"></span>Caldence</div>
+          <div class="filters">
+            <span class="select">Alle Rollen</span><span class="select">Alle Personen</span>
+          </div>
+          <main>
+            <p class="eyebrow" title="Zahlungsverkehr, Abrechnung und Forderungsmanagement Europa · Bereich">
+              <span class="mark area"><svg class="area-icon"><use href="#area" /></svg></span>
+              <span class="eyebrow-text">Zahlungsverkehr, Abrechnung und Forderungsmanagement Europa · Bereich</span>
+            </p>
+            <h2>Auslastung</h2>
+            <div class="card"></div>
+          </main>
+        </div>
+      </div>
+      <div class="frame phone dark">
+        <div class="content">
+          <div class="topbar"><span class="menu"></span>Caldence</div>
+          <div class="filters">
+            <span class="select">Alle Rollen</span><span class="select">Alle Personen</span>
+          </div>
+          <main>
+            <p class="eyebrow" title="Plattform-Infrastruktur Nord · Team">
+              <span class="mark team">PI</span>
+              <span class="eyebrow-text">Plattform-Infrastruktur Nord · Team</span>
+            </p>
+            <h2>Termine &amp; Takt</h2>
+            <div class="card"></div>
+          </main>
+        </div>
+      </div>
+      <div class="frame phone light">
+        <div class="content">
+          <div class="topbar"><span class="menu"></span>Caldence</div>
+          <main>
+            <h2>Einstellungen</h2>
+            <div class="card"></div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
