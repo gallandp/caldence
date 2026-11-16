@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.42.0 – 2026-11-16
+
+### Changed
+
+- Language and appearance only in Settings (#212) (#224)
+
 ## 1.41.0 – 2026-11-16
 
 ### Changed
