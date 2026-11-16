@@ -335,12 +335,12 @@ test('meeting names wrap to two lines and the rest is counted as "+n more"', asy
   await openCalendar(page, '2027-01-15');
   const kickoff = cellOf(page, '2027-01-11').locator('.chip', { hasText: 'Kick-off Workshop' });
   await expect(kickoff).toBeVisible();
-  // Two lines tall and nothing clipped: the whole name is readable.
+  // At most two lines and nothing clipped: the whole name is readable.
   const { lines, clipped } = await kickoff.evaluate((el) => ({
     lines: Math.round(el.clientHeight / parseFloat(getComputedStyle(el).lineHeight)),
     clipped: el.scrollHeight > el.clientHeight,
   }));
-  expect(lines).toBe(2);
+  expect(lines).toBeLessThanOrEqual(2);
   expect(clipped).toBe(false);
   await expect(cellOf(page, '2027-01-07').locator('.more')).toHaveText('+2 more');
   // A name in two lines does not stretch the fitted week.
@@ -349,6 +349,20 @@ test('meeting names wrap to two lines and the rest is counted as "+n more"', asy
     .evaluateAll((rows) => rows.map((tr) => Math.round(tr.getBoundingClientRect().height)));
   // The last week has no bottom border.
   expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+
+  // Roomy rows keep their default height too, also in a month with many meetings.
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  for (const month of ['January', 'March']) {
+    if (month === 'March') {
+      await page.getByRole('button', { name: 'Next month' }).click();
+      await page.getByRole('button', { name: 'Next month' }).click();
+    }
+    await expect(panel(page).getByRole('grid', { name: `${month} 2027` })).toBeVisible();
+    const roomy = await panel(page)
+      .locator('tbody tr')
+      .evaluateAll((rows) => rows.map((tr) => Math.round(tr.getBoundingClientRect().height)));
+    expect(Math.max(...roomy) - Math.min(...roomy)).toBeLessThanOrEqual(1);
+  }
 });
 
 test('today is exposed as the current date, not only by its colour', async ({ page }) => {

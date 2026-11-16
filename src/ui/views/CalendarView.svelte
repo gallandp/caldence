@@ -417,40 +417,45 @@
     const max = 8.4 * r + 1;
     rowPx = fit >= max ? null : Math.max(fit, 4.75 * r);
   });
-  /** Width in px of a day cell's content box, for the name wrap below. */
+  /** Width in px of a day cell's content box and the chip font, for the name wrap below. */
   let dayWidth = $state(0);
+  let chipFont = '';
   $effect(() => {
-    void [boardWidth, weeks.length];
+    void [boardWidth, weeks.length, layout, innerHeight];
     const td = grid?.tBodies[0]?.rows[0]?.cells[1];
-    dayWidth = td ? td.clientWidth - r : 0;
+    if (!grid || !td) {
+      dayWidth = 0;
+      return;
+    }
+    r = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    chipFont = `550 ${0.8 * r}px ${getComputedStyle(grid).fontFamily}`;
+    // Minus the padding and the right border; the width is not rounded like clientWidth.
+    dayWidth = td.getBoundingClientRect().width - r - 1;
   });
   let ctx: CanvasRenderingContext2D | null = null;
   /** Whether a meeting name needs a second line in its chip (it wraps to two, then ends in "…"). */
   function wraps(chip: ReturnType<typeof cell>['chips'][number]): boolean {
-    if (!grid || dayWidth === 0) return false;
+    if (dayWidth === 0) return false;
     ctx ??= document.createElement('canvas').getContext('2d');
     if (!ctx) return false;
-    const family = getComputedStyle(grid).fontFamily;
-    const px = 0.8 * r;
-    // Padding and the colour bar. The start time is left out: its container query never matches,
-    // because table cells cannot be size containers.
-    let text = dayWidth - 0.9 * r - 3;
-    if (chip.area) text -= px + 0.25 * r;
-    ctx.font = `550 ${px}px ${family}`;
+    // Padding, the colour bar and 1px to spare. The start time is left out: its container query
+    // never matches, because table cells cannot be size containers.
+    let text = dayWidth - 0.9 * r - 3 - 1;
+    if (chip.area) text -= 0.8 * r + 0.25 * r;
+    ctx.font = chipFont;
     return ctx.measureText(chip.name).width > text;
   }
   /**
-   * How many meetings a day shows, and whether "+n more" counts the rest. In a fitted row the tags
-   * come first, then as many meetings as fit (heights in rem: tag 1.45, meeting 1.6 or 2.65 on two
+   * How many meetings a day shows, and whether "+n more" counts the rest. The tags come first, then as many meetings as fit (heights in rem: tag 1.45, meeting 1.6 or 2.65 on two
    * lines, "+n more" 1.2, each with its gap; 2.75 for the padding, day number and spacing above
    * them). When not even "+n more" fits, the hours next to the day number still show that there
    * are meetings.
    */
   function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
     const all = c.chips.length;
-    if (rowPx === null) return { shown: Math.min(3, all), more: all > 3 };
     const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
-    const room = rowPx - 1 - (2.75 + 1.45 * tags) * r;
+    // A roomy row has the default height (see td in the styles).
+    const room = (rowPx ?? 8.4 * r + 1) - 1 - (2.75 + 1.45 * tags) * r;
     const heights = c.chips.slice(0, 3).map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
     const used = (n: number) => heights.slice(0, n).reduce((a, b) => a + b, 0);
     let n = heights.length;
