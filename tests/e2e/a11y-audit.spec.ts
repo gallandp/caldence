@@ -251,17 +251,21 @@ for (const width of [1280, 320]) {
     await loadExample(page, 'en');
 
     const selected = viewTab(page, 'Calendar');
+    const button = page.getByRole('button', { name: 'Today', exact: true });
     // Focus by keyboard: after the click on the example the tab has the focus without a ring.
     await page.keyboard.press('Tab');
-    if (width > 640) await tabTo(page, selected, 'Shift+Tab');
-    else await selected.focus(); // the tab bar comes last in the page
-    expect(await focusVisible(selected), 'focused tab').toBe(true);
-
-    const button = page.getByRole('button', { name: 'Today', exact: true });
-    await button.focus();
-    await page.keyboard.press('Shift+Tab');
-    await tabTo(page, button);
-    expect(await focusVisible(button), 'focused button').toBe(true);
+    if (width > 640) {
+      await tabTo(page, selected, 'Shift+Tab');
+      expect(await focusVisible(selected), 'focused tab').toBe(true);
+      await tabTo(page, button);
+      expect(await focusVisible(button), 'focused button').toBe(true);
+    } else {
+      // Phones: the tab bar comes last in the page and is reached with Tab.
+      await tabTo(page, button);
+      expect(await focusVisible(button), 'focused button').toBe(true);
+      await tabTo(page, selected);
+      expect(await focusVisible(selected), 'focused tab').toBe(true);
+    }
 
     // The selected tab must differ from the others by more than colour: a border or an underline.
     const other = viewTab(page, 'Load');

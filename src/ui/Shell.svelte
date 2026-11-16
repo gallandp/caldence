@@ -103,9 +103,16 @@
     select('load', true);
   }
 
+  /** The tab bar's buttons (phones). */
+  let barTabs: Partial<Record<ViewId, HTMLButtonElement>> = {};
+  const shown = (el: HTMLElement | undefined) => !!el && el.getClientRects().length > 0;
+
+  /** With `focus`, the view's visible tab gets the focus; a view without one (phones) its content. */
   function select(id: ViewId, focus = false) {
     active = id;
-    if (focus) tabs[id]?.focus();
+    if (!focus) return;
+    const tab = [tabs[id], barTabs[id]].find(shown);
+    (tab ?? main)?.focus();
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -320,6 +327,7 @@
             onclick={() => {
               close();
               select(id);
+              main?.focus();
             }}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
@@ -475,6 +483,7 @@
     <button
       type="button"
       aria-current={active === id ? 'page' : undefined}
+      bind:this={barTabs[id]}
       onclick={() => select(id)}
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
@@ -893,6 +902,10 @@
     .side-nav.open {
       display: none;
     }
+    /* A field that Tab scrolls into view stops above the tab bar (WCAG 2.4.11). */
+    :global(html) {
+      scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
     main {
       /* Room for the tab bar, so the end of a view is not hidden behind it. */
       padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
@@ -900,7 +913,8 @@
     .tabbar {
       position: fixed;
       inset: auto 0 0;
-      z-index: 20;
+      /* Below the person card's bottom sheet (20), which covers it like a modal would. */
+      z-index: 15;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       padding: 0.3rem 0.25rem calc(0.3rem + env(safe-area-inset-bottom, 0px));

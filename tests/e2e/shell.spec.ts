@@ -238,9 +238,14 @@ test('on phones a tab bar shows the main views and the menu holds the others', a
   );
 
   // Fixed at the bottom, also after scrolling, and nothing scrolls sideways.
-  await page.mouse.wheel(0, 2000);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const box = (await tabbar.boundingBox())!;
   expect(Math.round(box.y + box.height)).toBe(844);
+  // The end of the view stays above the tab bar.
+  const end = (await page
+    .getByRole('tabpanel', { name: 'Meetings & cadence' })
+    .evaluate((el) => el.getBoundingClientRect().bottom))!;
+  expect(end).toBeLessThanOrEqual(box.y);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 
   // The other views are in the file bar's menu; there is no "More" tab.
@@ -251,6 +256,7 @@ test('on phones a tab bar shows the main views and the menu holds the others', a
     await page.locator('.more-panel').getByRole('button', { name, exact: true }).click();
     await expect(page.getByRole('tabpanel', { name, exact: true })).toBeVisible();
     await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('main')).toBeFocused();
     await expect(tabbar.locator('[aria-current]')).toHaveCount(0);
   }
   await more.click();
