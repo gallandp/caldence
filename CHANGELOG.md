@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Calendar month view on phones: all seven days fit the screen without sideways scrolling; each day shows its number and a dot per meeting in the category colour, and tapping a day opens its details (#208)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed

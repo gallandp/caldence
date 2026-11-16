@@ -315,13 +315,17 @@
   const step = (dir: 1 | -1) =>
     mode === 'month' ? addMonths(cursor, dir) : addDays(cursor, 7 * dir);
 
-  function select(date: ISODate) {
+  async function select(date: ISODate) {
     selected = date;
     cursor = date;
+    // Below the grid (narrow screens) the details may start off screen.
+    if (floating) return;
+    await tick();
+    board?.querySelector('.pop')?.scrollIntoView({ block: 'nearest' });
   }
 
   async function selectByKey(date: ISODate) {
-    select(date);
+    await select(date);
     await tick();
     details?.focus();
   }
@@ -575,7 +579,7 @@
                     tabindex={date === cursor ? 0 : -1}
                     aria-selected={selected === date}
                     aria-current={c.today ? 'date' : undefined}
-                    onclick={() => select(date)}
+                    onclick={() => void select(date)}
                     onkeydown={(e) => onGridKeydown(e, date)}
                   >
                     <!-- The visible text is repeated in full for assistive technology. -->
@@ -742,6 +746,7 @@
     position: relative;
     overflow-x: auto;
     border-radius: var(--radius-lg);
+    container: month / inline-size;
   }
   table {
     border-collapse: separate;
@@ -936,6 +941,56 @@
   @container (min-width: 9rem) {
     .chip .t {
       display: inline;
+    }
+  }
+  /* Narrow (a phone): all seven days fit; a day shows its number and a dot per meeting. */
+  @container month (max-width: 44rem) {
+    table {
+      min-width: 0;
+    }
+    .weekcol {
+      display: none;
+    }
+    thead th {
+      padding: 0.5rem 0;
+      text-align: center;
+      letter-spacing: 0;
+    }
+    td {
+      height: 3.6rem;
+      padding: 0.3rem 0.1rem;
+      text-align: center;
+    }
+    .top {
+      justify-content: center;
+    }
+    .load,
+    .tag,
+    .more {
+      display: none;
+    }
+    .warn {
+      padding: 0 0.3rem;
+    }
+    .visual {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.2rem;
+    }
+    .chip {
+      align-self: auto;
+      /* A border, not a background: forced colours keep borders visible. */
+      box-sizing: content-box;
+      width: 0;
+      height: 0;
+      padding: 0;
+      border: 0.225rem solid var(--c);
+      border-radius: 50%;
+      font-size: 0;
+    }
+    .chip > span {
+      display: none;
     }
   }
   .more {

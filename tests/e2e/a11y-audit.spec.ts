@@ -160,14 +160,14 @@ for (const locale of ['de', 'en'] as const) {
   }
 }
 
-test('reflow at 320 px: the month grid region is focusable and shows a focus outline', async ({
+test('reflow at 320 px: the month grid fits without scrolling and shows a focus outline', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await loadExample(page, 'en');
   const region = page.getByRole('region', { name: 'Month grid' });
   await expect(region).toHaveAttribute('tabindex', '0');
-  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   await tabTo(page, region);
   expect(await focusVisible(region)).toBe(true);
 });

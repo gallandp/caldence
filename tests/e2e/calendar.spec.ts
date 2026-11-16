@@ -270,6 +270,31 @@ test('no horizontal page scroll at 375 px', async ({ page }) => {
   expect(await fits()).toBe(true);
 });
 
+test('on a phone the month shows all seven days with a dot per meeting', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await openCalendar(page, ALEX_OVERLAP_DAY);
+  const region = panel(page).getByRole('region', { name: 'Month grid' });
+  expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const box = (await region.boundingBox())!;
+  const sunday = (await panel(page).getByRole('columnheader').last().boundingBox())!;
+  expect(sunday.x + sunday.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  // Meeting names give way to dots in the category colour.
+  const day = cellOf(page, ALEX_OVERLAP_DAY);
+  const dot = (await day.locator('.chip').first().boundingBox())!;
+  expect(dot.width).toBeLessThan(12);
+  await day.click();
+  const details = panel(page).getByRole('region', { name: /January 7, 2027/ });
+  await expect(details).toBeInViewport();
+});
+
+test('the month grid keeps meeting names on a desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await openCalendar(page, ALEX_OVERLAP_DAY);
+  const chip = cellOf(page, ALEX_OVERLAP_DAY).locator('.chip').first();
+  expect((await chip.boundingBox())!.width).toBeGreaterThan(60);
+  await expect(panel(page).getByRole('rowheader').first()).toBeVisible();
+});
+
 for (const lang of ['de', 'en'] as const) {
   for (const scheme of ['light', 'dark'] as const) {
     test(`axe finds no violations in month and week view (${lang}, ${scheme})`, async ({
