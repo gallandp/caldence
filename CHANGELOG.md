@@ -6,6 +6,8 @@
 
 - Calendar month view on phones: all seven days fit the screen without sideways scrolling; each day shows its number and a dot per meeting in the category colour, and tapping a day opens its details (#208)
 
+## 1.42.2 – 2026-11-16
+
 ### Fixed
 
 - Avatar initials in the team switcher and the area structure are at least 10 px and still fit, so they stay legible (#215)
