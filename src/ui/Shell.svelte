@@ -801,20 +801,26 @@
     font-weight: 780;
     letter-spacing: -0.025em;
   }
-  /* Information, not a control: quiet text directly above the headline. Line and gap fill the
-     headline's top margin, so the headline stays where it is (and level with the filters). */
+  /* Information, not a control: quiet text directly above the headline. Margin, line and gap
+     fill the headline's 1.25rem top margin, so the headline stays level with the filters. */
   .eyebrow {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    margin: 0 0 0.25rem;
+    margin: 0.25rem 0 0.125rem;
     font-size: 0.8rem;
     font-weight: 600;
-    line-height: 1rem;
+    line-height: 0.875rem;
     color: var(--text-muted);
   }
   .eyebrow + h2 {
     margin-top: 0;
+  }
+  /* Narrow: the filters sit above, not beside the headline; give the line room below them. */
+  @container (max-width: 55.99rem) {
+    .eyebrow {
+      margin-top: 0.75rem;
+    }
   }
   .eyebrow-text {
     min-width: 0;
@@ -826,8 +832,8 @@
     flex: none;
     display: grid;
     place-items: center;
-    width: 1rem;
-    height: 1rem;
+    width: 0.875rem;
+    height: 0.875rem;
   }
   .mark.area {
     color: var(--area);
