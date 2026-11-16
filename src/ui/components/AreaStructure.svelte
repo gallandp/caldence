@@ -1158,7 +1158,7 @@
   .tree.list .tonly .av {
     width: 1.375rem;
     height: 1.375rem;
-    font-size: 0.6rem;
+    font-size: 0.625rem;
   }
   .tree.list .tonly small,
   .tree.list .tonly .h {
@@ -1249,7 +1249,7 @@
   .who .av {
     width: 1.5rem;
     height: 1.5rem;
-    font-size: 0.62rem;
+    font-size: 0.68rem;
   }
 
   @media (max-width: 820px) {
@@ -1310,7 +1310,7 @@
     .from .av {
       width: 1.375rem;
       height: 1.375rem;
-      font-size: 0.6rem;
+      font-size: 0.625rem;
     }
     .from small:not(.unset) {
       display: none;

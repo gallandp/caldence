@@ -231,6 +231,33 @@ test('many teams become a list of rows', async ({ page }) => {
   await expect(page.locator('.team')).toHaveCount(9);
 });
 
+/** Font sizes below 10 px and clipped text of all visible avatar initials (#215). */
+const smallInitials = (page: Page) =>
+  page.locator('.av, .avatar').evaluateAll((els) =>
+    els
+      .filter((el) => el.textContent?.trim() && el.getClientRects().length)
+      .map((el) => ({
+        text: el.textContent!.trim(),
+        size: parseFloat(getComputedStyle(el).fontSize),
+        clipped: el.scrollWidth > el.clientWidth,
+      }))
+      .filter((a) => a.size < 10 || a.clipped),
+  );
+
+test('avatar initials are at least 10 px and fit', async ({ page }) => {
+  await openStructure(page, 9);
+  await page.locator('.switcher .pick').click();
+  await expect(page.locator('.switcher .list')).toBeVisible();
+  // Two wide letters: the team "Web Widgets" and the person "Wanda W.".
+  await expect(page.locator('.switcher .list .avatar.mini', { hasText: 'WW' })).toBeVisible();
+  await expect(page.locator('.tree.list .tonly .av', { hasText: 'WW' })).toBeVisible();
+  expect(await smallInitials(page)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Table', exact: true }).click();
+  await expect(page.locator('.who .av').first()).toBeVisible();
+  expect(await smallInitials(page)).toEqual([]);
+});
+
 test.describe('phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -253,6 +280,7 @@ test.describe('phone', () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(scroll).toBeLessThanOrEqual(0);
+    expect(await smallInitials(page)).toEqual([]);
     // The card is a bottom sheet.
     await node(page)
       .getByRole('button', { name: /Alex B\./ })

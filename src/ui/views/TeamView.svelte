@@ -255,8 +255,11 @@
                 {@const colour = roleColour(member.roleIds[0]!)}
                 {@const name = personName(member.personId)}
                 <li>
-                  <span class="avatar" style:background={colour} style:color={inkOn(colour)}
-                    >{initials(name)}</span
+                  <span
+                    class="avatar"
+                    aria-hidden="true"
+                    style:background={colour}
+                    style:color={inkOn(colour)}>{initials(name)}</span
                   >
                   <span class="who">
                     <span class="name">{name}</span>
