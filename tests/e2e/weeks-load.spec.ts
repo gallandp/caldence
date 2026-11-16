@@ -249,7 +249,7 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
   const total = ROLE_HOURS.reduce((sum, r) => sum + r.hours, 0);
   await expect(tiles.locator('[data-total] .value')).toHaveText(`${fmt('en', total)} h / week`);
   // Switching the language reformats the numbers.
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   const roleDe = page
     .getByRole('tabpanel', { name: 'Auslastung' })
     .getByRole('list', { name: 'Überblick' })

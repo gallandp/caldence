@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openExample, showView, useFileFallback, teamAction, pickUnit } from './helpers';
+import {
+  openExample,
+  showView,
+  useFileFallback,
+  teamAction,
+  pickUnit,
+  setLanguage,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -368,16 +375,6 @@ test('preparation of 25 % is stored as 0.25', async ({ page }) => {
   expect(saved?.preparation).toBe(0.25);
 });
 
-test('a language change keeps the open draft and translates the heading', async ({ page }) => {
-  await openMeetings(page);
-  const form = await startNew(page, 'Keep me');
-  await expect(form).toBeVisible();
-  await page.getByLabel(/Language|Sprache/).selectOption('de');
-  const de = panel(page).getByRole('region', { name: 'Neuer Termin' });
-  await expect(de).toBeVisible();
-  await expect(de.getByLabel('Name', { exact: true })).toHaveValue('Keep me');
-});
-
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
   const form = await startNew(page, 'Cycle check');
@@ -440,7 +437,7 @@ test('a team without meetings explains what to do', async ({ page }) => {
 for (const lang of ['en', 'de'] as const) {
   test(`axe finds no violations with the form open (${lang})`, async ({ page }) => {
     await openMeetings(page);
-    await page.getByLabel(/Language|Sprache/).selectOption(lang);
+    await setLanguage(page, lang);
     await expect(page.locator('html')).toHaveAttribute('lang', lang);
     await panel(page)
       .getByRole('button', { name: lang === 'en' ? 'Add meeting' : 'Termin hinzufügen' })

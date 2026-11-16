@@ -2,8 +2,6 @@
   import { onMount, tick } from 'svelte';
   import { translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
-  import LanguageSwitch from './LanguageSwitch.svelte';
-  import ThemeSwitch from './ThemeSwitch.svelte';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaTeams from './components/AreaTeams.svelte';
   import AreaView from './views/AreaView.svelte';
@@ -200,7 +198,7 @@
 
   let main: HTMLElement | undefined;
 
-  /** Narrow screens: the views, language, appearance and links fold into a menu. */
+  /** Narrow screens: the views and links fold into a menu. */
   let menuOpen = $state(false);
   let menuButton: HTMLButtonElement | undefined = $state();
   function pick(id: ViewId) {
@@ -290,10 +288,6 @@
       </div>
 
       <div class="side-foot">
-        <div class="prefs">
-          <LanguageSwitch />
-          <ThemeSwitch />
-        </div>
         {#if legal.length > 0}
           <nav class="legal" aria-label={$t('legal.label')}>
             {#each legal as page (page)}
@@ -719,28 +713,6 @@
     margin-top: auto;
     padding: 0 0.5rem;
   }
-  /* Language and appearance share one quiet row; their labels are for screen readers. */
-  .prefs {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  :global(#app) .prefs :global(.options button) {
-    width: 1.8rem;
-  }
-  .prefs :global(.theme) {
-    margin-top: 0;
-  }
-  :global(:root #app) .prefs :global(select) {
-    font-size: 0.85rem;
-    min-height: 2rem;
-    padding: 0.2rem 1.8rem 0.2rem 0.65rem !important;
-    border-radius: 999px;
-    background-position: right 0.6rem center;
-    background-size: 0.85rem;
-  }
   .legal,
   .source {
     display: flex;
@@ -805,18 +777,6 @@
       color: CanvasText;
     }
   }
-  .side-foot :global(.lang) {
-    color: var(--side-text);
-    font-size: 0.85rem;
-  }
-  .side-foot :global(select) {
-    color: #fff !important;
-    background-color: rgb(255 255 255 / 0.08) !important;
-    border-color: rgb(255 255 255 / 0.35) !important;
-  }
-  .side-foot :global(option) {
-    color: #000;
-  }
   .content {
     min-width: 0;
     display: flex;
@@ -864,7 +824,7 @@
       gap: 0.75rem;
       padding: 0.75rem;
     }
-    /* The views, language, appearance and links fold into a menu below the header. */
+    /* The views and links fold into a menu below the header. */
     :global(#app) .menu-toggle {
       display: inline-flex;
     }

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -26,8 +27,8 @@ async function openExample(page: Page) {
 
 /** Two edits through the language switch (a workspace setting): de, then back to en. */
 async function makeChange(page: Page) {
-  await page.getByLabel(/Language|Sprache/).selectOption('de');
-  await page.getByLabel(/Language|Sprache/).selectOption('en');
+  await setLanguage(page, 'de');
+  await setLanguage(page, 'en');
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
 }
 
@@ -53,7 +54,7 @@ async function storedTeams(page: Page): Promise<number> {
 
 test('autosave restores the changed data and the unsaved marker after reload', async ({ page }) => {
   await openExample(page);
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   await expect.poll(() => storedTeams(page)).toBe(2);
   await page.reload();
   // The changed value (language de) survived, and so did the dirty flag and the example.
@@ -99,7 +100,7 @@ test('opening an invalid file shows an error and keeps the workspace', async ({ 
 
 test('opening a template file with Open says to apply it in Templates', async ({ page }) => {
   await openExample(page);
-  await page.getByLabel(/Language|Sprache/).selectOption('en');
+  await setLanguage(page, 'en');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Open', exact: true }).click();
   await (
@@ -204,7 +205,7 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
   page,
 }) => {
   await openExample(page);
-  await page.getByLabel('Language').selectOption('de');
+  await setLanguage(page, 'de');
   await expect.poll(() => storedTeams(page)).toBe(2);
   await page.goto('/?reset');
   await expect(
