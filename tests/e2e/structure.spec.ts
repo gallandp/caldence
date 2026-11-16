@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import { openWorkspaceFile, pickUnit, showView, useFileFallback } from './helpers';
 import { structureWorkspace } from './structure-fixture';
 
 test.use({ locale: 'en-US' });
@@ -268,8 +268,7 @@ test.describe('phone', () => {
     await openWorkspaceFile(page, structureWorkspace());
     await pickUnit(page, 'Payments');
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('.menu-toggle').click();
-    await page.getByRole('tab', { name: 'Area', exact: true }).click();
+    await showView(page, 'Area');
     await expect(page.locator('.tree')).toHaveClass(/list/);
     const alpha = team(page, 'Alpha');
     await expect(alpha.getByRole('button', { name: /Mira D\./ })).toHaveCount(0);

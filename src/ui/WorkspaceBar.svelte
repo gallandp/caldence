@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, type Snippet } from 'svelte';
   import { get } from 'svelte/store';
   import { translate as t } from '../i18n';
   import { emptyWorkspace, type Workspace } from '../core/model';
@@ -13,7 +13,10 @@
 
   /** Only Calendar, Weeks and Load follow the role/person filter; elsewhere it stays hidden.
       It is hidden, not removed, so its choice is kept when the user comes back. */
-  let { filters = true }: { filters?: boolean } = $props();
+  /** `menu`: more entries for the narrow-screen menu (the views without a tab); it gets a function
+      that closes the menu. */
+  let { filters = true, menu }: { filters?: boolean; menu?: Snippet<[close: () => void]> } =
+    $props();
 
   const { dirty, fileName } = workspace;
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
@@ -145,6 +148,11 @@
     morePanel?.querySelector('button')?.focus();
   }
 
+  function closeMore() {
+    moreOpen = false;
+    moreToggle?.focus();
+  }
+
   /** Closes the menu, gives focus back to its button and runs the action. */
   function fromMore(action: () => Promise<unknown>) {
     moreOpen = false;
@@ -235,6 +243,7 @@
       <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
         >{$t('file.saveAs')}</button
       >
+      {@render menu?.(closeMore)}
     </div>
   </div>
   <p class="status">

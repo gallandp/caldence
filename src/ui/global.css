@@ -6,6 +6,8 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--text);
   line-height: 1.5;
+  /* viewport-fit=cover: keep content clear of the notch in landscape. */
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
 }
 
 :focus-visible {

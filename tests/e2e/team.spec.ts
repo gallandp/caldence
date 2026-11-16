@@ -9,6 +9,7 @@ import {
   pickUnit,
   currentUnit,
   unitNames,
+  setLanguage,
 } from './helpers';
 
 test.use({ locale: 'en-US' });
@@ -87,7 +88,7 @@ test('removing or renaming the assumption used by scaling shows an inline error'
   await openTeamView(page);
   await expect(panel(page).getByLabel('Value of assumption stories')).toHaveValue('8');
   await panel(page).getByRole('button', { name: 'Remove assumption stories' }).click();
-  const key = panel(page).getByLabel('Key of assumption stories');
+  const key = panel(page).getByLabel('Name of assumption stories');
   await expect(panel(page).getByText('Still in use: stories')).toBeVisible();
   await expect(key).toHaveAttribute('aria-invalid', 'true');
   await expect(key).toHaveAttribute('aria-describedby', /.+/);
@@ -95,18 +96,18 @@ test('removing or renaming the assumption used by scaling shows an inline error'
   // Renaming is allowed and updates the scaling rule, so the new key is then in use too.
   await key.fill('tickets');
   await key.blur();
-  await expect(panel(page).getByLabel('Key of assumption tickets')).toBeFocused();
+  await expect(panel(page).getByLabel('Name of assumption tickets')).toBeFocused();
   await expect(panel(page).locator('.field-error', { hasText: 'Still in use' })).toHaveCount(0);
   await panel(page).getByRole('button', { name: 'Remove assumption tickets' }).click();
   await expect(panel(page).getByText('Still in use: tickets')).toBeVisible();
 });
 
-test('assumptions are added, changed, renamed to a free key only, and removed', async ({
+test('assumptions are added, changed, renamed to a free name only, and removed', async ({
   page,
 }) => {
   await openFixture(page);
   await openTeamView(page);
-  await panel(page).getByLabel('New key').fill('bugs');
+  await panel(page).getByLabel('New name').fill('bugs');
   await panel(page).getByLabel('New value').fill('2.5');
   await panel(page).getByRole('button', { name: 'Add assumption' }).click();
   await expect(panel(page).getByLabel('Value of assumption bugs')).toHaveValue('2.5');
@@ -115,21 +116,23 @@ test('assumptions are added, changed, renamed to a free key only, and removed', 
   await panel(page).getByLabel('Value of assumption bugs').blur();
   await expect(panel(page).getByLabel('Value of assumption bugs')).toHaveValue('4');
 
-  const key = panel(page).getByLabel('Key of assumption bugs');
+  const key = panel(page).getByLabel('Name of assumption bugs');
   await key.fill('stories');
   await key.blur();
-  await expect(panel(page).getByText('Duplicate ID')).toBeVisible();
+  await expect(panel(page).getByText('already has an assumption with this name')).toBeVisible();
   await expect(key).toHaveValue('stories');
 
-  await panel(page).getByLabel('New key').fill('bugs');
+  await panel(page).getByLabel('New name').fill('bugs');
   await panel(page).getByLabel('New value').fill('');
   await panel(page).getByRole('button', { name: 'Add assumption' }).click();
-  await expect(panel(page).getByText('Duplicate ID').first()).toBeVisible();
+  await expect(
+    panel(page).getByText('already has an assumption with this name').first(),
+  ).toBeVisible();
 
   await key.fill('defects');
   await key.blur();
   await panel(page).getByRole('button', { name: 'Remove assumption defects' }).click();
-  await expect(panel(page).getByLabel('Key of assumption defects')).toHaveCount(0);
+  await expect(panel(page).getByLabel('Name of assumption defects')).toHaveCount(0);
 });
 
 test('Plan another team runs the wizard and keeps known people', async ({ page }) => {
@@ -248,10 +251,7 @@ test('a role filter is reset when the role is replaced and deleted', async ({ pa
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations in the team view (${locale})`, async ({ page }) => {
     await openExample(page);
-    await page
-      .getByRole('complementary')
-      .getByLabel(/Language|Sprache/)
-      .selectOption(locale);
+    await setLanguage(page, locale);
     await expect(page.locator('html')).toHaveAttribute('lang', locale);
     await page.locator('#tab-team').click();
     const axe = () =>
@@ -303,10 +303,7 @@ test('the filter follows the active team', async ({ page }) => {
 
 test('a duplicated team is named in the UI language', async ({ page }) => {
   await openExample(page);
-  await page
-    .getByRole('complementary')
-    .getByLabel(/Language|Sprache/)
-    .selectOption('de');
+  await setLanguage(page, 'de');
   await page.getByRole('button', { name: 'Team-Aktionen' }).click();
   await page.getByRole('button', { name: 'Team duplizieren' }).click();
   await expect(currentUnit(page)).toHaveText('Team Alpha (Kopie)');
