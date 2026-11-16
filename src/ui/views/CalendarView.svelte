@@ -417,20 +417,45 @@
     const max = 8.4 * r + 1;
     rowPx = fit >= max ? null : Math.max(fit, 4.75 * r);
   });
+  /** Width in px of a day cell's content box, for the name wrap below. */
+  let dayWidth = $state(0);
+  $effect(() => {
+    void [boardWidth, weeks.length];
+    const td = grid?.tBodies[0]?.rows[0]?.cells[1];
+    dayWidth = td ? td.clientWidth - r : 0;
+  });
+  let ctx: CanvasRenderingContext2D | null = null;
+  /** Whether a meeting name needs a second line in its chip (it wraps to two, then ends in "…"). */
+  function wraps(chip: ReturnType<typeof cell>['chips'][number]): boolean {
+    if (!grid || dayWidth === 0) return false;
+    ctx ??= document.createElement('canvas').getContext('2d');
+    if (!ctx) return false;
+    const family = getComputedStyle(grid).fontFamily;
+    const px = 0.8 * r;
+    // Padding and the colour bar. The start time is left out: its container query never matches,
+    // because table cells cannot be size containers.
+    let text = dayWidth - 0.9 * r - 3;
+    if (chip.area) text -= px + 0.25 * r;
+    ctx.font = `550 ${px}px ${family}`;
+    return ctx.measureText(chip.name).width > text;
+  }
   /**
-   * How many meetings a day shows, and whether "+n" counts the rest. In a fitted row the tags come
-   * first, then as many meetings as fit (heights in rem: tag 1.45, meeting 1.6, "+n" 1.2, each
-   * with its gap; 2.75 for the padding, day number and spacing above them). When not even "+n"
-   * fits, the hours next to the day number still show that there are meetings.
+   * How many meetings a day shows, and whether "+n more" counts the rest. In a fitted row the tags
+   * come first, then as many meetings as fit (heights in rem: tag 1.45, meeting 1.6 or 2.65 on two
+   * lines, "+n more" 1.2, each with its gap; 2.75 for the padding, day number and spacing above
+   * them). When not even "+n more" fits, the hours next to the day number still show that there
+   * are meetings.
    */
   function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
     const all = c.chips.length;
     if (rowPx === null) return { shown: Math.min(3, all), more: all > 3 };
     const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
     const room = rowPx - 1 - (2.75 + 1.45 * tags) * r;
-    let n = Math.min(3, all);
-    while (n > 0 && (1.6 * n + (all > n ? 1.2 : 0)) * r > room) n--;
-    return { shown: n, more: all > n && (1.6 * n + 1.2) * r <= room };
+    const heights = c.chips.slice(0, 3).map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
+    const used = (n: number) => heights.slice(0, n).reduce((a, b) => a + b, 0);
+    let n = heights.length;
+    while (n > 0 && used(n) + (all > n ? 1.2 * r : 0) > room) n--;
+    return { shown: n, more: all > n && used(n) + 1.2 * r <= room };
   }
 
   /** A click outside the details and the grid closes them, as with any popover. */
@@ -604,7 +629,11 @@
                             >{/if}{chip.name}</span
                         >
                       {/each}
-                      {#if fit.more}<span class="more">+{c.chips.length - fit.shown}</span>{/if}
+                      {#if fit.more}<span class="more"
+                          >{$t('cal.more', {
+                            n: formatNumber($locale, c.chips.length - fit.shown, 0),
+                          })}</span
+                        >{/if}
                     </span>
                   </td>
                 {/each}
@@ -909,12 +938,14 @@
     rotate: 45deg;
     background: currentColor;
   }
+  /* Names wrap to two lines, then end in an ellipsis; the day details have the rest. */
   .chip {
     align-self: stretch;
-    display: block;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
     padding: 0.15rem 0.45rem;
     border-radius: 0.35rem;
     border-left: 3px solid var(--c);

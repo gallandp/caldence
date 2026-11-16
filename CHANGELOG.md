@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Month calendar: meeting names wrap to two lines before they are cut off, and further meetings of a day read "+2 more" instead of "+2" (#211)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
