@@ -6,6 +6,10 @@
 
 - Calendar, Load, Meetings & cadence and the team or area page name the selected team or area in a quiet line above the headline, with the configured level name (#196)
 
+### Changed
+
+- Month calendar: meeting names wrap to two lines before they are cut off, and further meetings of a day read "+2 more" instead of "+2" (#211)
+
 ## 1.42.2 – 2026-11-16
 
 ### Fixed

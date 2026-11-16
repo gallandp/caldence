@@ -482,6 +482,7 @@
   "cal.milestone": "Milestone: {name}",
   "cal.hours": "{hours} h",
   "cal.meetings.one": "{n} meeting",
+  "cal.more": "+{n} more",
   "cal.meetings.other": "{n} meetings",
   "cal.overlap.mark": "Has overlap",
   "cal.overlap": "Overlap: {a} ({teamA}) and {b} ({teamB})",
