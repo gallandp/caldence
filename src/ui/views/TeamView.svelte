@@ -1,8 +1,3 @@
-<script lang="ts" module>
-  /** Whether the workspace pools are unfolded, kept while the app is open. */
-  let poolOpen = $state(false);
-</script>
-
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
@@ -40,7 +35,9 @@
   const people = $derived($workspace.people);
   const roles = $derived($workspace.roles);
   const defaultHours = $derived($workspace.settings.hoursPerWeek);
-  // Without roles nobody can be assigned: unfold the pools so the roles list is right there.
+  // The workspace pools start folded; without roles nobody can be assigned, so they unfold
+  // to put the roles list right there.
+  let poolOpen = $state(false);
   $effect(() => {
     if (roles.length === 0) poolOpen = true;
   });
@@ -232,7 +229,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"
       ><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" /></svg
     >
-    <p>{$t('team.help')}</p>
+    <p>{$t('team.help', { team: team?.name ?? '' })}</p>
   </div>
 {/snippet}
 
@@ -463,7 +460,7 @@
         <span class="count"
           >{$t($workspace.people.length === 1 ? 'overview.people.one' : 'overview.people.other', {
             n: $workspace.people.length,
-          })} · {$t(
+          })}, {$t(
             $workspace.roles.length === 1 ? 'team.pool.roles.one' : 'team.pool.roles.other',
             { n: $workspace.roles.length },
           )}</span

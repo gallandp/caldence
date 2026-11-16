@@ -365,13 +365,22 @@ test('the team view folds the workspace-wide people and roles away (#231)', asyn
   const team = panel(page);
   const people = team.getByRole('region', { name: 'People', exact: true });
   await expect(team.getByText('All people and roles in the workspace')).toBeVisible();
-  await expect(team.getByText('2 people · 3 roles')).toBeVisible();
+  await expect(team.getByText('2 people, 3 roles')).toBeVisible();
   await expect(people).toBeHidden();
   await expect(team.getByRole('region', { name: 'Roles', exact: true })).toBeHidden();
   await openPeoplePool(page);
   await expect(people).toBeVisible();
-  // Unfolded stays unfolded when coming back to the view.
-  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+});
+
+test('the folded people and roles open by themselves while there are no roles', async ({
+  page,
+}) => {
+  await page.goto('/');
   await openTeamView(page);
-  await expect(people).toBeVisible();
+  await teamAction(page, 'Add team');
+  const dialog = page.getByRole('dialog', { name: 'Add team' });
+  await dialog.getByLabel('Team name').fill('Alpha');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('First create a role under Roles below.')).toBeVisible();
+  await expect(page.getByLabel('New role name')).toBeVisible();
 });
