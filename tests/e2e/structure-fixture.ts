@@ -56,13 +56,19 @@ export function structureWorkspace(opts: { teams?: 4 | 9; locale?: 'de' | 'en' }
       ],
     },
   ];
-  const extra = ['Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota'].map((name, i) => ({
-    id: name.toLowerCase(),
+  const extra = ['Epsilon', 'Zeta', 'Eta', 'Theta', 'Web Widgets'].map((name, i) => ({
+    id: name.toLowerCase().replace(' ', '-'),
     name,
     m: [
       [`po${i}`, `${['Uwe', 'Vera', 'Wim', 'Xenia', 'Yusuf'][i]} M.`, 'po', 32, 4],
       [`sm${i}`, `${['Zoe', 'Arne', 'Britt', 'Cem', 'Dora'][i]} N.`, 'sm', 30, 0],
-      [`dev${i}`, `${['Eli', 'Finn', 'Gül', 'Hugo', 'Ida'][i]} R.`, 'dev', 40, 0],
+      [
+        `dev${i}`,
+        `${['Eli', 'Finn', 'Wanda', 'Hugo', 'Ida'][i]} ${i === 2 ? 'W' : 'R'}.`,
+        'dev',
+        40,
+        0,
+      ],
     ] as M[],
   }));
   const teams = opts.teams === 9 ? [...base, ...extra] : base;

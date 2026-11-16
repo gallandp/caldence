@@ -248,8 +248,13 @@ test('avatar initials are at least 10 px and fit', async ({ page }) => {
   await openStructure(page, 9);
   await page.locator('.switcher .pick').click();
   await expect(page.locator('.switcher .list')).toBeVisible();
-  expect(await page.locator('.switcher .list .avatar.mini').count()).toBeGreaterThan(0);
-  expect(await page.locator('.tree.list .tonly .av').count()).toBeGreaterThan(0);
+  // Two wide letters: the team "Web Widgets" and the person "Wanda W.".
+  await expect(page.locator('.switcher .list .avatar.mini', { hasText: 'WW' })).toBeVisible();
+  await expect(page.locator('.tree.list .tonly .av', { hasText: 'WW' })).toBeVisible();
+  expect(await smallInitials(page)).toEqual([]);
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Table', exact: true }).click();
+  await expect(page.locator('.who .av').first()).toBeVisible();
   expect(await smallInitials(page)).toEqual([]);
 });
 

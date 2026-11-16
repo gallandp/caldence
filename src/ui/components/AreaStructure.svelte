@@ -1158,7 +1158,7 @@
   .tree.list .tonly .av {
     width: 1.375rem;
     height: 1.375rem;
-    font-size: 0.68rem;
+    font-size: 0.625rem;
   }
   .tree.list .tonly small,
   .tree.list .tonly .h {
@@ -1310,7 +1310,7 @@
     .from .av {
       width: 1.375rem;
       height: 1.375rem;
-      font-size: 0.68rem;
+      font-size: 0.625rem;
     }
     .from small:not(.unset) {
       display: none;
