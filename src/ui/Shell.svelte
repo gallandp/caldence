@@ -342,13 +342,13 @@
           hidden={active !== id}
         >
           {#if scopeName !== undefined && SCOPED.includes(id)}
-            <p class="scope" title={scope}>
+            <p class="eyebrow" title={scope}>
               {#if activeArea}
                 <span class="mark area"><AreaIcon /></span>
               {:else}
                 <span class="mark team" aria-hidden="true">{initials(scopeName)}</span>
               {/if}
-              <span class="scope-text">{scope}</span>
+              <span class="eyebrow-text">{scope}</span>
             </p>
           {/if}
           <h2 class:sr-only={id === 'calendar' && noTeams}>
@@ -801,20 +801,22 @@
     font-weight: 780;
     letter-spacing: -0.025em;
   }
-  /* Information, not a control: quiet text directly above the headline. */
-  .scope {
+  /* Information, not a control: quiet text directly above the headline. Line and gap fill the
+     headline's top margin, so the headline stays where it is (and level with the filters). */
+  .eyebrow {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    margin: 1.25rem 0 0.25rem;
+    margin: 0 0 0.25rem;
     font-size: 0.8rem;
     font-weight: 600;
+    line-height: 1rem;
     color: var(--text-muted);
   }
-  .scope + h2 {
+  .eyebrow + h2 {
     margin-top: 0;
   }
-  .scope-text {
+  .eyebrow-text {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
