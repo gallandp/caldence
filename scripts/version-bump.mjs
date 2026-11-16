@@ -35,11 +35,11 @@ function category(name) {
  * a release never notifies anyone.
  */
 export function cleanEntry(text) {
-  // Code spans stay as written; only the text between them is changed.
+  // Code spans, link targets and autolinks stay as written; only the text between them changes.
   return text
     .replace(/\s+/g, ' ')
     .trim()
-    .split(/(`[^`]*`)/)
+    .split(/(`[^`]*`|\]\([^)]*\)|<[a-z]+:[^>\s]*>|https?:\/\/\S+)/i)
     .map((part, i) =>
       i % 2
         ? part
@@ -47,7 +47,7 @@ export function cleanEntry(text) {
             .replace(/__(?=\S)(.+?)(?<=\S)__/g, '**$1**')
             .replace(/(?<![*\w\\])\*(?=[^\s*])([^*]*?[^\s*])\*(?![*\w])/g, '_$1_')
             .replace(/(?<![*\\])\*(?!\*)(?<!\*\*)/g, '\\*')
-            .replace(/(^|[^\w])@([A-Za-z0-9][\w-]*)/g, '$1`@$2`'),
+            .replace(/(^|[^\w])@([A-Za-z0-9][\w-]*(?:\/[\w.-]+)?)/g, '$1`@$2`'),
     )
     .join('')
     .replace(/^([+-]) /, '\\$1 ');
@@ -73,7 +73,7 @@ function parseSections(markdown) {
       last = null;
       continue;
     }
-    const entry = /^[-*+]\s+(.*\S.*)$/.exec(line);
+    const entry = /^ {0,3}[-*+]\s+(.*\S.*)$/.exec(line);
     if (entry) {
       if (!sections.has(current)) sections.set(current, []);
       last = sections.get(current);
@@ -202,6 +202,14 @@ function main(argv) {
       .map((l) => l.trim())
       .filter(Boolean);
     console.log(highestLabel(labels));
+    return;
+  }
+  if (argv[2] === 'unreleased') {
+    // The Unreleased section of a CHANGELOG.md on stdin (empty when there is none).
+    const text = readFileSync(0, 'utf8');
+    const start = text.indexOf('## Unreleased');
+    const next = start === -1 ? -1 : text.indexOf('\n## ', start + 1);
+    console.log(start === -1 ? '' : text.slice(start, next === -1 ? undefined : next).trim());
     return;
   }
   if (argv[2] === 'changes') {

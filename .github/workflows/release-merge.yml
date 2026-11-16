@@ -67,7 +67,8 @@ jobs:
                     elif ($done | length) == 2 then "ok" else "wait" end')
               echo "Release PR #$number at $sha: CI $verdict"
               if [ "$verdict" = ok ]; then
-                base=$(gh api "repos/$REPO/commits/main" --jq .sha)
+                # release/next is main plus one commit, so its parent is main as checked above.
+                base=$(gh api "repos/$REPO/commits/$sha" --jq '.parents[0].sha')
                 gh pr merge "$number" --repo "$REPO" --merge --match-head-commit "$sha"
                 gh workflow run release.yml --repo "$REPO" --ref main
                 # A PR merged into main in the seconds between the check and the merge ships in

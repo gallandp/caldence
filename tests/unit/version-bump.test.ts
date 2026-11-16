@@ -173,10 +173,16 @@ describe('cleanEntry (CHANGELOG.md must pass prettier --check)', () => {
     '+ starts like a list',
     '2 * 3 = 6 and snake_case_name',
     'Thanks @someone, see `a*b` and `@x`',
+    'Bump @types/node, see [types](https://www.npmjs.com/package/@types/node) and <https://a.de/x*y>',
   ];
   it.each(nasty)('writes %j the way Prettier keeps it', async (text) => {
     const md = `# Changelog\n\n## 1.0.0 – 2026-01-01\n\n### Changed\n\n- ${cleanEntry(text)}\n`;
     expect(await prettier.format(md, { parser: 'markdown', printWidth: 100 })).toBe(md);
+  });
+  it('keeps link targets and scoped package names whole', () => {
+    expect(cleanEntry('Bump @types/node, [t](https://n.de/@types/node) <https://a.de/x*y>')).toBe(
+      'Bump `@types/node`, [t](https://n.de/@types/node) <https://a.de/x*y>',
+    );
   });
   it('turns mentions into code, so a release notifies nobody, and leaves code spans alone', () => {
     expect(cleanEntry('Thanks @someone, mail a@b.de, `a*b`')).toBe(
