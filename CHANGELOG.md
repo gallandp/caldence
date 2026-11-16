@@ -6,6 +6,12 @@
 
 - Touch screens: buttons, segmented controls and fields have hit areas of at least 44 × 44 px; small icon buttons keep their look and get a larger invisible hit area. Mouse and trackpad keep the compact sizes (#214)
 
+## 1.40.0 – 2026-11-16
+
+### Changed
+
+- Team assumptions are labelled by a plain name instead of a technical key, in normal type; the example workspace calls its assumption "Number of stakeholders" ("Anzahl Stakeholder" in German), and a taken name gets a clear message (#210)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed

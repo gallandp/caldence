@@ -42,7 +42,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `cadence` | `{ kind, lengthWeeks, start }` | `kind` is `sprint`, `flow` or `pi`; `lengthWeeks` is an integer from 1; `start` is a date. |
 | `members` | list of `{ personId, roleId }` | A person in a role. The same pair must not appear twice. |
 | `memberHours` | object | Weekly working hours of a person in this team, by person id, from 0 to 168. A member without an entry has `settings.hoursPerWeek`. |
-| `assumptions` | object of numbers | Named values (for example `devs`) that scale meeting durations. |
+| `assumptions` | object of numbers | Named values (for example `Number of developers`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
 
