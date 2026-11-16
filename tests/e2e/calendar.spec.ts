@@ -282,6 +282,11 @@ test('on a phone the month shows all seven days with a dot per meeting', async (
   const day = cellOf(page, ALEX_OVERLAP_DAY);
   const dot = (await day.locator('.chip').first().boundingBox())!;
   expect(dot.width).toBeLessThan(12);
+  // Every day number stays inside its cell.
+  const spill = await panel(page)
+    .locator('td[data-date]')
+    .evaluateAll((cells) => cells.filter((td) => td.scrollWidth > td.clientWidth).length);
+  expect(spill).toBe(0);
   await day.click();
   const details = panel(page).getByRole('region', { name: /January 7, 2027/ });
   await expect(details).toBeInViewport();

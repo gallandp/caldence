@@ -371,8 +371,13 @@
     if (root) observer.observe(root);
     return () => observer.disconnect();
   });
-  /** Beside the grid only when the whole month fits; otherwise the details follow below it. */
-  const floating = $derived(boardWidth >= 44 * 16);
+  /**
+   * Beside the grid only when the whole month fits; otherwise the details follow below it and the
+   * grid is compact. 44rem matches the container query in the styles, at any root font size.
+   */
+  const floating = $derived(
+    boardWidth >= 44 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16),
+  );
 
   $effect(() => {
     void [selected, cursor, boardWidth, popWidth, popHeight, layout];
@@ -429,6 +434,8 @@
    */
   function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
     const all = c.chips.length;
+    // The compact grid shows a dot for every meeting.
+    if (!floating) return { shown: all, more: false };
     if (rowPx === null) return { shown: Math.min(3, all), more: all > 3 };
     const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
     const room = rowPx - 1 - (2.75 + 1.45 * tags) * r;
@@ -962,7 +969,13 @@
       text-align: center;
     }
     .top {
+      flex-wrap: wrap;
       justify-content: center;
+    }
+    .day {
+      min-width: 1.6rem;
+      height: 1.6rem;
+      padding: 0;
     }
     .load,
     .tag,

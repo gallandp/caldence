@@ -168,6 +168,11 @@ test('reflow at 320 px: the month grid fits without scrolling and shows a focus 
   const region = page.getByRole('region', { name: 'Month grid' });
   await expect(region).toHaveAttribute('tabindex', '0');
   expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  // Day numbers stay inside their cells.
+  const spill = await region
+    .locator('td[data-date]')
+    .evaluateAll((cells) => cells.filter((td) => td.scrollWidth > td.clientWidth).length);
+  expect(spill).toBe(0);
   await tabTo(page, region);
   expect(await focusVisible(region)).toBe(true);
 });
