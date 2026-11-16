@@ -4,7 +4,6 @@
 
 ### Changed
 
-- Calendar month view on phones: all seven days fit the screen without sideways scrolling; each day shows its number and a dot per meeting in the category colour, and tapping a day opens its details (#208)
 - Month calendar: meeting names wrap to two lines before they are cut off, and further meetings of a day read "+2 more" instead of "+2" (#211)
 
 ## 1.42.2 – 2026-11-16
