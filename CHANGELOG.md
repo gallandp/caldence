@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Touch screens: buttons, segmented controls and fields have hit areas of at least 44 × 44 px; small icon buttons keep their look and get a larger invisible hit area. Mouse and trackpad keep the compact sizes (#214)
+
 ## 1.39.1 – 2026-11-15
 
 ### Fixed
