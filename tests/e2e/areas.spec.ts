@@ -110,7 +110,7 @@ test('the headline names the selected area or team, except in workspace-wide vie
   await expect(page.locator('#panel-load h2')).toHaveText('Load');
   await pickUnit(page, 'Team Alpha');
   await expect(scope).toHaveText('Team Alpha · Team');
-  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
   await expect(page.locator('#panel-settings .eyebrow')).toHaveCount(0);
 });
 
