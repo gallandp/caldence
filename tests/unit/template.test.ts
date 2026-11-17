@@ -375,6 +375,34 @@ describe('teamToTemplate with an area (#246)', () => {
     expect(ws2.areas[0]!.teamIds).toEqual([one, two]);
   });
 
+  it('round-trips an area without its own cadence and a meeting on an area milestone', () => {
+    const { ws, teamId } = safe();
+    const area = ws.areas[0]!;
+    delete area.cadence;
+    area.events = area.events.filter((e) => e.rule.type !== 'cadence-day');
+    area.cycles = [
+      { id: 'cy', name: 'Release', milestones: [{ id: 'm', name: 'Go', date: start }] },
+    ];
+    area.events.push({
+      ...structuredClone(area.events[0]!),
+      id: 'ev-go',
+      name: 'Go/No-Go',
+      rule: { type: 'cycle-milestone', cycleId: 'cy', milestoneId: 'm', offsetDays: -1 },
+    });
+    const t = teamToTemplate(ws, teamId, opts);
+    // The format needs an area cadence: the team's stands in.
+    expect(t.area?.cadence).toEqual(ws.teams.find((x) => x.id === teamId)!.cadence);
+    const r = applyTemplate(emptyWorkspace(start), t, { name: 'One', today: start });
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    const copy = r.value[0].areas[0]!;
+    const release = copy.cycles.find((c) => c.name === 'Release');
+    expect(release?.milestones[0]?.name).toBe('Go');
+    expect(copy.events.find((e) => e.name === 'Go/No-Go')?.rule).toMatchObject({
+      type: 'cycle-milestone',
+      cycleId: release!.id,
+    });
+  });
+
   it('writes no area for a team without one', () => {
     const t = teamToTemplate(exampleWorkspace(), 'team-alpha', opts);
     expect(t).not.toHaveProperty('area');
