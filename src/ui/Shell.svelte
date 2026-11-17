@@ -24,11 +24,8 @@
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
-<<<<<<< HEAD
   import { exportRequest } from './state/exportScope';
-=======
   import { rail, setRail } from './state/sidebar';
->>>>>>> origin/main
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -482,7 +479,11 @@
                     <AreaOverview
                       area={activeArea}
                       onOpenLoad={openLoad}
-                      onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                      onOpenMeeting={editMeeting}
+                      onOpenUnit={(unitId) => {
+                        activeTeamId.set(unitId);
+                        select('meetings', true);
+                      }}
                     />
                   {/snippet}
                 </AreaView>
