@@ -727,6 +727,7 @@
   "help.files.format": "Alles, was Sie planen, steht in einer Datei mit einem Namen wie plan.caldence.json.",
   "help.files.buttons": "{new} beginnt eine leere Datei. {open} liest eine Datei. {save} schreibt in die geöffnete Datei. {saveAs} schreibt eine neue Datei. Gibt es ungespeicherte Änderungen, fragen {new} und {open} zuerst, ob Sie sie speichern möchten.",
   "help.files.status": "Neben den Schaltflächen sehen Sie den Dateinamen oder {untitled} und ob es {unsaved} gibt oder die Datei {saved} ist.",
+  "help.files.present": "{present} zeigt den Plan in einem Termin, etwa am Beamer: Datei-Aktionen und Bearbeiten treten zurück, die Schrift wird größer. Dauer, Rhythmus und Takt lassen sich als „Was wäre wenn“ ändern; die Wirkung erscheint sofort, {reset} stellt den Stand vor dem Präsentieren wieder her. {hideNames} zeigt Personen als Person 1, 2, … {stop} oder Esc verwirft alle Änderungen; die Datei bleibt, wie sie war.",
   "help.files.fallback": "Browser ohne Dateizugriff laden die Datei beim Speichern herunter und fragen beim Öffnen danach.",
   "help.files.autosave": "Caldence sichert Ihre Arbeit außerdem in diesem Browser, sodass sie nach einem Neuladen wieder da ist. Das ersetzt nicht das Speichern in eine Datei. Lässt der Browser das nicht zu, steht in der Leiste {autosaveOff}.",
   "help.files.privacy": "Es wird nichts versendet. Ihre Daten bleiben auf Ihrem Gerät.",

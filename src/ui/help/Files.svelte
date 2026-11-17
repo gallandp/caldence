@@ -2,7 +2,15 @@
   import { translate as t } from '../../i18n';
   import Rich from './Rich.svelte';
 
-  const parts = ['format', 'buttons', 'status', 'fallback', 'autosave', 'privacy'] as const;
+  const parts = [
+    'format',
+    'buttons',
+    'status',
+    'present',
+    'fallback',
+    'autosave',
+    'privacy',
+  ] as const;
   const installParts = ['install', 'update'] as const;
   const labels = {
     new: 'file.new',
@@ -16,6 +24,10 @@
     available: 'update.available',
     reload: 'update.reload',
     later: 'update.later',
+    present: 'file.present',
+    stop: 'file.present.stop',
+    hideNames: 'present.hideNames',
+    reset: 'whatif.reset',
   };
 </script>
 
