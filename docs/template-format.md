@@ -32,7 +32,7 @@ The built-in SAFe template (`src/data/templates/safe.en.json`) has a Scrum team 
 
 ## No personal data
 
-A template must never contain personal data. It has no `people`, no `settings`, no `customRegions` and no `team.members`. A file that has any of them is rejected, so that a workspace file or a team with names cannot be shared as a template by mistake. When a team is exported as a template, only the roles used by its events and members and the categories used by its events are kept.
+A template must never contain personal data. It has no `people`, no `settings`, no `customRegions` and no `team.members`. A file that has any of them is rejected, so that a workspace file or a team with names cannot be shared as a template by mistake. When a team is exported as a template, only the roles used by its events and members and the categories used by its events are kept. When the team is in an area, the export also writes the optional `area` part (name, cadence, cycles, meetings and the file's level names) with the roles and categories of the area's meetings; area members, area hours and team ids are never written. An area without its own cadence gets the team's cadence in the template.
 
 ## Example
 
