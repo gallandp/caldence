@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
+  import type { UnfilledRole } from '../../core/cost';
   import {
     areaMeetingHours,
     compareCadences,
@@ -135,6 +136,16 @@
     new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }).format(items);
   const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
+  /** "incl. 2 unfilled roles: PO, SM" for a cost row, or '' (#264). */
+  const unfilledNote = (list: UnfilledRole[] | undefined) => {
+    const roles = (list ?? []).filter((u) => u[period]).map((u) => u.roleId);
+    return roles.length > 0
+      ? $t(roles.length === 1 ? 'overview.cost.unfilled.one' : 'overview.cost.unfilled.other', {
+          n: formatNumber($locale, roles.length, 0),
+          roles: roles.map(roleName).join(', '),
+        })
+      : '';
+  };
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const percent = (n: number) => formatPercent($locale, n);
   const hours = (n: number) => formatNumber($locale, n, 1);
@@ -403,6 +414,9 @@
                     onclick={() => onOpenUnit(r.unitId)}>{unitName(r.unitId)}</button
                   >
                 {:else}{unitName(r.unitId)}{/if}
+                {#if rate && unfilledNote(r.cost?.unfilled)}
+                  <small data-unfilled>{unfilledNote(r.cost?.unfilled)}</small>
+                {/if}
               </th>
               <td>{cadenceShort(unitOf(r.unitId).cadence)}</td>
               <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
@@ -439,6 +453,9 @@
               {/if}
               {#if area.events.length > 0}
                 <small>{area.events.map((e) => e.name).join(', ')}</small>
+              {/if}
+              {#if rate && unfilledNote(costs.area.cost?.unfilled)}
+                <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
               {/if}
             </th>
             <td>{cadenceShort(area.cadence)}</td>

@@ -19,6 +19,19 @@ export interface CostSummary {
   horizon: number;
   /** Average euros per week by category, only categories that cost something. */
   byCategory: { categoryId: string; perWeek: number }[];
+  /**
+   * Roles that meetings with a cost invite but nobody holds in that team or area: each counts as
+   * one person for the cost, but not for the hours (#264). One entry per unit and role, saying in
+   * which period (per week: recurring meetings; horizon: every occurrence) it adds cost.
+   */
+  unfilled: UnfilledRole[];
+}
+
+export interface UnfilledRole {
+  unitId: string;
+  roleId: string;
+  week: boolean;
+  horizon: boolean;
 }
 
 /**
@@ -41,7 +54,19 @@ export function meetingCost(
 }
 
 /** Running totals of a cost summary. */
-type Sums = { perWeek: number; horizon: number; byCategory: Record<string, number> };
+type Sums = {
+  perWeek: number;
+  horizon: number;
+  byCategory: Record<string, number>;
+  unfilled: Map<string, UnfilledRole>;
+};
+
+const emptySums = (): Sums => ({
+  perWeek: 0,
+  horizon: 0,
+  byCategory: record<number>(),
+  unfilled: new Map(),
+});
 
 /** Adds the weekly and horizon costs of one team's or area's meetings to `sums`. */
 function addUnitCosts(
@@ -52,20 +77,40 @@ function addUnitCosts(
   heads: (p: Participant) => number,
   sums: Sums,
 ): void {
+  const empty = (p: Participant) => heads(p) > 0 && attendees(ws, unit.id, p).length === 0;
+  const note = (event: CalEvent, period: 'week' | 'horizon') => {
+    for (const p of event.participants) {
+      if (!empty(p)) continue;
+      const key = `${unit.id}\u0000${p.roleId}`;
+      const entry = sums.unfilled.get(key) ?? {
+        unitId: unit.id,
+        roleId: p.roleId,
+        week: false,
+        horizon: false,
+      };
+      entry[period] = true;
+      sums.unfilled.set(key, entry);
+    }
+  };
   for (const event of unit.events) {
     const weekly =
       occurrencesPerWeek(event.rule, unit) *
       meetingCost(ws, unit, event, effectiveDuration(event, unit), rate, heads);
     if (weekly === 0) continue;
+    note(event, 'week');
     sums.perWeek += weekly;
     sums.byCategory[event.categoryId] = (sums.byCategory[event.categoryId] ?? 0) + weekly;
   }
   const events = new Map(unit.events.map((e) => [e.id, e]));
+  const inHorizon = new Set<CalEvent>();
   for (const occ of occurrences(unit, ws.settings, index)) {
     const event = events.get(occ.eventId);
-    if (event && !occ.skippedHoliday)
-      sums.horizon += meetingCost(ws, unit, event, occ.duration, rate, heads);
+    if (!event || occ.skippedHoliday) continue;
+    const cost = meetingCost(ws, unit, event, occ.duration, rate, heads);
+    sums.horizon += cost;
+    if (cost > 0) inHorizon.add(event);
   }
+  for (const event of inHorizon) note(event, 'horizon');
 }
 
 const summary = (ws: Workspace, sums: Sums): CostSummary => ({
@@ -74,6 +119,7 @@ const summary = (ws: Workspace, sums: Sums): CostSummary => ({
   byCategory: ws.categories
     .filter((c) => (sums.byCategory[c.id] ?? 0) > 0)
     .map((c) => ({ categoryId: c.id, perWeek: sums.byCategory[c.id]! })),
+  unfilled: [...sums.unfilled.values()],
 });
 
 /**
@@ -86,7 +132,7 @@ export function costSummary(
   filter: Filter,
   rate: number,
 ): CostSummary {
-  const sums: Sums = { perWeek: 0, horizon: 0, byCategory: record<number>() };
+  const sums = emptySums();
   for (const unit of [...scopeTeams(ws, filter), ...areasInScope(ws, filter)]) {
     const heads = (p: Participant): number => {
       if (filter.personId) return Number(attendees(ws, unit.id, p).includes(filter.personId));
@@ -105,7 +151,7 @@ export function unitCostSummary(
   unit: Team,
   rate: number,
 ): CostSummary {
-  const sums: Sums = { perWeek: 0, horizon: 0, byCategory: record<number>() };
+  const sums = emptySums();
   const heads = (p: Participant) => Math.max(1, attendees(ws, unit.id, p).length);
   addUnitCosts(ws, index, unit, rate, heads, sums);
   return summary(ws, sums);
