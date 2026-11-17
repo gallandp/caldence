@@ -5,6 +5,7 @@ import {
   areaRoleIds,
   loadTemplate,
   teamToTemplate,
+  templateStart,
   validateTemplate,
   type Template,
 } from '../../src/core/template';
@@ -430,5 +431,31 @@ describe('template limits (security #41)', () => {
     t.description = 'x'.repeat(2001);
     const r = validateTemplate(t);
     expect(!r.ok && r.errors).toContainEqual({ path: 'description', key: 'error.text.tooLong' });
+  });
+});
+
+describe('templateStart', () => {
+  it('names the date the Scrum cadence starts on when the picked day is not a Monday', () => {
+    const scrum = builtinTemplate('scrum', 'en');
+    const ws = emptyWorkspace('2026-11-17');
+    // Tuesday 17 Nov 2026 moves to Monday 23 Nov 2026, as applyTemplate does.
+    expect(templateStart(ws, scrum, '2026-11-17')).toEqual({ start: '2026-11-23' });
+    expect(templateStart(ws, scrum, '2026-11-23')).toEqual({ start: '2026-11-23' });
+    const r = applyTemplate(ws, scrum, { name: 'A', today: '2026-11-17' });
+    expect(r.ok && r.value[0].teams[0]!.cadence.start).toBe('2026-11-23');
+  });
+
+  it('names the area a joining SAFe team keeps in step with', () => {
+    const safe = BUILTIN_TEMPLATES.safe.en;
+    const first = applyTemplate(emptyWorkspace('2027-02-10'), safe, {
+      name: 'A',
+      today: '2027-02-10',
+    });
+    if (!first.ok) throw new Error('first');
+    const area = first.value[0].areas[0]!.name;
+    expect(templateStart(first.value[0], safe, '2027-05-01')).toEqual({
+      start: '2027-07-05',
+      area,
+    });
   });
 });

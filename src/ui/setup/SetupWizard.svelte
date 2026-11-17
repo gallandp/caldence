@@ -2,9 +2,9 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { setupTeam, type SetupMember } from '../../core/setup';
-  import type { Template } from '../../core/template';
+  import { templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
-  import { locale, translate as t } from '../../i18n';
+  import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { resolveRegion } from '../../core/regions';
   import { regionIds } from '../../data/regions';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
@@ -42,6 +42,9 @@
     choice === 'none' ? null : builtinTemplate(choice, $locale),
   );
   const roles = $derived(template ? template.roles : $workspace.roles);
+  /** Templates start on a fixed weekday (or with the area's next increment), not on any date. */
+  const actual = $derived(template && start ? templateStart($workspace, template, start) : null);
+  const moved = $derived(actual && actual.start !== start ? actual : null);
   const steps = $derived(withFrame ? 4 : 3);
   /** People of the workspace; a name entered again is the same person. */
   const known = $derived.by(() => {
@@ -96,6 +99,7 @@
       // Names and roles of another template do not fit this one.
       filledFor = choice;
       name = template ? template.name : get(t)('setup.defaultName');
+      start = template ? templateStart(get(workspace), template, localToday()).start : localToday();
       names = {};
       myRole = '';
     }
@@ -218,7 +222,25 @@
       </div>
       <div class="field">
         <label for="{uid}-start">{$t('setup.start')}</label>
-        <input id="{uid}-start" type="date" bind:value={start} />
+        <input
+          id="{uid}-start"
+          type="date"
+          bind:value={start}
+          aria-describedby={moved ? `${uid}-start-moved` : undefined}
+        />
+        {#if moved && template}
+          <p class="hint" id="{uid}-start-moved" aria-live="polite">
+            {moved.area
+              ? $t('setup.start.joined', {
+                  area: moved.area,
+                  date: formatDisplayDate($locale, moved.start, 'long'),
+                })
+              : $t('setup.start.moved', {
+                  template: template.name,
+                  date: formatDisplayDate($locale, moved.start, 'long'),
+                })}
+          </p>
+        {/if}
       </div>
     {:else if step === 3}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.people')}</h3>

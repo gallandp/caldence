@@ -170,6 +170,48 @@ function shiftRule(rule: Rule, shift: number): Rule {
   }
 }
 
+/**
+ * A second team from a template with an area joins the area that holds the first one.
+ * If its teams were all removed, the empty area with the template's name is taken again.
+ */
+function joinedArea(ws: Workspace, tpl: Template): Area | undefined {
+  if (!tpl.area) return undefined;
+  const name = norm(tpl.area.name);
+  return (
+    ws.areas.find((a) =>
+      a.teamIds.some((id) => ws.teams.find((t) => t.id === id)?.templateId === tpl.id),
+    ) ?? ws.areas.find((a) => a.teamIds.length === 0 && norm(a.name) === name)
+  );
+}
+
+/** Days the template's dates move so that its cadence starts on or after `today`. */
+function templateShift(tpl: Template, joined: Area | undefined, today: ISODate): number {
+  if (joined?.cadence && tpl.area) {
+    // Keep the new team's iterations in step with the area's increments: start with the first
+    // increment on or after today.
+    const period = joined.cadence.lengthWeeks * 7;
+    const behind = diffDays(today, joined.cadence.start);
+    const periods = behind > 0 ? Math.ceil(behind / period) : 0;
+    return diffDays(addDays(joined.cadence.start, periods * period), tpl.area.cadence.start);
+  }
+  const start = tpl.team.cadence.start;
+  return diffDays(addDays(today, (weekday(start) - weekday(today) + 7) % 7), start);
+}
+
+/**
+ * The date the team's cadence starts on when the template is applied from `from`, and the
+ * name of the area whose increments it keeps in step with, if any.
+ */
+export function templateStart(
+  ws: Workspace,
+  tpl: Template,
+  from: ISODate,
+): { start: ISODate; area?: string } {
+  const joined = joinedArea(ws, tpl);
+  const start = addDays(tpl.team.cadence.start, templateShift(tpl, joined, from));
+  return joined?.cadence ? { start, area: joined.name } : { start };
+}
+
 export function applyTemplate(
   ws: Workspace,
   template: Template,
@@ -199,29 +241,9 @@ export function applyTemplate(
   const roleMap = mapItems('roles', 'r');
   const catMap = mapItems('categories', 'c');
 
-  // A second team from a template with an area joins the area that holds the first one.
-  // If its teams were all removed, the empty area with the template's name is taken again.
-  const joined = tpl.area
-    ? (out.areas.find((a) =>
-        a.teamIds.some((id) => out.teams.find((t) => t.id === id)?.templateId === tpl.id),
-      ) ?? out.areas.find((a) => a.teamIds.length === 0 && norm(a.name) === norm(tpl.area!.name)))
-    : undefined;
-
+  const joined = joinedArea(out, tpl);
   const cadenceStart = tpl.team.cadence.start;
-  let shift: number;
-  if (joined?.cadence && tpl.area) {
-    // Keep the new team's iterations in step with the area's increments: start with the first
-    // increment on or after today.
-    const period = joined.cadence.lengthWeeks * 7;
-    const behind = diffDays(opts.today, joined.cadence.start);
-    const periods = behind > 0 ? Math.ceil(behind / period) : 0;
-    shift = diffDays(addDays(joined.cadence.start, periods * period), tpl.area.cadence.start);
-  } else {
-    const wd = weekday(cadenceStart);
-    let newStart = opts.today;
-    while (weekday(newStart) !== wd) newStart = addDays(newStart, 1);
-    shift = diffDays(newStart, cadenceStart);
-  }
+  const shift = templateShift(tpl, joined, opts.today);
 
   const shiftCycles = (cycles: Cycle[]): Cycle[] =>
     cycles.map((c) => ({
