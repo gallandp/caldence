@@ -27,8 +27,9 @@ export interface UnitRow {
   /** Meeting hours without any weekly hours to measure them against: always over the limit. */
   noHours: boolean;
   /**
-   * People invited to at least one meeting of the unit (for the total: of any unit), the divisor
-   * of "cost per person". Members who attend nothing are left out, in every row alike (#263).
+   * People invited to at least one meeting of the unit (for the total: of any unit, each once),
+   * the divisor of "cost per person". Members who attend nothing are left out, in every row
+   * alike; a role nobody holds counts as one person, as in the cost (#263).
    */
   invited: number;
   /** Only with an hourly rate. */
@@ -45,11 +46,19 @@ export interface AreaCosts {
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const share = (hours: number, cap: number) => (cap > 0 ? hours / cap : 0);
 
-/** Everyone invited to at least one meeting of the unit. */
+/**
+ * Everyone invited to at least one meeting of the unit. A role nobody holds counts as one person,
+ * as it does for the cost (`role:<unit>:<role>`), so that cost and divisor agree.
+ */
 function invitedTo(ws: Workspace, unit: Team): Set<string> {
-  return new Set(
-    unit.events.flatMap((e) => e.participants.flatMap((p) => attendees(ws, unit.id, p))),
-  );
+  const out = new Set<string>();
+  for (const e of unit.events)
+    for (const p of e.participants) {
+      const ids = attendees(ws, unit.id, p);
+      if (ids.length === 0) out.add(`role:${unit.id}:${p.roleId}`);
+      for (const id of ids) out.add(id);
+    }
+  return out;
 }
 
 function row(

@@ -445,7 +445,11 @@
             <td></td>
             {#if rate && costs.area.cost}
               <td class="num strong">{euro(costOf(costs.area.cost))}</td>
-              <td></td>
+              <td class="num muted"
+                >{costs.area.invited > 0
+                  ? euro(costOf(costs.area.cost) / costs.area.invited)
+                  : '–'}</td
+              >
             {/if}
           </tr>
         </tbody>

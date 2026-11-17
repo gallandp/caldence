@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
 import { unitCostSummary } from '../../src/core/cost';
-import { areaAsTeam, attendees, type Workspace } from '../../src/core/model';
+import { areaAsTeam, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import { areaWorkspace } from '../e2e/area-fixture';
 
@@ -24,27 +24,50 @@ describe('areaCosts', () => {
     expect(c.total.cost!.perWeek).toBeCloseTo(rows.reduce((s, r) => s + r.cost!.perWeek, 0));
     expect(c.total.cost!.horizon).toBeCloseTo(rows.reduce((s, r) => s + r.cost!.horizon, 0));
     expect(c.total.share).toBeCloseTo(c.total.hours / c.total.capacity);
-    const invited = (unit: { id: string; events: Workspace['teams'][number]['events'] }) =>
-      unit.events.flatMap((e) => e.participants.flatMap((p) => attendees(w, unit.id, p)));
-    const units = [...w.teams.filter((t) => area.teamIds.includes(t.id)), areaAsTeam(area)];
-    expect(c.total.invited).toBe(new Set(units.flatMap(invited)).size);
+    // In the fixture every member of the area and its teams attends a meeting, each once.
+    const members = new Set([
+      ...area.members.map((m) => m.personId),
+      ...w.teams
+        .filter((t) => area.teamIds.includes(t.id))
+        .flatMap((t) => t.members.map((m) => m.personId)),
+    ]);
+    expect(c.total.invited).toBe(members.size);
   });
 
   it('counts per person only people invited to a meeting, in team rows and the total (#263)', () => {
     const w = ws();
     const area = w.areas[0]!;
     const before = areaCosts(w, noIndex(), area, 100);
-    // A member of the area and of a team whose role no meeting invites.
+    // A member of the area and of a team in a role that no meeting invites (Area Lead).
     w.people.push({ id: 'person-idle', name: 'Idle' } as Workspace['people'][number]);
-    area.members.push({ personId: 'person-idle', roleId: 'role-observer' });
+    w.roles.push({ id: 'role-idle', name: 'Observer', colour: '#777777' });
+    area.members.push({ personId: 'person-idle', roleId: 'role-idle' });
     const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
-    gamma.members.push({ personId: 'person-idle', roleId: 'role-observer' });
+    gamma.members.push({ personId: 'person-idle', roleId: 'role-idle' });
     const after = areaCosts(w, noIndex(), area, 100);
     expect(after.total.invited).toBe(before.total.invited);
     expect(after.teams.find((r) => r.unitId === 'team-gamma')!.invited).toBe(
       before.teams.find((r) => r.unitId === 'team-gamma')!.invited,
     );
     expect(after.total.cost!.perWeek).toBeCloseTo(before.total.cost!.perWeek);
+    const perPerson = (r: { cost?: { perWeek: number }; invited: number }) =>
+      r.cost!.perWeek / r.invited;
+    expect(perPerson(after.total)).toBeCloseTo(perPerson(before.total));
+  });
+
+  it('counts a role nobody holds as one person, like the cost does', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    const before = areaCosts(w, noIndex(), area, 100).teams.find((r) => r.unitId === gamma.id)!;
+    gamma.events.push({
+      ...structuredClone(gamma.events[0]!),
+      id: 'ev-dev-sync',
+      rule: { type: 'weekly', weekday: 1 },
+      participants: [{ roleId: 'role-dev', share: 1 }],
+    });
+    const after = areaCosts(w, noIndex(), area, 100).teams.find((r) => r.unitId === gamma.id)!;
+    expect(after.invited).toBe(before.invited + 1);
   });
 
   it('matches the cost card of each team and of the area', () => {
