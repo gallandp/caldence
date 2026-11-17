@@ -227,7 +227,6 @@
   "area.option": ", {levelAreaLc},",
   "area.ungrouped": "No {levelAreaLc}",
   "area.view.team": "People and roles are assigned per {levelTeamLc}. Pick one in {name}:",
-  "area.view.empty": "{name} has no {levelTeamsLc} yet. Choose them in the ⋯ menu at the top of the sidebar.",
   "area.view.label": "Page",
   "area.view.structure": "Structure",
   "area.view.overview": "Overview",

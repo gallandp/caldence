@@ -3,6 +3,7 @@
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import { initials } from '../avatar';
+  import AreaNoTeams from './AreaNoTeams.svelte';
   import { activeTeamId, workspace } from '../state/workspace';
 
   /** A view that works per team shows this while an area is selected: the area's teams to pick. */
@@ -20,7 +21,7 @@
 
 <section class="area-teams">
   {#if teams.length === 0}
-    <p>{$t('area.view.empty', { name: area.name })}</p>
+    <AreaNoTeams {area} focusAfter=".area-teams button" />
   {:else}
     <p>{$t(`area.view.${view}`, { name: area.name })}</p>
     <ul>
