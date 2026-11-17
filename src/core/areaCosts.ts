@@ -1,4 +1,4 @@
-import { unitCostSummary, meetingCost } from './cost';
+import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
 import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
 import {
   areaAsTeam,
@@ -28,7 +28,7 @@ export interface UnitRow {
   noHours: boolean;
   people: number;
   /** Only with an hourly rate. `unfilled`: roles nobody holds, counted as one person each (#264). */
-  cost?: { perWeek: number; horizon: number; unfilled: string[] };
+  cost?: { perWeek: number; horizon: number; unfilled: UnfilledRole[] };
 }
 
 export interface AreaCosts {
@@ -98,7 +98,7 @@ export function areaCosts(
     total.cost = {
       perWeek: sum(all.map((r) => r.cost!.perWeek)),
       horizon: sum(all.map((r) => r.cost!.horizon)),
-      unfilled: [...new Set(all.flatMap((r) => r.cost!.unfilled))],
+      unfilled: all.flatMap((r) => r.cost!.unfilled),
     };
   return { teams: teamRows, area: areaRow, total };
 }

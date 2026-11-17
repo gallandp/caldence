@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
+  import type { UnfilledRole } from '../../core/cost';
   import {
     areaMeetingHours,
     compareCadences,
@@ -135,13 +136,15 @@
   const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
   /** "incl. 2 unfilled roles: PO, SM" for a cost row, or '' (#264). */
-  const unfilledNote = (roles: string[] | undefined) =>
-    roles && roles.length > 0
+  const unfilledNote = (list: UnfilledRole[] | undefined) => {
+    const roles = (list ?? []).filter((u) => u[period]).map((u) => u.roleId);
+    return roles.length > 0
       ? $t(roles.length === 1 ? 'overview.cost.unfilled.one' : 'overview.cost.unfilled.other', {
           n: formatNumber($locale, roles.length, 0),
           roles: roles.map(roleName).join(', '),
         })
       : '';
+  };
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const percent = (n: number) => formatPercent($locale, n);
   const hours = (n: number) => formatNumber($locale, n, 1);
