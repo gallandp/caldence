@@ -13,6 +13,9 @@
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
   import SetupDone from './components/SetupDone.svelte';
+  import GroupHint from './components/GroupHint.svelte';
+  import AreaDialog from './AreaDialog.svelte';
+  import { areaReady, dismissGroupHint, groupHintDismissed } from './state/hints';
   import SetupWizard from './setup/SetupWizard.svelte';
   import MeetingsView from './views/MeetingsView.svelte';
   import LoadView from './views/LoadView.svelte';
@@ -24,6 +27,7 @@
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
+  import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
 
   const { dirty } = workspace;
@@ -91,6 +95,21 @@
   $effect(() => {
     void $version;
     setupDone = false;
+    areaReady.set(undefined);
+  });
+  /**
+   * Two or more teams and no area yet: offer once per workspace to group them. Shown on the
+   * Team page, where people build; someone who only reads a plan is not asked to change it.
+   */
+  const groupHint = $derived(
+    $workspace.teams.length >= 2 &&
+      $workspace.areas.length === 0 &&
+      !$groupHintDismissed.includes($workspace.id),
+  );
+  let hintDialog: AreaDialog | undefined = $state();
+  // A new area opens its page, where the "area is ready" card shows the next steps.
+  $effect(() => {
+    if ($areaReady) select('team');
   });
   let tabs: Record<string, HTMLButtonElement | undefined> = {};
 
@@ -118,6 +137,8 @@
 
   /** With `focus`, the view's visible tab gets the focus; a view without one (phones) its content. */
   function select(id: ViewId, focus = false) {
+    // A preselection for the export is only for the next visit right now.
+    if (id !== 'exchange') exportRequest.set(null);
     active = id;
     if (!focus) return;
     const tab = [tabs[id], barTabs[id]].find(shown);
@@ -408,6 +429,15 @@
       }}
     />
 
+    <AreaDialog
+      bind:this={hintDialog}
+      returnFocus={() => {
+        const opener = document.querySelector<HTMLButtonElement>('.group-hint button.primary');
+        if (opener) opener.focus();
+        else select(active, true);
+      }}
+    />
+
     <input
       bind:this={fileInput}
       type="file"
@@ -470,13 +500,17 @@
               </section>
             {:else if id === 'team' && activeArea}
               {#if active === id}
-                <AreaView area={activeArea}>
+                <AreaView area={activeArea} onMeetings={() => select('meetings', true)}>
                   {#snippet overview()}
                     <AreaTeams area={activeArea} view="team" />
                     <AreaOverview
                       area={activeArea}
                       onOpenLoad={openLoad}
-                      onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                      onOpenMeeting={editMeeting}
+                      onOpenUnit={(unitId) => {
+                        activeTeamId.set(unitId);
+                        select('meetings', true);
+                      }}
                     />
                   {/snippet}
                 </AreaView>
@@ -512,9 +546,21 @@
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
                   onSetHours={activeArea ? () => select('team', true) : undefined}
+                  onExport={() => select('exchange', true)}
                 />{/if}
             {:else if id === 'team'}
-              {#if active === 'team'}<TeamView />{/if}
+              {#if active === 'team'}
+                {#if groupHint}
+                  <GroupHint
+                    onGroup={() => hintDialog?.show()}
+                    onDismiss={() => {
+                      dismissGroupHint($workspace.id);
+                      void tick().then(() => select('team', true));
+                    }}
+                  />
+                {/if}
+                <TeamView />
+              {/if}
             {:else if id === 'settings'}
               {#if active === 'settings'}<SettingsView />{/if}
             {:else if id === 'templates'}

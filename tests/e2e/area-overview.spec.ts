@@ -16,10 +16,11 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2027-01-05T10:00:00'));
 });
 
-async function openOverview(page: Page) {
+async function openOverview(page: Page, rate?: number) {
   await page.goto('/');
   const ws = areaWorkspace();
   ws.settings.locale = 'en';
+  if (rate) (ws.settings as { hourlyRate?: number }).hourlyRate = rate;
   await openWorkspaceFile(page, ws);
   await pickUnit(page, 'Payments');
   await openMenuIfNarrow(page);
@@ -116,3 +117,52 @@ for (const scheme of ['light', 'dark'] as const) {
     expect(result.violations).toEqual([]);
   });
 }
+
+test('without a rate the overview shows time per team and invites a rate', async ({ page }) => {
+  const overview = await openOverview(page);
+  const table = overview.locator('[data-area-costs]');
+  await expect(table.getByRole('heading', { level: 3 })).toHaveText('Time in meetings per team');
+  await expect(table.locator('tbody tr')).toHaveCount(5);
+  await expect(table.getByRole('columnheader', { name: 'Cost per week' })).toHaveCount(0);
+  // The total share is the meeting load tile.
+  const load = await overview.locator('[data-kpi="load"] b').textContent();
+  await expect(table.locator('[data-cost-total]')).toContainText(`${load} Meeting load`);
+  await expect(overview.locator('[data-costly]')).toHaveCount(0);
+  await overview.locator('[data-rate-invite]').getByLabel('€ per hour and person').fill('100');
+  await overview.locator('[data-rate-invite]').getByRole('button', { name: 'Apply' }).click();
+  await expect(table.getByRole('heading', { level: 3 })).toBeFocused();
+  await expect(table.getByRole('heading', { level: 3 })).toHaveText('What do our meetings cost?');
+});
+
+test('with a rate the overview shows cost per team and the most expensive meetings', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  await expect(overview.locator('[data-kpi="cost"]')).toContainText('at €100 per hour and person');
+  const table = overview.locator('[data-area-costs]');
+  const total = table.locator('[data-cost-total]');
+  const weekly = await overview.locator('[data-kpi="cost"] b').textContent();
+  await expect(total).toContainText(weekly!);
+  await table.getByRole('button', { name: 'in the planning horizon' }).click();
+  await expect(
+    table.getByRole('columnheader', { name: 'Cost in the planning horizon' }),
+  ).toBeVisible();
+  const costly = overview.locator('[data-costly]');
+  await expect(costly.locator('tbody tr')).toHaveCount(5);
+  // A team row opens Meetings & cadence of that team.
+  await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Team Gamma');
+});
+
+test('a team meeting among the most expensive opens in its team', async ({ page }) => {
+  const overview = await openOverview(page, 100);
+  const row = overview.locator('[data-costly] tbody tr', { hasText: 'Team Delta' }).first();
+  const name = (await row.locator('th').textContent())!.trim();
+  await row.getByRole('button').click();
+  await expect(currentUnit(page)).toHaveText('Team Delta');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
+});

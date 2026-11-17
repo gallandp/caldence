@@ -220,6 +220,13 @@ function exportUnits(ws: Workspace, scope: Filter): Team[] {
   return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
 }
 
+/** True when the person attends at least one of the meetings a team's or area's export holds. */
+export function attendsUnitMeetings(ws: Workspace, unitId: string, personId: string): boolean {
+  return exportUnits(ws, { teamId: unitId }).some(
+    (unit) => eventsInScope(ws, unit, { personId }).length > 0,
+  );
+}
+
 /**
  * An exported file, how many of its VEVENTs are recurring series, single entries and cancelled
  * ones, and what the calendar holds after importing it (to pass as `previous` to the next export

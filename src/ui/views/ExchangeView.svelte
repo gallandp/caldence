@@ -2,7 +2,12 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
-  import { exportIcsWithCounts, scopeHasEvents, type IcsExport } from '../../core/ics';
+  import {
+    attendsUnitMeetings,
+    exportIcsWithCounts,
+    scopeHasEvents,
+    type IcsExport,
+  } from '../../core/ics';
   import { lastExport, rememberExport } from '../state/exports';
   import {
     parseIcs,
@@ -25,6 +30,7 @@
     type FilePickerType,
   } from '../state/files';
   import { pickFile } from '../state/picker';
+  import { exportRequest, loadExportPerson, saveExportPerson } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
 
   let { onOpenMeetings }: { onOpenMeetings?: () => void } = $props();
@@ -82,6 +88,24 @@
   let schoolHolidays = $state(false);
   let milestones = $state(false);
   const reminders = [5, 10, 15, 30];
+
+  // From "Add to calendar" in Meetings & cadence: the person exported last if they attend this
+  // team's meetings, otherwise the whole team.
+  {
+    const request = get(exportRequest);
+    exportRequest.set(null);
+    if (request) {
+      const current = get(workspace);
+      const person = loadExportPerson(current.id);
+      if (person && attendsUnitMeetings(current, request.teamId, person)) {
+        kind = 'person';
+        pickedId.person = person;
+      } else {
+        kind = 'team';
+        pickedId.team = request.teamId;
+      }
+    }
+  }
 
   const choices = $derived(
     kind === 'team'
@@ -215,6 +239,7 @@
       if (saved === null) return;
       rememberExport(ws.id, scope, built.events);
       exportsSeen++;
+      saveExportPerson(ws.id, kind === 'person' ? chosen.id : null);
       clearStatus();
       problem = null;
       exported = {

@@ -14,7 +14,10 @@
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
+  import RateInvite from '../components/RateInvite.svelte';
+  import { exportRequest } from '../state/exportScope';
   import CyclesCard from '../components/CyclesCard.svelte';
+  import Rich from '../help/Rich.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { ruleShort, ruleSummary } from '../meetings/rules';
@@ -37,8 +40,10 @@
     onEditOpened?: () => void;
     /** Opens where a person's hours in an area are set. */
     onSetHours?: () => void;
+    /** Opens Import / Export with this team (or the person exported last) preselected. */
+    onExport?: () => void;
   }
-  let { edit, onEditOpened, onSetHours }: Props = $props();
+  let { edit, onEditOpened, onSetHours, onExport }: Props = $props();
 
   const { canUndo } = workspace;
 
@@ -346,6 +351,8 @@
     <CadenceCard {team} {area} />
     {#if costs && rate}
       <CostCard summary={costs} {rate} />
+    {:else if !rate && team.events.length > 0}
+      <RateInvite />
     {/if}
     <div class="card">
       <div class="toolbar">
@@ -406,6 +413,24 @@
             ><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></svg
           ><span class="label">{$t('meet.undo')}</span></button
         >
+        {#if onExport && team.events.length > 0}
+          <button
+            type="button"
+            class="secondary to-calendar"
+            data-to-calendar
+            onclick={() => {
+              exportRequest.set({ teamId: team.id });
+              onExport();
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"
+              ><path
+                d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4M12 13v5M9.5 15.5L12 18l2.5-2.5"
+              /></svg
+            >
+            {$t('meet.toCalendar')}
+          </button>
+        {/if}
       </div>
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
@@ -427,7 +452,26 @@
         {/key}
       {/if}
 
-      {#if team.events.length === 0}
+      {#if team.events.length === 0 && area && !editing}
+        <section class="area-empty" aria-labelledby="{uid}-area-empty">
+          <h3 id="{uid}-area-empty">{$t('area.empty.meetings.title')}</h3>
+          <p>
+            <Rich
+              key="area.empty.meetings.text"
+              labels={{
+                participants: 'meet.participants',
+                fromTeams: 'area.participants.fromTeams',
+              }}
+            />
+          </p>
+          <button
+            type="button"
+            class="primary"
+            disabled={categories.length === 0}
+            onclick={() => open(blankEvent(), 'add')}>{$t('area.empty.meetings.add')}</button
+          >
+        </section>
+      {:else if team.events.length === 0}
         <p class="empty">{$t('meet.empty')}</p>
       {:else}
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
@@ -723,6 +767,21 @@
     display: inline-flex;
     color: var(--area);
   }
+  .area-empty {
+    max-width: 44rem;
+    margin-top: 0.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .area-empty h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+  }
+  .area-empty p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+  }
   .empty {
     color: var(--text-muted);
   }
@@ -774,6 +833,12 @@
   }
   .toolbar button {
     min-height: 2.5rem;
+  }
+  .toolbar .to-calendar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-left: auto;
   }
   .table-wrap {
     /* Containing block for the hidden caption and header: they must not widen the page. */

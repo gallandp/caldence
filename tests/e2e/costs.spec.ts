@@ -60,3 +60,25 @@ for (const view of ['Meetings & cadence', 'Meeting load', 'Settings']) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('without a rate the cost card invites one and applies it to the file', async ({ page }) => {
+  await openExample(page);
+  await tab(page, 'Meetings & cadence');
+  const invite = page.locator('[data-rate-invite]');
+  await expect(invite).toContainText('Applies to the whole file');
+  const field = invite.getByLabel('€ per hour and person');
+  await field.fill('0');
+  await invite.getByRole('button', { name: 'Apply' }).click();
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(invite.getByRole('alert')).toContainText('Enter an amount above 0');
+  await field.fill('1.000');
+  await invite.getByRole('button', { name: 'Apply' }).click();
+  await expect(invite.getByRole('alert')).toBeVisible();
+  await field.fill('85,5');
+  await invite.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('[data-rate-invite]')).toHaveCount(0);
+  await expect(page.locator('[data-costs] h3')).toBeFocused();
+  await expect(page.locator('[data-costs]')).toContainText('At €86 per hour and person');
+  await tab(page, 'Settings');
+  await expect(page.getByLabel('Hourly rate (optional)')).toHaveValue('85.5');
+});

@@ -2,6 +2,7 @@
 export const SECTIONS = [
   { id: 'manual-first', title: 'help.first.title' },
   { id: 'manual-views', title: 'help.views.title' },
+  { id: 'manual-areas', title: 'help.areas.title' },
   { id: 'manual-calc', title: 'help.calc.title' },
   { id: 'manual-where', title: 'help.where.title' },
   { id: 'manual-templates', title: 'help.templates.title' },
