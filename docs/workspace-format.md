@@ -15,7 +15,7 @@ A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. 
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
 | `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
-| `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown values are ignored on open. Choosing another view does not count as a change to save. |
+| `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored on open (a malformed `view` does not keep the file from opening). Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
 
 All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
 

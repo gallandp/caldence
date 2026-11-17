@@ -576,14 +576,17 @@ describe('saved view', () => {
     );
   });
 
-  it('rejects a view that is not an object or has wrong or overlong values', () => {
+  it('drops a malformed view or its bad values instead of rejecting the file', () => {
     const w = emptyWorkspace('2026-11-07');
-    const errors = (view: unknown) => {
-      const r = validate({ ...w, view });
-      return r.ok ? [] : r.errors.map((e) => e.path);
+    const loaded = (view: unknown) => {
+      const r = validate(JSON.parse(JSON.stringify({ ...w, view })));
+      if (!r.ok) throw new Error('expected the file to load');
+      return r.value.view;
     };
-    expect(errors('load')).toEqual(['view']);
-    expect(errors({ page: 3 })).toEqual(['view.page']);
-    expect(errors({ unit: 'x'.repeat(65) })).toEqual(['view.unit']);
+    expect(loaded('load')).toBeUndefined();
+    expect(loaded({ page: 3, unit: 't1' })).toEqual({ unit: 't1' });
+    expect(loaded({ unit: 'x'.repeat(65), areaPage: 'overview' })).toEqual({
+      areaPage: 'overview',
+    });
   });
 });

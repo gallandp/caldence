@@ -1,6 +1,5 @@
 <script lang="ts">
   import { tick, type Snippet } from 'svelte';
-  import { get } from 'svelte/store';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import AreaReady from '../components/AreaReady.svelte';
@@ -19,8 +18,9 @@
 
   // A new area opens on its structure, where the "ready" card's steps act (only when shown).
   // The page last shown is kept while the app is open and saved in the file (Q5).
-  // svelte-ignore state_referenced_locally
-  if (get(areaReady) === area.id) areaPage.set('structure');
+  $effect(() => {
+    if ($areaReady === area.id) areaPage.set('structure');
+  });
   const page = $derived($areaPage);
   let pages: HTMLDivElement | undefined = $state();
 

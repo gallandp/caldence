@@ -30,11 +30,53 @@ test('a file opens on the unit, view and area page it was saved with', async ({ 
   await expect(page.locator('[data-area-overview]')).toBeVisible();
 });
 
-test('unknown saved values are ignored', async ({ page }) => {
+test('unknown or malformed saved values are ignored; the file still opens', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/');
-  await openWorkspaceFile(page, workspace({ unit: 'gone', page: 'nowhere', areaPage: 'x' }));
-  await expect(selectedTab(page)).toHaveText('Calendar');
+  await openWorkspaceFile(
+    page,
+    workspace({ unit: 'area-payments', page: 'load' }),
+    'a.caldence.json',
+  );
+  await expect(selectedTab(page)).toHaveText('Meeting load');
+  await openWorkspaceFile(
+    page,
+    workspace({ unit: 'gone', page: 'nowhere', areaPage: 5 }),
+    'b.caldence.json',
+  );
+  // The page stays where it was; the unknown unit is not selected.
+  await expect(selectedTab(page)).toHaveText('Meeting load');
+  await expect(currentUnit(page)).not.toHaveText('gone');
+});
+
+test('a reload comes back to the area overview', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await openWorkspaceFile(page, workspace());
+  await pickUnit(page, 'Payments');
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
+  await expect(page.locator('[data-area-overview]')).toBeVisible();
+  // Give the debounced autosave time to write.
+  await page.waitForTimeout(1500);
+  await page.reload();
+  await expect(page.locator('[data-area-overview]')).toBeVisible();
+});
+
+test('on a phone a saved menu page opens too', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('/');
+  // The start page offers to open a file; on a phone the file bar keeps Open in its menu.
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Open a file…' }).click();
+  await (
+    await chooser
+  ).setFiles({
+    name: 'phone.caldence.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(workspace({ page: 'settings' }))),
+  });
+  await expect(page.locator('#panel-settings')).toBeVisible();
 });
 
 test('saving writes where the app is looking, and a reload comes back there', async ({ page }) => {

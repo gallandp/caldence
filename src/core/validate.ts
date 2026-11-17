@@ -459,12 +459,19 @@ function checkCustomRegions(c: Checker, v: unknown): void {
 }
 
 /** Optional and forward-compatible: only the types are checked, unknown values are ignored on open. */
-function checkView(c: Checker, v: unknown): void {
+/**
+ * The saved view (Q5) is only a convenience: a malformed one, for example from a hand-edited file,
+ * is dropped instead of keeping the file from opening.
+ */
+function cleanView(w: Record<string, unknown>): void {
+  const v = w.view;
   if (v === undefined) return;
-  if (!isObj(v)) return c.err('view', 'error.type');
+  if (!isObj(v)) {
+    delete w.view;
+    return;
+  }
   for (const k of ['unit', 'page', 'areaPage'] as const)
-    if (v[k] !== undefined && (typeof v[k] !== 'string' || v[k].length > 64))
-      c.err(`view.${k}`, 'error.type');
+    if (v[k] !== undefined && (typeof v[k] !== 'string' || v[k].length > 64)) delete v[k];
 }
 
 export function validate(input: unknown): Result<Workspace> {
@@ -527,7 +534,7 @@ export function validate(input: unknown): Result<Workspace> {
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
   checkCustomRegions(c, w.customRegions);
-  checkView(c, w.view);
+  cleanView(w);
 
   if (c.errors.length > 0) return { ok: false, errors: c.errors };
   return { ok: true, value: input as Workspace };

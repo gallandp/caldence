@@ -135,7 +135,7 @@
         activeTeamId.set(unit);
       areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
       const page = views.find((id) => id === saved?.page);
-      if (page) active = page;
+      if (page) select(page);
     });
   });
   /**
