@@ -99,3 +99,39 @@ describe('areaCosts without hours', () => {
     expect(row.noHours).toBe(true);
   });
 });
+
+describe('unfilled roles (#264)', () => {
+  /** Team Gamma with a weekly meeting for Developers, a role nobody in Gamma holds. */
+  const withDevMeeting = (w: Workspace) => {
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    gamma.events.push({
+      ...structuredClone(gamma.events[0]!),
+      id: 'ev-dev-sync',
+      name: 'Dev sync',
+      rule: { type: 'weekly', weekday: 1 },
+      participants: [{ roleId: 'role-dev', share: 1 }],
+    });
+    return gamma;
+  };
+
+  it('names the roles that add cost but no hours, per team and in the cost summary', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const gamma = withDevMeeting(w);
+    // Gamma has a PO and an SM only: the Developers of the meeting count as one person.
+    const summary = unitCostSummary(w, noIndex(), gamma, 100);
+    expect(summary.unfilled).toEqual(['role-dev']);
+    expect(summary.perWeek).toBeGreaterThan(0);
+    const row = areaCosts(w, noIndex(), area, 100).teams.find((r) => r.unitId === 'team-gamma')!;
+    expect(row.cost!.unfilled).toEqual(summary.unfilled);
+  });
+
+  it('lists no role once someone holds it', () => {
+    const w = ws();
+    const gamma = withDevMeeting(w);
+    expect(unitCostSummary(w, noIndex(), gamma, 100).unfilled).toEqual(['role-dev']);
+    for (const roleId of unitCostSummary(w, noIndex(), gamma, 100).unfilled)
+      gamma.members.push({ personId: 'person-kim', roleId });
+    expect(unitCostSummary(w, noIndex(), gamma, 100).unfilled).toEqual([]);
+  });
+});

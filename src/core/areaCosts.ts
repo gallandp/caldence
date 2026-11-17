@@ -27,8 +27,8 @@ export interface UnitRow {
   /** Meeting hours without any weekly hours to measure them against: always over the limit. */
   noHours: boolean;
   people: number;
-  /** Only with an hourly rate. */
-  cost?: { perWeek: number; horizon: number };
+  /** Only with an hourly rate. `unfilled`: roles nobody holds, counted as one person each (#264). */
+  cost?: { perWeek: number; horizon: number; unfilled: string[] };
 }
 
 export interface AreaCosts {
@@ -60,7 +60,7 @@ function row(
   };
   if (rate) {
     const s = unitCostSummary(ws, index, unit, rate);
-    out.cost = { perWeek: s.perWeek, horizon: s.horizon };
+    out.cost = { perWeek: s.perWeek, horizon: s.horizon, unfilled: s.unfilled };
   }
   return out;
 }
@@ -98,6 +98,7 @@ export function areaCosts(
     total.cost = {
       perWeek: sum(all.map((r) => r.cost!.perWeek)),
       horizon: sum(all.map((r) => r.cost!.horizon)),
+      unfilled: [...new Set(all.flatMap((r) => r.cost!.unfilled))],
     };
   return { teams: teamRows, area: areaRow, total };
 }
