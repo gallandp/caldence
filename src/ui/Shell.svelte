@@ -479,7 +479,11 @@
                     <AreaOverview
                       area={activeArea}
                       onOpenLoad={openLoad}
-                      onOpenMeeting={(eventId) => editMeeting(activeArea.id, eventId)}
+                      onOpenMeeting={editMeeting}
+                      onOpenUnit={(unitId) => {
+                        activeTeamId.set(unitId);
+                        select('meetings', true);
+                      }}
                     />
                   {/snippet}
                 </AreaView>

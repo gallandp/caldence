@@ -1,4 +1,10 @@
+<script lang="ts" module>
+  /** Cost per week or in the planning horizon, kept while the app is open. */
+  let rememberedPeriod: 'week' | 'horizon' = 'week';
+</script>
+
 <script lang="ts">
+  import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
   import {
     areaMeetingHours,
     compareCadences,
@@ -12,6 +18,7 @@
   import { areaAsTeam, type Area, type Cadence } from '../../core/model';
   import {
     formatDisplayDate,
+    formatEuro,
     formatNumber,
     formatPercent,
     locale,
@@ -20,6 +27,7 @@
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
+  import RateInvite from '../components/RateInvite.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
 
@@ -31,10 +39,12 @@
     area: Area;
     /** Opens Load for one team, scrolled to one week. */
     onOpenLoad?: (teamId: string, monday: ISODate) => void;
-    /** Opens an area meeting in Meetings & cadence. */
-    onOpenMeeting?: (eventId: string) => void;
+    /** Opens a meeting of the area or one of its teams in Meetings & cadence. */
+    onOpenMeeting?: (unitId: string, eventId: string) => void;
+    /** Opens Meetings & cadence of a team or of the area. */
+    onOpenUnit?: (unitId: string) => void;
   }
-  let { area, onOpenLoad, onOpenMeeting }: Props = $props();
+  let { area, onOpenLoad, onOpenMeeting, onOpenUnit }: Props = $props();
 
   /** Weeks on the axis. */
   const WEEKS = 12;
@@ -74,9 +84,6 @@
     comparison.rows.filter((r) => !r.inStep).map((r) => teamName(r.teamId)),
   );
   const cells = $derived([...load.values()].flat());
-  const averageShare = $derived(
-    cells.length > 0 ? cells.reduce((sum, c) => sum + c.share, 0) / cells.length : 0,
-  );
   const warnedMondays = $derived(
     mondays.filter((m) => cells.some((c) => c.monday === m && c.warn)),
   );
@@ -90,6 +97,35 @@
       ...teams.flatMap((x) => x.members.map((m) => m.personId)),
     ]).size,
   );
+
+  // ---------- time and cost per team (M3) ----------
+
+  const rate = $derived(ws.settings.hourlyRate);
+  const costs = $derived(areaCosts(ws, $index, area, rate));
+  const allMeetings = $derived(rate ? meetingCosts(ws, $index, area, rate) : []);
+  /** Over the limit, or meeting hours without weekly hours to measure them against. */
+  const over = (r: { share: number; noHours: boolean }) => r.noHours || r.share > maxFte;
+  const shareText = (r: { share: number; noHours: boolean }) =>
+    r.noHours ? $t('overview.cost.noHours') : percent(r.share);
+  let period = $state(rememberedPeriod);
+  const costly = $derived(costliest(allMeetings, period));
+  const euro = (n: number) => formatEuro($locale, n);
+  const costOf = (c: { perWeek: number; horizon: number }) =>
+    period === 'week' ? c.perWeek : c.horizon;
+  /** Bars run from 0 to 1.5 × the limit, with a tick at the limit (one scale everywhere). */
+  const barWidth = (share: number) =>
+    maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
+  const unitName = (id: string) =>
+    id === area.id ? area.name : (ws.teams.find((x) => x.id === id)?.name ?? id);
+  const unitOf = (id: string) =>
+    id === area.id ? unit : (ws.teams.find((x) => x.id === id) ?? unit);
+  const cadenceShort = (c: Cadence | undefined) =>
+    c
+      ? $t('overview.cost.cadence', {
+          kind: $t('meet.kind.' + c.kind),
+          n: formatNumber($locale, c.lengthWeeks, 0),
+        })
+      : '–';
 
   // ---------- words ----------
 
@@ -254,10 +290,10 @@
     </div>
     <div class="card kpi" data-kpi="load">
       <span class="label">{$t('overview.kpi.load')}</span>
-      <b>{percent(averageShare)}</b>
+      <b>{shareText(costs.total)}</b>
       <span class="label">{$t('overview.kpi.load.sub')}</span>
-      <span class="tag" class:ok={averageShare <= maxFte} class:warn={averageShare > maxFte}
-        >{$t(averageShare > maxFte ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+      <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
+        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
           max: percent(maxFte),
         })}</span
       >
@@ -274,17 +310,244 @@
           : $t('overview.kpi.warn.none')}</span
       >
     </div>
-    <div class="card kpi" data-kpi="area">
-      <span class="label">{$t('overview.kpi.area')}</span>
-      <b>{$t('overview.kpi.area.value', { hours: hours(areaHours) })}</b>
-      <span class="label"
-        >{$t(areaPeople === 1 ? 'overview.kpi.area.sub.one' : 'overview.kpi.area.sub.other', {
-          n: formatNumber($locale, areaPeople, 0),
-        })}</span
-      >
-      <span class="tag area">{$t('area.kpi.areaTime')}</span>
-    </div>
+    {#if rate && costs.total.cost}
+      <div class="card kpi" data-kpi="cost">
+        <span class="label">{$t('overview.kpi.cost')}</span>
+        <b>{euro(costs.total.cost.perWeek)}</b>
+        <span class="label">{$t('overview.kpi.cost.week')}</span>
+        <span class="label"
+          >{$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}</span
+        >
+        {#if costs.total.people > 0}
+          <span class="label"
+            >{$t('overview.kpi.cost.person', {
+              amount: euro(costs.total.cost.perWeek / costs.total.people),
+            })}</span
+          >
+        {/if}
+        <span class="tag neutral">{$t('overview.kpi.cost.rate', { rate: euro(rate) })}</span>
+      </div>
+    {:else}
+      <div class="card kpi" data-kpi="area">
+        <span class="label">{$t('overview.kpi.area')}</span>
+        <b>{$t('overview.kpi.area.value', { hours: hours(areaHours) })}</b>
+        <span class="label"
+          >{$t(areaPeople === 1 ? 'overview.kpi.area.sub.one' : 'overview.kpi.area.sub.other', {
+            n: formatNumber($locale, areaPeople, 0),
+          })}</span
+        >
+        <span class="tag area">{$t('area.kpi.areaTime')}</span>
+      </div>
+    {/if}
   </section>
+
+  <section class="card" aria-labelledby="{uid}-cost" data-area-costs>
+    <div class="head">
+      <div>
+        <h3 id="{uid}-cost" tabindex="-1">
+          {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
+        </h3>
+        <p class="note">{$t('overview.cost.hint')}</p>
+      </div>
+      {#if rate}
+        <div class="period" role="group" aria-label={$t('overview.cost.period')}>
+          {#each ['week', 'horizon'] as const as p (p)}
+            <button
+              type="button"
+              aria-pressed={period === p}
+              onclick={() => (rememberedPeriod = period = p)}
+              >{$t('overview.cost.period.' + p)}</button
+            >
+          {/each}
+        </div>
+      {/if}
+    </div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+    <div
+      class="table-scroll"
+      role="region"
+      aria-label={$t('overview.table.region', {
+        title: $t(rate ? 'overview.cost.title' : 'overview.cost.title.time'),
+      })}
+      tabindex="0"
+    >
+      <table class="costs" aria-labelledby="{uid}-cost">
+        <thead>
+          <tr>
+            <th scope="col">{$t('overview.cost.col.unit')}</th>
+            <th scope="col">{$t('overview.cost.col.cadence')}</th>
+            <th scope="col" class="num">{$t('overview.cost.col.hours')}</th>
+            <th scope="col">{$t('overview.cost.col.share')}</th>
+            {#if rate}
+              <th scope="col" class="num">{$t('overview.cost.col.cost.' + period)}</th>
+              <th scope="col" class="num">{$t('overview.cost.col.person')}</th>
+            {/if}
+          </tr>
+        </thead>
+        <tbody>
+          {#each costs.teams as r (r.unitId)}
+            <tr data-cost-row={r.unitId}>
+              <th scope="row">
+                {#if onOpenUnit}
+                  <button
+                    type="button"
+                    class="link"
+                    aria-label={$t('overview.cost.open', {
+                      name: unitName(r.unitId),
+                      view: $t('view.meetings'),
+                    })}
+                    onclick={() => onOpenUnit(r.unitId)}>{unitName(r.unitId)}</button
+                  >
+                {:else}{unitName(r.unitId)}{/if}
+              </th>
+              <td>{cadenceShort(unitOf(r.unitId).cadence)}</td>
+              <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
+              <td>
+                <span class="share">
+                  <span class="bar" aria-hidden="true"
+                    ><i style:width="{r.noHours ? 100 : barWidth(r.share)}%" class:over={over(r)}
+                    ></i><b></b></span
+                  >
+                  <span class="num" class:over={over(r)}>{shareText(r)}</span>
+                </span>
+              </td>
+              {#if rate && r.cost}
+                <td class="num strong">{euro(costOf(r.cost))}</td>
+                <td class="num muted">{r.people > 0 ? euro(costOf(r.cost) / r.people) : '–'}</td>
+              {/if}
+            </tr>
+          {/each}
+          <tr class="area-row" data-cost-row={area.id}>
+            <th scope="row">
+              {#if onOpenUnit}
+                <button
+                  type="button"
+                  class="link area-name"
+                  aria-label={$t('overview.cost.open', {
+                    name: $t('overview.cost.areaRow'),
+                    view: $t('view.meetings'),
+                  })}
+                  onclick={() => onOpenUnit(area.id)}
+                  ><AreaIcon /> {$t('overview.cost.areaRow')}</button
+                >
+              {:else}
+                <span class="area-name"><AreaIcon /> {$t('overview.cost.areaRow')}</span>
+              {/if}
+              {#if area.events.length > 0}
+                <small>{area.events.map((e) => e.name).join(', ')}</small>
+              {/if}
+            </th>
+            <td>{cadenceShort(area.cadence)}</td>
+            <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
+            <td></td>
+            {#if rate && costs.area.cost}
+              <td class="num strong">{euro(costOf(costs.area.cost))}</td>
+              <td></td>
+            {/if}
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr data-cost-total>
+            <th scope="row">{$t('overview.cost.total')}</th>
+            <td></td>
+            <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
+            >
+            <td
+              ><b>{shareText(costs.total)}</b>
+              <span class="muted">{$t('overview.kpi.load')}</span></td
+            >
+            {#if rate && costs.total.cost}
+              <td class="num">{euro(costOf(costs.total.cost))}</td>
+              <td class="num"
+                >{costs.total.people > 0
+                  ? euro(costOf(costs.total.cost) / costs.total.people)
+                  : '–'}</td
+              >
+            {/if}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="note below">
+      {$t('overview.cost.scale', { max: percent(maxFte) })}
+    </p>
+  </section>
+
+  {#if rate}
+    {#if costly.length > 0}
+      <section class="card" aria-labelledby="{uid}-costly" data-costly>
+        <div class="head">
+          <div>
+            <h3 id="{uid}-costly">{$t('overview.costly.title')}</h3>
+            <p class="note">{$t('overview.costly.hint')}</p>
+          </div>
+          <span class="muted">{$t('overview.costly.period.' + period)}</span>
+        </div>
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+        <div
+          class="table-scroll"
+          role="region"
+          aria-label={$t('overview.table.region', { title: $t('overview.costly.title') })}
+          tabindex="0"
+        >
+          <table class="costs" aria-labelledby="{uid}-costly">
+            <thead>
+              <tr>
+                <th scope="col">{$t('overview.steer.col.meeting')}</th>
+                <th scope="col">{$t('overview.costly.col.where')}</th>
+                <th scope="col">{$t('overview.costly.col.when')}</th>
+                <th scope="col" class="num">{$t('overview.costly.col.invited')}</th>
+                <th scope="col" class="num">{$t('overview.cost.col.cost.' + period)}</th>
+                <th scope="col" class="num">{$t('overview.costly.col.share')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each costly as m (m.unitId + '/' + m.event.id)}
+                <tr data-costly-row={m.event.id}>
+                  <th scope="row">
+                    {#if onOpenMeeting}
+                      <button
+                        type="button"
+                        class="link"
+                        aria-label={$t('overview.steer.open', {
+                          name: m.event.name,
+                          view: $t('view.meetings'),
+                        })}
+                        onclick={() => onOpenMeeting(m.unitId, m.event.id)}>{m.event.name}</button
+                      >
+                    {:else}{m.event.name}{/if}
+                  </th>
+                  <td>
+                    {#if m.unitId === area.id}<span class="area-name"><AreaIcon /> {area.name}</span
+                      >{:else}{unitName(m.unitId)}{/if}
+                  </td>
+                  <td class="muted">
+                    {$t('overview.costly.when', {
+                      rule: ruleShort(m.event.rule, unitOf(m.unitId), $t, $locale),
+                      minutes: formatNumber($locale, m.event.duration, 0),
+                    })}
+                  </td>
+                  <td class="num"
+                    >{$t('overview.costly.people', {
+                      n: formatNumber($locale, m.invited, 0),
+                    })}{#if m.unfilled.length > 0}<small class="unfilled"
+                        >{$t('overview.costly.unfilled', {
+                          roles: m.unfilled.map(roleName).join(', '),
+                        })}</small
+                      >{/if}</td
+                  >
+                  <td class="num strong">{euro(m.cost)}</td>
+                  <td class="num">{percent(m.shareOfAll)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {/if}
+  {:else}
+    <RateInvite focusAfter="[data-area-costs] h3" />
+  {/if}
 
   <section class="card" aria-labelledby="{uid}-strip">
     <h3 id="{uid}-strip">{$t('overview.strip.title')}</h3>
@@ -476,7 +739,7 @@
                           name: event.name,
                           view: $t('view.meetings'),
                         })}
-                        onclick={() => onOpenMeeting(event.id)}>{event.name}</button
+                        onclick={() => onOpenMeeting(area.id, event.id)}>{event.name}</button
                       >
                     {:else}
                       <span class="title">{event.name}</span>
@@ -564,6 +827,158 @@
   .tag.area {
     background: var(--area-soft);
     color: var(--area);
+  }
+
+  .tag.neutral {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+
+  /* ---------- time and cost per team ---------- */
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+  .head h3 {
+    margin: 0;
+  }
+  .head > div:first-child {
+    flex: 1 1 28rem;
+    max-width: 52rem;
+  }
+  .period {
+    display: inline-flex;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  :global(#app) .period button {
+    min-height: 2.25rem;
+    padding: 0.25rem 0.85rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  :global(#app) .period button[aria-pressed='true'] {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  @media (forced-colors: active) {
+    :global(#app) .period button[aria-pressed='true'] {
+      border: 2px solid Highlight;
+    }
+  }
+  .table-scroll {
+    overflow-x: auto;
+  }
+  .table-scroll:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  table.costs {
+    width: 100%;
+    min-width: 40rem;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  :global(#app) table.costs thead th {
+    text-align: left;
+    white-space: nowrap;
+  }
+  :global(#app) table.costs thead th.num,
+  :global(#app) table.costs td.num {
+    text-align: right;
+  }
+  :global(#app) table.costs td {
+    white-space: nowrap;
+  }
+  :global(#app) table.costs th[scope='row'] {
+    text-align: left;
+    font-weight: 600;
+  }
+  :global(#app) table.costs th[scope='row'] small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  :global(#app) table.costs tfoot th,
+  :global(#app) table.costs tfoot td {
+    border-top: 2px solid var(--border);
+    font-weight: 700;
+  }
+  .strong {
+    font-weight: 650;
+  }
+  .unfilled {
+    display: block;
+    color: var(--warn);
+    font-size: 0.75rem;
+  }
+  .muted {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .share .num {
+    min-width: 3rem;
+  }
+  .share .num.over {
+    color: var(--warn);
+    font-weight: 700;
+  }
+  .bar {
+    position: relative;
+    display: block;
+    width: 6.5rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-gradient);
+  }
+  .bar i.over {
+    background: var(--warn);
+  }
+  /* The limit sits at two thirds of the scale (0 to 1.5 × the limit). */
+  .bar b {
+    position: absolute;
+    left: 66.67%;
+    top: -0.2rem;
+    bottom: -0.2rem;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--text);
+  }
+  @media (forced-colors: active) {
+    .bar {
+      border: 1px solid CanvasText;
+    }
+    .bar i,
+    .bar b {
+      background: CanvasText;
+    }
+  }
+  .note.below {
+    margin: 0.75rem 0 0;
   }
 
   /* ---------- cadence strip and heat map on one axis ---------- */
