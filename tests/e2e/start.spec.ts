@@ -70,8 +70,17 @@ test('the wizard says when Scrum moves a picked date to the next Monday', async 
   const field = dialog.getByLabel('Cadence starts on');
   await field.fill(TODAY);
   await expect(field).toHaveAccessibleDescription(
-    'Scrum starts its cadence on a fixed weekday, so yours starts on Monday, March 22, 2027.',
+    'Scrum starts its cadence on a Monday, so yours starts on Monday, March 22, 2027.',
   );
+  // A picked date stays when another way of working is chosen.
+  await dialog.getByRole('button', { name: 'Back' }).click();
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(field).toHaveValue(TODAY);
+  await dialog.getByRole('button', { name: 'Back' }).click();
+  await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(field).toHaveValue(TODAY);
   for (let i = 0; i < 2; i++) await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();

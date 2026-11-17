@@ -25,6 +25,8 @@
   let filledFor: BuiltinTemplateId | 'none' | null = null;
   let name = $state('');
   let start = $state('');
+  /** A date the person picked stays when they choose another way of working. */
+  let startPicked = false;
   let names = $state<Record<string, string>>({});
   let me = $state(false);
   let myName = $state('');
@@ -75,6 +77,7 @@
     filledFor = null;
     name = '';
     start = localToday();
+    startPicked = false;
     names = {};
     me = false;
     myName = '';
@@ -99,7 +102,10 @@
       // Names and roles of another template do not fit this one.
       filledFor = choice;
       name = template ? template.name : get(t)('setup.defaultName');
-      start = template ? templateStart(get(workspace), template, localToday()).start : localToday();
+      if (!startPicked)
+        start = template
+          ? templateStart(get(workspace), template, localToday()).start
+          : localToday();
       names = {};
       myRole = '';
     }
@@ -226,10 +232,12 @@
           id="{uid}-start"
           type="date"
           bind:value={start}
+          oninput={() => (startPicked = true)}
           aria-describedby={moved ? `${uid}-start-moved` : undefined}
         />
-        {#if moved && template}
-          <p class="hint" id="{uid}-start-moved" aria-live="polite">
+        <!-- Always present, so screen readers announce the text when it appears. -->
+        <p class="hint moved" id="{uid}-start-moved" aria-live="polite">
+          {#if moved && template}
             {moved.area
               ? $t('setup.start.joined', {
                   area: moved.area,
@@ -237,10 +245,14 @@
                 })
               : $t('setup.start.moved', {
                   template: template.name,
+                  weekday: new Intl.DateTimeFormat($locale, {
+                    weekday: 'long',
+                    timeZone: 'UTC',
+                  }).format(new Date(`${moved.start}T00:00:00Z`)),
                   date: formatDisplayDate($locale, moved.start, 'long'),
                 })}
-          </p>
-        {/if}
+          {/if}
+        </p>
       </div>
     {:else if step === 3}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.people')}</h3>
@@ -419,6 +431,9 @@
   .hint {
     color: var(--text-muted);
     margin-top: 0;
+  }
+  .hint.moved:empty {
+    margin: 0;
   }
   .field-error {
     margin: 0.25rem 0 0;
