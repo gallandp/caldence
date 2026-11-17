@@ -287,6 +287,7 @@
     <button
       type="button"
       class="toggle"
+      data-no-present
       bind:this={toggle}
       aria-expanded={menuOpen}
       aria-controls="{uid}-menu"
@@ -346,6 +347,7 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="menu"
+      data-no-present
       id="{uid}-menu"
       bind:this={menu}
       hidden={!menuOpen}

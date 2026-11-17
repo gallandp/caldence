@@ -30,6 +30,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
 
   /**
    * "Cadence & load" of an area (#168): the teams' cadences against the area cadence, their load
@@ -699,9 +700,9 @@
                     {s.roleIds.map(roleName).join(', ')} ·
                     {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
                         hours: hours(s.areaHours),
-                      })}{:else}<span class="unset">{$t('area.hours.unset')}</span>{/if}{teamHours(
-                      s.teams,
-                    )}
+                      })}{:else}<span class="unset"
+                        >{$t($presenting ? 'area.hours.none' : 'area.hours.unset')}</span
+                      >{/if}{teamHours(s.teams)}
                   </small>
                 </div>
               </li>

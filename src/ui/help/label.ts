@@ -27,7 +27,7 @@ export function platformKind(): 'mac' | 'other' {
   return /mac|iphone|ipad/i.test(platform) ? 'mac' : 'other';
 }
 
-export type Shortcut = 'save' | 'saveAs' | 'open' | 'undo' | 'rail';
+export type Shortcut = 'save' | 'saveAs' | 'open' | 'undo' | 'rail' | 'present';
 
 /** Store of a function that spells a keyboard shortcut for this platform, e.g. Ctrl+Z. */
 export const shortcut = derived(translate, ($t) => {

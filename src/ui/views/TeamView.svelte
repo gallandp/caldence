@@ -6,10 +6,11 @@
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { locale, translate as t } from '../../i18n';
+  import { formatNumber, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
 
   const uid = $props.id();
 
@@ -230,7 +231,7 @@
 {/snippet}
 
 {#snippet info()}
-  <div class="info">
+  <div class="info" data-no-present>
     <svg viewBox="0 0 24 24" aria-hidden="true"
       ><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" /></svg
     >
@@ -280,6 +281,7 @@
                           >{roleName(roleId)}<button
                             type="button"
                             class="chip-remove"
+                            data-no-present
                             aria-describedby={describe('member-remove')}
                             onclick={() => removeMember(member.personId, roleId)}
                             aria-label={$t('team.members.remove', {
@@ -291,19 +293,26 @@
                       {/each}
                     </span>
                   </span>
-                  <label class="hours">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={hoursOf(member.personId)}
-                      aria-label={$t('team.members.hoursOf', { name, team: team.name })}
-                      aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
-                      aria-describedby={describe(`hours-${member.personId}`)}
-                      onchange={(e) => setHours(member.personId, e)}
-                    />
-                    <span aria-hidden="true">{$t('settings.people.unit')}</span>
-                  </label>
+                  {#if $presenting}
+                    <span class="hours"
+                      >{formatNumber($locale, hoursOf(member.personId), 1)}
+                      {$t('settings.people.unit')}</span
+                    >
+                  {:else}
+                    <label class="hours">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={hoursOf(member.personId)}
+                        aria-label={$t('team.members.hoursOf', { name, team: team.name })}
+                        aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
+                        aria-describedby={describe(`hours-${member.personId}`)}
+                        onchange={(e) => setHours(member.personId, e)}
+                      />
+                      <span aria-hidden="true">{$t('settings.people.unit')}</span>
+                    </label>
+                  {/if}
                   {@render err(`hours-${member.personId}`)}
                 </li>
               {/each}
@@ -314,7 +323,7 @@
           {#if roles.length === 0}
             <p class="empty">{$t('team.members.needs')}</p>
           {:else}
-            <form class="row add-row" onsubmit={addMember}>
+            <form class="row add-row" data-no-present onsubmit={addMember}>
               <div class="field grow">
                 <label for="{uid}-add-person">{$t('team.members.person')}</label>
                 <input
@@ -376,7 +385,7 @@
       {/key}
       <!-- Like Members, Assumptions start afresh with each epoch (see Problems). -->
       {#key epoch}
-        <section class="card" aria-labelledby="{uid}-assumptions-h">
+        <section class="card" data-no-present aria-labelledby="{uid}-assumptions-h">
           <h3 id="{uid}-assumptions-h">{$t('team.assumptions')}</h3>
           <p class="hint">{$t('team.assumptions.hint')}</p>
           {#if Object.keys(team.assumptions).length === 0}
@@ -459,7 +468,7 @@
       {/key}
     </div>
     <!-- The workspace-wide pools, folded away so the page shows only this team's people (#231). -->
-    <details class="pool" bind:open={poolOpen}>
+    <details class="pool" data-no-present bind:open={poolOpen}>
       <summary
         >{$t('team.pool')}
         <span class="count"
