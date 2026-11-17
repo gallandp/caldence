@@ -676,6 +676,7 @@
   "load.onlyArea": "only {levelInArea}",
   "load.hoursOf": "{hours} of {of} h",
   "load.freeHours": "{hours} h",
+  "load.detail.setHours": "No weekly hours {levelInArea} yet, so these meetings are always over the limit. Set the hours under {levelArea} → {structure}.",
   "load.detail.none": "In no {levelTeamLc} and without hours {levelInArea}.",
   "load.detail.hours": "{hours} h working time",
   "load.detail.meetings": "{hours} h in meetings",

@@ -676,6 +676,7 @@
   "load.onlyArea": "nur {levelInArea}",
   "load.hoursOf": "{hours} von {of} h",
   "load.freeHours": "{hours} h",
+  "load.detail.setHours": "Noch keine Wochenstunden {levelInArea}; diese Termine liegen daher immer über der Grenze. Die Stunden setzen Sie unter {levelArea} → {structure}.",
   "load.detail.none": "Nirgends {levelInTeam} eingetragen und ohne Stunden {levelInArea}.",
   "load.detail.hours": "{hours} h Arbeitszeit",
   "load.detail.meetings": "{hours} h in Terminen",
