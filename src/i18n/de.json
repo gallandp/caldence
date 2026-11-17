@@ -840,6 +840,7 @@
   "templates.export.button": "Vorlage exportieren…",
   "templates.export.none": "Es gibt noch keine {levelTeams} zum Exportieren. Legen Sie zuerst welche an oder wenden Sie eine Vorlage an.",
   "templates.export.hint": "Die Vorlage enthält Termine, Rollen und Kategorien, aber keine Personen.",
+  "templates.export.area": "{team} gehört zu {area}; die Vorlage enthält daher auch Takt, Zyklen und Termine {levelInArea} sowie die Namen der beiden Ebenen, aber keine Personen daraus.",
   "templates.exported": "Vorlage gespeichert als {name}.",
   "templates.error.name": "Der Name darf nicht leer sein",
   "ics.error.notIcs": "Die Datei ist keine iCalendar-Datei (.ics).",
