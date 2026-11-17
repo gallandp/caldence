@@ -106,6 +106,25 @@ async function expectEverything(page: Page) {
   ).toBeVisible();
 }
 
+/** The file name autosave has stored, or null. */
+async function storedFileName(page: Page): Promise<string | null> {
+  return page.evaluate(
+    () =>
+      new Promise<string | null>((resolve) => {
+        const req = indexedDB.open('caldence', 1);
+        req.onerror = () => resolve(null);
+        req.onsuccess = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains('autosave')) return resolve(null);
+          const get = db.transaction('autosave').objectStore('autosave').get('current');
+          get.onsuccess = () =>
+            resolve((get.result as { fileName?: string } | undefined)?.fileName ?? null);
+          get.onerror = () => resolve(null);
+        };
+      }),
+  );
+}
+
 test('from an empty workspace to saved, restored and reopened data', async ({ page }) => {
   await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
   await page.goto('/');
@@ -159,6 +178,9 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   const path = await file.path();
   await expect(page.getByText('✓ Saved')).toBeVisible();
 
+  // A reload aborts an IndexedDB write that is still running: wait until autosave stored the
+  // saved file name (as files.spec.ts does), or the restored page may not know it.
+  await expect.poll(() => storedFileName(page)).toBe('workspace.caldence.json');
   await page.reload();
   await expect(page.getByText('workspace.caldence.json')).toBeVisible();
   await expectEverything(page);
