@@ -39,7 +39,8 @@
         n: changes,
       })}</strong
     >
-    {#if before && after}
+    <!-- Only when the changes touch the selected scope; otherwise the line would read "16 % → 16 %". -->
+    {#if before && after && (before.hours !== after.hours || before.inStep?.n !== after.inStep?.n)}
       <span
         >{$t('whatif.bar.share', {
           name: scopeName,

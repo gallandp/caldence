@@ -10,6 +10,10 @@ import { workspace } from './workspace';
  */
 export const presenting = derived(workspace.presentBase, (b) => b !== null);
 export const hideNames = writable(false);
+// Presenting can also end by another workspace replacing this one: names start visible next time.
+workspace.presentBase.subscribe((b) => {
+  if (b === null) hideNames.set(false);
+});
 
 export function startPresenting(): void {
   workspace.beginPresent();

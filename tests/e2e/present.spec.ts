@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, useFileFallback } from './helpers';
+import { openExample, openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import { structureWorkspace } from './structure-fixture';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -167,3 +168,75 @@ for (const scheme of ['light', 'dark'] as const) {
     expect(sheet.violations).toEqual([]);
   });
 }
+
+test('keys while presenting: arrows skip hidden views, Escape on the checkbox ends, focus moves', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  // The focus moves to End presentation instead of getting lost.
+  await expect(bar(page).getByRole('button', { name: 'End presentation' })).toBeFocused();
+  const tab = (name: string) => page.getByRole('tab', { name, exact: true });
+  await tab('Team').click();
+  await page.keyboard.press('ArrowDown');
+  await expect(tab('Calendar')).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(tab('Team')).toBeFocused();
+  // Ctrl+O opens nothing while presenting.
+  await page.keyboard.press('Control+o');
+  await expect(bar(page).getByLabel('Hide names')).toBeVisible();
+  await bar(page).getByLabel('Hide names').check();
+  await page.keyboard.press('Escape');
+  await expect(bar(page).getByRole('button', { name: 'Present', exact: true })).toBeFocused();
+});
+
+test('Escape closes the area person card first, then ends presenting', async ({ page }) => {
+  await page.goto('/');
+  await openWorkspaceFile(page, structureWorkspace({ teams: 4 }));
+  await pickUnit(page, 'Payments');
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page
+    .locator('.areanode')
+    .getByRole('button', { name: /Sam R\./ })
+    .click();
+  const card = page.getByRole('dialog', { name: 'Sam R.' });
+  await expect(card).toBeVisible();
+  // Presenting: the card shows hours as text, no fields.
+  await expect(card.getByRole('spinbutton')).toHaveCount(0);
+  await page
+    .locator('.areanode')
+    .getByRole('button', { name: /Sam R\./ })
+    .focus();
+  await page.keyboard.press('Escape');
+  await expect(card).toBeHidden();
+  await expect(whatIfBar(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(whatIfBar(page)).toBeHidden();
+});
+
+test('the team list opens at full width from the presenting rail and keeps the rail setting', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.locator('.switcher .pick').click();
+  await expect(page.locator('.layout')).not.toHaveClass(/\brail\b/);
+  await page.locator('.switcher .list').getByRole('button', { name: 'Team Beta' }).click();
+  await expect(page.locator('.layout')).toHaveClass(/\brail\b/);
+  await page.keyboard.press('Escape');
+  // The rail was never folded by the user: after presenting the sidebar is full again.
+  await expect(page.locator('.layout')).not.toHaveClass(/\brail\b/);
+});
+
+test('an open meeting form keeps presenting from starting', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openExample(page);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(bar(page).getByText('Save or cancel the open form first')).toBeVisible();
+  await expect(whatIfBar(page)).toBeHidden();
+});

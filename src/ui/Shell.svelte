@@ -65,6 +65,14 @@
   const AREA_ICON = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
   const iconOf = (id: ViewId) => (id === 'team' && activeArea ? AREA_ICON : icons[id]);
 
+  /** Presenting: the sidebar is unfolded for the list of teams and areas. */
+  let pickOpen = $state(false);
+  $effect(() => {
+    void $activeTeamId;
+    void $presenting;
+    pickOpen = false;
+  });
+
   /** While presenting only the views that show the plan stay; the rest is workspace editing. */
   const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
   const navViews = $derived($presenting ? views.filter((id) => PRESENTED.has(id)) : views);
@@ -143,8 +151,8 @@
 
   function onKeydown(event: KeyboardEvent) {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    const i = views.indexOf(active);
-    const last = views.length - 1;
+    const i = navViews.indexOf(active);
+    const last = navViews.length - 1;
     const target: number | undefined =
       event.key === 'ArrowRight' || event.key === 'ArrowDown'
         ? i === last
@@ -161,7 +169,7 @@
               : undefined;
     if (target === undefined) return;
     event.preventDefault();
-    select(views[target]!, true);
+    select(navViews[target]!, true);
   }
 
   let bar: WorkspaceBar | undefined;
@@ -195,10 +203,12 @@
       const target = event.target as HTMLElement | null;
       if (
         !event.defaultPrevented &&
-        !typing(target) &&
+        // A checkbox (Hide names) is not text: Escape still ends presenting there.
+        !(typing(target) && !['checkbox', 'radio'].includes((target as HTMLInputElement).type)) &&
         !menuOpen &&
-        !document.querySelector('dialog:modal') &&
-        !target?.closest?.('dialog[open], .switcher, [aria-expanded="true"]')
+        // An open dialog, modal or not (the area person card), takes Escape first.
+        !document.querySelector('dialog[open]') &&
+        !target?.closest?.('dialog[open], .switcher .list, .switcher .menu, [aria-expanded="true"]')
       ) {
         event.preventDefault();
         stopPresenting();
@@ -299,7 +309,11 @@
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
-<div class="layout" class:rail={$rail || $presenting} class:present={$presenting}>
+<div
+  class="layout"
+  class:rail={($rail || $presenting) && !pickOpen}
+  class:present={$presenting && !pickOpen}
+>
   <aside class="sidebar">
     <div class="glow" aria-hidden="true"></div>
     <header>
@@ -357,8 +371,15 @@
       <div
         class="switch"
         onclickcapture={(event) => {
-          if (!$rail || !wide()) return;
-          if ((event.target as HTMLElement).closest('.pick')) setRail(false);
+          if (!wide() || !(event.target as HTMLElement).closest('.pick')) return;
+          // Presenting: the sidebar unfolds only while the list is open; the rail setting stays.
+          if ($presenting) pickOpen = !pickOpen;
+          else if ($rail) setRail(false);
+        }}
+        onfocusout={(event) => {
+          const next = event.relatedTarget as Node | null;
+          if (pickOpen && next && !(event.currentTarget as HTMLElement).contains(next))
+            pickOpen = false;
         }}
       >
         <TeamSwitcher onPlan={() => planWizard?.show()} />

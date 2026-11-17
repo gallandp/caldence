@@ -985,6 +985,7 @@
   "file.present.stop": "End presentation",
   "present.banner": "Presenting · changes only as what-ifs · Esc ends",
   "present.hideNames": "Hide names",
+  "present.closeForm": "Save or cancel the open form first, then present.",
   "present.person": "Person {n}",
   "whatif.eyebrow": "What if",
   "whatif.open": "What if …",

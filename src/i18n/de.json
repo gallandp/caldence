@@ -985,6 +985,7 @@
   "file.present.stop": "Präsentation beenden",
   "present.banner": "Präsentation · Ändern nur als „Was wäre wenn“ · Esc beendet",
   "present.hideNames": "Namen ausblenden",
+  "present.closeForm": "Erst das offene Formular speichern oder abbrechen, dann präsentieren.",
   "present.person": "Person {n}",
   "whatif.eyebrow": "Was wäre wenn",
   "whatif.open": "Was wäre wenn …",
