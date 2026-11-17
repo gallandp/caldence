@@ -143,7 +143,8 @@ export function areaHours(ws: Workspace, areaId: string, personId: string): numb
 /**
  * Weekly hours a person has: in one team (their entry there or the workspace default), in an
  * area (their hours in its teams plus their area hours), or summed over all their teams and
- * areas. A person in no team and without area hours has the workspace default.
+ * areas. Area time without an entry is 0 h; only a person in no team and no area has the
+ * workspace default (#265).
  */
 export function capacity(ws: Workspace, personId: string, teamId?: string): number {
   const fallback = ws.settings.hoursPerWeek;
@@ -152,19 +153,20 @@ export function capacity(ws: Workspace, personId: string, teamId?: string): numb
     (t) =>
       (scope === undefined || scope.has(t.id)) && t.members.some((m) => m.personId === personId),
   );
+  // An area counts only its own hours: its people have 0 there without an entry (#265).
   const areas = ws.areas.filter(
-    (a) => (teamId === undefined || a.id === teamId) && Object.hasOwn(a.memberHours, personId),
+    (a) =>
+      (teamId === undefined || a.id === teamId) &&
+      (Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId)),
   );
-  if (teams.length === 0 && areas.length === 0) {
-    // An area counts only its own hours, so its people have 0 there without an entry.
+  if (teams.length === 0 && areas.length === 0)
     return teamId !== undefined && ws.areas.some((a) => a.id === teamId) ? 0 : fallback;
-  }
   const inTeams = teams.reduce(
     (sum, t) =>
       sum + (Object.hasOwn(t.memberHours, personId) ? t.memberHours[personId]! : fallback),
     0,
   );
-  return areas.reduce((sum, a) => sum + a.memberHours[personId]!, inTeams);
+  return areas.reduce((sum, a) => sum + areaHours(ws, a.id, personId), inTeams);
 }
 
 /** A person's hours in a week in these teams. */

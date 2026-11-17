@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import {
@@ -529,4 +530,34 @@ test('the people list flags who is over the limit and leaves them no free hours'
     .locator('tr[data-person="person-alex"]');
   await expect(alex.getByRole('rowheader')).toContainText('over the limit');
   await expect(alex.getByRole('cell').nth(4)).toHaveText(`${fmt('en', 0)} h`);
+});
+
+test('a person only in the area without area hours has 0 h, not the default (#265)', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2027-03-10T12:00:00'));
+  await page.goto('/');
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  ws.settings.locale = 'en';
+  // Jordan leads the area and is in no team; without an hours entry they have 0 h there.
+  delete ws.areas[0].memberHours['person-jordan'];
+  await openWorkspaceFile(page, ws);
+  await showView(page, 'Meeting load');
+  // With a person chosen, all their teams and areas count together.
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Jordan' });
+  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
+  const jordan = panel
+    .getByRole('table', { name: 'People' })
+    .locator('tr[data-person="person-jordan"]');
+  await expect(jordan).toContainText('only in the area');
+  await expect(jordan).toContainText(/of 0(\.0)? h/);
+  await expect(jordan).toContainText('no hours');
+  await expect(jordan).not.toContainText('40');
+  await jordan.getByRole('button', { name: 'Jordan', exact: true }).click();
+  const detail = panel.locator('[data-set-hours]');
+  await expect(detail).toHaveText(
+    'No weekly hours in the area yet, so these meetings are always over the limit. Set the hours under Area → Structure.',
+  );
+  const axe = await new AxeBuilder({ page }).include('[data-person="person-jordan"]').analyze();
+  expect(axe.violations).toEqual([]);
 });
