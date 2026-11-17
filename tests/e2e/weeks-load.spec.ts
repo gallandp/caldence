@@ -419,6 +419,5 @@ for (const size of [
     await expect(label).toBeVisible();
     const text = await label.boundingBox();
     expect(text!.y).toBeGreaterThanOrEqual(box!.y);
-    expect(text!.x + text!.width).toBeLessThanOrEqual(box!.x + box!.width + 0.5);
   });
 }

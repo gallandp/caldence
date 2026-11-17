@@ -460,6 +460,8 @@
     /* Long horizons (up to five years) must still fit: the gap shrinks with the width. */
     gap: clamp(0px, 0.4%, 2px);
     height: 100%;
+    /* With hundreds of weeks on a narrow screen the gaps alone are wider than the plot. */
+    overflow-x: clip;
   }
   .bars i {
     flex: 1;
