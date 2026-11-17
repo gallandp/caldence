@@ -104,14 +104,21 @@ test('the headline names the selected area or team, except in workspace-wide vie
 }) => {
   await openExample(page);
   await addArea(page, 'Platform', ['Team Alpha']);
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const scope = page.locator('#panel-load .eyebrow-text');
   await expect(scope).toHaveText('Platform · Area');
-  await expect(page.locator('#panel-load h2')).toHaveText('Load');
+  await expect(page.locator('#panel-load h2')).toHaveText('Meeting load');
   await pickUnit(page, 'Team Alpha');
   await expect(scope).toHaveText('Team Alpha · Team');
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
-  await expect(page.locator('#panel-settings .eyebrow')).toHaveCount(0);
+  for (const [tab, panel] of [
+    ['Settings', 'settings'],
+    ['Templates', 'templates'],
+    ['Import / Export', 'exchange'],
+    ['Help', 'help'],
+  ]) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    await expect(page.locator(`#panel-${panel} .eyebrow`)).toHaveCount(0);
+  }
 });
 
 test('rename an area, move a team into it after a question, delete it', async ({ page }) => {
