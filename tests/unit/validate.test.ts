@@ -565,3 +565,28 @@ describe('areas', () => {
     expect(errors).toContainEqual({ path: 'areas.0.memberHours.p1', key: 'error.number.invalid' });
   });
 });
+
+describe('saved view', () => {
+  it('accepts a view with strings and a file without one', () => {
+    const w = emptyWorkspace('2026-11-07');
+    expect(validate(w).ok).toBe(true);
+    expect(validate({ ...w, view: {} }).ok).toBe(true);
+    expect(validate({ ...w, view: { unit: 'gone', page: 'load', areaPage: 'overview' } }).ok).toBe(
+      true,
+    );
+  });
+
+  it('drops a malformed view or its bad values instead of rejecting the file', () => {
+    const w = emptyWorkspace('2026-11-07');
+    const loaded = (view: unknown) => {
+      const r = validate(JSON.parse(JSON.stringify({ ...w, view })));
+      if (!r.ok) throw new Error('expected the file to load');
+      return r.value.view;
+    };
+    expect(loaded('load')).toBeUndefined();
+    expect(loaded({ page: 3, unit: 't1' })).toEqual({ unit: 't1' });
+    expect(loaded({ unit: 'x'.repeat(65), areaPage: 'overview' })).toEqual({
+      areaPage: 'overview',
+    });
+  });
+});

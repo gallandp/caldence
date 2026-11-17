@@ -769,7 +769,7 @@
   "help.templates.export": "Export: under {exportHeading}, choose the {team}, enter a name in {name} and choose {exportButton}. You can share the file, and others can import it.",
   "help.templates.people": "A template holds no people. Add people in {teamView} and give them their roles there.",
   "help.files.title": "Files and autosave",
-  "help.files.format": "Everything you plan is in one file named like plan.caldence.json.",
+  "help.files.format": "Everything you plan is in one file named like plan.caldence.json. The file also remembers where you were (the {levelTeamLc} or {levelAreaLc}, and the page) and opens there again.",
   "help.files.areas": "Files of older versions open as before; they just have no upper level yet. A file in which {levelTeamsLc} are grouped needs Caldence 1.36 or newer to show everything.",
   "help.files.buttons": "{new} starts an empty file. {open} reads a file. {save} writes to the open file. {saveAs} writes a new file. If there are unsaved changes, {new} and {open} first ask whether to save them.",
   "help.files.status": "Next to the buttons you see the file name, or {untitled}, and whether there are {unsaved} or the file is {saved}.",

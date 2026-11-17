@@ -80,10 +80,8 @@ test('two teams without an area get a hint that groups them; dismissed it stays 
   await hint(page).getByRole('button', { name: 'Hide this hint' }).click();
   await expect(hint(page)).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Team', exact: true })).toBeFocused();
-  // The same workspace after a reload: still dismissed.
+  // The same workspace after a reload (back on the Team page, where it was): still dismissed.
   await page.reload();
-  await expect(page.getByRole('grid')).toBeVisible();
-  await showView(page, 'Team');
   await expect(page.getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await expect(hint(page)).toHaveCount(0);
 });
