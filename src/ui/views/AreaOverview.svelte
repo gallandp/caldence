@@ -354,7 +354,7 @@
         </p>
       </div>
       {#if rate}
-        <div class="period" role="group" aria-label={$t('overview.cost.period')}>
+        <div class="period" data-no-print role="group" aria-label={$t('overview.cost.period')}>
           {#each ['week', 'horizon'] as const as p (p)}
             <button
               type="button"
@@ -707,7 +707,9 @@
                     {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
                         hours: hours(s.areaHours),
                       })}{:else}<span class="unset"
-                        >{$t($presenting ? 'area.hours.none' : 'area.hours.unset')}</span
+                        >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
+                            >{$t('area.hours.unset')}</span
+                          ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
                       >{/if}{teamHours(s.teams)}
                   </small>
                 </div>

@@ -8,7 +8,7 @@
 <!-- The live region always exists, so screen readers announce text added to it.
      "Works offline" is only announced: showing it would push the page down or cover controls
      on every first visit. A new version is rare and needs a choice, so it is shown. -->
-<div role="status">
+<div role="status" data-no-print>
   {#if $needRefresh}
     <div class="notice">
       <span>{$t('update.available')}</span>
