@@ -1,0 +1,53 @@
+{
+  "id": "de-mv",
+  "name": { "de": "Mecklenburg-Vorpommern", "en": "Mecklenburg-Western Pomerania" },
+  "holidays": [
+    { "type": "fixed", "month": 1, "day": 1, "name": { "de": "Neujahr", "en": "New Year's Day" } },
+    {
+      "type": "fixed",
+      "month": 3,
+      "day": 8,
+      "name": { "de": "Internationaler Frauentag", "en": "International Women's Day" }
+    },
+    { "type": "easter", "offset": -2, "name": { "de": "Karfreitag", "en": "Good Friday" } },
+    { "type": "easter", "offset": 1, "name": { "de": "Ostermontag", "en": "Easter Monday" } },
+    {
+      "type": "fixed",
+      "month": 5,
+      "day": 1,
+      "name": { "de": "Tag der Arbeit", "en": "Labour Day" }
+    },
+    {
+      "type": "easter",
+      "offset": 39,
+      "name": { "de": "Christi Himmelfahrt", "en": "Ascension Day" }
+    },
+    { "type": "easter", "offset": 50, "name": { "de": "Pfingstmontag", "en": "Whit Monday" } },
+    {
+      "type": "fixed",
+      "month": 10,
+      "day": 3,
+      "name": { "de": "Tag der Deutschen Einheit", "en": "German Unity Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 10,
+      "day": 31,
+      "name": { "de": "Reformationstag", "en": "Reformation Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 25,
+      "name": { "de": "1. Weihnachtstag", "en": "Christmas Day" }
+    },
+    {
+      "type": "fixed",
+      "month": 12,
+      "day": 26,
+      "name": { "de": "2. Weihnachtstag", "en": "Boxing Day" }
+    }
+  ],
+  "schoolHolidays": [],
+  "schoolHolidaysKnownUntil": "2025-12-31"
+}
