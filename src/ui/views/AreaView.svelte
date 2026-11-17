@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import { tick, type Snippet } from 'svelte';
+  import { get } from 'svelte/store';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
   import AreaReady from '../components/AreaReady.svelte';
@@ -20,7 +21,17 @@
   let { area, overview, onMeetings }: { area: Area; overview: Snippet; onMeetings: () => void } =
     $props();
 
-  let page = $state(remembered);
+  // A new area opens on its structure, where the "ready" card's steps act (only when shown).
+  // svelte-ignore state_referenced_locally
+  let page = $state(get(areaReady) === area.id ? 'structure' : remembered);
+  let pages: HTMLDivElement | undefined = $state();
+
+  /** Closing the card removes the focused button: focus moves to the page switch. */
+  async function closeCard() {
+    areaReady.set(undefined);
+    await tick();
+    pages?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+  }
   let structure: AreaStructure | undefined = $state();
 
   /** The card's buttons act on the structure page, so it is shown first. */
@@ -44,10 +55,10 @@
         areaReady.set(undefined);
         onMeetings();
       }}
-      onClose={() => areaReady.set(undefined)}
+      onClose={closeCard}
     />
   {/if}
-  <div class="pages" role="group" aria-label={$t('area.view.label')}>
+  <div class="pages" role="group" aria-label={$t('area.view.label')} bind:this={pages}>
     {#each ['structure', 'overview'] as const as p (p)}
       <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
         >{$t(`area.view.${p}`)}</button

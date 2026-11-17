@@ -73,13 +73,18 @@ test('two teams without an area get a hint that groups them; dismissed it stays 
 }) => {
   await page.goto('/');
   await openWorkspaceFile(page, twoTeams());
+  // Not on the Calendar, where people who only read a plan land.
+  await expect(hint(page)).toHaveCount(0);
+  await showView(page, 'Team');
   await expect(hint(page)).toBeVisible();
   await hint(page).getByRole('button', { name: 'Hide this hint' }).click();
   await expect(hint(page)).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: 'Calendar', exact: true })).toBeFocused();
+  await expect(page.getByRole('tab', { name: 'Team', exact: true })).toBeFocused();
   // The same workspace after a reload: still dismissed.
   await page.reload();
   await expect(page.getByRole('grid')).toBeVisible();
+  await showView(page, 'Team');
+  await expect(page.getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await expect(hint(page)).toHaveCount(0);
 });
 
@@ -88,6 +93,7 @@ test('the hint opens Add area; the new area shows its "ready" card with three ne
 }) => {
   await page.goto('/');
   await openWorkspaceFile(page, twoTeams());
+  await showView(page, 'Team');
   await hint(page).getByRole('button', { name: 'Group teams into one area' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add area' });
   await dialog.getByLabel('Area name').fill('Platform');
@@ -136,6 +142,23 @@ test('the hint opens Add area; the new area shows its "ready" card with three ne
   await expect(ready(page, 'Platform')).toHaveCount(0);
 });
 
+test('closing the ready card keeps the focus on the page', async ({ page }) => {
+  await page.goto('/');
+  await openWorkspaceFile(page, twoTeams());
+  await showView(page, 'Team');
+  await hint(page).getByRole('button', { name: 'Group teams into one area' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add area' });
+  await dialog.getByLabel('Area name').fill('Platform');
+  await dialog.getByRole('checkbox', { name: 'Team Alpha' }).check();
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  const card = ready(page, 'Platform');
+  // Teams were chosen in the dialog: that step is left out.
+  await expect(card.getByRole('button', { name: 'Choose teams …' })).toHaveCount(0);
+  await card.getByRole('button', { name: 'Got it' }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Structure', exact: true })).toBeFocused();
+});
+
 test('the areas chapter of the manual names controls the area page has', async ({ page }) => {
   await openExample(page);
   await showView(page, 'Help');
@@ -162,6 +185,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/');
       await openWorkspaceFile(page, twoTeams());
       await page.setViewportSize({ width, height: 900 });
+      await showView(page, 'Team');
       await expect(hint(page)).toBeVisible();
       await axe(page);
       await hint(page).getByRole('button', { name: 'Group teams into one area' }).click();

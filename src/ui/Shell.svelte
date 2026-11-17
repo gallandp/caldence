@@ -96,7 +96,10 @@
     setupDone = false;
     areaReady.set(undefined);
   });
-  /** Two or more teams and no area yet: offer once per workspace to group them. */
+  /**
+   * Two or more teams and no area yet: offer once per workspace to group them. Shown on the
+   * Team page, where people build; someone who only reads a plan is not asked to change it.
+   */
   const groupHint = $derived(
     $workspace.teams.length >= 2 &&
       $workspace.areas.length === 0 &&
@@ -423,7 +426,14 @@
       }}
     />
 
-    <AreaDialog bind:this={hintDialog} returnFocus={() => select(active, true)} />
+    <AreaDialog
+      bind:this={hintDialog}
+      returnFocus={() => {
+        const opener = document.querySelector<HTMLButtonElement>('.group-hint button.primary');
+        if (opener) opener.focus();
+        else select(active, true);
+      }}
+    />
 
     <input
       bind:this={fileInput}
@@ -499,15 +509,6 @@
                 </AreaView>
               {/if}
             {:else if id === 'calendar'}
-              {#if groupHint && !setupDone}
-                <GroupHint
-                  onGroup={() => hintDialog?.show()}
-                  onDismiss={() => {
-                    dismissGroupHint($workspace.id);
-                    void tick().then(() => select('calendar', true));
-                  }}
-                />
-              {/if}
               {#if setupDone}
                 <SetupDone
                   onMeetings={() => {
@@ -540,7 +541,18 @@
                   onSetHours={activeArea ? () => select('team', true) : undefined}
                 />{/if}
             {:else if id === 'team'}
-              {#if active === 'team'}<TeamView />{/if}
+              {#if active === 'team'}
+                {#if groupHint}
+                  <GroupHint
+                    onGroup={() => hintDialog?.show()}
+                    onDismiss={() => {
+                      dismissGroupHint($workspace.id);
+                      void tick().then(() => select('team', true));
+                    }}
+                  />
+                {/if}
+                <TeamView />
+              {/if}
             {:else if id === 'settings'}
               {#if active === 'settings'}<SettingsView />{/if}
             {:else if id === 'templates'}

@@ -29,10 +29,12 @@
   </h3>
   <p>{$t('area.ready.intro')}</p>
   <ol>
-    <li>
-      <span>{$t('area.ready.teams')}</span>
-      <button type="button" onclick={onTeams}>{$t('area.teams')}</button>
-    </li>
+    {#if area.teamIds.length === 0}
+      <li>
+        <span>{$t('area.ready.teams')}</span>
+        <button type="button" onclick={onTeams}>{$t('area.teams')}</button>
+      </li>
+    {/if}
     <li>
       <span>{$t('area.ready.people')}</span>
       <button type="button" onclick={onPeople}>{$t('area.structure.add')}</button>
@@ -42,7 +44,9 @@
       <button type="button" onclick={onMeetings}>{$t('area.ready.meetings.button')}</button>
     </li>
   </ol>
-  <p class="hint">{$t('area.ready.time')}</p>
+  <p class="hint">
+    {$t('area.ready.time', { fromTeams: $t('area.participants.fromTeams') })}
+  </p>
   <p class="hint"><Rich key="area.ready.names" labels={{ settings: 'view.settings' }} /></p>
   <div class="buttons">
     <button type="button" class="primary" onclick={onClose}>{$t('setup.done.close')}</button>
