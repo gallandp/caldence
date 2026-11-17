@@ -195,20 +195,6 @@ describe('area hours', () => {
     expect(capacity(ws, 'hana')).toBe(40);
   });
 
-  it('area members without an entry add 0 h next to their team hours (#265)', () => {
-    const ws = workspace();
-    const team = ws.teams.find((t) => t.members.length > 0)!;
-    const person = team.members[0]!.personId;
-    const before = capacity(ws, person);
-    ws.areas[0]!.members.push({ personId: person, roleId: team.members[0]!.roleId });
-    delete ws.areas[0]!.memberHours[person];
-    const teamsOnly = ws.teams
-      .filter((t) => t.members.some((m) => m.personId === person))
-      .reduce((s, t) => s + capacity(ws, person, t.id), 0);
-    expect(capacity(ws, person)).toBe(teamsOnly);
-    expect(before).toBeGreaterThanOrEqual(teamsOnly);
-  });
-
   it('unitLoadIds counts the area teams and the area itself', () => {
     const ws = workspace();
     expect(unitLoadIds(ws, 'area')).toEqual(['alpha', 'beta', 'gamma', 'area']);

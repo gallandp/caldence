@@ -356,7 +356,7 @@
         <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
           <td colspan={teamId ? 7 : 6}>
             {#if openPerson === p.person.id}
-              {#if noHours(p)}
+              {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
                 <p class="note" data-set-hours>
                   {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
                 </p>
