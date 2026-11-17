@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
+import { teamLoad } from '../../src/core/areaOverview';
+import { loadPerWeek } from '../../src/core/load';
 import { unitCostSummary } from '../../src/core/cost';
 import { areaAsTeam, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
@@ -97,5 +99,41 @@ describe('areaCosts without hours', () => {
     for (const id of Object.keys(gamma.memberHours)) gamma.memberHours[id] = 0;
     const row = areaCosts(w, noIndex(), w.areas[0]!).teams.find((r) => r.unitId === 'team-gamma')!;
     expect(row.noHours).toBe(true);
+  });
+});
+
+describe('one meeting load in the cost table and the heat map (#262)', () => {
+  it('a team with weekly meetings only has the same share in both', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    for (const t of w.teams) t.events = t.events.filter((e) => e.rule.type === 'weekly');
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    expect(gamma.events.length).toBeGreaterThan(0);
+    const row = areaCosts(w, noIndex(), area).teams.find((r) => r.unitId === gamma.id)!;
+    // Whole weeks inside the horizon: every one holds each weekly meeting once.
+    const weeks = loadPerWeek(w, noIndex()).slice(1, -1);
+    const cells = teamLoad(w, gamma, weeks);
+    expect(row.share).toBeGreaterThan(0);
+    for (const c of cells) expect(c.share).toBeCloseTo(row.share);
+  });
+
+  it('a one-off meeting raises its week only, not the recurring share', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    for (const t of w.teams) t.events = t.events.filter((e) => e.rule.type === 'weekly');
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    const weeks = () => loadPerWeek(w, noIndex()).slice(1, -1);
+    const monday = weeks()[2]!.monday;
+    const share = areaCosts(w, noIndex(), area).teams.find((r) => r.unitId === gamma.id)!.share;
+    gamma.events.push({
+      ...structuredClone(gamma.events[0]!),
+      id: 'ev-once',
+      rule: { type: 'once', date: monday },
+    });
+    const after = areaCosts(w, noIndex(), area).teams.find((r) => r.unitId === gamma.id)!;
+    expect(after.share).toBeCloseTo(share);
+    const cells = teamLoad(w, gamma, weeks());
+    expect(cells.find((c) => c.monday === monday)!.share).toBeGreaterThan(share);
+    expect(cells.find((c) => c.monday !== monday)!.share).toBeCloseTo(share);
   });
 });
