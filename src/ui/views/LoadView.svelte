@@ -266,14 +266,18 @@
       <h3 id="{uid}-chart">{$t('load.chart')}</h3>
       <p class="note">{$t('load.chart.hint')}</p>
       <div class="chart" role="img" aria-label={chartLabel}>
-        <div class="avg" style:bottom="{(average / peak.total) * 100}%">
-          <span>{$t('load.chart.avg', { hours: hours(average) })}</span>
-        </div>
-        <div class="bars">
-          {#each rows as row (row.monday)}
-            <i class:high={warned.has(row.monday)} style:height="{(row.total / peak.total) * 100}%"
-            ></i>
-          {/each}
+        <div class="plot">
+          <div class="avg" style:bottom="{(average / peak.total) * 100}%">
+            <span>{$t('load.chart.avg', { hours: hours(average) })}</span>
+          </div>
+          <div class="bars">
+            {#each rows as row (row.monday)}
+              <i
+                class:high={warned.has(row.monday)}
+                style:height="{(row.total / peak.total) * 100}%"
+              ></i>
+            {/each}
+          </div>
         </div>
       </div>
       <div class="axis" aria-hidden="true">
@@ -440,13 +444,15 @@
     color: var(--text-muted);
   }
   /* ---------- chart ---------- */
+  /* The top padding is room for the average label: it sits above its line, and the line reaches
+     the top of the plot when every week has the same load. */
   .chart {
+    margin-top: 0.5rem;
+    padding-top: 1.4rem;
+  }
+  .plot {
     position: relative;
     height: 9rem;
-    margin-top: 0.5rem;
-  }
-  .chart {
-    overflow: hidden;
   }
   .bars {
     display: flex;
