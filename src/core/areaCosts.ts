@@ -1,4 +1,4 @@
-import { unitCostSummary, meetingCost } from './cost';
+import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
 import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
 import {
   areaAsTeam,
@@ -32,8 +32,8 @@ export interface UnitRow {
    * alike; a role nobody holds counts as one person, as in the cost (#263).
    */
   invited: number;
-  /** Only with an hourly rate. */
-  cost?: { perWeek: number; horizon: number };
+  /** Only with an hourly rate. `unfilled`: roles nobody holds, counted as one person each (#264). */
+  cost?: { perWeek: number; horizon: number; unfilled: UnfilledRole[] };
 }
 
 export interface AreaCosts {
@@ -80,7 +80,7 @@ export function unitRow(
   };
   if (rate) {
     const s = unitCostSummary(ws, index, unit, rate);
-    out.cost = { perWeek: s.perWeek, horizon: s.horizon };
+    out.cost = { perWeek: s.perWeek, horizon: s.horizon, unfilled: s.unfilled };
   }
   return out;
 }
@@ -124,6 +124,7 @@ export function areaCosts(
     total.cost = {
       perWeek: sum(all.map((r) => r.cost!.perWeek)),
       horizon: sum(all.map((r) => r.cost!.horizon)),
+      unfilled: all.flatMap((r) => r.cost!.unfilled),
     };
   return { teams: teamRows, area: areaRow, total };
 }

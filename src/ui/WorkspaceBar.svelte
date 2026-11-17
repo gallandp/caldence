@@ -52,6 +52,9 @@
   });
   /** A screen with a play mark: presenting (persona concept M1). */
   const PRESENT_ICON = 'M3 4h18v12H3zM12 16v4M8 20h8M10 8l4 2-4 2z';
+  /** A printer: print or save the current view as PDF (persona concept M4). */
+  const PRINT_ICON =
+    'M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z';
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
   const autosaveOn = autosave.status;
@@ -304,6 +307,11 @@
         <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
           >{$t('file.saveAs')}</button
         >
+        {#if !empty}
+          <button type="button" class="print" onclick={() => fromMore(async () => window.print())}
+            >{$t('file.print')}</button
+          >
+        {/if}
         {@render menu?.(closeMore)}
       </div>
     </div>
@@ -325,11 +333,22 @@
         class="present-toggle start"
         data-present
         aria-pressed="false"
+        title={$t('file.present')}
         bind:this={presentButton}
         onclick={present}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
-        {$t('file.present')}
+        <span class="label">{$t('file.present')}</span>
+      </button>
+      <button
+        type="button"
+        class="present-toggle print"
+        data-print
+        title={$t('file.print')}
+        onclick={() => window.print()}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRINT_ICON} /></svg>
+        <span class="label">{$t('file.print')}</span>
       </button>
     {/if}
   {/if}
@@ -448,9 +467,27 @@
   .presenting .present-toggle {
     margin-left: auto;
   }
+  /* Where the room beside the sidebar is narrow, the file bar stays one row: the two buttons keep only their icons
+     (the name stays for screen readers and as the tooltip). */
+  @container content (max-width: 56rem) {
+    .present-toggle.start,
+    .present-toggle.print {
+      padding-inline: 0.6rem;
+    }
+    .present-toggle.start .label,
+    .present-toggle.print .label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
   /* Phones keep their file menu: presenting is for a projector or a shared screen. */
   @media (max-width: 40rem) {
-    .present-toggle.start {
+    .present-toggle.start,
+    .present-toggle.print {
       display: none;
     }
   }

@@ -58,7 +58,13 @@
       onClose={closeCard}
     />
   {/if}
-  <div class="pages" role="group" aria-label={$t('area.view.label')} bind:this={pages}>
+  <div
+    class="pages"
+    data-no-print
+    role="group"
+    aria-label={$t('area.view.label')}
+    bind:this={pages}
+  >
     {#each ['structure', 'overview'] as const as p (p)}
       <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
         >{$t(`area.view.${p}`)}</button

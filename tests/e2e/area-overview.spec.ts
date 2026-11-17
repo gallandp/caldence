@@ -16,9 +16,14 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2027-01-05T10:00:00'));
 });
 
-async function openOverview(page: Page, rate?: number) {
+async function openOverview(
+  page: Page,
+  rate?: number,
+  change?: (ws: ReturnType<typeof areaWorkspace>) => void,
+) {
   await page.goto('/');
   const ws = areaWorkspace();
+  change?.(ws);
   ws.settings.locale = 'en';
   if (rate) (ws.settings as { hourlyRate?: number }).hourlyRate = rate;
   await openWorkspaceFile(page, ws);
@@ -165,4 +170,37 @@ test('a team meeting among the most expensive opens in its team', async ({ page 
   await row.getByRole('button').click();
   await expect(currentUnit(page)).toHaveText('Team Delta');
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name);
+});
+
+/** Team Gamma with a weekly meeting for Developers, a role nobody in Gamma holds. */
+function devMeeting(ws: ReturnType<typeof areaWorkspace>) {
+  const gamma = ws.teams.find((t) => t.id === 'team-gamma')!;
+  gamma.events.push({
+    ...structuredClone(gamma.events[0]!),
+    id: 'ev-dev-sync',
+    name: 'Dev sync',
+    rule: { type: 'weekly', weekday: 1 } as never,
+    participants: [{ roleId: 'role-dev', share: 1 }],
+  });
+}
+
+test('a team row and the cost card name unfilled roles that only add cost (#264)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100, devMeeting);
+  const table = overview.locator('[data-area-costs]');
+  await expect(table.locator('[data-cost-row="team-gamma"] [data-unfilled]')).toHaveText(
+    'incl. 1 unfilled role: Developer',
+  );
+  await expect(table.locator('[data-cost-row="team-delta"] [data-unfilled]')).toHaveCount(0);
+  const axe = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
+  expect(axe.violations).toEqual([]);
+
+  await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
+  const card = page.locator('[data-costs]');
+  await expect(card.locator('[data-cost-unfilled]')).toHaveText(
+    'Includes 1 unfilled role (Developer), counted as one person. It adds cost but no hours.',
+  );
+  const axe2 = await new AxeBuilder({ page }).include('[data-costs]').analyze();
+  expect(axe2.violations).toEqual([]);
 });
