@@ -26,7 +26,11 @@ export interface UnitRow {
   share: number;
   /** Meeting hours without any weekly hours to measure them against: always over the limit. */
   noHours: boolean;
-  people: number;
+  /**
+   * People invited to at least one meeting of the unit (for the total: of any unit), the divisor
+   * of "cost per person". Members who attend nothing are left out, in every row alike (#263).
+   */
+  invited: number;
   /** Only with an hourly rate. */
   cost?: { perWeek: number; horizon: number };
 }
@@ -41,11 +45,18 @@ export interface AreaCosts {
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const share = (hours: number, cap: number) => (cap > 0 ? hours / cap : 0);
 
+/** Everyone invited to at least one meeting of the unit. */
+function invitedTo(ws: Workspace, unit: Team): Set<string> {
+  return new Set(
+    unit.events.flatMap((e) => e.participants.flatMap((p) => attendees(ws, unit.id, p))),
+  );
+}
+
 function row(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
-  people: string[],
+  invited: Set<string>,
   cap: number,
   rate: number | undefined,
 ): UnitRow {
@@ -56,7 +67,7 @@ function row(
     capacity: cap,
     share: share(hours, cap),
     noHours: hours > 0 && cap <= 0,
-    people: people.length,
+    invited: invited.size,
   };
   if (rate) {
     const s = unitCostSummary(ws, index, unit, rate);
@@ -72,12 +83,18 @@ export function areaCosts(
   rate?: number,
 ): AreaCosts {
   const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
+  const invited = new Set<string>();
   const teamRows = teams.map((t) => {
     const people = [...new Set(t.members.map((m) => m.personId))];
-    return row(ws, index, t, people, sum(people.map((p) => capacity(ws, p, t.id))), rate);
+    const own = invitedTo(ws, t);
+    own.forEach((p) => invited.add(p));
+    return row(ws, index, t, own, sum(people.map((p) => capacity(ws, p, t.id))), rate);
   });
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
-  const areaRow = row(ws, index, areaAsTeam(area), areaPeople, 0, rate);
+  const areaUnit = areaAsTeam(area);
+  const areaInvited = invitedTo(ws, areaUnit);
+  areaInvited.forEach((p) => invited.add(p));
+  const areaRow = row(ws, index, areaUnit, areaInvited, 0, rate);
   areaRow.share = 0;
   areaRow.noHours = false;
   const everyone = [
@@ -92,7 +109,7 @@ export function areaCosts(
     capacity: cap,
     share: share(hours, cap),
     noHours: hours > 0 && cap <= 0,
-    people: everyone.length,
+    invited: invited.size,
   };
   if (rate)
     total.cost = {
