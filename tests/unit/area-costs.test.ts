@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
-import { unitCostSummary } from '../../src/core/cost';
+import { costSummary, unitCostSummary } from '../../src/core/cost';
 import { areaAsTeam, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import { areaWorkspace } from '../e2e/area-fixture';
@@ -24,14 +24,50 @@ describe('areaCosts', () => {
     expect(c.total.cost!.perWeek).toBeCloseTo(rows.reduce((s, r) => s + r.cost!.perWeek, 0));
     expect(c.total.cost!.horizon).toBeCloseTo(rows.reduce((s, r) => s + r.cost!.horizon, 0));
     expect(c.total.share).toBeCloseTo(c.total.hours / c.total.capacity);
-    expect(c.total.people).toBe(
-      new Set([
-        ...area.members.map((m) => m.personId),
-        ...w.teams
-          .filter((t) => area.teamIds.includes(t.id))
-          .flatMap((t) => t.members.map((m) => m.personId)),
-      ]).size,
+    // In the fixture every member of the area and its teams attends a meeting, each once.
+    const members = new Set([
+      ...area.members.map((m) => m.personId),
+      ...w.teams
+        .filter((t) => area.teamIds.includes(t.id))
+        .flatMap((t) => t.members.map((m) => m.personId)),
+    ]);
+    expect(c.total.invited).toBe(members.size);
+  });
+
+  it('counts per person only people invited to a meeting, in team rows and the total (#263)', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const before = areaCosts(w, noIndex(), area, 100);
+    // A member of the area and of a team in a role that no meeting invites (Area Lead).
+    w.people.push({ id: 'person-idle', name: 'Idle' } as Workspace['people'][number]);
+    w.roles.push({ id: 'role-idle', name: 'Observer', colour: '#777777' });
+    area.members.push({ personId: 'person-idle', roleId: 'role-idle' });
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    gamma.members.push({ personId: 'person-idle', roleId: 'role-idle' });
+    const after = areaCosts(w, noIndex(), area, 100);
+    expect(after.total.invited).toBe(before.total.invited);
+    expect(after.teams.find((r) => r.unitId === 'team-gamma')!.invited).toBe(
+      before.teams.find((r) => r.unitId === 'team-gamma')!.invited,
     );
+    expect(after.total.cost!.perWeek).toBeCloseTo(before.total.cost!.perWeek);
+    const perPerson = (r: { cost?: { perWeek: number }; invited: number }) =>
+      r.cost!.perWeek / r.invited;
+    expect(perPerson(after.total)).toBeCloseTo(perPerson(before.total));
+  });
+
+  it('counts a role nobody holds as one person, like the cost does', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    const before = areaCosts(w, noIndex(), area, 100).teams.find((r) => r.unitId === gamma.id)!;
+    gamma.events.push({
+      ...structuredClone(gamma.events[0]!),
+      id: 'ev-dev-sync',
+      rule: { type: 'weekly', weekday: 1 },
+      participants: [{ roleId: 'role-dev', share: 1 }],
+    });
+    const after = areaCosts(w, noIndex(), area, 100).teams.find((r) => r.unitId === gamma.id)!;
+    expect(after.invited).toBe(before.invited + 1);
   });
 
   it('matches the cost card of each team and of the area', () => {
@@ -97,5 +133,83 @@ describe('areaCosts without hours', () => {
     for (const id of Object.keys(gamma.memberHours)) gamma.memberHours[id] = 0;
     const row = areaCosts(w, noIndex(), w.areas[0]!).teams.find((r) => r.unitId === 'team-gamma')!;
     expect(row.noHours).toBe(true);
+  });
+});
+
+describe('unfilled roles (#264)', () => {
+  /** A weekly meeting for Developers (nobody in Gamma or Delta is one) in a team. */
+  const devMeeting = (
+    w: Workspace,
+    teamId: string,
+    rule: object = { type: 'weekly', weekday: 1 },
+  ) => {
+    const team = w.teams.find((t) => t.id === teamId)!;
+    team.events.push({
+      ...structuredClone(team.events[0]!),
+      id: `ev-dev-${teamId}`,
+      name: 'Dev sync',
+      rule: rule as never,
+      participants: [{ roleId: 'role-dev', share: 1 }],
+    });
+    return team;
+  };
+  const roles = (list: { roleId: string }[]) => list.map((u) => u.roleId);
+
+  it('names the roles that add cost but no hours, per team and in the cost table', () => {
+    const w = ws();
+    const gamma = devMeeting(w, 'team-gamma');
+    const summary = unitCostSummary(w, noIndex(), gamma, 100);
+    expect(summary.unfilled).toEqual([
+      { unitId: 'team-gamma', roleId: 'role-dev', week: true, horizon: true },
+    ]);
+    const row = areaCosts(w, noIndex(), w.areas[0]!, 100).teams.find((r) => r.unitId === gamma.id)!;
+    expect(row.cost!.unfilled).toEqual(summary.unfilled);
+  });
+
+  it('lists no role once someone holds it', () => {
+    const w = ws();
+    const gamma = devMeeting(w, 'team-gamma');
+    gamma.members.push({ personId: 'person-kim', roleId: 'role-dev' });
+    expect(unitCostSummary(w, noIndex(), gamma, 100).unfilled).toEqual([]);
+  });
+
+  it('keeps one entry per team, so two teams without Developers are two people', () => {
+    const w = ws();
+    devMeeting(w, 'team-gamma');
+    devMeeting(w, 'team-delta');
+    const all = costSummary(w, noIndex(), {}, 100).unfilled;
+    expect(all.map((u) => `${u.unitId}:${u.roleId}`)).toEqual([
+      'team-gamma:role-dev',
+      'team-delta:role-dev',
+    ]);
+  });
+
+  it('a person or another role filter costs no phantom people, so lists none', () => {
+    const w = ws();
+    devMeeting(w, 'team-gamma');
+    expect(costSummary(w, noIndex(), { personId: 'person-kim' }, 100).unfilled).toEqual([]);
+    expect(costSummary(w, noIndex(), { roleId: 'role-po' }, 100).unfilled).toEqual([]);
+    expect(roles(costSummary(w, noIndex(), { roleId: 'role-dev' }, 100).unfilled)).toEqual([
+      'role-dev',
+    ]);
+  });
+
+  it('an area meeting for a role from every team is unfilled only if no team holds it', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    // The area fixture invites Developers from every team; Alpha and Beta have some.
+    expect(roles(unitCostSummary(w, noIndex(), areaAsTeam(area), 100).unfilled)).toEqual([]);
+    for (const t of w.teams) t.members = t.members.filter((m) => m.roleId !== 'role-dev');
+    expect(roles(unitCostSummary(w, noIndex(), areaAsTeam(area), 100).unfilled)).toContain(
+      'role-dev',
+    );
+  });
+
+  it('a one-off meeting adds cost only in the horizon, and the note says so', () => {
+    const w = ws();
+    const gamma = devMeeting(w, 'team-gamma', { type: 'once', date: '2027-01-12' });
+    expect(unitCostSummary(w, noIndex(), gamma, 100).unfilled).toEqual([
+      { unitId: 'team-gamma', roleId: 'role-dev', week: false, horizon: true },
+    ]);
   });
 });

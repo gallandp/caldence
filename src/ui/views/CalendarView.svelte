@@ -539,7 +539,7 @@
   {/if}
 
   {#snippet levels()}
-    <div class="segmented levels" role="group" aria-label={$t('cal.mode')}>
+    <div class="segmented levels" data-no-print role="group" aria-label={$t('cal.mode')}>
       {#each modes as m (m)}
         <button type="button" aria-pressed={mode === m} onclick={() => setMode(m)}>
           {$t('cal.mode.' + m)}
@@ -550,7 +550,7 @@
 
   {#if mode !== 'range'}
     <div class="toolbar">
-      <div class="nav" role="group" aria-label={$t('cal.nav')}>
+      <div class="nav" data-no-print role="group" aria-label={$t('cal.nav')}>
         <button
           type="button"
           class="step"

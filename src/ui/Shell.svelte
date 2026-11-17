@@ -980,6 +980,8 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    /* The file bar fits its buttons to the room beside the sidebar, not to the window. */
+    container: content / inline-size;
   }
   main {
     padding: 0 2rem 2.5rem;

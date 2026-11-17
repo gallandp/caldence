@@ -1,4 +1,4 @@
-import { unitCostSummary, meetingCost } from './cost';
+import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
 import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
 import {
   areaAsTeam,
@@ -26,9 +26,14 @@ export interface UnitRow {
   share: number;
   /** Meeting hours without any weekly hours to measure them against: always over the limit. */
   noHours: boolean;
-  people: number;
-  /** Only with an hourly rate. */
-  cost?: { perWeek: number; horizon: number };
+  /**
+   * People invited to at least one meeting of the unit (for the total: of any unit, each once),
+   * the divisor of "cost per person". Members who attend nothing are left out, in every row
+   * alike; a role nobody holds counts as one person, as in the cost (#263).
+   */
+  invited: number;
+  /** Only with an hourly rate. `unfilled`: roles nobody holds, counted as one person each (#264). */
+  cost?: { perWeek: number; horizon: number; unfilled: UnfilledRole[] };
 }
 
 export interface AreaCosts {
@@ -41,13 +46,28 @@ export interface AreaCosts {
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const share = (hours: number, cap: number) => (cap > 0 ? hours / cap : 0);
 
+/**
+ * Everyone invited to at least one meeting of the unit. A role nobody holds counts as one person,
+ * as it does for the cost (`role:<unit>:<role>`), so that cost and divisor agree.
+ */
+function invitedTo(ws: Workspace, unit: Team): Set<string> {
+  const out = new Set<string>();
+  for (const e of unit.events)
+    for (const p of e.participants) {
+      const ids = attendees(ws, unit.id, p);
+      if (ids.length === 0) out.add(`role:${unit.id}:${p.roleId}`);
+      for (const id of ids) out.add(id);
+    }
+  return out;
+}
+
 export function unitRow(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
-  people: string[],
   cap: number,
   rate: number | undefined,
+  invited: Set<string> = invitedTo(ws, unit),
 ): UnitRow {
   const hours = sum(Object.values(weeklyHoursByPerson(ws, unit.id)));
   const out: UnitRow = {
@@ -56,11 +76,11 @@ export function unitRow(
     capacity: cap,
     share: share(hours, cap),
     noHours: hours > 0 && cap <= 0,
-    people: people.length,
+    invited: invited.size,
   };
   if (rate) {
     const s = unitCostSummary(ws, index, unit, rate);
-    out.cost = { perWeek: s.perWeek, horizon: s.horizon };
+    out.cost = { perWeek: s.perWeek, horizon: s.horizon, unfilled: s.unfilled };
   }
   return out;
 }
@@ -72,12 +92,18 @@ export function areaCosts(
   rate?: number,
 ): AreaCosts {
   const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
+  const invited = new Set<string>();
   const teamRows = teams.map((t) => {
     const people = [...new Set(t.members.map((m) => m.personId))];
-    return unitRow(ws, index, t, people, sum(people.map((p) => capacity(ws, p, t.id))), rate);
+    const own = invitedTo(ws, t);
+    own.forEach((p) => invited.add(p));
+    return unitRow(ws, index, t, sum(people.map((p) => capacity(ws, p, t.id))), rate, own);
   });
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
-  const areaRow = unitRow(ws, index, areaAsTeam(area), areaPeople, 0, rate);
+  const areaUnit = areaAsTeam(area);
+  const areaInvited = invitedTo(ws, areaUnit);
+  areaInvited.forEach((p) => invited.add(p));
+  const areaRow = unitRow(ws, index, areaUnit, 0, rate, areaInvited);
   areaRow.share = 0;
   areaRow.noHours = false;
   const everyone = [
@@ -92,12 +118,13 @@ export function areaCosts(
     capacity: cap,
     share: share(hours, cap),
     noHours: hours > 0 && cap <= 0,
-    people: everyone.length,
+    invited: invited.size,
   };
   if (rate)
     total.cost = {
       perWeek: sum(all.map((r) => r.cost!.perWeek)),
       horizon: sum(all.map((r) => r.cost!.horizon)),
+      unfilled: all.flatMap((r) => r.cost!.unfilled),
     };
   return { teams: teamRows, area: areaRow, total };
 }

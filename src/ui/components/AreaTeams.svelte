@@ -19,7 +19,7 @@
   const teams = $derived(area.teamIds.flatMap((id) => $workspace.teams.filter((x) => x.id === id)));
 </script>
 
-<section class="area-teams">
+<section class="area-teams" data-no-print>
   {#if teams.length === 0}
     <AreaNoTeams {area} focusAfter=".area-teams button" />
   {:else}

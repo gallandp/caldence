@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+## 1.44.0 – 2026-11-17
+
+### Added
+
+- Calendar, Load, Meetings & cadence and the team or area page name the selected team or area in a quiet line above the headline, with the configured level name (#196) (#207)
+- The sidebar folds into a narrow rail of icons with the new button next to the logo or the key `[`; Caldence remembers the choice in this browser. (#244)
+- Without an hourly rate, Meetings & cadence and Meeting load offer a field to set one right there. (#245)
+- "Add to calendar…" in Meetings & cadence opens the export with this team, or with the person you exported last. (#245)
+- The area overview shows what the meetings cost per team and for the area itself, per week or in the planning horizon, and lists the five most expensive meetings. (#247)
+- The start screen, a one-time hint and an "area is ready" card show how to group teams into an area and what to do next (#191) (#248)
+- Empty states for an area without teams or without its own meetings (#191) (#248)
+- The manual has a chapter on areas, and the example file contains one (#191) (#248)
+- Exporting again after a change updates the entries of the earlier export in calendar apps that support updates, and meetings deleted since then are included as cancelled (#21) (#249)
+- Public holidays of all 16 German federal states; school holidays are bundled for Saxony so far (#23) (#260)
+
+### Changed
+
+- The team page shows only the team's own members; people and roles of the whole workspace are folded into a section below (#231). (#233)
+- One meeting limit everywhere: Settings shows it as "Grenze" in percent, warnings and the person table show shares in percent; the other rule is called "Lastspitze". (#235)
+- Clearer words: "Datei" instead of "Arbeitsbereich", "Terminlast" instead of "Auslastung", "abgestimmt" for teams in sync, "Eingeladen" for meeting roles, and your own level names (e.g. "Produkt") in hints that point to a view. (#235)
+- The area's entry in the sidebar shows the area icon instead of the people icon. (#244)
+- The area overview's meeting load counts all meetings of everyone in the area, the same figure as the new table's total. (#247)
+- Exporting a team that belongs to an area as a template now includes the area's cadence, cycles and meetings, so applying it rebuilds both levels (#246) (#250)
+- Meeting load: the new People list shows per person the teams, hours of the weekly hours, the share against the limit and how many hours are still free up to the limit. Sort by share or free hours, and click a name to see where the time comes from. (#251)
+- The manual describes areas in the chapters on views, calculation, files, calendar export and keyboard (#193) (#255)
+- An area without teams offers "Choose teams" on its overview instead of pointing to the sidebar menu (#254) (#256)
+- New present mode: "Present" turns Caldence into a clean view for meetings, with larger type and no editing controls. Duration, rhythm and cadence length can be changed as "what if" with a live effect on hours, cost, Meeting load and alignment; Escape ends presenting and discards all what-ifs, the file stays unchanged. Names can be hidden while presenting. (#259)
+- Print or save as PDF: a new Print button (on phones in the file menu) and a print layout show only the current view, in light colours and without navigation or edit controls, so the overview, the meeting load or the costs can go into a slide or a mail. An active search and a what-if while presenting are named on the paper. (#261)
+
+### Fixed
+
+- The Plan new wizard now suggests the date the cadence really starts on and says so when a template moves the picked date to its start weekday. (#239)
+- Meeting load: the average label of the "Hours per week" chart is no longer cut off when the average is close to the busiest week. (#240)
+- The category dot in the Base load table and the peak week in the Per person table no longer break onto a second line. (#241)
+- The setup wizard, the template preview and the delete-person dialog use proper singular and plural forms instead of "Woche(n)" / "week(s)". (#241)
+- The people list on the Team view names the area and hours of people who work in an area instead of "not assigned yet" (#252) (#257)
+- Importing an exported area calendar back into a team no longer offers the area's meetings as new ones (#253) (#258)
+- "Per person" in the area's meeting costs counts the same people in every row and in the total: everyone invited to at least one meeting (#263) (#266)
+- Meeting load: a person who works only in an area has their area hours (0 h until set) instead of the 40 h default (#265) (#268)
+
 ## 1.43.0 – 2026-11-16
 
 ### Changed

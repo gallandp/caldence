@@ -29,7 +29,12 @@
     (n > 0.004 ? '+' : n < -0.004 ? '−' : '±') + formatEuro($locale, Math.abs(n));
 </script>
 
-<section class="whatif-bar" aria-label={$t('whatif.bar')} data-whatif-bar>
+<section
+  class="whatif-bar"
+  aria-label={$t('whatif.bar')}
+  data-whatif-bar
+  data-empty={changes === 0 || undefined}
+>
   {#if changes === 0}
     <strong>{$t('whatif.bar')}</strong>
     <span class="muted">{$t('whatif.bar.empty')}</span>
@@ -65,8 +70,10 @@
         >
       {/if}
     {/if}
-    <span class="muted">{$t('whatif.bar.discarded')}</span>
-    <button type="button" class="secondary" onclick={resetWhatIf}>{$t('whatif.reset')}</button>
+    <span class="muted" data-no-print>{$t('whatif.bar.discarded')}</span>
+    <button type="button" class="secondary" data-no-print onclick={resetWhatIf}
+      >{$t('whatif.reset')}</button
+    >
   {/if}
 </section>
 

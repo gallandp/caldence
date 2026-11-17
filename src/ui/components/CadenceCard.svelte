@@ -123,15 +123,19 @@
           type="button"
           class="secondary"
           data-whatif-cadence
+          data-no-print
           bind:this={whatIfButton}
           onclick={() => (whatIf = true)}>{$t('whatif.open')}</button
         >
       {/if}
     {:else if none}
-      <button type="button" class="secondary" onclick={addCadence}>{$t('area.cadence.add')}</button>
+      <button type="button" class="secondary" data-no-print onclick={addCadence}
+        >{$t('area.cadence.add')}</button
+      >
     {:else}<button
         type="button"
         class="secondary"
+        data-no-print
         aria-expanded={showFields}
         aria-controls="{uid}-fields"
         aria-label={showFields ? undefined : $t('meet.cadence.editLabel')}

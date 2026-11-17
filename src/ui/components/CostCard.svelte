@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { CostSummary } from '../../core/cost';
-  import { formatEuro, locale, translate as t } from '../../i18n';
+  import { formatEuro, formatNumber, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
   interface Props {
@@ -13,6 +13,20 @@
   const euro = (n: number) => formatEuro($locale, n);
   const max = $derived(Math.max(0, ...summary.byCategory.map((c) => c.perWeek)));
   const category = (id: string) => $workspace.categories.find((c) => c.id === id);
+  const roleName = (id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id;
+  const unitName = (id: string) =>
+    [...$workspace.teams, ...$workspace.areas].find((u) => u.id === id)?.name ?? id;
+  /** Role names; with several teams in scope each with its team, since the gap is per team. */
+  const unfilledRoles = $derived.by(() => {
+    const several = new Set(summary.unfilled.map((u) => u.unitId)).size > 1;
+    return summary.unfilled
+      .map((u) =>
+        several
+          ? $t('cost.unfilled.inUnit', { role: roleName(u.roleId), unit: unitName(u.unitId) })
+          : roleName(u.roleId),
+      )
+      .join(', ');
+  });
 </script>
 
 <section class="card cost" aria-labelledby="{uid}-title" data-costs>
@@ -26,6 +40,14 @@
       <span class="value">{euro(summary.horizon)}</span> <small>{$t('cost.horizon')}</small>
     </p>
   </div>
+  {#if summary.unfilled.length > 0}
+    <p class="unfilled" data-cost-unfilled>
+      {$t(summary.unfilled.length === 1 ? 'cost.unfilled.one' : 'cost.unfilled.other', {
+        n: formatNumber($locale, summary.unfilled.length, 0),
+        roles: unfilledRoles,
+      })}
+    </p>
+  {/if}
   {#if summary.byCategory.length > 0}
     <p class="caption" id="{uid}-cats">{$t('cost.byCategory')}</p>
     <ul class="bars" aria-labelledby="{uid}-cats">
@@ -72,6 +94,11 @@
   small {
     font-size: 0.9rem;
     font-weight: 600;
+    color: var(--text-muted);
+  }
+  .unfilled {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
   }
   .caption {

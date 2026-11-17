@@ -51,6 +51,12 @@ html.presenting {
 html.presenting [data-no-present] {
   display: none !important;
 }
+/* Text that only paper needs, where a screen control said it (print.css shows it). */
+@media not print {
+  [data-print-only] {
+    display: none !important;
+  }
+}
 /* The what-if bar opens the page: the filters keep their own row instead of sitting beside it. */
 html.presenting #app .content > .bar.context {
   margin-bottom: 0;
