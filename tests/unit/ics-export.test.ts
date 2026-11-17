@@ -683,10 +683,50 @@ describe('exportIcs as an update of an earlier export (#21)', () => {
     // What lies after March is still in the calendar and stays remembered.
     expect(shorter.events.some((e) => e.date > '2027-03-31')).toBe(true);
 
+    // Holidays look the same in every selection: another export in the calendar may hold them.
     const noHolidays = build(ws, opts({ now: later, previous: first.events }));
-    const holidays = first.events.filter((e) => e.uid.startsWith('holiday-')).length;
-    expect(holidays).toBeGreaterThan(0);
-    expect(noHolidays.cancelled).toBe(holidays);
+    expect(first.events.some((e) => e.uid.startsWith('holiday-'))).toBe(true);
+    expect(noHolidays.cancelled).toBe(0);
+    expect(noHolidays.events.some((e) => e.uid.startsWith('holiday-'))).toBe(false);
+
+    const all = { holidays: false, schoolHolidays: false, milestones: true };
+    const withMilestones = build(ws, opts({ allDay: all }));
+    const milestones = withMilestones.events.filter((e) => e.uid.startsWith('milestone-')).length;
+    expect(milestones).toBeGreaterThan(0);
+    const noMilestones = build(ws, opts({ now: later, previous: withMilestones.events }));
+    expect(noMilestones.cancelled).toBe(milestones);
+  });
+
+  it('cancels a series whose occurrences in range are all gone', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const old = first.events.find((e) => e.series && e.date >= FROM)!;
+    const [eventId, unitId] = old.key!.split('.') as [string, string];
+    const unit = [...ws.teams, ...ws.areas].find((u) => u.id === unitId)!;
+    const event = unit.events.find((e) => e.id === eventId)!;
+    // Moved past the range: still a meeting of this selection, but nothing to write now.
+    event.rule = { type: 'once', date: '2099-01-01' } as typeof event.rule;
+    const second = build(ws, opts({ now: later, previous: first.events }));
+    expect(second.events.map((e) => e.uid)).not.toContain(old.uid);
+    expect(second.text).toContain(`UID:${old.uid}`);
+    expect(second.cancelled).toBeGreaterThan(0);
+  });
+
+  it('names school holidays by their first day, not by the start of the range', () => {
+    const ws = example();
+    const all = { holidays: false, schoolHolidays: true, milestones: false };
+    const a = build(ws, opts({ allDay: all }));
+    const run = a.events.find((e) => e.uid.startsWith('school-') && e.date > FROM)!;
+    expect(run).toBeDefined();
+    // A range that starts inside these holidays, with an index that still knows their start.
+    const from = run.date.replace(/\d\d$/, (d) => String(Number(d) + 1).padStart(2, '0'));
+    const copy: Workspace = {
+      ...ws,
+      settings: { ...ws.settings, horizon: { from: FROM, to: TO } },
+    };
+    const b = exportIcsWithCounts(ws, workspaceIndex(copy), opts({ from, allDay: all }));
+    expect(b.events.map((e) => e.uid)).toContain(run.uid);
+    expect(b.events.find((e) => e.uid === run.uid)?.shared).toBe(true);
   });
 
   it('keeps a series that has no date in a shorter range', () => {

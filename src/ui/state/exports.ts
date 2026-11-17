@@ -23,10 +23,28 @@ function read(): Store {
   }
 }
 
+const text = (v: unknown) => typeof v === 'string';
+/** Only well-formed entries are used: storage can be edited or written by an older version. */
+function isExported(v: unknown): v is ExportedEvent {
+  if (!v || typeof v !== 'object') return false;
+  const e = v as Record<string, unknown>;
+  return (
+    text(e.uid) &&
+    /^[^\r\n]+@caldence$/.test(e.uid as string) &&
+    text(e.date) &&
+    text(e.start) &&
+    /^DTSTART[;:][^\r\n]*$/.test(e.start as string) &&
+    text(e.end) &&
+    /^DTEND[;:][^\r\n]*$/.test(e.end as string) &&
+    text(e.summary) &&
+    (e.key === undefined || text(e.key))
+  );
+}
+
 /** The events of the last export of this scope; empty when there was none or storage is blocked. */
 export function lastExport(workspaceId: string, scope: Filter): ExportedEvent[] {
-  const events = read()[scopeKey(workspaceId, scope)]?.events;
-  return Array.isArray(events) ? events : [];
+  const events: unknown = read()[scopeKey(workspaceId, scope)]?.events;
+  return Array.isArray(events) ? events.filter(isExported) : [];
 }
 
 /** Remembers what an export of this scope put into the calendar. */

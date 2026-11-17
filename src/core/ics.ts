@@ -24,6 +24,11 @@ export interface ExportedEvent {
   key?: string;
   /** Set for a recurring series (one UID for all occurrences). */
   series?: boolean;
+  /**
+   * Set for all-day items every selection of the workspace writes the same way (holidays, school
+   * holidays): never cancelled, since another export in the same calendar may still hold them.
+   */
+  shared?: boolean;
   date: ISODate;
   start: string;
   end: string;
@@ -229,11 +234,12 @@ export type IcsExport = {
 };
 
 /**
- * SEQUENCE of every VEVENT: the minutes since 2020, so each export is newer than the one before
+ * SEQUENCE of every VEVENT: the seconds since 2020, so each export is newer than the one before
  * and calendars that honour updates replace the earlier version instead of adding a copy.
+ * Stays below 2^31 until 2088.
  */
 export function sequenceOf(now: Date): number {
-  return Math.max(0, Math.floor((now.getTime() - Date.UTC(2020, 0, 1)) / 60_000));
+  return Math.max(0, Math.floor((now.getTime() - Date.UTC(2020, 0, 1)) / 1000));
 }
 
 /**
@@ -380,12 +386,13 @@ export function exportIcsWithCounts(
     toExclusive: ISODate,
     summary: string,
     desc?: string,
+    shared = false,
   ) => {
     single++;
     const id = `${uidPart(uid)}.${uidPart(ws.id)}@caldence`;
     const start = `DTSTART;VALUE=DATE:${compactDate(from)}`;
     const end = `DTEND;VALUE=DATE:${compactDate(toExclusive)}`;
-    events.push({ uid: id, date: from, start, end, summary });
+    events.push({ uid: id, date: from, start, end, summary, ...(shared ? { shared } : {}) });
     lines.push(
       'BEGIN:VEVENT',
       `UID:${id}`,
@@ -403,17 +410,23 @@ export function exportIcsWithCounts(
 
   if (opts.allDay.holidays) {
     for (const [date, name] of [...index.holidays].sort(([a], [b]) => (a < b ? -1 : 1))) {
-      if (inRange(date)) allDay(`holiday-${date}`, date, addDays(date, 1), name[opts.locale]);
+      if (inRange(date)) {
+        allDay(`holiday-${date}`, date, addDays(date, 1), name[opts.locale], undefined, true);
+      }
     }
   }
 
   if (opts.allDay.schoolHolidays) {
-    const days = [...index.schoolHolidays]
-      .filter(([d]) => inRange(d))
-      .sort(([a], [b]) => (a < b ? -1 : 1));
+    // Runs are built from every day the index knows, also beyond the range, and written whole
+    // when they touch the range: the UID names the first day of the holidays, not of the range,
+    // so a later export with another start updates the same entry.
+    const days = [...index.schoolHolidays].sort(([a], [b]) => (a < b ? -1 : 1));
     let run: { from: ISODate; to: ISODate; name: HolidayName } | null = null;
     const flush = () => {
-      if (run) allDay(`school-${run.from}`, run.from, addDays(run.to, 1), run.name[opts.locale]);
+      if (run && run.to >= opts.from && run.from <= opts.to) {
+        const { from, to, name } = run;
+        allDay(`school-${from}`, from, addDays(to, 1), name[opts.locale], undefined, true);
+      }
     };
     for (const [date, name] of days) {
       const same =
@@ -445,28 +458,38 @@ export function exportIcsWithCounts(
   }
 
   // What the last export wrote and is gone now: cancelled, so calendars that honour updates
-  // remove it. A single entry only within this export's range (a shorter range is no removal);
-  // a series when its meeting is gone or is now written in another form.
+  // remove it: a series whose meeting left this selection or no longer exists, is now written in
+  // another form or has no occurrence in range though it starts there (one that starts outside
+  // is kept), and single entries within this export's range that were not written again.
+  // Holidays and school holidays are the same in every selection, so one calendar holding several
+  // selections keeps them: never cancelled, only forgotten.
   // What is neither written nor cancelled is still in the calendar: it stays remembered.
   const written = new Set(events.map((e) => e.uid));
   const kept: ExportedEvent[] = [];
+  const inRangeNow = (d: ISODate) => d >= opts.from && d <= opts.to;
   for (const old of opts.previous ?? []) {
     if (written.has(old.uid)) continue;
+    if (old.shared) {
+      if (!inRangeNow(old.date)) kept.push(old);
+      continue;
+    }
     const gone = old.series
-      ? !old.key || !scopeKeys.has(old.key) || writtenKeys.has(old.key)
-      : old.date >= opts.from && old.date <= opts.to;
+      ? !old.key || !scopeKeys.has(old.key) || writtenKeys.has(old.key) || inRangeNow(old.date)
+      : inRangeNow(old.date);
     if (!gone) {
       kept.push(old);
       continue;
     }
     cancelled++;
+    // The stored lines name the time zone of their export; this file defines the current one.
+    const zone = (line: string) => line.replace(/;TZID=[^:;]*/, `;TZID=${tzid}`);
     lines.push(
       'BEGIN:VEVENT',
       `UID:${old.uid}`,
       dtstamp,
       ...version,
-      old.start,
-      old.end,
+      zone(old.start),
+      zone(old.end),
       `SUMMARY:${escapeText(old.summary)}`,
       'STATUS:CANCELLED',
       'TRANSP:TRANSPARENT',
