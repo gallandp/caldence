@@ -576,9 +576,16 @@ describe('round trip with exportIcs', () => {
     const covered = new Set<string>();
     for (const team of ws.teams) {
       const review = reviewImport(events, { ws, teamId: team.id, today: TODAY });
-      // Area meetings cannot be imported into a team as their source; they come in as new ones.
-      for (const c of review.candidates)
-        if (!ws.areas.some((a) => c.key.includes(`.${a.id}.`))) all.add(c.key);
+      const fromArea = (c: { key: string }) => ws.areas.some((a) => c.key.includes(`.${a.id}.`));
+      for (const c of review.candidates) if (!fromArea(c)) all.add(c.key);
+      // Area meetings are already in Caldence too, in any team they are imported into (#253).
+      const areaEvents = new Set(ws.areas.flatMap((a) => a.events.map((e) => e.id)));
+      const areaCandidates = review.candidates.filter(fromArea);
+      expect(areaCandidates.length).toBeGreaterThan(0);
+      for (const c of areaCandidates) {
+        expect(areaEvents.has(c.duplicateOf ?? '')).toBe(true);
+        expect(c.selected).toBe(false);
+      }
       const firstDate = new Map<string, string>();
       for (const o of occurrences(team, ws.settings, index))
         if (!firstDate.has(o.eventId)) firstDate.set(o.eventId, o.date);
@@ -608,13 +615,44 @@ describe('round trip with exportIcs', () => {
           else expect(c.rule.type).toBe('once');
         }
       }
-      // Candidates of the other team are not duplicates of this team.
-      expect(review.candidates.every((c) => c.duplicateOf === null || mine.includes(c))).toBe(true);
+      // Candidates of the other teams are not duplicates of this team.
+      expect(
+        review.candidates.every(
+          (c) => c.duplicateOf === null || mine.includes(c) || areaCandidates.includes(c),
+        ),
+      ).toBe(true);
       for (const c of mine) covered.add(c.key);
     }
     // Every exported event is recognised as the source event of its own team.
     expect(all.size).toBeGreaterThan(0);
     expect([...covered].sort()).toEqual([...all].sort());
+  });
+});
+
+describe('reviewImport: area meetings (#253)', () => {
+  it("does not recognise a deleted area's meetings", () => {
+    const ws = exampleWorkspace();
+    const index = workspaceIndex(ws);
+    const { from, to } = ws.settings.horizon;
+    const area = ws.areas[0]!;
+    const text = exportIcs(ws, index, {
+      scope: { teamId: area.id },
+      from,
+      to,
+      reminderMinutes: null,
+      allDay: { holidays: false, schoolHolidays: false, milestones: false },
+      now: new Date(Date.UTC(2026, 10, 7)),
+      locale: 'en',
+    });
+    const events = ok(parseIcs(text));
+    const teamId = area.teamIds[0]!;
+    const kept = reviewImport(events, { ws, teamId, today: TODAY });
+    expect(kept.candidates.length).toBeGreaterThan(0);
+    expect(kept.candidates.every((c) => c.duplicateOf !== null && !c.selected)).toBe(true);
+
+    const gone: Workspace = { ...ws, areas: [] };
+    const review = reviewImport(events, { ws: gone, teamId, today: TODAY });
+    expect(review.candidates.every((c) => c.duplicateOf === null && c.selected)).toBe(true);
   });
 });
 
