@@ -1,8 +1,3 @@
-<script lang="ts" module>
-  /** The page last shown, kept while the app is open (like the calendar's Week/Month). */
-  let remembered: 'structure' | 'overview' = 'structure';
-</script>
-
 <script lang="ts">
   import { tick, type Snippet } from 'svelte';
   import { get } from 'svelte/store';
@@ -13,6 +8,7 @@
   import RoleList from '../components/RoleList.svelte';
   import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
+  import { areaPage } from '../state/view';
 
   /**
    * The upper level's page while an area is selected: one sidebar entry, two pages behind a
@@ -22,8 +18,10 @@
     $props();
 
   // A new area opens on its structure, where the "ready" card's steps act (only when shown).
+  // The page last shown is kept while the app is open and saved in the file (Q5).
   // svelte-ignore state_referenced_locally
-  let page = $state(get(areaReady) === area.id ? 'structure' : remembered);
+  if (get(areaReady) === area.id) areaPage.set('structure');
+  const page = $derived($areaPage);
   let pages: HTMLDivElement | undefined = $state();
 
   /** Closing the card removes the focused button: focus moves to the page switch. */
@@ -36,7 +34,7 @@
 
   /** The card's buttons act on the structure page, so it is shown first. */
   async function onStructure(run: (s: AreaStructure) => void) {
-    remembered = page = 'structure';
+    areaPage.set('structure');
     await tick();
     if (structure) run(structure);
   }
@@ -60,7 +58,7 @@
   {/if}
   <div class="pages" role="group" aria-label={$t('area.view.label')} bind:this={pages}>
     {#each ['structure', 'overview'] as const as p (p)}
-      <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
+      <button type="button" aria-pressed={page === p} onclick={() => areaPage.set(p)}
         >{$t(`area.view.${p}`)}</button
       >
     {/each}

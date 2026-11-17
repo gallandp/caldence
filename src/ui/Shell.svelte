@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { levels, translate as t } from '../i18n';
   import { APP_VERSION } from '../version';
   import TeamSwitcher from './TeamSwitcher.svelte';
@@ -29,6 +29,7 @@
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
+  import { areaPage, currentView } from './state/view';
   import { presenting, stopPresenting } from './state/present';
   import WhatIfBar from './components/WhatIfBar.svelte';
 
@@ -118,6 +119,24 @@
     void $version;
     setupDone = false;
     areaReady.set(undefined);
+  });
+
+  // Where the app is looking goes into the file on save (Q5) ...
+  $effect(() => {
+    currentView.set({ unit: $activeTeamId ?? undefined, page: active });
+  });
+  // ... and a file (or the autosave) opens there again. Unknown values are ignored.
+  $effect(() => {
+    void $version;
+    untrack(() => {
+      const saved = $workspace.view;
+      const unit = saved?.unit;
+      if (unit && [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
+        activeTeamId.set(unit);
+      areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
+      const page = views.find((id) => id === saved?.page);
+      if (page) active = page;
+    });
   });
   /**
    * Two or more teams and no area yet: offer once per workspace to group them. Shown on the

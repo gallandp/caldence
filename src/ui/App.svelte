@@ -5,6 +5,7 @@
   import { translate as t } from '../i18n';
   import { autosave, restoreWithTimeout, wantsReset } from './state/autosave';
   import { workspace } from './state/workspace';
+  import { areaPage, currentView, withView } from './state/view';
   import Shell from './Shell.svelte';
   import UpdateNotice from './UpdateNotice.svelte';
   import './tokens.css';
@@ -55,8 +56,11 @@
         (last.dirty && !next.dirty) ||
         last.version !== next.version);
     last = next;
+    // The view rides along, so a reload opens where the work was (Q5).
+    void $currentView;
+    void $areaPage;
     autosave.schedule(
-      { ws: $workspace, fileName: next.fileName, dirty: next.dirty },
+      { ws: withView($workspace), fileName: next.fileName, dirty: next.dirty },
       { immediate },
     );
   });

@@ -126,6 +126,20 @@ export interface Workspace {
   areas: Area[];
   /** Region files imported into this workspace; ids never equal a built-in region id. */
   customRegions: Region[];
+  /**
+   * Where the file was looking when it was saved, so it opens there again (persona concept Q5):
+   * the selected team or area, the view and the area page. Unknown values are ignored on open.
+   */
+  view?: SavedView;
+}
+
+export interface SavedView {
+  /** Id of the selected team or area. */
+  unit?: string;
+  /** The view: calendar, load, meetings, team, templates, settings, exchange or help. */
+  page?: string;
+  /** The area's page: structure or overview. */
+  areaPage?: string;
 }
 
 export function emptyWorkspace(today: ISODate): Workspace {

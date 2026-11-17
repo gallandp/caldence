@@ -10,6 +10,7 @@
   import { browserFileEnv, createFileService, isActivationError } from './state/files';
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
+  import { withView } from './state/view';
   import {
     hideNames,
     presenting,
@@ -109,9 +110,9 @@
   async function doSave(as: boolean): Promise<boolean> {
     const snapshot = get(workspace);
     try {
-      const name = await (as
-        ? files.saveAs(snapshot, get(fileName))
-        : files.save(snapshot, get(fileName)));
+      // The file also says where it was looking, so it opens there again (Q5).
+      const data = withView(snapshot);
+      const name = await (as ? files.saveAs(data, get(fileName)) : files.save(data, get(fileName)));
       if (name === null) return false;
       // Edits made while the picker was open are not in the file: stay dirty then.
       if (get(workspace) === snapshot) workspace.markSaved(name);
