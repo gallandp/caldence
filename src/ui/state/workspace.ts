@@ -20,6 +20,8 @@ export function createWorkspaceStore(initial: Workspace) {
   const fileName = writable<string | null>(null);
   const history = writable<Workspace[]>([]);
   const version = writable(0);
+  /** Set while presenting: the state, undo history and dirty flag to return to (M1). */
+  const baseline = writable<{ ws: Workspace; history: Workspace[]; dirty: boolean } | null>(null);
 
   function apply(change: Change): Result<Workspace> & { id?: string } {
     const current = get(state);
@@ -40,7 +42,8 @@ export function createWorkspaceStore(initial: Workspace) {
       return id === undefined ? { ok: true, value: current } : { ok: true, value: current, id };
     history.update((h) => [...h, structuredClone(current)].slice(-MAX_HISTORY));
     state.set(checked.value);
-    dirty.set(true);
+    // A what-if while presenting is not a change to the file.
+    if (!get(baseline)) dirty.set(true);
     return id === undefined ? checked : { ...checked, id };
   }
 
@@ -50,16 +53,56 @@ export function createWorkspaceStore(initial: Workspace) {
     if (previous === undefined) return false;
     history.set(h.slice(0, -1));
     state.set(previous);
-    dirty.set(true);
+    if (!get(baseline)) dirty.set(true);
     return true;
   }
 
   function replace(ws: Workspace, opts: { fileName: string | null; dirty: boolean }): void {
+    // Another workspace ends presenting; its what-ifs belonged to the old one.
+    baseline.set(null);
     history.set([]);
     version.update((n) => n + 1);
     state.set(ws);
     fileName.set(opts.fileName);
     dirty.set(opts.dirty);
+  }
+
+  /**
+   * Starts presenting: from now on changes are what-ifs. Undo covers only them, and
+   * `endPresent` brings back the state, history and dirty flag from before.
+   */
+  function beginPresent(): void {
+    if (get(baseline)) return;
+    baseline.set({ ws: get(state), history: get(history), dirty: get(dirty) });
+    history.set([]);
+  }
+
+  /** Ends presenting and discards every what-if; the file stays as it was. */
+  function endPresent(): void {
+    const b = get(baseline);
+    if (!b) return;
+    baseline.set(null);
+    history.set(b.history);
+    state.set(b.ws);
+    dirty.set(b.dirty);
+  }
+
+  /** Undoes every what-if and keeps presenting. */
+  function resetPresent(): void {
+    const b = get(baseline);
+    if (!b) return;
+    history.set([]);
+    state.set(b.ws);
+  }
+
+  /**
+   * Changes how the state looks while presenting (names hidden) without an undo step; the
+   * history gets the same change so an undo does not bring the names back.
+   */
+  function presentView(change: (ws: Workspace) => Workspace): void {
+    if (!get(baseline)) return;
+    state.update(change);
+    history.update((h) => h.map(change));
   }
 
   function markSaved(name: string): void {
@@ -84,6 +127,12 @@ export function createWorkspaceStore(initial: Workspace) {
     version: { subscribe: version.subscribe } as Readable<number>,
     replace,
     markSaved,
+    beginPresent,
+    endPresent,
+    resetPresent,
+    presentView,
+    /** The state from before presenting, or null when not presenting. */
+    presentBase: derived(baseline, (b) => b?.ws ?? null) as Readable<Workspace | null>,
   };
 }
 

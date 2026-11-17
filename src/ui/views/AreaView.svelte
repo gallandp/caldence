@@ -68,7 +68,7 @@
   {#if page === 'structure'}
     <AreaStructure bind:this={structure} {area} />
     <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
-    <details class="roles">
+    <details class="roles" data-no-present>
       <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>
       <RoleList />
     </details>

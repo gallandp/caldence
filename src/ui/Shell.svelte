@@ -29,6 +29,8 @@
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
+  import { presenting, stopPresenting } from './state/present';
+  import WhatIfBar from './components/WhatIfBar.svelte';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -65,6 +67,26 @@
   /** The area's page has the area marker (layers), not the people of a team. */
   const AREA_ICON = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
   const iconOf = (id: ViewId) => (id === 'team' && activeArea ? AREA_ICON : icons[id]);
+
+  /** Presenting: the sidebar is unfolded for the list of teams and areas. */
+  let pickOpen = $state(false);
+  $effect(() => {
+    void $activeTeamId;
+    void $presenting;
+    pickOpen = false;
+  });
+
+  /** While presenting only the views that show the plan stay; the rest is workspace editing. */
+  const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
+  const navViews = $derived($presenting ? views.filter((id) => PRESENTED.has(id)) : views);
+  $effect(() => {
+    if ($presenting && !PRESENTED.has(active)) select('calendar');
+  });
+  // Larger type for the projector, set on the root so every rem grows with it.
+  $effect(() => {
+    document.documentElement.classList.toggle('presenting', $presenting);
+    return () => document.documentElement.classList.remove('presenting');
+  });
 
   /** Views that follow the role/person filter; the others hide it. */
   const FILTERED: readonly ViewId[] = ['calendar', 'load'];
@@ -147,8 +169,8 @@
 
   function onKeydown(event: KeyboardEvent) {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    const i = views.indexOf(active);
-    const last = views.length - 1;
+    const i = navViews.indexOf(active);
+    const last = navViews.length - 1;
     const target: number | undefined =
       event.key === 'ArrowRight' || event.key === 'ArrowDown'
         ? i === last
@@ -165,7 +187,7 @@
               : undefined;
     if (target === undefined) return;
     event.preventDefault();
-    select(views[target]!, true);
+    select(navViews[target]!, true);
   }
 
   let bar: WorkspaceBar | undefined;
@@ -194,7 +216,26 @@
     // "[" folds or unfolds the sidebar (as in many editors), outside fields and dialogs. On German,
     // French or Swiss keyboards "[" needs AltGr (Ctrl+Alt on Windows) or Option on a Mac: only a
     // real command modifier rules it out.
+    // Escape ends presenting, unless something in front of the page (a dialog, a menu) takes it.
+    if (event.key === 'Escape' && $presenting) {
+      const target = event.target as HTMLElement | null;
+      if (
+        !event.defaultPrevented &&
+        // A checkbox (Hide names) is not text: Escape still ends presenting there.
+        !(typing(target) && !['checkbox', 'radio'].includes((target as HTMLInputElement).type)) &&
+        !menuOpen &&
+        // An open dialog, modal or not (the area person card), takes Escape first.
+        !document.querySelector('dialog[open]') &&
+        !target?.closest?.('dialog[open], .switcher .list, .switcher .menu, [aria-expanded="true"]')
+      ) {
+        event.preventDefault();
+        stopPresenting();
+      }
+      return;
+    }
     if (event.key === '[') {
+      // The rail is fixed while presenting.
+      if ($presenting) return;
       const altGr = event.getModifierState?.('AltGraph') || (event.ctrlKey && event.altKey);
       const command = event.metaKey || (event.ctrlKey && !altGr);
       const target = event.target as HTMLElement | null;
@@ -216,6 +257,11 @@
     // A modal dialog has its own keys; the structure view's person card is not modal.
     if (event.repeat || document.querySelector('dialog:modal')) return;
     const key = event.key.toLowerCase();
+    // Nothing is saved or opened while presenting: the what-ifs are not part of the file.
+    if ($presenting && (key === 's' || key === 'o')) {
+      event.preventDefault();
+      return;
+    }
     if (key === 's') {
       const field = commitFocused();
       void (event.shiftKey ? bar?.saveAs() : bar?.save());
@@ -281,7 +327,11 @@
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
-<div class="layout" class:rail={$rail}>
+<div
+  class="layout"
+  class:rail={($rail || $presenting) && !pickOpen}
+  class:present={$presenting && !pickOpen}
+>
   <aside class="sidebar">
     <div class="glow" aria-hidden="true"></div>
     <header>
@@ -304,6 +354,7 @@
       <button
         type="button"
         class="rail-toggle"
+        data-no-present
         aria-pressed={$rail}
         aria-keyshortcuts="["
         title={$t($rail ? 'nav.rail.open' : 'nav.rail.close') + ' ([)'}
@@ -338,8 +389,15 @@
       <div
         class="switch"
         onclickcapture={(event) => {
-          if (!$rail || !wide()) return;
-          if ((event.target as HTMLElement).closest('.pick')) setRail(false);
+          if (!wide() || !(event.target as HTMLElement).closest('.pick')) return;
+          // Presenting: the sidebar unfolds only while the list is open; the rail setting stays.
+          if ($presenting) pickOpen = !pickOpen;
+          else if ($rail) setRail(false);
+        }}
+        onfocusout={(event) => {
+          const next = event.relatedTarget as Node | null;
+          if (pickOpen && next && !(event.currentTarget as HTMLElement).contains(next))
+            pickOpen = false;
         }}
       >
         <TeamSwitcher onPlan={() => planWizard?.show()} />
@@ -349,8 +407,8 @@
     <!-- svelte-ignore a11y_no_static_element_interactions (Escape closes the menu from any control in it) -->
     <div id="side-nav" class="side-nav" class:open={menuOpen} onkeydown={onMenuKeydown}>
       <div class="tabs" role="tablist" aria-orientation="vertical" aria-label={$t('nav.views')}>
-        {#each views as id (id)}
-          {#if groupBefore.has(id)}
+        {#each navViews as id (id)}
+          {#if groupBefore.has(id) && !$presenting}
             <div class="group" aria-hidden="true"></div>
           {/if}
           <button
@@ -360,13 +418,15 @@
             aria-selected={active === id}
             aria-controls={'panel-' + id}
             tabindex={active === id ? 0 : -1}
-            title={$rail ? $t(viewKey(id)) : undefined}
+            title={$rail && !$presenting ? $t(viewKey(id)) : undefined}
             bind:this={tabs[id]}
             onclick={() => pick(id)}
             onkeydown={onKeydown}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={iconOf(id)} /></svg>
-            <span class="tab-label">{$t(viewKey(id))}</span>
+            <span class="tab-label"
+              >{$t(id === 'meetings' && $presenting ? 'view.meetings.short' : viewKey(id))}</span
+            >
           </button>
         {/each}
       </div>
@@ -397,7 +457,7 @@
     <WorkspaceBar bind:this={bar} filters={FILTERED.includes(active)}>
       {#snippet menu(close)}
         <div class="more-group" aria-hidden="true"></div>
-        {#each views.filter((id) => !primary.includes(id)) as id (id)}
+        {#each navViews.filter((id) => !primary.includes(id)) as id (id)}
           <button
             type="button"
             class="more-view"
@@ -448,6 +508,7 @@
     />
 
     <main id="main" tabindex="-1" bind:this={main}>
+      {#if $presenting}<WhatIfBar />{/if}
       {#each views as id (id)}
         <div
           role="tabpanel"
@@ -1108,6 +1169,32 @@
     }
     .rail .side-foot {
       display: none;
+    }
+    /* Presenting: the rail names each view under its icon, so the room can follow (Q6). */
+    .layout.present {
+      grid-template-columns: 6.25rem minmax(0, 1fr);
+    }
+    .present [role='tab'] {
+      flex-direction: column;
+      gap: 0.2rem;
+      padding: 0.55rem 0.2rem;
+    }
+    .present [role='tab'] .tab-label,
+    .present [role='tab']:focus-visible .tab-label {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      padding: 0;
+      background: none;
+      color: inherit;
+      box-shadow: none;
+      transform: none;
+      font-size: 0.72rem;
+      line-height: 1.15;
+      text-align: center;
+      white-space: normal;
     }
   }
   @media (max-width: 60rem) {
