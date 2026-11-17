@@ -1,6 +1,7 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
   import { shortcut } from './label';
+  import Rich from './Rich.svelte';
 
   const shortcuts = ['save', 'saveAs', 'open', 'undo', 'rail', 'present'] as const;
   const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter', 'escape'] as const;
@@ -9,6 +10,12 @@
 <section aria-labelledby="manual-keys">
   <h3 id="manual-keys">{$t('help.keyboard.title')}</h3>
   <p>{$t('help.keyboard.intro')}</p>
+  <p>
+    <Rich
+      key="help.keyboard.areas"
+      labels={{ structure: 'area.view.structure', overview: 'area.view.overview' }}
+    />
+  </p>
 
   <h4>{$t('help.keys.title')}</h4>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->

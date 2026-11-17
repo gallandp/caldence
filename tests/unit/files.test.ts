@@ -151,11 +151,32 @@ describe('example workspace', () => {
   it('validates and has two teams sharing Alex, with all six rule types', () => {
     const example = exampleWorkspace();
     expect(validate(example).ok).toBe(true);
-    expect(example.teams.map((t) => t.name)).toEqual(['Team Alpha', 'Team Beta']);
+    expect(example.teams.map((t) => t.name)).toEqual([
+      'Team Alpha',
+      'Team Beta',
+      'Team Gamma',
+      'Team Delta',
+    ]);
     const types = new Set(example.teams.flatMap((t) => t.events.map((e) => e.rule.type)));
     expect(types.size).toBe(6);
     const alex = example.people.find((p) => p.name === 'Alex')!;
-    expect(example.teams.every((t) => t.members.some((m) => m.personId === alex.id))).toBe(true);
+    const outside = example.teams.filter(
+      (t) => !example.areas.some((a) => a.teamIds.includes(t.id)),
+    );
+    expect(outside.every((t) => t.members.some((m) => m.personId === alex.id))).toBe(true);
+  });
+
+  it('has one area with an area-only person, area hours and a meeting for every team', () => {
+    const example = exampleWorkspace();
+    expect(example.areas).toHaveLength(1);
+    const area = example.areas[0]!;
+    expect(area.teamIds.length).toBeGreaterThanOrEqual(2);
+    // At least one team stays outside the area.
+    expect(example.teams.some((t) => !area.teamIds.includes(t.id))).toBe(true);
+    const inTeams = new Set(example.teams.flatMap((t) => t.members.map((m) => m.personId)));
+    expect(area.members.some((m) => !inTeams.has(m.personId))).toBe(true);
+    expect(Object.keys(area.memberHours).some((id) => inTeams.has(id))).toBe(true);
+    expect(area.events.some((e) => e.participants.some((p) => p.fromTeams))).toBe(true);
   });
 
   it('has overlapping events for Alex', () => {

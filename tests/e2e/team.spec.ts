@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import {
+  deleteAllUnits,
   openExample,
   openFixture,
   openTeamView,
@@ -171,18 +172,15 @@ test('deleting a team needs confirmation', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Delete Team Alpha?' });
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
-  await expect(unitNames(page)).toHaveCount(2);
+  // The example's area and its four teams.
+  await expect(unitNames(page)).toHaveCount(5);
 
   await teamAction(page, 'Delete team');
   await dialog.getByRole('button', { name: 'Delete team' }).click();
-  await expect(unitNames(page)).toHaveCount(1);
+  await expect(unitNames(page)).toHaveCount(4);
   await expect(currentUnit(page)).toHaveText('Team Beta');
 
-  await teamAction(page, 'Delete team');
-  await page
-    .getByRole('dialog', { name: 'Delete Team Beta?' })
-    .getByRole('button', { name: 'Delete team' })
-    .click();
+  await deleteAllUnits(page);
   await expect(currentUnit(page)).toHaveCount(0);
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
   await expect(panel(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
@@ -347,16 +345,39 @@ test('people and roles are created in the team view, hours count per team', asyn
   await openTeamView(page);
   const team = panel(page);
   await openPeoplePool(page);
-  await team.getByLabel('New person name').fill('Kim');
+  await team.getByLabel('New person name').fill('Noa');
   await team.getByLabel('New person name').press('Enter');
-  await expect(team.getByText('not assigned yet')).toBeVisible();
-  await team.getByLabel('Person', { exact: true }).fill('Kim');
+  await expect(
+    team.getByRole('listitem').filter({ has: page.getByRole('textbox', { name: /Noa/ }) }),
+  ).toContainText('not assigned yet');
+  await team.getByLabel('Person', { exact: true }).fill('Noa');
   await team.getByLabel('Hrs/week in team').fill('12');
   await team.getByRole('button', { name: 'Add member' }).click();
-  await expect(team.getByLabel('Weekly hours of Kim in Team Alpha')).toHaveValue('12');
+  await expect(team.getByLabel('Weekly hours of Noa in Team Alpha')).toHaveValue('12');
   await expect(team.getByText('Team Alpha 12 h', { exact: true })).toBeVisible();
   // Alex is in both example teams with 16 h each.
   await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
+});
+
+test('the people pool names the area of people who work in an area (#252)', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  await openPeoplePool(page);
+  const row = (name: string) =>
+    team.getByRole('listitem').filter({ has: page.getByRole('textbox', { name }) });
+  // Jordan leads the Commerce area and is in no team; Kim is in Team Gamma and the area.
+  await expect(row('Jordan')).toContainText('Commerce (area) 8 h');
+  await expect(row('Jordan')).not.toContainText('not assigned yet');
+  await expect(row('Kim')).toContainText('Team Gamma 32 h · Commerce (area) 4 h · Σ 36 h');
+  await setLanguage(page, 'de');
+  await openPeoplePool(page);
+  await expect(
+    page
+      .locator('#panel-team')
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('textbox', { name: 'Jordan' }) }),
+  ).toContainText('Commerce (Bereich) 8 h');
 });
 
 test('the team view folds the workspace-wide people and roles away (#231)', async ({ page }) => {
@@ -365,7 +386,7 @@ test('the team view folds the workspace-wide people and roles away (#231)', asyn
   const team = panel(page);
   const people = team.getByRole('region', { name: 'People', exact: true });
   await expect(team.getByText('All people and roles in this file')).toBeVisible();
-  await expect(team.getByText('2 people, 3 roles')).toBeVisible();
+  await expect(team.getByText('6 people, 4 roles')).toBeVisible();
   await expect(people).toBeHidden();
   await expect(team.getByRole('region', { name: 'Roles', exact: true })).toBeHidden();
   await openPeoplePool(page);

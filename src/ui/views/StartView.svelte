@@ -70,6 +70,7 @@
       {@render tile('file', 'start.file', onOpenFile, folder)}
       {@render tile('example', 'start.example', onOpenExample, sparkle)}
     </div>
+    <p class="areas">{$t('start.areas')}</p>
 
     <p class="foot">
       <button type="button" class="link" onclick={onManual}>
@@ -182,6 +183,13 @@
   }
   .big:hover svg {
     transform: translateX(3px);
+  }
+  .areas {
+    margin: 0.85rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    text-wrap: pretty;
   }
   .hint {
     margin: 0;

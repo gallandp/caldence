@@ -26,6 +26,30 @@
     $props();
 
   const { dirty, fileName } = workspace;
+
+  let presentButton: HTMLButtonElement | undefined = $state();
+  let endButton: HTMLButtonElement | undefined = $state();
+  /** An open meeting form would be dropped by presenting: it is closed first, on purpose. */
+  function present() {
+    if (document.querySelector('.eventform')) {
+      hint = 'present.closeForm';
+      return;
+    }
+    hint = null;
+    startPresenting();
+  }
+  // Start and end swap the buttons: the focus moves to the new one instead of getting lost.
+  let wasPresenting = false;
+  $effect(() => {
+    const now = $presenting;
+    if (now === wasPresenting) return;
+    wasPresenting = now;
+    void tick().then(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      (now ? endButton : presentButton)?.focus();
+    });
+  });
   /** A screen with a play mark: presenting (persona concept M1). */
   const PRESENT_ICON = 'M3 4h18v12H3zM12 16v4M8 20h8M10 8l4 2-4 2z';
   /** A printer: print or save the current view as PDF (persona concept M4). */
@@ -238,6 +262,7 @@
       class="present-toggle"
       data-present
       aria-pressed="true"
+      bind:this={endButton}
       onclick={stopPresenting}
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
@@ -303,7 +328,8 @@
         class="present-toggle start"
         data-present
         aria-pressed="false"
-        onclick={startPresenting}
+        bind:this={presentButton}
+        onclick={present}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
         {$t('file.present')}

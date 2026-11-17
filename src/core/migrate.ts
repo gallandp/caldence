@@ -1,6 +1,7 @@
 import { randomId } from './id';
 import { CURRENT_SCHEMA } from './model';
 import { record } from './record';
+import { isBuiltinRegion } from './regions';
 
 /** Migration `n` upgrades a workspace from schema `n` to `n + 1`. */
 export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
@@ -65,5 +66,30 @@ export function migrate(input: unknown): MigrateResult {
     value = step(value);
     (value as Record<string, unknown>).schemaVersion = v + 1;
   }
-  return { ok: true, value };
+  return { ok: true, value: unshadowRegions(value) };
+}
+
+/**
+ * An imported region whose id a newer app version bundles (Caldence once bundled only `de-sn`,
+ * now every German state, #23) gets a new id ending in `-imported`, and a selection of it follows,
+ * so the file still opens and keeps its own holidays instead of being refused or overridden.
+ */
+function unshadowRegions(value: unknown): unknown {
+  const ws = value as Record<string, unknown>;
+  if (!Array.isArray(ws.customRegions)) return value;
+  const regions = ws.customRegions as unknown[];
+  const taken = new Set(
+    regions.map((r) => (r as { id?: unknown } | null)?.id).filter((id) => typeof id === 'string'),
+  );
+  const settings = ws.settings as Record<string, unknown> | undefined;
+  ws.customRegions = regions.map((r) => {
+    const id = (r as { id?: unknown } | null)?.id;
+    if (typeof id !== 'string' || !isBuiltinRegion(id)) return r;
+    let next = `${id}-imported`;
+    for (let n = 2; taken.has(next) || isBuiltinRegion(next); n++) next = `${id}-imported-${n}`;
+    taken.add(next);
+    if (settings && settings.region === id) settings.region = next;
+    return { ...(r as object), id: next };
+  });
+  return value;
 }

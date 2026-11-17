@@ -375,7 +375,7 @@ describe('exportIcs UIDs, scope and reminder', () => {
   it('leaves out events without the scoped role', () => {
     const text = run(example(), opts({ scope: { roleId: 'role-dev' } satisfies Filter }));
     const ids = uids(text).map((u) => u.slice(4).split('.')[0]);
-    expect(ids.sort()).toEqual(['ev-flow-review', 'ev-replenishment']);
+    expect(ids.sort()).toEqual(['ev-delta-replenishment', 'ev-flow-review', 'ev-replenishment']);
     const sm = uids(run(example(), opts({ scope: { roleId: 'role-sm' } }))).map(
       (u) => u.slice(4).split('.')[0],
     );
@@ -617,5 +617,123 @@ describe('line helpers (security #39)', () => {
     expect(paramValue('a;b')).toBe('"a;b"');
     expect(paramValue('a:b')).toBe('"a:b"');
     expect(paramValue('a"b\r\n')).toBe('ab');
+  });
+});
+
+describe('exportIcs as an update of an earlier export (#21)', () => {
+  function build(ws: Workspace, o: IcsExportOptions) {
+    const copy: Workspace = {
+      ...ws,
+      settings: { ...ws.settings, horizon: { from: o.from, to: o.to } },
+    };
+    return exportIcsWithCounts(ws, workspaceIndex(copy), o);
+  }
+  const later = new Date(Date.UTC(2026, 10, 8, 9, 30, 0));
+
+  it('gives every VEVENT a SEQUENCE that grows with the export time, and LAST-MODIFIED', () => {
+    const first = build(example(), opts());
+    const second = build(example(), opts({ now: later }));
+    const seq = (text: string) =>
+      new Set(blocks(text, 'VEVENT').map((b) => b.find((l) => l.startsWith('SEQUENCE:'))));
+    expect(seq(first.text).size).toBe(1);
+    const a = Number([...seq(first.text)][0]!.slice(9));
+    const b = Number([...seq(second.text)][0]!.slice(9));
+    expect(b).toBeGreaterThan(a);
+    for (const block of blocks(first.text, 'VEVENT'))
+      expect(block).toContain('LAST-MODIFIED:20261107T120000Z');
+  });
+
+  it('sends a deleted meeting again as cancelled, with the same UID', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    expect(first.cancelled).toBe(0);
+    const alpha = ws.teams[0]!;
+    const gone = alpha.events.find((e) => e.id === 'ev-sync')!;
+    alpha.events = alpha.events.filter((e) => e !== gone);
+    const second = build(ws, opts({ now: later, previous: first.events }));
+    expect(second.cancelled).toBe(1);
+    const cancelled = blocks(second.text, 'VEVENT').filter((b) => b.includes('STATUS:CANCELLED'));
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]).toContain(`UID:ev-sync.team-alpha.${ws.id}@caldence`);
+    expect(cancelled[0]).toContain('SUMMARY:Weekly Sync');
+    // The cancelled entry is not remembered for the next export.
+    expect(second.events.some((e) => e.uid.startsWith('ev-sync.'))).toBe(false);
+    expect(build(ws, opts({ now: later, previous: second.events })).cancelled).toBe(0);
+    // ical.js reads the file.
+    expect(() => ICAL.parse(second.text)).not.toThrow();
+  });
+
+  it('cancels all-day items left out now, but nothing outside a shorter range', () => {
+    const ws = example();
+    const first = build(
+      ws,
+      opts({ allDay: { holidays: true, schoolHolidays: false, milestones: false } }),
+    );
+    const shorter = build(
+      ws,
+      opts({
+        from: '2027-01-01',
+        to: '2027-03-31',
+        now: later,
+        previous: first.events,
+        allDay: { holidays: true, schoolHolidays: false, milestones: false },
+      }),
+    );
+    expect(shorter.cancelled).toBe(0);
+    // What lies after March is still in the calendar and stays remembered.
+    expect(shorter.events.some((e) => e.date > '2027-03-31')).toBe(true);
+
+    // Holidays look the same in every selection: another export in the calendar may hold them.
+    const noHolidays = build(ws, opts({ now: later, previous: first.events }));
+    expect(first.events.some((e) => e.uid.startsWith('holiday-'))).toBe(true);
+    expect(noHolidays.cancelled).toBe(0);
+    expect(noHolidays.events.some((e) => e.uid.startsWith('holiday-'))).toBe(false);
+
+    const all = { holidays: false, schoolHolidays: false, milestones: true };
+    const withMilestones = build(ws, opts({ allDay: all }));
+    const milestones = withMilestones.events.filter((e) => e.uid.startsWith('milestone-')).length;
+    expect(milestones).toBeGreaterThan(0);
+    const noMilestones = build(ws, opts({ now: later, previous: withMilestones.events }));
+    expect(noMilestones.cancelled).toBe(milestones);
+  });
+
+  it('keeps a series that still belongs to the selection but has nothing in this range', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const old = first.events.find((e) => e.series && e.date > FROM)!;
+    // A range that ends before the series' first date: nothing to write, but it is not gone.
+    const second = build(ws, opts({ to: FROM, now: later, previous: first.events }));
+    expect(second.text).not.toContain(`UID:${old.uid}`);
+    expect(second.events.map((e) => e.uid)).toContain(old.uid);
+  });
+
+  it('names school holidays by their first day, not by the start of the range', () => {
+    const ws = example();
+    const all = { holidays: false, schoolHolidays: true, milestones: false };
+    const a = build(ws, opts({ allDay: all }));
+    const run = a.events.find((e) => e.uid.startsWith('school-') && e.date > FROM)!;
+    expect(run).toBeDefined();
+    // A range that starts inside these holidays, with an index that still knows their start.
+    const from = run.date.replace(/\d\d$/, (d) => String(Number(d) + 1).padStart(2, '0'));
+    const copy: Workspace = {
+      ...ws,
+      settings: { ...ws.settings, horizon: { from: FROM, to: TO } },
+    };
+    const b = exportIcsWithCounts(ws, workspaceIndex(copy), opts({ from, allDay: all }));
+    expect(b.events.map((e) => e.uid)).toContain(run.uid);
+    expect(b.events.find((e) => e.uid === run.uid)?.shared).toBe(true);
+  });
+
+  it('keeps a series that has no date in a shorter range', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const kickoff = first.events.find((e) => e.uid.startsWith('ev-review.team-alpha'));
+    expect(kickoff?.series).toBe(true);
+    const short = build(
+      ws,
+      opts({ from: '2027-01-04', to: '2027-01-05', now: later, previous: first.events }),
+    );
+    expect(short.cancelled).toBe(0);
+    expect(short.events.map((e) => e.uid)).toContain(kickoff!.uid);
   });
 });

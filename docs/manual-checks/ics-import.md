@@ -21,4 +21,4 @@ Issue #16 asks for a check in real calendar apps, because automated tests cannot
 
 ## Reminder about re-importing
 
-Importing the same file again updates nothing yet; delete the old entries first. Updating is tracked in #21.
+Re-exporting after a change is checked separately in [ics-update.md](ics-update.md).

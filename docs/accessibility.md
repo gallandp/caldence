@@ -12,6 +12,16 @@ Caldence targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA, in German a
 - **The accessibility audit.** [`tests/e2e/a11y-audit.spec.ts`](../tests/e2e/a11y-audit.spec.ts) also runs in CI. With the example workspace loaded, it checks every view at 320 and 640 px width (reflow), in forced colours, with reduced motion, and walks from the start screen to an .ics export with the keyboard only. The results and findings are in the [audit report 2026](accessibility/audit-2026.md).
 - **Screen readers.** Hand testing with NVDA and Firefox on Windows and with VoiceOver and Safari on macOS is planned, with the checklists in the audit report. It is not complete yet; the results will be recorded there.
 
+## Areas
+
+When an area is selected in the team switcher, the area's sidebar entry holds two pages:
+
+- **Structure | Overview** is a group of two toggle buttons (`aria-pressed`) named "Page". Tab reaches it, Space or Enter switches the page.
+- **Structure tree.** The area, its teams and their people are headed sections; every person is a button that says their name and hours. The lines between the nodes are decoration and hidden from screen readers. "Show as" switches the tree to a table with a caption, which reads row by row. "Highlight" is a group of toggle buttons that marks the people only in a team, only in the area, or in both.
+- **Person card.** Pressing a person opens their card as a non-modal dialog named by the person. Focus moves into the card (to the area hours when they were asked for); Escape closes it, also while focus is back in the tree, and focus returns to the person's button or, when they left the area, to the nearest tile. Escape inside a new role only cancels that role.
+- **Overview.** Key figures, meeting costs, the cadence strip and the meeting load are headed sections; costs and load are tables with headers, and wide tables scroll inside a labelled region you can reach with Tab.
+- **Colour is never the only carrier of meaning.** The group colours (only in a team, only in the area, both) always come with the group's name, the area's colour comes with its name and icon, and load bars come with their values.
+
 ## Known limitations
 
 - **Screen-reader testing is not complete yet.** Caldence is built for screen readers (names, roles, states and live messages are checked automatically), but the hand tests with NVDA and VoiceOver are still open.
