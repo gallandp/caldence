@@ -583,6 +583,11 @@ export function reviewImport(
       if (!bySignature.has(sig)) bySignature.set(sig, e.id);
     }
   }
+  // Meetings of an area are exported with the area's id: an exported area calendar imported back
+  // into one of the teams is already in Caldence (#253). A deleted area's UIDs match nothing,
+  // like those of a deleted team.
+  for (const area of ws.areas)
+    for (const e of area.events) byUid.set(`${e.id}.${area.id}.${ws.id}`, e.id);
   const categoryByName = new Map<string, string>();
   for (const c of ws.categories)
     if (!categoryByName.has(nameKey(c.name))) categoryByName.set(nameKey(c.name), c.id);
