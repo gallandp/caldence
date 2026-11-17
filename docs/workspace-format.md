@@ -89,7 +89,7 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
-Older files (schema 1 to 4) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Files with areas (schema 5) need Caldence 1.33 or newer.
+Older files (schema 1 to 4) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer.
 
 ## Limits
 

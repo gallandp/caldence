@@ -1,6 +1,6 @@
 # Template format
 
-A Caldence template describes the roles, categories and recurring events of **one team**, without any people, and optionally the area above it. It is a JSON file with the workspace schema version of the app that wrote it (currently `5`). Templates and workspaces share one version number: older versions (1 to 4) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in templates are version `2` and are migrated like any other.
+A Caldence template describes the roles, categories and recurring events of **one team**, without any people, and optionally the area above it. It is a JSON file with the workspace schema version of the app that wrote it (currently `5`). Templates and workspaces share one version number: older versions (1 to 4) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in Scrum and Kanban templates are version `2` and are migrated like any other; SAFe, which has an area, is version `5`.
 
 ## Fields
 

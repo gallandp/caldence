@@ -10,7 +10,12 @@
 <section aria-labelledby="manual-keys">
   <h3 id="manual-keys">{$t('help.keyboard.title')}</h3>
   <p>{$t('help.keyboard.intro')}</p>
-  <p><Rich key="help.keyboard.areas" labels={{ structure: 'area.view.structure' }} /></p>
+  <p>
+    <Rich
+      key="help.keyboard.areas"
+      labels={{ structure: 'area.view.structure', overview: 'area.view.overview' }}
+    />
+  </p>
 
   <h4>{$t('help.keys.title')}</h4>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
