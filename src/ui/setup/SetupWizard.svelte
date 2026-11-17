@@ -47,6 +47,15 @@
   /** Templates start on a fixed weekday (or with the area's next increment), not on any date. */
   const actual = $derived(template && start ? templateStart($workspace, template, start) : null);
   const moved = $derived(actual && actual.start !== start ? actual : null);
+  const movedText = $derived.by(() => {
+    if (!moved || !template) return '';
+    const date = formatDisplayDate($locale, moved.start, 'long');
+    if (moved.area) return $t('setup.start.joined', { area: moved.area, date });
+    const weekday = new Intl.DateTimeFormat($locale, { weekday: 'long', timeZone: 'UTC' }).format(
+      new Date(`${moved.start}T00:00:00Z`),
+    );
+    return $t('setup.start.moved', { template: template.name, weekday, date });
+  });
   const steps = $derived(withFrame ? 4 : 3);
   /** People of the workspace; a name entered again is the same person. */
   const known = $derived.by(() => {
@@ -237,21 +246,7 @@
         />
         <!-- Always present, so screen readers announce the text when it appears. -->
         <p class="hint moved" id="{uid}-start-moved" aria-live="polite">
-          {#if moved && template}
-            {moved.area
-              ? $t('setup.start.joined', {
-                  area: moved.area,
-                  date: formatDisplayDate($locale, moved.start, 'long'),
-                })
-              : $t('setup.start.moved', {
-                  template: template.name,
-                  weekday: new Intl.DateTimeFormat($locale, {
-                    weekday: 'long',
-                    timeZone: 'UTC',
-                  }).format(new Date(`${moved.start}T00:00:00Z`)),
-                  date: formatDisplayDate($locale, moved.start, 'long'),
-                })}
-          {/if}
+          {movedText}
         </p>
       </div>
     {:else if step === 3}
