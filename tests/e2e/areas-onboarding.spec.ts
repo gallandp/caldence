@@ -176,6 +176,31 @@ test('the areas chapter of the manual names controls the area page has', async (
     await expect(area.getByRole(c.role, { name: en(c.name), exact: true })).toBeVisible();
 });
 
+test('an area without teams offers "Choose teams" on its overview (#254)', async ({ page }) => {
+  const ws = structuredClone(example);
+  ws.settings.locale = 'en';
+  ws.areas[0].teamIds = [];
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Area');
+  const area = panel(page, 'Area');
+  await area.getByRole('button', { name: 'Overview', exact: true }).click();
+  await expect(area.getByText('Commerce has no teams yet. Choose the teams')).toBeVisible();
+  await expect(area.getByText('⋯ menu')).toHaveCount(0);
+  await expect(area.getByRole('heading', { name: 'Cadence and meeting load' })).toHaveCount(0);
+  await area.getByRole('button', { name: 'Choose teams …' }).click();
+  const teams = page.getByRole('dialog', { name: 'Teams in Commerce' });
+  await teams.getByRole('checkbox', { name: 'Team Gamma' }).check();
+  await teams.getByRole('button', { name: 'Apply' }).click();
+  await expect(teams).toBeHidden();
+  await expect(area.getByText('Commerce has no teams yet')).toHaveCount(0);
+  // The button is gone with the empty state: focus lands on the chosen team, and the comparison
+  // of cadences, hidden without teams, is back.
+  await expect(area.getByRole('button', { name: /Team Gamma/ }).first()).toBeFocused();
+  await expect(area.getByRole('heading', { name: 'Cadence and meeting load' })).toBeVisible();
+});
+
 for (const scheme of ['light', 'dark'] as const) {
   for (const width of [1280, 390]) {
     test(`axe passes on the hint, the ready card and the empty states (${scheme}, ${width} px)`, async ({

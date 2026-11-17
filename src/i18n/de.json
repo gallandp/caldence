@@ -227,7 +227,6 @@
   "area.option": ", {levelArea},",
   "area.ungrouped": "Ohne {levelArea}",
   "area.view.team": "Personen und Rollen ordnen Sie pro {levelTeam} zu. Zur Auswahl in {name}:",
-  "area.view.empty": "{name} hat noch keine {levelTeams}. Wählen Sie sie oben in der Seitenleiste im Menü ⋯.",
   "area.view.label": "Seite",
   "area.view.structure": "Struktur",
   "area.view.overview": "Überblick",
