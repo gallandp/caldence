@@ -327,3 +327,44 @@ test('on narrow screens the role and person filters share one row', async ({ pag
   await expect(page.getByText('All teams')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('the sidebar folds into a rail with "[" and remembers it', async ({ page }) => {
+  await openExample(page);
+  const fold = page.getByRole('button', { name: 'Narrow sidebar' });
+  await expect(fold).toHaveAttribute('aria-pressed', 'false');
+  // "[" typed into a field stays text.
+  await page.getByRole('tab', { name: 'Settings' }).click();
+  const field = page.getByRole('textbox').first();
+  await field.focus();
+  await page.keyboard.press('[');
+  await expect(fold).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('tab', { name: 'Calendar' }).click();
+  await page.keyboard.press('[');
+  await expect(fold).toHaveAttribute('aria-pressed', 'true');
+  // Icons only, but every view keeps its name for assistive technology and as a tooltip.
+  const load = page.getByRole('tab', { name: 'Meeting load' });
+  await expect(load).toHaveAttribute('title', 'Meeting load');
+  expect((await page.locator('aside.sidebar').boundingBox())!.width).toBeLessThan(100);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Narrow sidebar' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Narrow sidebar' }).click();
+  await expect(page.getByRole('button', { name: 'Narrow sidebar' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  expect((await page.locator('aside.sidebar').boundingBox())!.width).toBeGreaterThan(200);
+});
+
+test('in the rail, the team badge unfolds the sidebar to pick a team', async ({ page }) => {
+  await openExample(page);
+  await page.keyboard.press('[');
+  await page.locator('.switcher .pick').click();
+  await expect(page.getByRole('button', { name: 'Narrow sidebar' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.locator('.switcher .list')).toBeVisible();
+});

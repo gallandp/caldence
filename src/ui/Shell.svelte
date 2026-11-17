@@ -22,6 +22,7 @@
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
+  import { rail, setRail } from './state/sidebar';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -55,6 +56,9 @@
     exchange: 'M7 7h13l-4-4M17 17H4l4 4',
     help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
   };
+  /** The area's page has the area marker (layers), not the people of a team. */
+  const AREA_ICON = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
+  const iconOf = (id: ViewId) => (id === 'team' && activeArea ? AREA_ICON : icons[id]);
 
   /** Views that follow the role/person filter; the others hide it. */
   const FILTERED: readonly ViewId[] = ['calendar', 'load'];
@@ -149,7 +153,25 @@
     return field;
   }
 
+  /** True while the user types into a field, so a plain key there stays text. */
+  function typing(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+  }
+
   function onShortcut(event: KeyboardEvent) {
+    // "[" folds or unfolds the sidebar (as in many editors), outside fields and dialogs.
+    if (
+      event.key === '[' &&
+      !(event.ctrlKey || event.metaKey || event.altKey) &&
+      !event.repeat &&
+      !typing(event.target) &&
+      !document.querySelector('dialog:modal')
+    ) {
+      event.preventDefault();
+      setRail(!$rail);
+      return;
+    }
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
     // A modal dialog has its own keys; the structure view's person card is not modal.
     if (event.repeat || document.querySelector('dialog:modal')) return;
@@ -164,11 +186,7 @@
       void bar?.open();
     } else if (key === 'z' && !event.shiftKey) {
       const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-      )
-        return; // the field's own undo
+      if (typing(target)) return; // the field's own undo
       // A form or an open meeting draft would be closed as stale by the undo: do nothing.
       if (target?.closest('form') || document.querySelector('.eventform')) {
         event.preventDefault();
@@ -223,7 +241,7 @@
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
-<div class="layout">
+<div class="layout" class:rail={$rail}>
   <aside class="sidebar">
     <div class="glow" aria-hidden="true"></div>
     <header>
@@ -245,6 +263,21 @@
       </div>
       <button
         type="button"
+        class="rail-toggle"
+        aria-pressed={$rail}
+        aria-keyshortcuts="["
+        title={$t($rail ? 'nav.rail.open' : 'nav.rail.close') + ' ([)'}
+        onclick={() => setRail(!$rail)}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"
+          ><path
+            d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM9 4v16"
+          /><path d={$rail ? 'M13 10l2 2-2 2' : 'M16 10l-2 2 2 2'} /></svg
+        >
+        <span class="sr-only">{$t('nav.rail')}</span>
+      </button>
+      <button
+        type="button"
         class="menu-toggle"
         aria-expanded={menuOpen}
         aria-controls="side-nav"
@@ -260,7 +293,17 @@
     </header>
 
     {#if !(active === 'calendar' && noTeams)}
-      <TeamSwitcher onPlan={() => planWizard?.show()} />
+      <!-- In the rail the switcher is only its badge: a click unfolds the sidebar first, so the
+           list of teams opens at full width. -->
+      <div
+        class="switch"
+        onclickcapture={(event) => {
+          if (!$rail) return;
+          if ((event.target as HTMLElement).closest('.pick')) setRail(false);
+        }}
+      >
+        <TeamSwitcher onPlan={() => planWizard?.show()} />
+      </div>
     {/if}
 
     <!-- svelte-ignore a11y_no_static_element_interactions (Escape closes the menu from any control in it) -->
@@ -277,12 +320,13 @@
             aria-selected={active === id}
             aria-controls={'panel-' + id}
             tabindex={active === id ? 0 : -1}
+            title={$rail ? $t(viewKey(id)) : undefined}
             bind:this={tabs[id]}
             onclick={() => pick(id)}
             onkeydown={onKeydown}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
-            <span>{$t(viewKey(id))}</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={iconOf(id)} /></svg>
+            <span class="tab-label">{$t(viewKey(id))}</span>
           </button>
         {/each}
       </div>
@@ -324,7 +368,7 @@
               main?.focus();
             }}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={iconOf(id)} /></svg>
             {$t(viewKey(id))}
           </button>
         {/each}
@@ -480,7 +524,7 @@
       bind:this={barTabs[id]}
       onclick={() => select(id)}
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={icons[id]} /></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={iconOf(id)} /></svg>
       <span>{$t(id === 'meetings' ? 'view.meetings.short' : viewKey(id))}</span>
     </button>
   {/each}
@@ -811,6 +855,99 @@
     flex-wrap: wrap;
     gap: 0.5rem;
   }
+  /* The fold button: on the dark header, only on wide screens (narrow ones have the menu). */
+  :global(#app) .rail-toggle {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: 0.6rem;
+    background: rgb(255 255 255 / 0.04);
+    box-shadow: none;
+    color: var(--side-text);
+    cursor: pointer;
+  }
+  :global(#app) header button.rail-toggle:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+  }
+  .rail-toggle:focus-visible {
+    outline-color: #b9b0ff;
+  }
+  .rail-toggle svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .switch {
+    display: contents;
+  }
+  /* ---------- the rail: icons only, names as tooltips ---------- */
+  @media (min-width: 60.0625rem) {
+    .layout.rail {
+      grid-template-columns: 4.75rem minmax(0, 1fr);
+    }
+    .rail .sidebar {
+      padding: 1rem 0.6rem;
+      align-items: stretch;
+    }
+    .rail header {
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0;
+    }
+    .rail h1 {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    /* Only the badge of the selected team or area stays. */
+    .rail .switch {
+      display: block;
+    }
+    .rail .switch :global(.switcher) {
+      justify-content: center;
+      padding: 0.4rem;
+    }
+    :global(#app) .rail .switch :global(.switcher .text),
+    :global(#app) .rail .switch :global(.switcher button.toggle) {
+      display: none;
+    }
+    :global(#app) .rail .switch :global(.switcher button.pick) {
+      flex: none;
+    }
+    .rail [role='tab'] {
+      justify-content: center;
+      padding: 0.6rem 0;
+    }
+    .rail [role='tab'] .tab-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .rail [role='tab'][aria-selected='true']::before {
+      left: -0.6rem;
+    }
+    .rail .group {
+      margin-inline: 0.35rem;
+    }
+    .rail .side-foot {
+      display: none;
+    }
+  }
   @media (max-width: 60rem) {
     .layout {
       grid-template-columns: minmax(0, 1fr);
@@ -827,6 +964,9 @@
     /* The views and links fold into a menu below the header. */
     :global(#app) .menu-toggle {
       display: inline-flex;
+    }
+    :global(#app) .rail-toggle {
+      display: none;
     }
     .side-nav {
       display: none;
