@@ -70,7 +70,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `time` | `HH:MM` | Start time. |
 | `duration` | integer | Minutes, above 0. |
 | `scaling` | `{ base, perUnit, assumption, grid }`, optional | Duration grows with a team assumption: `base` plus `perUnit` per unit of `assumption`, rounded to `grid` minutes. |
-| `participants` | list of `{ roleId, share }` | Roles taking part; `share` is above 0 and at most 1. |
+| `participants` | list of `{ roleId, share, fromTeams? }` | Roles taking part; `share` is above 0 and at most 1. Only in an area's meetings, `fromTeams: true` invites the role from every team of the area ("Product Owner from every team") instead of the area's own members with that role. In a team's meeting `fromTeams` is an error. |
 | `preparation` | number, 0 to 1 | Preparation time as a fraction of the duration. |
 
 ## Rule types
@@ -83,11 +83,13 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 | `weekdays` | `{ "type": "weekdays", "weekdays": [1, 2, 3, 4, 5] }` | Several weekdays; not empty, no duplicates. |
 | `every-n-weeks` | `{ "type": "every-n-weeks", "weekday": 3, "n": 2, "anchor": "2027-01-06" }` | Every `n` weeks, counted from the `anchor` date. |
 | `monthly-nth-weekday` | `{ "type": "monthly-nth-weekday", "weekday": 2, "nth": -1 }` | The `nth` (1 to 5, or -1 for the last) weekday of each month. |
-| `cadence-day` | `{ "type": "cadence-day", "day": 0 }` | A day of each cadence period; 0 is the start day and the day must lie within `lengthWeeks`. |
-| `cycle-milestone` | `{ "type": "cycle-milestone", "cycleId": "cy1", "milestoneId": "m1", "offsetDays": -1 }` | Relative to a milestone of a cycle of the same team; the offset is in days and may be negative. |
+| `cadence-day` | `{ "type": "cadence-day", "day": 0 }` | A day of each cadence period; 0 is the start day and the day must lie within `lengthWeeks`. In an area it needs the area's own `cadence`. |
+| `cycle-milestone` | `{ "type": "cycle-milestone", "cycleId": "cy1", "milestoneId": "m1", "offsetDays": -1 }` | Relative to a milestone of a cycle of the same team or area; the offset is in days and may be negative. |
 | `once` | `{ "type": "once", "date": "2027-03-01" }` | A single date. |
 
 ## Migrations and versions
+
+Older files (schema 1 to 4) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer.
 
 ## Limits
 
@@ -100,7 +102,8 @@ A file that goes beyond these limits is rejected with a message naming the field
 | Planning horizon | at most 5 years (`to` at most the same date 5 years after `from`) |
 | Meetings | 500 in all teams and areas together |
 | Teams / areas / roles / categories / people | 50 / 50 / 200 / 200 / 1000 |
-| Members, cycles, milestones per cycle, assumptions per team | 1000, 100, 100, 50 |
+| Teams per area | 50 |
+| Members, cycles, milestones per cycle (teams and areas), assumptions per team | 1000, 100, 100, 50 |
 | Imported regions | 20 (each with at most 100 holidays and 500 school holidays of at most a year each) |
 | Names and other text | 200 characters (template description: 2000) |
 | Hours per week | 168 |
@@ -112,7 +115,6 @@ A file that goes beyond these limits is rejected with a message naming the field
 
 If a stored workspace ever keeps the app from starting, open it with `?reset` at the end of the address (for example `https://caldence.de/?reset`). The app then starts with an empty workspace; the stored one is kept in the browser as a backup (`current.bak`) until the next reset or unreadable start.
 
-Older files (schema 1 to 4) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead.
 
 ## Privacy
 
@@ -134,8 +136,14 @@ A workspace file contains names of people, their working hours and your meeting 
     "skipHolidays": true,
     "thresholds": { "warnFactor": 1.5, "maxFte": 0.6 }
   },
-  "roles": [{ "id": "r1", "name": "Scrum Master", "colour": "#1d4ed8" }],
-  "people": [{ "id": "p1", "name": "Alex" }],
+  "roles": [
+    { "id": "r1", "name": "Scrum Master", "colour": "#1d4ed8" },
+    { "id": "r2", "name": "Head of area", "colour": "#7e22ce" }
+  ],
+  "people": [
+    { "id": "p1", "name": "Alex" },
+    { "id": "p2", "name": "Jordan" }
+  ],
   "categories": [{ "id": "c1", "name": "Meetings", "colour": "#15803d" }],
   "customRegions": [],
   "teams": [
@@ -161,6 +169,30 @@ A workspace file contains names of people, their working hours and your meeting 
       ]
     }
   ],
-  "areas": []
+  "areas": [
+    {
+      "id": "a1",
+      "name": "Platform",
+      "teamIds": ["t1"],
+      "members": [{ "personId": "p2", "roleId": "r2" }],
+      "memberHours": { "p2": 8 },
+      "cycles": [],
+      "events": [
+        {
+          "id": "e2",
+          "name": "Scrum of Scrums",
+          "categoryId": "c1",
+          "rule": { "type": "weekly", "weekday": 3 },
+          "time": "14:00",
+          "duration": 30,
+          "participants": [
+            { "roleId": "r1", "share": 1, "fromTeams": true },
+            { "roleId": "r2", "share": 1 }
+          ],
+          "preparation": 0
+        }
+      ]
+    }
+  ]
 }
 ```
