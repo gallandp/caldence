@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
 import { loadRail, rail, setRail } from '../../src/ui/state/sidebar';
 
@@ -13,6 +13,8 @@ function memory(initial: Record<string, string> = {}) {
 }
 
 describe('sidebar rail', () => {
+  beforeEach(() => rail.set(false));
+
   it('is unfolded for nothing, junk or blocked storage', () => {
     expect(loadRail(memory())).toBe(false);
     expect(loadRail(memory({ 'caldence.sidebar': 'wide' }))).toBe(false);

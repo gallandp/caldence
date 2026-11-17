@@ -249,6 +249,7 @@
     <button
       type="button"
       class="pick"
+      title={pickTitle}
       bind:this={pick}
       aria-expanded={listOpen}
       aria-controls="{uid}-list"
@@ -259,7 +260,7 @@
       {:else}
         <span class="avatar" aria-hidden="true">{initials}</span>
       {/if}
-      <span class="text" title={pickTitle}>
+      <span class="text">
         <span class="name"
           ><span class="label">{current.name}</span><svg
             class="chev"

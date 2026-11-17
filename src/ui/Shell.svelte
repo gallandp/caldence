@@ -153,6 +153,9 @@
     return field;
   }
 
+  /** The rail exists on wide screens only; narrow ones keep their menu and tab bar. */
+  const wide = () => matchMedia('(min-width: 60.0625rem)').matches;
+
   /** True while the user types into a field, so a plain key there stays text. */
   function typing(target: EventTarget | null): boolean {
     const el = target as HTMLElement | null;
@@ -160,16 +163,25 @@
   }
 
   function onShortcut(event: KeyboardEvent) {
-    // "[" folds or unfolds the sidebar (as in many editors), outside fields and dialogs.
-    if (
-      event.key === '[' &&
-      !(event.ctrlKey || event.metaKey || event.altKey) &&
-      !event.repeat &&
-      !typing(event.target) &&
-      !document.querySelector('dialog:modal')
-    ) {
-      event.preventDefault();
-      setRail(!$rail);
+    // "[" folds or unfolds the sidebar (as in many editors), outside fields and dialogs. On German,
+    // French or Swiss keyboards "[" needs AltGr (Ctrl+Alt on Windows) or Option on a Mac: only a
+    // real command modifier rules it out.
+    if (event.key === '[') {
+      const altGr = event.getModifierState?.('AltGraph') || (event.ctrlKey && event.altKey);
+      const command = event.metaKey || (event.ctrlKey && !altGr);
+      const target = event.target as HTMLElement | null;
+      if (
+        !command &&
+        !event.isComposing &&
+        !event.repeat &&
+        wide() &&
+        !typing(target) &&
+        !target?.closest?.('dialog[open], .switcher .list, .switcher .menu') &&
+        !document.querySelector('dialog:modal')
+      ) {
+        event.preventDefault();
+        setRail(!$rail);
+      }
       return;
     }
     if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -298,7 +310,7 @@
       <div
         class="switch"
         onclickcapture={(event) => {
-          if (!$rail) return;
+          if (!$rail || !wide()) return;
           if ((event.target as HTMLElement).closest('.pick')) setRail(false);
         }}
       >
@@ -919,7 +931,16 @@
       justify-content: center;
       padding: 0.4rem;
     }
-    :global(#app) .rail .switch :global(.switcher .text),
+    /* The name stays for assistive technology; the button's tooltip shows it too. */
+    :global(#app) .rail .switch :global(.switcher .text) {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    /* The team actions come back with the unfolded sidebar. */
     :global(#app) .rail .switch :global(.switcher button.toggle) {
       display: none;
     }
@@ -940,6 +961,34 @@
     }
     .rail [role='tab'][aria-selected='true']::before {
       left: -0.6rem;
+    }
+    /* Keyboard focus shows the view's name next to the icon (a title appears only on hover). */
+    .rail [role='tab']:focus-visible .tab-label {
+      left: calc(100% + 0.6rem);
+      top: 50%;
+      z-index: 5;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 0.5rem;
+      background: #1d1f3a;
+      color: #fff;
+      font-size: 0.85rem;
+      transform: translateY(-50%);
+      box-shadow: 0 4px 14px rgb(0 0 0 / 0.3);
+    }
+    .rail .sidebar:has([role='tab']:focus-visible) {
+      overflow: visible;
+    }
+    @media (forced-colors: active) {
+      .rail [role='tab'][aria-selected='true'] {
+        padding: calc(0.6rem - 2px) 0;
+      }
+      .rail [role='tab']:focus-visible .tab-label {
+        border: 1px solid CanvasText;
+      }
     }
     .rail .group {
       margin-inline: 0.35rem;

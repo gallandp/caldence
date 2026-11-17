@@ -56,7 +56,7 @@ test('long area names wrap instead of being cut off', async ({ page }) => {
   await addArea(page, long, ['Team Alpha', 'Team Beta']);
   await pickUnit(page, 'Team Alpha');
   // The card names the area on up to two lines; the tooltip has the whole text.
-  await expect(page.locator('.switcher .text')).toHaveAttribute(
+  await expect(page.locator('.switcher .pick')).toHaveAttribute(
     'title',
     new RegExp(`^Team Alpha\\n${long.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} · `),
   );
