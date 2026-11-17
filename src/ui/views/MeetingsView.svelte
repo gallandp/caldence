@@ -15,6 +15,7 @@
   import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
   import CyclesCard from '../components/CyclesCard.svelte';
+  import Rich from '../help/Rich.svelte';
   import EventForm from '../components/EventForm.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { ruleShort, ruleSummary } from '../meetings/rules';
@@ -427,7 +428,26 @@
         {/key}
       {/if}
 
-      {#if team.events.length === 0}
+      {#if team.events.length === 0 && area && !editing}
+        <section class="area-empty" aria-labelledby="{uid}-area-empty">
+          <h3 id="{uid}-area-empty">{$t('area.empty.meetings.title')}</h3>
+          <p>
+            <Rich
+              key="area.empty.meetings.text"
+              labels={{
+                participants: 'meet.participants',
+                fromTeams: 'area.participants.fromTeams',
+              }}
+            />
+          </p>
+          <button
+            type="button"
+            class="primary"
+            disabled={categories.length === 0}
+            onclick={() => open(blankEvent(), 'add')}>{$t('area.empty.meetings.add')}</button
+          >
+        </section>
+      {:else if team.events.length === 0}
         <p class="empty">{$t('meet.empty')}</p>
       {:else}
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
@@ -722,6 +742,21 @@
   .area-mark {
     display: inline-flex;
     color: var(--area);
+  }
+  .area-empty {
+    max-width: 44rem;
+    margin-top: 0.75rem;
+    padding: 1rem 1.25rem;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .area-empty h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+  }
+  .area-empty p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
   }
   .empty {
     color: var(--text-muted);

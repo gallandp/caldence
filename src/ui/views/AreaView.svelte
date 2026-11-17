@@ -4,25 +4,48 @@
 </script>
 
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
+  import AreaReady from '../components/AreaReady.svelte';
   import AreaStructure from '../components/AreaStructure.svelte';
   import RoleList from '../components/RoleList.svelte';
+  import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
 
   /**
    * The upper level's page while an area is selected: one sidebar entry, two pages behind a
    * switch. The overview page comes from the caller.
    */
-  let { area, overview }: { area: Area; overview: Snippet } = $props();
+  let { area, overview, onMeetings }: { area: Area; overview: Snippet; onMeetings: () => void } =
+    $props();
 
   let page = $state(remembered);
+  let structure: AreaStructure | undefined = $state();
+
+  /** The card's buttons act on the structure page, so it is shown first. */
+  async function onStructure(run: (s: AreaStructure) => void) {
+    remembered = page = 'structure';
+    await tick();
+    if (structure) run(structure);
+  }
 </script>
 
 <div class="area-view">
   {#if page === 'structure'}
     <p class="subtitle">{$t('area.structure.subtitle')}</p>
+  {/if}
+  {#if $areaReady === area.id}
+    <AreaReady
+      {area}
+      onTeams={() => onStructure((s) => s.chooseTeams())}
+      onPeople={() => onStructure((s) => s.addPerson())}
+      onMeetings={() => {
+        areaReady.set(undefined);
+        onMeetings();
+      }}
+      onClose={() => areaReady.set(undefined)}
+    />
   {/if}
   <div class="pages" role="group" aria-label={$t('area.view.label')}>
     {#each ['structure', 'overview'] as const as p (p)}
@@ -32,7 +55,7 @@
     {/each}
   </div>
   {#if page === 'structure'}
-    <AreaStructure {area} />
+    <AreaStructure bind:this={structure} {area} />
     <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
     <details class="roles">
       <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>

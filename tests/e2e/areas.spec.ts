@@ -28,8 +28,15 @@ test('an area groups teams in the switcher and is selected like a team', async (
   await addArea(page, 'Platform', ['Team Alpha']);
   await expect(currentUnit(page)).toHaveText('Platform');
   await expect(page.locator('.switcher .meta')).toHaveText('Area · 1 team');
-  // The area first, its team below it, then the teams without an area.
-  await expect(unitNames(page)).toHaveText(['Platform', 'Team Alpha', 'Team Beta']);
+  // Each area with its teams below it (the example's Commerce first), then the teams without one.
+  await expect(unitNames(page)).toHaveText([
+    'Commerce',
+    'Team Gamma',
+    'Team Delta',
+    'Platform',
+    'Team Alpha',
+    'Team Beta',
+  ]);
   await page.locator('.switcher .pick').click();
   await expect(
     page.locator('.switcher .list').getByRole('button', { name: /^Platform\W+area\W+1 team$/ }),
@@ -64,7 +71,7 @@ test('long area names wrap instead of being cut off', async ({ page }) => {
   const meta = page.locator('.switcher .meta');
   expect(await meta.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   await page.locator('.switcher .pick').click();
-  const option = page.locator('.switcher .list .opt').first();
+  const option = page.locator('.switcher .list .opt').filter({ hasText: long });
   const name = option.locator('.opt-name');
   await expect(name).toHaveText(long);
   // The whole name shows: nothing is clipped, and the count is only a number.
@@ -123,15 +130,38 @@ test('rename an area, move a team into it after a question, delete it', async ({
   await expect(choose.getByRole('checkbox', { name: 'Team Alpha' })).toBeChecked();
   await choose.getByRole('button', { name: 'Apply' }).click();
   await move.getByRole('button', { name: 'Move' }).click();
-  await expect(unitNames(page)).toHaveText(['Platform', 'Insights', 'Team Alpha', 'Team Beta']);
+  await expect(unitNames(page)).toHaveText([
+    'Commerce',
+    'Team Gamma',
+    'Team Delta',
+    'Platform',
+    'Insights',
+    'Team Alpha',
+    'Team Beta',
+  ]);
 
   await teamAction(page, 'Delete area');
   const del = page.getByRole('dialog', { name: 'Delete Insights?' });
   await expect(del).toContainText('Its teams stay with everything in them');
   await del.getByRole('button', { name: 'Delete area' }).click();
-  await expect(unitNames(page)).toHaveText(['Platform', 'Team Alpha', 'Team Beta']);
+  await expect(unitNames(page)).toHaveText([
+    'Commerce',
+    'Team Gamma',
+    'Team Delta',
+    'Platform',
+    'Team Alpha',
+    'Team Beta',
+  ]);
   await page.keyboard.press('Control+z');
-  await expect(unitNames(page)).toHaveText(['Platform', 'Insights', 'Team Alpha', 'Team Beta']);
+  await expect(unitNames(page)).toHaveText([
+    'Commerce',
+    'Team Gamma',
+    'Team Delta',
+    'Platform',
+    'Insights',
+    'Team Alpha',
+    'Team Beta',
+  ]);
 });
 
 test('the switcher works in the phone menu', async ({ page }) => {

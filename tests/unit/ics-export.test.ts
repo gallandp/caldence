@@ -375,7 +375,7 @@ describe('exportIcs UIDs, scope and reminder', () => {
   it('leaves out events without the scoped role', () => {
     const text = run(example(), opts({ scope: { roleId: 'role-dev' } satisfies Filter }));
     const ids = uids(text).map((u) => u.slice(4).split('.')[0]);
-    expect(ids.sort()).toEqual(['ev-flow-review', 'ev-replenishment']);
+    expect(ids.sort()).toEqual(['ev-delta-replenishment', 'ev-flow-review', 'ev-replenishment']);
     const sm = uids(run(example(), opts({ scope: { roleId: 'role-sm' } }))).map(
       (u) => u.slice(4).split('.')[0],
     );

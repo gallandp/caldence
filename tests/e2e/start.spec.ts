@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, teamAction, currentUnit, unitNames, setLanguage } from './helpers';
+import { useFileFallback, currentUnit, unitNames, setLanguage, deleteAllUnits } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -302,13 +302,7 @@ test('deleting the last team in the calendar returns to the start screen with fo
   await start(page);
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
-  for (let left = await unitNames(page).count(); left > 0; left--) {
-    await teamAction(page, 'Delete team');
-    await page
-      .getByRole('dialog', { name: /^Delete / })
-      .getByRole('button', { name: 'Delete team' })
-      .click();
-  }
+  await deleteAllUnits(page);
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
   await expect(page.locator('#main')).toBeFocused();
 });
