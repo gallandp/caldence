@@ -380,9 +380,11 @@ describe('teamToTemplate with an area (#246)', () => {
     const area = ws.areas[0]!;
     delete area.cadence;
     area.events = area.events.filter((e) => e.rule.type !== 'cadence-day');
-    area.cycles = [
-      { id: 'cy', name: 'Release', milestones: [{ id: 'm', name: 'Go', date: start }] },
-    ];
+    area.cycles.push({
+      id: 'cy',
+      name: 'Release',
+      milestones: [{ id: 'm', name: 'Go', date: start }],
+    });
     area.events.push({
       ...structuredClone(area.events[0]!),
       id: 'ev-go',
