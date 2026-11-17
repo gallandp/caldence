@@ -448,6 +448,12 @@
           </button>
         {/if}
       </div>
+      {#if query.trim()}
+        <!-- On paper the search field is gone: say what the list is filtered by. -->
+        <p class="print-filter" data-print-only>
+          {$t('meet.print.filter', { query: query.trim() })}
+        </p>
+      {/if}
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
       {/if}
@@ -654,7 +660,7 @@
                       {/if}
                     </td>
                     <td class="c-actions">
-                      <div class="icons">
+                      <div class="icons" data-no-print>
                         <button
                           type="button"
                           class="icon"

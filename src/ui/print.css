@@ -25,8 +25,11 @@
   .sidebar,
   .tabbar,
   #app .content > header.bar,
-  [data-whatif-bar],
+  /* A what-if bar without changes says nothing on paper; with changes it stays as the note
+     that the page shows a what-if. */
+  [data-whatif-bar][data-empty],
   [data-no-print],
+  dialog,
   [data-no-present],
   [data-rate-invite] {
     display: none !important;
@@ -52,7 +55,9 @@
   /* Scrolling regions print in full instead of cutting columns off. */
   #app [role='region'][tabindex],
   #app .scroll,
-  #app .table-wrap {
+  #app .table-wrap,
+  #app .tablewrap,
+  #app .table-scroll {
     overflow: visible !important;
     max-height: none !important;
   }
@@ -66,6 +71,30 @@
     padding-inline: 0.35rem !important;
     white-space: normal !important;
   }
+  /* Print what screen controls said in words (the active filter, "0 h" for unset hours). */
+  [data-print-only] {
+    display: revert !important;
+  }
+  /* Fields print as their values: no frames, no select arrows. */
+  #app input:not([type='checkbox'], [type='radio']),
+  #app select {
+    border-color: transparent !important;
+    background: none !important;
+    appearance: none;
+    padding-inline: 0 !important;
+  }
+  /* Sort buttons in table heads print as plain headings. */
+  #app th button {
+    border: 0 !important;
+    background: none !important;
+    color: inherit !important;
+  }
+  #app th button svg {
+    display: none;
+  }
+  #app .print-filter {
+    margin: 0 0 0.5rem;
+  }
   h2,
   h3,
   h4 {
@@ -73,7 +102,11 @@
   }
   tr,
   li,
-  figure {
+  figure,
+  #app .kpis > *,
+  #app .tiles > *,
+  #app section.team,
+  #app .person {
     break-inside: avoid;
   }
   a {

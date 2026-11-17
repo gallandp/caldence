@@ -401,6 +401,7 @@
   "meet.next.none": "Keiner mehr",
   "meet.next.none.hint": "Kein Datum mehr im Planungszeitraum",
   "meet.filter": "Termine filtern",
+  "meet.print.filter": "Gefiltert nach „{query}“",
   "meet.filter.none": "Kein Termin passt zu „{q}“.",
   "meet.role.share": "{role} · {share} %",
   "meet.duration.fixed": "{n} Min.",

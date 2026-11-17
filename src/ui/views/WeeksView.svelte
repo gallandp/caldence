@@ -72,7 +72,7 @@
   {/if}
 
   <div class="toolbar">
-    <div class="segmented" role="group" aria-label={$t('weeks.show')}>
+    <div class="segmented" data-no-print role="group" aria-label={$t('weeks.show')}>
       {#each [['all', 'weeks.show.all'], ['warn', 'weeks.show.warn'], ['cadence', 'weeks.show.cadence']] as const as [value, key] (value)}
         <button type="button" aria-pressed={show === value} onclick={() => (show = value)}
           >{$t(key)}</button

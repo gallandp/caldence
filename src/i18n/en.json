@@ -401,6 +401,7 @@
   "meet.next.none": "None left",
   "meet.next.none.hint": "No date left in the planning period",
   "meet.filter": "Filter meetings",
+  "meet.print.filter": "Filtered by “{query}”",
   "meet.filter.none": "No meeting matches “{q}”.",
   "meet.role.share": "{role} · {share}%",
   "meet.duration.fixed": "{n} min",
