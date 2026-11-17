@@ -184,10 +184,14 @@ describe('area hours', () => {
     expect(capacity(ws, 'bo', 'area')).toBe(40);
   });
 
-  it('a person with no team and no area hours has 0 h in the area', () => {
+  it('a person only in the area without area hours has 0 h, also across the file (#265)', () => {
     const ws = workspace();
     ws.areas[0]!.memberHours = {};
+    expect(ws.areas[0]!.members.some((m) => m.personId === 'hana')).toBe(true);
     expect(capacity(ws, 'hana', 'area')).toBe(0);
+    expect(capacity(ws, 'hana')).toBe(0);
+    // Someone in no team and no area keeps the workspace default.
+    ws.areas[0]!.members = ws.areas[0]!.members.filter((m) => m.personId !== 'hana');
     expect(capacity(ws, 'hana')).toBe(40);
   });
 
