@@ -777,6 +777,7 @@
   "templates.export.button": "Export template…",
   "templates.export.none": "There is no {levelTeamLc} to export yet. Add a {levelTeamLc} or apply a template first.",
   "templates.export.hint": "The template contains the meetings, roles and categories, but no people.",
+  "templates.export.area": "{team} belongs to {area}, so the template also holds the cadence, cycles and meetings {levelInArea} and the names of the two levels, but none of its people.",
   "templates.exported": "Template saved as {name}.",
   "templates.error.name": "The name must not be empty",
   "ics.error.notIcs": "The file is not an iCalendar file (.ics).",

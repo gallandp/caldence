@@ -157,7 +157,33 @@ test('exporting a team downloads a template without people', async ({ page }) =>
   expect(json.kind).toBe('caldence-template');
   expect(json.id).toBe('team-alpha');
   for (const name of ['Alex', 'Sam']) expect(text).not.toContain(`"${name}"`);
+  expect(json).not.toHaveProperty('area');
   await expect(panel(page).getByRole('status')).toContainText('team-alpha.caldence-template.json');
+});
+
+test('exporting a team of a release train includes the train (#246)', async ({ page }) => {
+  await openTemplates(page);
+  await panel(page)
+    .getByRole('article', { name: 'SAFe' })
+    .getByRole('button', { name: 'Apply' })
+    .click();
+  const dialog = page.getByRole('dialog', { name: /SAFe/ });
+  await dialog.getByLabel('Team name').fill('Alpha');
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  const note = panel(page).getByText(/^Alpha belongs to Release Train/);
+  await expect(note).toContainText('meetings in the release train');
+  await expect(
+    panel(page).getByRole('button', { name: 'Export template…' }),
+  ).toHaveAccessibleDescription(/^Alpha belongs to Release Train/);
+  const download = page.waitForEvent('download');
+  await panel(page).getByRole('button', { name: 'Export template…' }).click();
+  const json = JSON.parse(readFileSync((await (await download).path())!, 'utf8'));
+  expect(json.area.name).toBe('Release Train');
+  expect(json.area.events.length).toBeGreaterThan(0);
+  expect(json.area.levelNames).toEqual({ preset: 'train' });
+  expect(json.area).not.toHaveProperty('members');
+  expect(json.area).not.toHaveProperty('teamIds');
 });
 
 test('export is disabled without teams', async ({ page }) => {

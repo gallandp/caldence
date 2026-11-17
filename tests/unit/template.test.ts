@@ -316,6 +316,71 @@ describe('teamToTemplate', () => {
   });
 });
 
+describe('teamToTemplate with an area (#246)', () => {
+  const start = '2026-11-09';
+  const safe = () => {
+    const tpl = builtinTemplate('safe', 'en');
+    const r = applyTemplate(emptyWorkspace(start), tpl, { name: 'ART Team', today: start });
+    if (!r.ok) throw new Error('apply');
+    const [ws, teamId] = r.value;
+    // People and hours that must never reach the template.
+    ws.people.push({ id: 'p-lea', name: 'Lea Secret' });
+    ws.areas[0]!.members.push({ personId: 'p-lea', roleId: ws.roles[0]!.id });
+    ws.areas[0]!.memberHours['p-lea'] = 8;
+    ws.settings.levelNames = { preset: 'train' };
+    return { ws, teamId };
+  };
+  const opts = { id: 'mine', name: 'Mine', description: '' };
+
+  it('writes the area part with its meetings, roles and level names, but no people', () => {
+    const { ws, teamId } = safe();
+    const t = teamToTemplate(ws, teamId, opts);
+    const area = ws.areas[0]!;
+    expect(t.area?.name).toBe(area.name);
+    expect(t.area?.cadence).toEqual(area.cadence);
+    expect(t.area?.events.map((e) => e.name)).toEqual(area.events.map((e) => e.name));
+    expect(t.area?.events.some((e) => e.participants.some((p) => p.fromTeams))).toBe(
+      area.events.some((e) => e.participants.some((p) => p.fromTeams)),
+    );
+    expect(t.area?.levelNames).toEqual({ preset: 'train' });
+    const roles = new Set(t.roles.map((r) => r.id));
+    for (const e of t.area!.events)
+      for (const p of e.participants) expect(roles).toContain(p.roleId);
+    const cats = new Set(t.categories.map((c) => c.id));
+    for (const e of t.area!.events) expect(cats).toContain(e.categoryId);
+    const json = JSON.stringify(t);
+    expect(json).not.toContain('Lea Secret');
+    expect(t.area).not.toHaveProperty('members');
+    expect(t.area).not.toHaveProperty('memberHours');
+    expect(t.area).not.toHaveProperty('teamIds');
+    expect(t.area).not.toHaveProperty('id');
+    expect(validateTemplate(structuredClone(t)).ok).toBe(true);
+  });
+
+  it('round-trips: applying creates the area with the team, a second time joins it', () => {
+    const { ws, teamId } = safe();
+    const t = teamToTemplate(ws, teamId, opts);
+    const first = applyTemplate(emptyWorkspace(start), t, { name: 'One', today: start });
+    if (!first.ok) throw new Error('apply 1');
+    const [ws1, one] = first.value;
+    expect(ws1.areas).toHaveLength(1);
+    expect(ws1.areas[0]!.name).toBe(ws.areas[0]!.name);
+    expect(ws1.areas[0]!.teamIds).toEqual([one]);
+    expect(ws1.areas[0]!.events.map((e) => e.name)).toEqual(ws.areas[0]!.events.map((e) => e.name));
+    expect(ws1.settings.levelNames).toEqual({ preset: 'train' });
+    const second = applyTemplate(ws1, t, { name: 'Two', today: start });
+    if (!second.ok) throw new Error('apply 2');
+    const [ws2, two] = second.value;
+    expect(ws2.areas).toHaveLength(1);
+    expect(ws2.areas[0]!.teamIds).toEqual([one, two]);
+  });
+
+  it('writes no area for a team without one', () => {
+    const t = teamToTemplate(exampleWorkspace(), 'team-alpha', opts);
+    expect(t).not.toHaveProperty('area');
+  });
+});
+
 describe('wrong files', () => {
   const tpl = (): Record<string, unknown> => structuredClone(BUILTIN_TEMPLATES.scrum.en) as never;
   const keys = (r: ReturnType<typeof loadTemplate>): string[] =>

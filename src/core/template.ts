@@ -297,6 +297,11 @@ export function applyTemplate(
   return { ok: true, value: [r.value, teamId] };
 }
 
+/**
+ * A template of the team. When the team is in an area, the template also holds the area's name,
+ * cadence, cycles and meetings and the file's level names, so applying it rebuilds both levels.
+ * People, area members, hours and team ids are never part of it.
+ */
 export function teamToTemplate(
   ws: Workspace,
   teamId: string,
@@ -304,17 +309,19 @@ export function teamToTemplate(
 ): Template {
   const team = ws.teams.find((t) => t.id === teamId);
   if (!team) throw new Error(`unknown team ${teamId}`);
+  const area = ws.areas.find((a) => a.teamIds.includes(teamId));
+  const events = [...team.events, ...(area?.events ?? [])];
   const roleIds = new Set([
-    ...team.events.flatMap((e) => e.participants.map((p) => p.roleId)),
+    ...events.flatMap((e) => e.participants.map((p) => p.roleId)),
     ...team.members.map((m) => m.roleId),
   ]);
-  const catIds = new Set(team.events.map((e) => e.categoryId));
+  const catIds = new Set(events.map((e) => e.categoryId));
   const rest = structuredClone(team) as unknown as Record<string, unknown>;
   delete rest.id;
   delete rest.members;
   delete rest.memberHours;
   delete rest.templateId;
-  return {
+  const template: Template = {
     kind: 'caldence-template',
     schemaVersion: CURRENT_SCHEMA,
     id: opts.id,
@@ -324,4 +331,15 @@ export function teamToTemplate(
     categories: structuredClone(ws.categories.filter((c) => catIds.has(c.id))),
     team: rest as Template['team'],
   };
+  if (area) {
+    template.area = {
+      name: area.name,
+      // A template area needs a cadence; an area without its own takes the team's.
+      cadence: structuredClone(area.cadence ?? team.cadence),
+      cycles: structuredClone(area.cycles),
+      events: structuredClone(area.events),
+      ...(ws.settings.levelNames ? { levelNames: structuredClone(ws.settings.levelNames) } : {}),
+    };
+  }
+  return template;
 }
