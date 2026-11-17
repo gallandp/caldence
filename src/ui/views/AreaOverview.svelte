@@ -4,7 +4,7 @@
 </script>
 
 <script lang="ts">
-  import { areaCosts, costliestMeetings } from '../../core/areaCosts';
+  import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
   import {
     areaMeetingHours,
     compareCadences,
@@ -15,7 +15,7 @@
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
   import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
-  import { areaAsTeam, attendees as attendeesOf, type Area, type Cadence } from '../../core/model';
+  import { areaAsTeam, type Area, type Cadence } from '../../core/model';
   import {
     formatDisplayDate,
     formatEuro,
@@ -102,8 +102,13 @@
 
   const rate = $derived(ws.settings.hourlyRate);
   const costs = $derived(areaCosts(ws, $index, area, rate));
-  const costly = $derived(rate ? costliestMeetings(ws, $index, area, rate) : []);
+  const allMeetings = $derived(rate ? meetingCosts(ws, $index, area, rate) : []);
+  /** Over the limit, or meeting hours without weekly hours to measure them against. */
+  const over = (r: { share: number; noHours: boolean }) => r.noHours || r.share > maxFte;
+  const shareText = (r: { share: number; noHours: boolean }) =>
+    r.noHours ? $t('overview.cost.noHours') : percent(r.share);
   let period = $state(rememberedPeriod);
+  const costly = $derived(costliest(allMeetings, period));
   const euro = (n: number) => formatEuro($locale, n);
   const costOf = (c: { perWeek: number; horizon: number }) =>
     period === 'week' ? c.perWeek : c.horizon;
@@ -121,8 +126,6 @@
           n: formatNumber($locale, c.lengthWeeks, 0),
         })
       : '–';
-  const invited = (unitId: string, e: Area['events'][number]) =>
-    new Set(e.participants.flatMap((p) => attendeesOf(ws, unitId, p))).size;
 
   // ---------- words ----------
 
@@ -287,13 +290,10 @@
     </div>
     <div class="card kpi" data-kpi="load">
       <span class="label">{$t('overview.kpi.load')}</span>
-      <b>{percent(costs.total.share)}</b>
+      <b>{shareText(costs.total)}</b>
       <span class="label">{$t('overview.kpi.load.sub')}</span>
-      <span
-        class="tag"
-        class:ok={costs.total.share <= maxFte}
-        class:warn={costs.total.share > maxFte}
-        >{$t(costs.total.share > maxFte ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+      <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
+        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
           max: percent(maxFte),
         })}</span
       >
@@ -371,7 +371,7 @@
       })}
       tabindex="0"
     >
-      <table class="costs">
+      <table class="costs" aria-labelledby="{uid}-cost">
         <thead>
           <tr>
             <th scope="col">{$t('overview.cost.col.unit')}</th>
@@ -405,10 +405,10 @@
               <td>
                 <span class="share">
                   <span class="bar" aria-hidden="true"
-                    ><i style:width="{barWidth(r.share)}%" class:over={r.share > maxFte}></i><b
-                    ></b></span
+                    ><i style:width="{r.noHours ? 100 : barWidth(r.share)}%" class:over={over(r)}
+                    ></i><b></b></span
                   >
-                  <span class="num" class:over={r.share > maxFte}>{percent(r.share)}</span>
+                  <span class="num" class:over={over(r)}>{shareText(r)}</span>
                 </span>
               </td>
               {#if rate && r.cost}
@@ -419,7 +419,20 @@
           {/each}
           <tr class="area-row" data-cost-row={area.id}>
             <th scope="row">
-              <span class="area-name"><AreaIcon /> {$t('overview.cost.areaRow')}</span>
+              {#if onOpenUnit}
+                <button
+                  type="button"
+                  class="link area-name"
+                  aria-label={$t('overview.cost.open', {
+                    name: $t('overview.cost.areaRow'),
+                    view: $t('view.meetings'),
+                  })}
+                  onclick={() => onOpenUnit(area.id)}
+                  ><AreaIcon /> {$t('overview.cost.areaRow')}</button
+                >
+              {:else}
+                <span class="area-name"><AreaIcon /> {$t('overview.cost.areaRow')}</span>
+              {/if}
               {#if area.events.length > 0}
                 <small>{area.events.map((e) => e.name).join(', ')}</small>
               {/if}
@@ -440,7 +453,7 @@
             <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
             >
             <td
-              ><b>{percent(costs.total.share)}</b>
+              ><b>{shareText(costs.total)}</b>
               <span class="muted">{$t('overview.kpi.load')}</span></td
             >
             {#if rate && costs.total.cost}
@@ -477,7 +490,7 @@
           aria-label={$t('overview.table.region', { title: $t('overview.costly.title') })}
           tabindex="0"
         >
-          <table class="costs">
+          <table class="costs" aria-labelledby="{uid}-costly">
             <thead>
               <tr>
                 <th scope="col">{$t('overview.steer.col.meeting')}</th>
@@ -516,18 +529,14 @@
                   </td>
                   <td class="num"
                     >{$t('overview.costly.people', {
-                      n: formatNumber($locale, invited(m.unitId, m.event), 0),
-                    })}</td
+                      n: formatNumber($locale, m.invited, 0),
+                    })}{#if m.unfilled.length > 0}<small class="unfilled"
+                        >{$t('overview.costly.unfilled', {
+                          roles: m.unfilled.map(roleName).join(', '),
+                        })}</small
+                      >{/if}</td
                   >
-                  <td class="num strong">
-                    {#if period === 'week' && m.perWeek === 0}
-                      <span aria-hidden="true">–</span><span class="sr-only"
-                        >{$t('overview.steer.irregular')}</span
-                      >
-                    {:else}
-                      {euro(period === 'week' ? m.perWeek : m.horizon)}
-                    {/if}
-                  </td>
+                  <td class="num strong">{euro(m.cost)}</td>
                   <td class="num">{percent(m.shareOfAll)}</td>
                 </tr>
               {/each}
@@ -909,6 +918,11 @@
   }
   .strong {
     font-weight: 650;
+  }
+  .unfilled {
+    display: block;
+    color: var(--warn);
+    font-size: 0.75rem;
   }
   .muted {
     color: var(--text-muted);

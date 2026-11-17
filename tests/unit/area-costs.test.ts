@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaCosts, costliestMeetings } from '../../src/core/areaCosts';
+import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
 import { unitCostSummary } from '../../src/core/cost';
 import { areaAsTeam, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
@@ -58,18 +58,44 @@ describe('areaCosts', () => {
   });
 });
 
-describe('costliestMeetings', () => {
-  it('ranks by cost in the horizon, at most five, with each share of all cost', () => {
+describe('costliest', () => {
+  it('ranks by the cost of the period, at most five, with each share of all cost', () => {
     const w = ws();
-    const top = costliestMeetings(w, noIndex(), w.areas[0]!, 100);
-    expect(top.length).toBe(5);
-    for (let i = 1; i < top.length; i++)
-      expect(top[i - 1]!.horizon).toBeGreaterThanOrEqual(top[i]!.horizon);
-    const all = costliestMeetings(w, noIndex(), w.areas[0]!, 100, 1000);
-    expect(all.reduce((s, m) => s + m.shareOfAll, 0)).toBeCloseTo(1);
+    const list = meetingCosts(w, noIndex(), w.areas[0]!, 100);
+    for (const period of ['week', 'horizon'] as const) {
+      const top = costliest(list, period);
+      expect(top.length).toBe(5);
+      for (let i = 1; i < top.length; i++)
+        expect(top[i - 1]!.cost).toBeGreaterThanOrEqual(top[i]!.cost);
+      const all = costliest(list, period, 1000);
+      expect(all.reduce((s, m) => s + m.shareOfAll, 0)).toBeCloseTo(1);
+    }
     // A one-off meeting has no weekly average but counts in the horizon.
-    const planning = all.find((m) => m.unitId === 'area-payments' && m.event.id === 'ev-planning')!;
-    expect(planning.perWeek).toBe(0);
-    expect(planning.horizon).toBeGreaterThan(0);
+    const isPlanning = (m: { unitId: string; event: { id: string } }) =>
+      m.unitId === 'area-payments' && m.event.id === 'ev-planning';
+    expect(costliest(list, 'week', 1000).some(isPlanning)).toBe(false);
+    expect(costliest(list, 'horizon', 1000).some(isPlanning)).toBe(true);
+  });
+
+  it('names roles nobody holds, which still cost one person', () => {
+    const w = ws();
+    const planning = meetingCosts(w, noIndex(), w.areas[0]!, 100).find(
+      (m) => m.unitId === 'area-payments' && m.event.id === 'ev-planning',
+    )!;
+    expect(planning.unfilled).toEqual([]);
+    const forum = meetingCosts(w, noIndex(), w.areas[0]!, 100).find(
+      (m) => m.event.id === 'ev-po-forum',
+    )!;
+    expect(forum.invited).toBe(5);
+  });
+});
+
+describe('areaCosts without hours', () => {
+  it('flags meeting hours that have no weekly hours to be measured against', () => {
+    const w = ws();
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    for (const id of Object.keys(gamma.memberHours)) gamma.memberHours[id] = 0;
+    const row = areaCosts(w, noIndex(), w.areas[0]!).teams.find((r) => r.unitId === 'team-gamma')!;
+    expect(row.noHours).toBe(true);
   });
 });

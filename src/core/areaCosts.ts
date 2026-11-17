@@ -1,6 +1,13 @@
 import { unitCostSummary, meetingCost } from './cost';
 import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
-import { areaAsTeam, type Area, type CalEvent, type Team, type Workspace } from './model';
+import {
+  areaAsTeam,
+  attendees,
+  type Area,
+  type CalEvent,
+  type Team,
+  type Workspace,
+} from './model';
 import { effectiveDuration, occurrences } from './recurrence';
 import type { HolidayIndex } from './regions';
 
@@ -17,6 +24,8 @@ export interface UnitRow {
   capacity: number;
   /** hours ÷ capacity: for a team "Termine im Team", for the total the Terminlast. */
   share: number;
+  /** Meeting hours without any weekly hours to measure them against: always over the limit. */
+  noHours: boolean;
   people: number;
   /** Only with an hourly rate. */
   cost?: { perWeek: number; horizon: number };
@@ -46,6 +55,7 @@ function row(
     hours,
     capacity: cap,
     share: share(hours, cap),
+    noHours: hours > 0 && cap <= 0,
     people: people.length,
   };
   if (rate) {
@@ -61,7 +71,7 @@ export function areaCosts(
   area: Area,
   rate?: number,
 ): AreaCosts {
-  const teams = area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id));
+  const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
   const teamRows = teams.map((t) => {
     const people = [...new Set(t.members.map((m) => m.personId))];
     return row(ws, index, t, people, sum(people.map((p) => capacity(ws, p, t.id))), rate);
@@ -69,6 +79,7 @@ export function areaCosts(
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
   const areaRow = row(ws, index, areaAsTeam(area), areaPeople, 0, rate);
   areaRow.share = 0;
+  areaRow.noHours = false;
   const everyone = [
     ...new Set([...areaPeople, ...teams.flatMap((t) => t.members.map((m) => m.personId))]),
   ];
@@ -80,6 +91,7 @@ export function areaCosts(
     hours,
     capacity: cap,
     share: share(hours, cap),
+    noHours: hours > 0 && cap <= 0,
     people: everyone.length,
   };
   if (rate)
@@ -96,22 +108,20 @@ export interface CostlyMeeting {
   /** Recurring average per week; 0 for one-off and milestone meetings. */
   perWeek: number;
   horizon: number;
-  /** horizon ÷ all meeting cost of the area in the horizon. */
-  shareOfAll: number;
+  /** Invited people; a role nobody holds still costs one person, like everywhere in the app. */
+  invited: number;
+  /** Roles the meeting invites that nobody holds (counted as one person each). */
+  unfilled: string[];
 }
 
-/** The area's most expensive meetings over the planning horizon, its teams' and its own. */
-export function costliestMeetings(
+/** Every meeting of the area and its teams with its cost per week and in the horizon. */
+export function meetingCosts(
   ws: Workspace,
   index: HolidayIndex,
   area: Area,
   rate: number,
-  limit = 5,
 ): CostlyMeeting[] {
-  const units = [
-    ...area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id)),
-    areaAsTeam(area),
-  ];
+  const units = [...ws.teams.filter((t) => area.teamIds.includes(t.id)), areaAsTeam(area)];
   const list: CostlyMeeting[] = [];
   for (const unit of units) {
     const horizon = new Map<string, number>();
@@ -128,19 +138,34 @@ export function costliestMeetings(
       const perWeek =
         occurrencesPerWeek(event.rule, unit) *
         meetingCost(ws, unit, event, effectiveDuration(event, unit), rate);
+      const lists = event.participants.map((p) => attendees(ws, unit.id, p));
       list.push({
         unitId: unit.id,
         event,
         perWeek,
         horizon: horizon.get(event.id) ?? 0,
-        shareOfAll: 0,
+        invited: new Set(lists.flat()).size,
+        unfilled: event.participants.filter((_, i) => lists[i]!.length === 0).map((p) => p.roleId),
       });
     }
   }
-  const all = sum(list.map((m) => m.horizon));
-  for (const m of list) m.shareOfAll = all > 0 ? m.horizon / all : 0;
+  return list;
+}
+
+/**
+ * The most expensive meetings for one period, with each one's share of all meeting cost in that
+ * period. Per week only recurring meetings count (one-offs have no weekly average).
+ */
+export function costliest(
+  list: CostlyMeeting[],
+  period: 'week' | 'horizon',
+  limit = 5,
+): (CostlyMeeting & { cost: number; shareOfAll: number })[] {
+  const cost = (m: CostlyMeeting) => (period === 'week' ? m.perWeek : m.horizon);
+  const all = sum(list.map(cost));
   return list
-    .filter((m) => m.horizon > 0 || m.perWeek > 0)
-    .sort((a, b) => b.horizon - a.horizon || b.perWeek - a.perWeek)
+    .filter((m) => cost(m) > 0)
+    .map((m) => ({ ...m, cost: cost(m), shareOfAll: all > 0 ? cost(m) / all : 0 }))
+    .sort((a, b) => b.cost - a.cost)
     .slice(0, limit);
 }
