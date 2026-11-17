@@ -6,6 +6,10 @@ import example from '../../src/data/examples/example.caldence.json' with { type:
  */
 export function areaWorkspace() {
   const ws = structuredClone(example) as Omit<typeof example, 'areas'> & { areas: unknown[] };
+  // Only Alpha and Beta with their people and roles; this fixture builds its own area.
+  ws.teams = ws.teams.filter((t) => t.id === 'team-alpha' || t.id === 'team-beta');
+  ws.people = ws.people.filter((p) => p.id === 'person-alex' || p.id === 'person-sam');
+  ws.roles = ws.roles.filter((r) => r.id !== 'role-lead');
   const alpha = ws.teams[0]!;
   alpha.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' };
   const copy = (id: string, name: string, cadence: typeof alpha.cadence, people: string[]) => ({
@@ -34,11 +38,11 @@ export function areaWorkspace() {
     copy('team-gamma', 'Team Gamma', { kind: 'sprint', lengthWeeks: 3, start: '2027-01-04' }, [
       'person-kim',
       'person-lou',
-    ]) as (typeof ws.teams)[number],
+    ]) as unknown as (typeof ws.teams)[number],
     copy('team-delta', 'Team Delta', { kind: 'flow', lengthWeeks: 2, start: '2027-01-06' }, [
       'person-mo',
       'person-nia',
-    ]) as (typeof ws.teams)[number],
+    ]) as unknown as (typeof ws.teams)[number],
   );
   ws.areas = [
     {

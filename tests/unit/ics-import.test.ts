@@ -576,7 +576,9 @@ describe('round trip with exportIcs', () => {
     const covered = new Set<string>();
     for (const team of ws.teams) {
       const review = reviewImport(events, { ws, teamId: team.id, today: TODAY });
-      for (const c of review.candidates) all.add(c.key);
+      // Area meetings cannot be imported into a team as their source; they come in as new ones.
+      for (const c of review.candidates)
+        if (!ws.areas.some((a) => c.key.includes(`.${a.id}.`))) all.add(c.key);
       const firstDate = new Map<string, string>();
       for (const o of occurrences(team, ws.settings, index))
         if (!firstDate.has(o.eventId)) firstDate.set(o.eventId, o.date);

@@ -2,7 +2,15 @@
   import { translate as t } from '../../i18n';
   import Rich from './Rich.svelte';
 
-  const parts = ['format', 'buttons', 'status', 'fallback', 'autosave', 'privacy'] as const;
+  const parts = [
+    'format',
+    'areas',
+    'buttons',
+    'status',
+    'fallback',
+    'autosave',
+    'privacy',
+  ] as const;
   const installParts = ['install', 'update'] as const;
   const labels = {
     new: 'file.new',

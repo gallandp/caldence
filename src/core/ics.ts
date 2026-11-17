@@ -14,8 +14,31 @@ import type { HolidayIndex, HolidayName } from './regions';
 import { scopeTeams, type Filter } from './views';
 import { offsetMinutes, transitions } from './zone';
 
+/**
+ * A VEVENT as it was written by an export, kept so that a later export of the same scope can
+ * send it again as cancelled when it is gone. `start`/`end` are the whole DTSTART/DTEND lines.
+ */
+export interface ExportedEvent {
+  uid: string;
+  /** `event.unit` of a meeting; absent for all-day items. */
+  key?: string;
+  /** Set for a recurring series (one UID for all occurrences). */
+  series?: boolean;
+  /**
+   * Set for all-day items every selection of the workspace writes the same way (holidays, school
+   * holidays): never cancelled, since another export in the same calendar may still hold them.
+   */
+  shared?: boolean;
+  date: ISODate;
+  start: string;
+  end: string;
+  summary: string;
+}
+
 export interface IcsExportOptions {
   scope: Filter;
+  /** What the last export of this scope wrote; what is gone now is written as cancelled. */
+  previous?: ExportedEvent[];
   from: ISODate;
   to: ISODate;
   reminderMinutes: number | null;
@@ -204,8 +227,27 @@ export function attendsUnitMeetings(ws: Workspace, unitId: string, personId: str
   );
 }
 
-/** An exported file and how many of its VEVENTs are recurring series and single entries. */
-export type IcsExport = { text: string; series: number; single: number };
+/**
+ * An exported file, how many of its VEVENTs are recurring series, single entries and cancelled
+ * ones, and what the calendar holds after importing it (to pass as `previous` to the next export
+ * of the same scope): what it wrote plus earlier entries outside its range.
+ */
+export type IcsExport = {
+  text: string;
+  series: number;
+  single: number;
+  cancelled: number;
+  events: ExportedEvent[];
+};
+
+/**
+ * SEQUENCE of every VEVENT: the seconds since 2020, so each export is newer than the one before
+ * and calendars that honour updates replace the earlier version instead of adding a copy.
+ * Stays below 2^31 until 2088.
+ */
+export function sequenceOf(now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - Date.UTC(2020, 0, 1)) / 1000));
+}
 
 /**
  * The scoped events of the workspace in from..to as an iCalendar file (CRLF, folded).
@@ -226,9 +268,16 @@ export function exportIcsWithCounts(
 ): IcsExport {
   let series = 0;
   let single = 0;
+  let cancelled = 0;
+  const events: ExportedEvent[] = [];
+  /** Meetings in scope, and those that were written now, as `event.unit`. */
+  const scopeKeys = new Set<string>();
+  const writtenKeys = new Set<string>();
   const tz = ws.settings.timezone;
   const tzid = paramValue(tz);
   const dtstamp = `DTSTAMP:${utcStamp(opts.now)}`;
+  // Every VEVENT of this export carries the same version, so a re-export updates all of them.
+  const version = [`SEQUENCE:${sequenceOf(opts.now)}`, `LAST-MODIFIED:${utcStamp(opts.now)}`];
   const settings = { ...ws.settings, horizon: { from: opts.from, to: opts.to } };
   const roleNames = new Map(ws.roles.map((r) => [r.id, r.name]));
   const categoryNames = new Map(ws.categories.map((c) => [c.id, c.name]));
@@ -264,10 +313,12 @@ export function exportIcsWithCounts(
       else byEvent.set(occ.eventId, [occ]);
     }
     for (const event of eventsInScope(ws, team, opts.scope)) {
+      scopeKeys.add(`${event.id}.${team.id}`);
       const occs = byEvent.get(event.id);
       const first = occs?.[0];
       if (!occs || !first) continue;
       const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
+      const key = `${event.id}.${team.id}`;
       const roles = event.participants
         .map((p) => roleNames.get(p.roleId))
         .filter((n): n is string => n !== undefined);
@@ -286,12 +337,18 @@ export function exportIcsWithCounts(
         for (const occ of occs) {
           if (occ.skippedHoliday) continue;
           single++;
+          const start = `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`;
+          const end = `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`;
+          const id = `${uid}-${occ.date}@caldence`;
+          events.push({ uid: id, key, date: occ.date, start, end, summary: event.name });
+          writtenKeys.add(key);
           lines.push(
             'BEGIN:VEVENT',
-            `UID:${uid}-${occ.date}@caldence`,
+            `UID:${id}`,
             dtstamp,
-            `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`,
-            `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`,
+            ...version,
+            start,
+            end,
             ...common,
             ...alarm(event.name),
             'END:VEVENT',
@@ -300,12 +357,25 @@ export function exportIcsWithCounts(
         continue;
       }
       series++;
+      const start = `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`;
+      const end = `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`;
+      events.push({
+        uid: `${uid}@caldence`,
+        key,
+        series: true,
+        date: first.date,
+        start,
+        end,
+        summary: event.name,
+      });
+      writtenKeys.add(key);
       lines.push(
         'BEGIN:VEVENT',
         `UID:${uid}@caldence`,
         dtstamp,
-        `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`,
-        `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`,
+        ...version,
+        start,
+        end,
         rule,
         ...occs
           .filter((o) => o.skippedHoliday)
@@ -323,14 +393,20 @@ export function exportIcsWithCounts(
     toExclusive: ISODate,
     summary: string,
     desc?: string,
+    shared = false,
   ) => {
     single++;
+    const id = `${uidPart(uid)}.${uidPart(ws.id)}@caldence`;
+    const start = `DTSTART;VALUE=DATE:${compactDate(from)}`;
+    const end = `DTEND;VALUE=DATE:${compactDate(toExclusive)}`;
+    events.push({ uid: id, date: from, start, end, summary, ...(shared ? { shared } : {}) });
     lines.push(
       'BEGIN:VEVENT',
-      `UID:${uidPart(uid)}.${uidPart(ws.id)}@caldence`,
+      `UID:${id}`,
       dtstamp,
-      `DTSTART;VALUE=DATE:${compactDate(from)}`,
-      `DTEND;VALUE=DATE:${compactDate(toExclusive)}`,
+      ...version,
+      start,
+      end,
       `SUMMARY:${escapeText(summary)}`,
       ...(desc !== undefined ? [`DESCRIPTION:${escapeText(desc)}`] : []),
       'TRANSP:TRANSPARENT',
@@ -341,17 +417,23 @@ export function exportIcsWithCounts(
 
   if (opts.allDay.holidays) {
     for (const [date, name] of [...index.holidays].sort(([a], [b]) => (a < b ? -1 : 1))) {
-      if (inRange(date)) allDay(`holiday-${date}`, date, addDays(date, 1), name[opts.locale]);
+      if (inRange(date)) {
+        allDay(`holiday-${date}`, date, addDays(date, 1), name[opts.locale], undefined, true);
+      }
     }
   }
 
   if (opts.allDay.schoolHolidays) {
-    const days = [...index.schoolHolidays]
-      .filter(([d]) => inRange(d))
-      .sort(([a], [b]) => (a < b ? -1 : 1));
+    // Runs are built from every day the index knows, also beyond the range, and written whole
+    // when they touch the range: the UID names the first day of the holidays, not of the range,
+    // so a later export with another start updates the same entry.
+    const days = [...index.schoolHolidays].sort(([a], [b]) => (a < b ? -1 : 1));
     let run: { from: ISODate; to: ISODate; name: HolidayName } | null = null;
     const flush = () => {
-      if (run) allDay(`school-${run.from}`, run.from, addDays(run.to, 1), run.name[opts.locale]);
+      if (run && run.to >= opts.from && run.from <= opts.to) {
+        const { from, to, name } = run;
+        allDay(`school-${from}`, from, addDays(to, 1), name[opts.locale], undefined, true);
+      }
     };
     for (const [date, name] of days) {
       const same =
@@ -382,10 +464,53 @@ export function exportIcsWithCounts(
     }
   }
 
+  // What the last export wrote and is gone now: cancelled, so calendars that honour updates
+  // remove it: a series whose meeting left this selection or no longer exists or is now written
+  // in another form, and single entries within this export's range that were not written again.
+  // A series that is still a meeting of this selection stays, even with nothing to write in this
+  // range (all occurrences skipped, or the range is shorter): it may still run outside the range.
+  // Holidays and school holidays are the same in every selection, so one calendar holding several
+  // selections keeps them: never cancelled, only forgotten.
+  // What is neither written nor cancelled is still in the calendar: it stays remembered.
+  const written = new Set(events.map((e) => e.uid));
+  const kept: ExportedEvent[] = [];
+  const inRangeNow = (d: ISODate) => d >= opts.from && d <= opts.to;
+  for (const old of opts.previous ?? []) {
+    if (written.has(old.uid)) continue;
+    if (old.shared) {
+      if (!inRangeNow(old.date)) kept.push(old);
+      continue;
+    }
+    const gone = old.series
+      ? !old.key || !scopeKeys.has(old.key) || writtenKeys.has(old.key)
+      : inRangeNow(old.date);
+    if (!gone) {
+      kept.push(old);
+      continue;
+    }
+    cancelled++;
+    // The stored lines name the time zone of their export; this file defines the current one.
+    const zone = (line: string) => line.replace(/;TZID=[^:;]*/, `;TZID=${tzid}`);
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${old.uid}`,
+      dtstamp,
+      ...version,
+      zone(old.start),
+      zone(old.end),
+      `SUMMARY:${escapeText(old.summary)}`,
+      'STATUS:CANCELLED',
+      'TRANSP:TRANSPARENT',
+      'END:VEVENT',
+    );
+  }
+
   lines.push('END:VCALENDAR');
   return {
     text: lines.map((l) => `${foldLine(contentLine(l))}\r\n`).join(''),
     series,
     single,
+    cancelled,
+    events: [...events, ...kept],
   };
 }

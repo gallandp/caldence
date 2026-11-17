@@ -3,7 +3,7 @@
   import Rich from './Rich.svelte';
 
   /** Each value with the view it is edited in; the labels are the ones these views show. */
-  const rows: { label: string; view: 'settings' | 'team' | 'meetings' }[] = [
+  const rows: { label: string; view: 'settings' | 'team' | 'area' | 'meetings' }[] = [
     { label: 'lang.label', view: 'settings' },
     { label: 'settings.region', view: 'settings' },
     { label: 'settings.timezone', view: 'settings' },
@@ -13,11 +13,15 @@
     { label: 'settings.skipHolidays', view: 'settings' },
     { label: 'settings.thresholds', view: 'settings' },
     { label: 'settings.hourlyRate', view: 'settings' },
+    { label: 'settings.levels.choice', view: 'settings' },
     { label: 'team.members', view: 'team' },
     { label: 'team.members.hours', view: 'team' },
     { label: 'settings.people', view: 'team' },
     { label: 'settings.roles', view: 'team' },
     { label: 'team.assumptions', view: 'team' },
+    { label: 'help.where.areaPeople', view: 'area' },
+    { label: 'area.card.hoursArea', view: 'area' },
+    { label: 'area.dialog.teams', view: 'area' },
     { label: 'team.cadence', view: 'meetings' },
     { label: 'team.cycles', view: 'meetings' },
     { label: 'meet.categories', view: 'meetings' },

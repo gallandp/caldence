@@ -325,12 +325,12 @@ test('a person without meetings shows no peak week', async ({ page }) => {
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await openPeoplePool(page);
   const people = page.getByRole('region', { name: 'People', exact: true });
-  await people.getByLabel('New person name').fill('Robin');
+  await people.getByLabel('New person name').fill('Noa');
   await people.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
-  // Robin is in no team yet: the person filter shows them.
-  await page.locator('.context').getByLabel('Person').selectOption({ label: 'Robin' });
-  const cells = panel.locator('tr[data-person]').filter({ hasText: 'Robin' }).getByRole('cell');
+  // Noa is in no team yet: the person filter shows them.
+  await page.locator('.context').getByLabel('Person').selectOption({ label: 'Noa' });
+  const cells = panel.locator('tr[data-person]').filter({ hasText: 'Noa' }).getByRole('cell');
   // No team yet: the 40 h a week of the people list, no share and no peak.
   await expect(cells).toHaveText([
     '–',

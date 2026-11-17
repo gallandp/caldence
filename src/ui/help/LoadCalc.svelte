@@ -1,6 +1,7 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
   import Rich from './Rich.svelte';
+  import { sectionLink } from './sections';
 
   const labels = {
     duration: 'meet.duration',
@@ -26,6 +27,7 @@
     settings: 'view.settings',
     hourlyRate: 'settings.hourlyRate',
     costs: 'cost.title',
+    areas: sectionLink('manual-areas'),
   };
   const parts = [
     'duration',
@@ -37,6 +39,7 @@
     'fte',
     'warn',
     'cost',
+    'areas',
   ] as const;
 </script>
 
