@@ -104,6 +104,8 @@
   "setup.defaultName": "Mein Team",
   "setup.team": "Team",
   "setup.start": "Takt beginnt am",
+  "setup.start.moved": "{template} beginnt den Takt immer an einem {weekday}. Ihr Takt beginnt daher am {date}.",
+  "setup.start.joined": "Damit Ihr Takt mit {area} Schritt hält, beginnt er am {date}.",
   "setup.people": "Wer ist im Team?",
   "setup.people.hint": "Tragen Sie pro Rolle Namen ein, getrennt durch Kommas. Sie können das leer lassen und Personen später hinzufügen.",
   "setup.another": "Weiteres Team planen",

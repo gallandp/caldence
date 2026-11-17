@@ -104,6 +104,8 @@
   "setup.defaultName": "My team",
   "setup.team": "Team",
   "setup.start": "Cadence starts on",
+  "setup.start.moved": "{template} starts its cadence on a {weekday}, so yours starts on {date}.",
+  "setup.start.joined": "To stay in step with {area}, your cadence starts on {date}.",
   "setup.people": "Who is in the team?",
   "setup.people.hint": "Enter names per role, separated by commas. You can leave this empty and add people later.",
   "setup.another": "Plan another team",

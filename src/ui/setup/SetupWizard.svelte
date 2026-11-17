@@ -2,9 +2,9 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { setupTeam, type SetupMember } from '../../core/setup';
-  import type { Template } from '../../core/template';
+  import { templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
-  import { locale, translate as t } from '../../i18n';
+  import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { resolveRegion } from '../../core/regions';
   import { regionIds } from '../../data/regions';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
@@ -25,6 +25,8 @@
   let filledFor: BuiltinTemplateId | 'none' | null = null;
   let name = $state('');
   let start = $state('');
+  /** A date the person picked stays when they choose another way of working. */
+  let startPicked = false;
   let names = $state<Record<string, string>>({});
   let me = $state(false);
   let myName = $state('');
@@ -42,6 +44,18 @@
     choice === 'none' ? null : builtinTemplate(choice, $locale),
   );
   const roles = $derived(template ? template.roles : $workspace.roles);
+  /** Templates start on a fixed weekday (or with the area's next increment), not on any date. */
+  const actual = $derived(template && start ? templateStart($workspace, template, start) : null);
+  const moved = $derived(actual && actual.start !== start ? actual : null);
+  const movedText = $derived.by(() => {
+    if (!moved || !template) return '';
+    const date = formatDisplayDate($locale, moved.start, 'long');
+    if (moved.area) return $t('setup.start.joined', { area: moved.area, date });
+    const weekday = new Intl.DateTimeFormat($locale, { weekday: 'long', timeZone: 'UTC' }).format(
+      new Date(`${moved.start}T00:00:00Z`),
+    );
+    return $t('setup.start.moved', { template: template.name, weekday, date });
+  });
   const steps = $derived(withFrame ? 4 : 3);
   /** People of the workspace; a name entered again is the same person. */
   const known = $derived.by(() => {
@@ -72,6 +86,7 @@
     filledFor = null;
     name = '';
     start = localToday();
+    startPicked = false;
     names = {};
     me = false;
     myName = '';
@@ -96,6 +111,10 @@
       // Names and roles of another template do not fit this one.
       filledFor = choice;
       name = template ? template.name : get(t)('setup.defaultName');
+      if (!startPicked)
+        start = template
+          ? templateStart(get(workspace), template, localToday()).start
+          : localToday();
       names = {};
       myRole = '';
     }
@@ -223,7 +242,17 @@
       </div>
       <div class="field">
         <label for="{uid}-start">{$t('setup.start')}</label>
-        <input id="{uid}-start" type="date" bind:value={start} />
+        <input
+          id="{uid}-start"
+          type="date"
+          bind:value={start}
+          oninput={() => (startPicked = true)}
+          aria-describedby={moved ? `${uid}-start-moved` : undefined}
+        />
+        <!-- Always present, so screen readers announce the text when it appears. -->
+        <p class="hint moved" id="{uid}-start-moved" aria-live="polite">
+          {movedText}
+        </p>
       </div>
     {:else if step === 3}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.people')}</h3>
@@ -402,6 +431,9 @@
   .hint {
     color: var(--text-muted);
     margin-top: 0;
+  }
+  .hint.moved:empty {
+    margin: 0;
   }
   .field-error {
     margin: 0.25rem 0 0;
