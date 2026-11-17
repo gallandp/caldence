@@ -103,6 +103,40 @@ describe('areaCosts without hours', () => {
 });
 
 describe('one meeting load in the cost table and the heat map (#262)', () => {
+  it('pins the numbers of the area fixture', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const c = areaCosts(w, noIndex(), area);
+    expect(c.total.share).toBeCloseTo(0.133, 3);
+    const weeks = loadPerWeek(w, noIndex()).slice(0, 12);
+    const avg = (id: string) => {
+      const cells = teamLoad(
+        w,
+        w.teams.find((t) => t.id === id)!,
+        weeks,
+      );
+      return cells.reduce((s, x) => s + x.share, 0) / cells.length;
+    };
+    const row = (id: string) => c.teams.find((r) => r.unitId === id)!.share;
+    // Table (typical week) and heat map average (real weeks): close, but not equal.
+    expect([row('team-alpha'), avg('team-alpha')].map((n) => n.toFixed(3))).toEqual([
+      '0.156',
+      '0.163',
+    ]);
+    expect([row('team-beta'), avg('team-beta')].map((n) => n.toFixed(3))).toEqual([
+      '0.082',
+      '0.075',
+    ]);
+    expect([row('team-gamma'), avg('team-gamma')].map((n) => n.toFixed(3))).toEqual([
+      '0.107',
+      '0.120',
+    ]);
+    expect([row('team-delta'), avg('team-delta')].map((n) => n.toFixed(3))).toEqual([
+      '0.140',
+      '0.146',
+    ]);
+  });
+
   it('a team with weekly meetings only has the same share in both', () => {
     const w = ws();
     const area = w.areas[0]!;

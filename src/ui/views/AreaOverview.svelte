@@ -671,6 +671,12 @@
             aria-hidden="true"
           ></i><i class="key swatch l4" aria-hidden="true"></i>{$t('overview.legend.load')}
         </li>
+        <li data-legend-avg>
+          {$t('overview.legend.avg', {
+            avg: $t('overview.avg'),
+            share: $t('overview.cost.col.share'),
+          })}
+        </li>
         <li>
           <i class="key swatch warn" aria-hidden="true"></i>{$t('overview.legend.warn', {
             max: percent(maxFte),

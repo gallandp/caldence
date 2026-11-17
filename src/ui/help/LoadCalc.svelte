@@ -29,9 +29,8 @@
     costs: 'cost.title',
     areas: sectionLink('manual-areas'),
     overview: 'area.view.overview',
-    costTable: 'overview.cost.title',
     teamShare: 'overview.cost.col.share',
-    avg: 'overview.avg.label',
+    avg: 'overview.avg',
     loadTile: 'overview.kpi.load',
   };
   const parts = [
