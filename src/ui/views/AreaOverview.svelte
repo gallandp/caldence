@@ -31,6 +31,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
 
   /**
    * "Cadence & load" of an area (#168): the teams' cadences against the area cadence, their load
@@ -329,10 +330,10 @@
         <span class="label"
           >{$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}</span
         >
-        {#if costs.total.people > 0}
+        {#if costs.total.invited > 0}
           <span class="label"
             >{$t('overview.kpi.cost.person', {
-              amount: euro(costs.total.cost.perWeek / costs.total.people),
+              amount: euro(costs.total.cost.perWeek / costs.total.invited),
             })}</span
           >
         {/if}
@@ -358,10 +359,13 @@
         <h3 id="{uid}-cost" tabindex="-1">
           {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
         </h3>
-        <p class="note">{$t('overview.cost.hint')}</p>
+        <p class="note">
+          {$t('overview.cost.hint')}{#if rate}
+            {$t('overview.cost.hint.person')}{/if}
+        </p>
       </div>
       {#if rate}
-        <div class="period" role="group" aria-label={$t('overview.cost.period')}>
+        <div class="period" data-no-print role="group" aria-label={$t('overview.cost.period')}>
           {#each ['week', 'horizon'] as const as p (p)}
             <button
               type="button"
@@ -427,7 +431,7 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong">{euro(costOf(r.cost))}</td>
-                <td class="num muted">{r.people > 0 ? euro(costOf(r.cost) / r.people) : '–'}</td>
+                <td class="num muted">{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td>
               {/if}
             </tr>
           {/each}
@@ -459,7 +463,11 @@
             <td></td>
             {#if rate && costs.area.cost}
               <td class="num strong">{euro(costOf(costs.area.cost))}</td>
-              <td></td>
+              <td class="num muted"
+                >{costs.area.invited > 0
+                  ? euro(costOf(costs.area.cost) / costs.area.invited)
+                  : '–'}</td
+              >
             {/if}
           </tr>
         </tbody>
@@ -476,8 +484,8 @@
             {#if rate && costs.total.cost}
               <td class="num">{euro(costOf(costs.total.cost))}</td>
               <td class="num"
-                >{costs.total.people > 0
-                  ? euro(costOf(costs.total.cost) / costs.total.people)
+                >{costs.total.invited > 0
+                  ? euro(costOf(costs.total.cost) / costs.total.invited)
                   : '–'}</td
               >
             {/if}
@@ -715,9 +723,11 @@
                     {s.roleIds.map(roleName).join(', ')} ·
                     {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
                         hours: hours(s.areaHours),
-                      })}{:else}<span class="unset">{$t('area.hours.unset')}</span>{/if}{teamHours(
-                      s.teams,
-                    )}
+                      })}{:else}<span class="unset"
+                        >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
+                            >{$t('area.hours.unset')}</span
+                          ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
+                      >{/if}{teamHours(s.teams)}
                   </small>
                 </div>
               </li>

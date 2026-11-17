@@ -58,7 +58,13 @@
       onClose={closeCard}
     />
   {/if}
-  <div class="pages" role="group" aria-label={$t('area.view.label')} bind:this={pages}>
+  <div
+    class="pages"
+    data-no-print
+    role="group"
+    aria-label={$t('area.view.label')}
+    bind:this={pages}
+  >
     {#each ['structure', 'overview'] as const as p (p)}
       <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
         >{$t(`area.view.${p}`)}</button
@@ -68,7 +74,7 @@
   {#if page === 'structure'}
     <AreaStructure bind:this={structure} {area} />
     <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
-    <details class="roles">
+    <details class="roles" data-no-present>
       <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>
       <RoleList />
     </details>

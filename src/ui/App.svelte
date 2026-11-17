@@ -10,6 +10,7 @@
   import './tokens.css';
   import './global.css';
   import './theme.css';
+  import './print.css';
 
   // The UI language is a workspace setting.
   // The UI language and the level names are workspace settings. Derived first, so that an edit
@@ -22,7 +23,7 @@
     levels.set(levelWords(names ?? undefined, uiLocale));
   });
 
-  const { dirty, fileName, version } = workspace;
+  const { dirty, fileName, version, presentBase } = workspace;
   let ready = $state(false);
 
   onMount(async () => {
@@ -47,7 +48,8 @@
   let last: { fileName: string | null; dirty: boolean; version: number } | undefined;
   $effect(() => {
     const next = { fileName: $fileName, dirty: $dirty, version: $version };
-    if (!ready) return;
+    // What-ifs while presenting are never stored: a reload brings back the state from before.
+    if (!ready || $presentBase) return;
     const immediate =
       last !== undefined &&
       (last.fileName !== next.fileName ||

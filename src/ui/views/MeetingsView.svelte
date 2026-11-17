@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import { meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import { areaAsTeam, type CalEvent } from '../../core/model';
@@ -32,6 +33,8 @@
   import { fieldErrors } from '../state/form';
   import { applyOwn, isOwnChange } from '../state/problems.svelte';
   import { activeTeamId, index, workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
+  import WhatIfSheet, { type WhatIfTarget } from '../components/WhatIfSheet.svelte';
 
   interface Props {
     /** Id of a meeting of the active team to open for editing right away. */
@@ -273,7 +276,18 @@
     };
   }
 
+  /** While presenting, the pencil changes a meeting only as a what-if (M1). */
+  let whatIf = $state.raw<WhatIfTarget | null>(null);
+  // Presenting starts: an open form would edit the file behind the presentation's back.
+  $effect(() => {
+    if ($presenting) editing = null;
+  });
+
   function open(event: CalEvent, opener: string) {
+    if (get(presenting)) {
+      if (team && opener !== 'add') whatIf = { kind: 'meeting', unitId: team.id, event };
+      return;
+    }
     // A new meeting must not vanish behind the filter once it is saved.
     if (opener === 'add') query = '';
     editing = { key: ++counter, event: structuredClone($state.snapshot(event)), opener };
@@ -355,11 +369,12 @@
       <RateInvite />
     {/if}
     <div class="card">
-      <div class="toolbar">
+      <div class="toolbar" data-no-print>
         <button
           type="button"
           class="primary add"
           data-add
+          data-no-present
           disabled={categories.length === 0}
           aria-describedby={categories.length === 0 ? 'meet-needs-category' : undefined}
           onclick={() => open(blankEvent(), 'add')}
@@ -418,6 +433,7 @@
             type="button"
             class="secondary to-calendar"
             data-to-calendar
+            data-no-present
             onclick={() => {
               exportRequest.set({ teamId: team.id });
               onExport();
@@ -432,6 +448,12 @@
           </button>
         {/if}
       </div>
+      {#if query.trim()}
+        <!-- On paper the search field is gone: say what the list is filtered by. -->
+        <p class="print-filter" data-print-only>
+          {$t('meet.print.filter', { query: query.trim() })}
+        </p>
+      {/if}
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
       {/if}
@@ -638,15 +660,17 @@
                       {/if}
                     </td>
                     <td class="c-actions">
-                      <div class="icons">
+                      <div class="icons" data-no-print>
                         <button
                           type="button"
                           class="icon"
-                          data-tip={$t('meet.edit')}
+                          data-tip={$t($presenting ? 'whatif.open' : 'meet.edit')}
                           data-edit={event.id}
                           disabled={locked(event)}
                           aria-describedby={locked(event) ? 'meet-open-note' : undefined}
-                          aria-label={$t('meet.edit.named', { name: event.name })}
+                          aria-label={$t($presenting ? 'whatif.open.named' : 'meet.edit.named', {
+                            name: event.name,
+                          })}
                           onclick={() => open(event, event.id)}
                         >
                           <svg viewBox="0 0 24 24" aria-hidden="true"
@@ -656,6 +680,7 @@
                         <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
                         <div
                           class="menu-wrap"
+                          data-no-present
                           onkeydown={(e) => onMenuKeydown(e, event.id)}
                           onfocusout={onMenuFocusout}
                         >
@@ -730,10 +755,10 @@
         </p>
       {/if}
     </div>
-    <CyclesCard {team} />
+    <div data-no-present><CyclesCard {team} /></div>
   {/if}
 
-  <div class="card">
+  <div class="card" data-no-present>
     <ListEditor
       kind="categories"
       items={categories}
@@ -751,6 +776,17 @@
     </ListEditor>
   </div>
 </div>
+
+{#if whatIf}
+  <WhatIfSheet
+    target={whatIf}
+    onclose={() => {
+      const id = whatIf?.kind === 'meeting' ? whatIf.event.id : '';
+      whatIf = null;
+      void focusSoon(`[data-edit="${CSS.escape(id)}"]`);
+    }}
+  />
+{/if}
 
 <style>
   .area-intro {

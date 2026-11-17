@@ -28,7 +28,7 @@
   }
 </script>
 
-<section class="card invite" aria-labelledby="{uid}-title" data-rate-invite>
+<section class="card invite" aria-labelledby="{uid}-title" data-rate-invite data-no-present>
   <div class="text">
     <h3 id="{uid}-title">{$t('cost.title')}</h3>
     <p class="note">{$t('cost.invite.text')}</p>

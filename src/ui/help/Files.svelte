@@ -7,6 +7,7 @@
     'areas',
     'buttons',
     'status',
+    'present',
     'fallback',
     'autosave',
     'privacy',
@@ -24,6 +25,10 @@
     available: 'update.available',
     reload: 'update.reload',
     later: 'update.later',
+    present: 'file.present',
+    stop: 'file.present.stop',
+    hideNames: 'present.hideNames',
+    reset: 'whatif.reset',
   };
 </script>
 

@@ -7,6 +7,8 @@
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, localToday } from '../state/workspace';
   import FieldError from './FieldError.svelte';
+  import WhatIfSheet from './WhatIfSheet.svelte';
+  import { presenting } from '../state/present';
 
   /** With `area`, the cadence is the area's own and optional (`team` is the area as a team). */
   let { team, area }: { team: Team; area?: Area } = $props();
@@ -32,6 +34,17 @@
   }
 
   const cadenceKinds = ['sprint', 'flow', 'pi'] as const;
+
+  /** While presenting, the length changes only as a what-if (M1). */
+  let whatIf = $state(false);
+  let whatIfButton: HTMLButtonElement | undefined = $state();
+  // Presenting starts: open fields would change the file.
+  $effect(() => {
+    if ($presenting) {
+      open = false;
+      problems.errors = {};
+    }
+  });
 
   /** "Sprint · 2 weeks · from 01/05/2027" */
   const summary = $derived(
@@ -104,11 +117,25 @@
   <div class="line">
     <h3 id="{uid}-h">{$t('team.cadence')}</h3>
     <p class="summary">{summary}</p>
-    {#if none}
-      <button type="button" class="secondary" onclick={addCadence}>{$t('area.cadence.add')}</button>
+    {#if $presenting}
+      {#if !none}
+        <button
+          type="button"
+          class="secondary"
+          data-whatif-cadence
+          data-no-print
+          bind:this={whatIfButton}
+          onclick={() => (whatIf = true)}>{$t('whatif.open')}</button
+        >
+      {/if}
+    {:else if none}
+      <button type="button" class="secondary" data-no-print onclick={addCadence}
+        >{$t('area.cadence.add')}</button
+      >
     {:else}<button
         type="button"
         class="secondary"
+        data-no-print
         aria-expanded={showFields}
         aria-controls="{uid}-fields"
         aria-label={showFields ? undefined : $t('meet.cadence.editLabel')}
@@ -177,6 +204,16 @@
     {/if}
   </div>
 </section>
+
+{#if whatIf}
+  <WhatIfSheet
+    target={{ kind: 'cadence', unitId: team.id }}
+    onclose={() => {
+      whatIf = false;
+      whatIfButton?.focus();
+    }}
+  />
+{/if}
 
 <style>
   .line {
