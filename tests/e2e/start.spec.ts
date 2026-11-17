@@ -312,3 +312,11 @@ test('deleting the last team in the calendar returns to the start screen with fo
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
   await expect(page.locator('#main')).toBeFocused();
 });
+
+test('the wizard names the template cadence with a proper plural', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await expect(dialog.getByText(/week\(s\)/)).toHaveCount(0);
+  await expect(dialog.getByText(/\b2 weeks\b/).first()).toBeVisible();
+});

@@ -114,7 +114,7 @@ test('deleting a person in a team asks for confirmation', async ({ page }) => {
   await openExample(page, 'team');
   await page.getByRole('button', { name: 'Delete Alex' }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete Alex?' });
-  await expect(dialog).toContainText('2 membership(s) in teams');
+  await expect(dialog).toContainText('2 memberships in teams');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByLabel('Name of Alex')).toHaveCount(1);
   await page.getByRole('button', { name: 'Delete Alex' }).click();

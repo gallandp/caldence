@@ -118,7 +118,7 @@ test('importing a custom template shows a preview and creates a team', async ({ 
   await expect(preview).toContainText('Roles: 1');
   await expect(preview).toContainText('Categories: 1');
   await expect(preview).toContainText('Meetings: 2');
-  await expect(preview).toContainText('Cadence: Sprint, 1 week(s)');
+  await expect(preview).toContainText('Cadence: Sprint, 1 week');
   await expect(preview.getByLabel('Team name')).toHaveValue('Pairing Rhythm');
   await preview.getByLabel('Team name').fill('Pair Team');
   await preview.getByRole('button', { name: 'Create team' }).click();

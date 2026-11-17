@@ -387,6 +387,49 @@ for (const lang of ['de', 'en'] as const) {
   }
 }
 
+// #238: a fresh Scrum team from the wizard squeezes the category column enough that,
+// before the fix, the dot stood alone and "(4,8 h)" broke. One line = the text box
+// is no taller than about one line box.
+for (const lang of ['de', 'en'] as const) {
+  for (const width of [390, 1440]) {
+    test(`load tables keep dot + category and the peak week on one line (${lang}, ${width} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.setFixedTime(new Date('2027-03-17T12:00:00'));
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Plan new', exact: true }).first().click();
+      const dialog = page.getByRole('dialog', { name: 'Plan new' });
+      await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByLabel('I take part myself').check();
+      await dialog.getByLabel('Your name').fill('Kim');
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Create team' }).click();
+      await expect(dialog).toBeHidden();
+      await setLanguage(page, lang);
+      await showView(page, tabName.load[lang]);
+      const panel = page.getByRole('tabpanel', { name: tabName.load[lang] });
+      const lines = (selector: string) =>
+        panel.locator(selector).evaluateAll((els) =>
+          els.map((n) => {
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            const lh = parseFloat(getComputedStyle(n).lineHeight);
+            return `${n.textContent?.trim()}: ${range.getBoundingClientRect().height < lh * 1.5 ? 1 : 2}`;
+          }),
+        );
+      await expect(panel.locator('tr[data-category] th').first()).toBeVisible();
+      const cats = await lines('tr[data-category] th');
+      expect(cats).toEqual(cats.map((c) => c.replace(/\d$/, '1')));
+      await expect(panel.locator('tr[data-person] td:last-child').first()).toBeVisible();
+      const peaks = await lines('tr[data-person] td:last-child');
+      expect(peaks).toEqual(peaks.map((c) => c.replace(/\d$/, '1')));
+    });
+  }
+}
+
 for (const size of [
   { name: 'desktop', width: 1440, height: 900 },
   { name: 'phone', width: 390, height: 844 },

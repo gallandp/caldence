@@ -142,7 +142,12 @@
     if (count === 0) return null;
     return {
       title: $t('settings.people.confirm.title', { name: person.name }),
-      message: $t('settings.people.confirm.message', { name: person.name, count }),
+      message: $t(
+        count === 1
+          ? 'settings.people.confirm.message.one'
+          : 'settings.people.confirm.message.other',
+        { name: person.name, count },
+      ),
     };
   }
 
