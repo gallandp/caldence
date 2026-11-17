@@ -42,3 +42,18 @@ body {
   margin: 0 auto;
   padding: 2rem 1rem;
 }
+
+/* Present mode (persona concept M1): type grows with the root size for a projector, and
+   controls that edit the workspace step aside. What-ifs stay. */
+html.presenting {
+  font-size: 112.5%;
+}
+html.presenting [data-no-present] {
+  display: none !important;
+}
+/* The what-if bar opens the page: the filters keep their own row instead of sitting beside it. */
+html.presenting #app .content > .bar.context {
+  margin-bottom: 0;
+  height: auto;
+  padding-bottom: 0.5rem;
+}

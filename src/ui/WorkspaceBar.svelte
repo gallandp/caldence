@@ -10,6 +10,13 @@
   import { browserFileEnv, createFileService, isActivationError } from './state/files';
   import { pickFile } from './state/picker';
   import { workspace } from './state/workspace';
+  import {
+    hideNames,
+    presenting,
+    setHideNames,
+    startPresenting,
+    stopPresenting,
+  } from './state/present';
 
   /** Only Calendar, Weeks and Load follow the role/person filter; elsewhere it stays hidden.
       It is hidden, not removed, so its choice is kept when the user comes back. */
@@ -19,6 +26,32 @@
     $props();
 
   const { dirty, fileName } = workspace;
+
+  let presentButton: HTMLButtonElement | undefined = $state();
+  let endButton: HTMLButtonElement | undefined = $state();
+  /** An open meeting form would be dropped by presenting: it is closed first, on purpose. */
+  function present() {
+    if (document.querySelector('.eventform')) {
+      hint = 'present.closeForm';
+      return;
+    }
+    hint = null;
+    startPresenting();
+  }
+  // Start and end swap the buttons: the focus moves to the new one instead of getting lost.
+  let wasPresenting = false;
+  $effect(() => {
+    const now = $presenting;
+    if (now === wasPresenting) return;
+    wasPresenting = now;
+    void tick().then(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body) return;
+      (now ? endButton : presentButton)?.focus();
+    });
+  });
+  /** A screen with a play mark: presenting (persona concept M1). */
+  const PRESENT_ICON = 'M3 4h18v12H3zM12 16v4M8 20h8M10 8l4 2-4 2z';
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
   const autosaveOn = autosave.status;
@@ -204,60 +237,102 @@
 
 <svelte:window onpointerdown={onWindowPointer} />
 
-<header class="bar">
-  <div class="buttons wide">
-    <button type="button" class="new" onclick={newWorkspace}>{$t('file.new')}</button>
-    <button type="button" class="open" onclick={open}>{$t('file.open')}</button>
-    <button type="button" class="save" class:primary={$dirty} onclick={save}
-      >{$t('file.save')}</button
-    >
-    <button type="button" class="save-as" onclick={saveAs}>{$t('file.saveAs')}</button>
-  </div>
-  <!-- Only one of the two button groups shows; the hidden one is out of the tab order. -->
-  <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
-  <div class="buttons compact" onkeydown={onMoreKeydown} onfocusout={onMoreFocusout}>
-    <button type="button" class="save" class:primary={$dirty} onclick={save}
-      >{$t('file.save')}</button
-    >
+<header class="bar" class:presenting={$presenting}>
+  {#if $presenting}
+    <p class="status">
+      <span class="name">{$fileName ?? $t('file.untitled')}</span>
+    </p>
+    <p class="banner">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
+      {$t('present.banner')}
+    </p>
+    <label class="hide-names">
+      <input
+        type="checkbox"
+        checked={$hideNames}
+        onchange={(e) => setHideNames(e.currentTarget.checked)}
+      />
+      {$t('present.hideNames')}
+    </label>
     <button
       type="button"
-      class="more"
-      aria-label={$t('file.more')}
-      aria-expanded={moreOpen}
-      aria-controls="{uid}-more"
-      bind:this={moreToggle}
-      onclick={toggleMore}
-      ><svg viewBox="0 0 24 24" aria-hidden="true"
-        ><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle
-          cx="19"
-          cy="12"
-          r="1.6"
-        /></svg
-      ></button
+      class="present-toggle"
+      data-present
+      aria-pressed="true"
+      bind:this={endButton}
+      onclick={stopPresenting}
     >
-    <div class="more-panel" id="{uid}-more" hidden={!moreOpen} bind:this={morePanel}>
-      <button type="button" class="new" onclick={() => fromMore(newWorkspace)}
-        >{$t('file.new')}</button
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
+      {$t('file.present.stop')}
+    </button>
+  {:else}
+    <div class="buttons wide">
+      <button type="button" class="new" onclick={newWorkspace}>{$t('file.new')}</button>
+      <button type="button" class="open" onclick={open}>{$t('file.open')}</button>
+      <button type="button" class="save" class:primary={$dirty} onclick={save}
+        >{$t('file.save')}</button
       >
-      <button type="button" class="open" onclick={() => fromMore(open)}>{$t('file.open')}</button>
-      <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
-        >{$t('file.saveAs')}</button
-      >
-      {@render menu?.(closeMore)}
+      <button type="button" class="save-as" onclick={saveAs}>{$t('file.saveAs')}</button>
     </div>
-  </div>
-  <p class="status">
-    <span class="name">{$fileName ?? $t('file.untitled')}</span>
-    {#if $dirty}
-      <span class="marker"
-        ><span class="full">{$t('file.unsaved')}</span><span class="short"
-          >{$t('file.unsaved.short')}</span
-        ></span
+    <!-- Only one of the two button groups shows; the hidden one is out of the tab order. -->
+    <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
+    <div class="buttons compact" onkeydown={onMoreKeydown} onfocusout={onMoreFocusout}>
+      <button type="button" class="save" class:primary={$dirty} onclick={save}
+        >{$t('file.save')}</button
       >
-    {:else if $fileName !== null}
-      <span class="marker saved">{$t('file.saved')}</span>
+      <button
+        type="button"
+        class="more"
+        aria-label={$t('file.more')}
+        aria-expanded={moreOpen}
+        aria-controls="{uid}-more"
+        bind:this={moreToggle}
+        onclick={toggleMore}
+        ><svg viewBox="0 0 24 24" aria-hidden="true"
+          ><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle
+            cx="19"
+            cy="12"
+            r="1.6"
+          /></svg
+        ></button
+      >
+      <div class="more-panel" id="{uid}-more" hidden={!moreOpen} bind:this={morePanel}>
+        <button type="button" class="new" onclick={() => fromMore(newWorkspace)}
+          >{$t('file.new')}</button
+        >
+        <button type="button" class="open" onclick={() => fromMore(open)}>{$t('file.open')}</button>
+        <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
+          >{$t('file.saveAs')}</button
+        >
+        {@render menu?.(closeMore)}
+      </div>
+    </div>
+    <p class="status">
+      <span class="name">{$fileName ?? $t('file.untitled')}</span>
+      {#if $dirty}
+        <span class="marker"
+          ><span class="full">{$t('file.unsaved')}</span><span class="short"
+            >{$t('file.unsaved.short')}</span
+          ></span
+        >
+      {:else if $fileName !== null}
+        <span class="marker saved">{$t('file.saved')}</span>
+      {/if}
+    </p>
+    {#if !empty}
+      <button
+        type="button"
+        class="present-toggle start"
+        data-present
+        aria-pressed="false"
+        bind:this={presentButton}
+        onclick={present}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
+        {$t('file.present')}
+      </button>
     {/if}
-  </p>
+  {/if}
   <div role="status" class="notice">
     {#if hint}{$t(hint)}{:else if !$autosaveOn}{$t('file.autosaveOff')}{/if}
   </div>
@@ -327,6 +402,57 @@
   .marker,
   .notice {
     color: var(--text-muted);
+  }
+  .present-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  /* After the file buttons (theme.css orders the bar: name, buttons, notices). */
+  .present-toggle,
+  .banner,
+  .hide-names {
+    order: 2;
+    white-space: nowrap;
+  }
+  .present-toggle svg,
+  .banner svg {
+    width: 1.1em;
+    height: 1.1em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+  }
+  .presenting {
+    background: var(--accent-soft);
+  }
+  .presenting .status {
+    flex: none;
+  }
+  .banner {
+    white-space: normal;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--accent-text, var(--accent));
+  }
+  .hide-names {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .presenting .present-toggle {
+    margin-left: auto;
+  }
+  /* Phones keep their file menu: presenting is for a projector or a shared screen. */
+  @media (max-width: 40rem) {
+    .present-toggle.start {
+      display: none;
+    }
   }
   .error {
     flex-basis: 100%;

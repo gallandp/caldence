@@ -41,7 +41,7 @@ export interface AreaCosts {
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const share = (hours: number, cap: number) => (cap > 0 ? hours / cap : 0);
 
-function row(
+export function unitRow(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
@@ -74,10 +74,10 @@ export function areaCosts(
   const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
   const teamRows = teams.map((t) => {
     const people = [...new Set(t.members.map((m) => m.personId))];
-    return row(ws, index, t, people, sum(people.map((p) => capacity(ws, p, t.id))), rate);
+    return unitRow(ws, index, t, people, sum(people.map((p) => capacity(ws, p, t.id))), rate);
   });
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
-  const areaRow = row(ws, index, areaAsTeam(area), areaPeople, 0, rate);
+  const areaRow = unitRow(ws, index, areaAsTeam(area), areaPeople, 0, rate);
   areaRow.share = 0;
   areaRow.noHours = false;
   const everyone = [

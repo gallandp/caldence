@@ -12,6 +12,7 @@
   import FieldError from './FieldError.svelte';
   import { Problems } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
 
   /**
    * The card of one person in the structure view: hours per area and team, editable area role and
@@ -247,6 +248,9 @@
         {#if p.areaRoleIds.length > 1}
           <!-- Several roles at area level: shown, not edited here, so none gets lost. -->
           <small>{p.areaRoleIds.map(roleName).join(', ')}</small>
+        {:else if $presenting}
+          <!-- Presenting: the card shows, it does not edit. -->
+          <small>{p.areaRoleIds[0] ? roleName(p.areaRoleIds[0]) : $t('area.card.noRole')}</small>
         {:else}
           <select
             data-area-role
@@ -279,18 +283,18 @@
         {/if}
       </div>
       <span class="hours">
-        <input
-          type="number"
-          min="0"
-          step="0.5"
-          data-area-hours
-          class:unset={p.invitedOnly}
-          value={p.areaHours}
-          aria-label={$t('area.card.hoursArea')}
-          aria-invalid={errors['area-hours'] ? true : undefined}
-          aria-describedby={describe('area-hours')}
-          onchange={onAreaHours}
-        />{$t('area.card.unit')}
+        {#if $presenting}{num(p.areaHours)}{:else}<input
+            type="number"
+            min="0"
+            step="0.5"
+            data-area-hours
+            class:unset={p.invitedOnly}
+            value={p.areaHours}
+            aria-label={$t('area.card.hoursArea')}
+            aria-invalid={errors['area-hours'] ? true : undefined}
+            aria-describedby={describe('area-hours')}
+            onchange={onAreaHours}
+          />{/if}{$t('area.card.unit')}
       </span>
     </div>
     <FieldError {problems} id="area-role" />
@@ -302,16 +306,16 @@
           <small>{x.roleIds.map(roleName).join(', ')}</small>
         </div>
         <span class="hours">
-          <input
-            type="number"
-            min="0"
-            step="0.5"
-            value={x.hours}
-            aria-label={$t('area.card.hoursTeam', { team: teamName(x.teamId) })}
-            aria-invalid={errors[`team-${x.teamId}`] ? true : undefined}
-            aria-describedby={describe(`team-${x.teamId}`)}
-            onchange={(e) => onTeamHours(x.teamId, e)}
-          />{$t('area.card.unit')}
+          {#if $presenting}{num(x.hours)}{:else}<input
+              type="number"
+              min="0"
+              step="0.5"
+              value={x.hours}
+              aria-label={$t('area.card.hoursTeam', { team: teamName(x.teamId) })}
+              aria-invalid={errors[`team-${x.teamId}`] ? true : undefined}
+              aria-describedby={describe(`team-${x.teamId}`)}
+              onchange={(e) => onTeamHours(x.teamId, e)}
+            />{/if}{$t('area.card.unit')}
         </span>
       </div>
       <FieldError {problems} id="team-{x.teamId}" />
@@ -333,7 +337,7 @@
       </p>
     {/if}
 
-    <div class="foot">
+    <div class="foot" data-no-present>
       {#if p.areaRoleIds.length > 0 || p.areaHours > 0}
         <button type="button" class="remove" onclick={remove}
           >{$t('area.card.remove', { name: area.name })}</button
