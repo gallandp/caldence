@@ -1,6 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openPeoplePool, setLanguage, showView, useFileFallback } from './helpers';
+import {
+  openExample,
+  openPeoplePool,
+  openWorkspaceFile,
+  pickUnit,
+  setLanguage,
+  showView,
+  useFileFallback,
+} from './helpers';
+import { structureWorkspace } from './structure-fixture';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -376,4 +385,39 @@ for (const lang of ['de', 'en'] as const) {
       expect(results.violations).toEqual([]);
     });
   }
+}
+
+for (const size of [
+  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'phone', width: 390, height: 844 },
+]) {
+  test(`the average label stays visible when every week has the same load (${size.name})`, async ({
+    page,
+  }) => {
+    // The Payments area only has weekly meetings; without holidays every week has the same load,
+    // so the average line sits at the very top of the chart.
+    const ws = structureWorkspace();
+    ws.settings.skipHolidays = false;
+    await page.clock.setFixedTime(new Date('2026-03-10T12:00:00'));
+    // The Open button sits in a menu on phones: load on a wide screen, then narrow it.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await openWorkspaceFile(page, ws);
+    await pickUnit(page, 'Payments');
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await showView(page, 'Meeting load');
+    const chart = page
+      .getByRole('tabpanel', { name: 'Meeting load' })
+      .getByRole('img', { name: /^Bar chart of the hours per week/ });
+    // Average and peak are the same.
+    await expect(chart).toHaveAttribute(
+      'aria-label',
+      /average (\d+\.\d) h, highest W\d+ with \1 h/,
+    );
+    const box = await chart.boundingBox();
+    const label = chart.locator('.avg span');
+    await expect(label).toBeVisible();
+    const text = await label.boundingBox();
+    expect(text!.y).toBeGreaterThanOrEqual(box!.y);
+  });
 }
