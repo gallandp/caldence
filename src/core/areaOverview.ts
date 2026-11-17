@@ -146,32 +146,36 @@ export function compareCadences(
 
 export interface LoadCell {
   monday: ISODate;
-  /** Average share of the members' weekly hours spent in the team's meetings (0..1+). */
+  /**
+   * Meeting hours of all members in the team's meetings that week ÷ their weekly hours there:
+   * the same pooled share as "Meetings in the team" in the cost table, but for the real week,
+   * one-off meetings included (#262).
+   */
   share: number;
   /** At least one member is above the maximum share (thresholds.maxFte). */
   warn: boolean;
 }
 
 /**
- * A team's load in each week: the average over its members of their meeting hours in the team
- * divided by their weekly hours there. A member without hours who has meetings counts as full
- * and over the maximum, like the warnings in Load.
+ * A team's load in each week, pooled like the cost table: the members' meeting hours in the team
+ * ÷ their weekly hours there. Meetings without any weekly hours to measure them against count as
+ * full. `warn` is per person, like the warnings in Load.
  */
 export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell[] {
   const people = [...new Set(team.members.map((m) => m.personId))];
   const hours = new Map(people.map((p) => [p, capacity(ws, p, team.id)]));
+  const capTotal = [...hours.values()].reduce((a, b) => a + b, 0);
   const { maxFte } = ws.settings.thresholds;
   return weeks.map((week) => {
     let total = 0;
     let warn = false;
     for (const p of people) {
       const h = week.byTeamPerson[team.id]?.[p] ?? 0;
-      const cap = hours.get(p) ?? 0;
-      const share = cap > 0 ? fte(h, cap) : h > 0 ? 1 : 0;
-      total += share;
-      if (overMax(h, cap, maxFte)) warn = true;
+      total += h;
+      if (overMax(h, hours.get(p) ?? 0, maxFte)) warn = true;
     }
-    return { monday: week.monday, share: people.length > 0 ? total / people.length : 0, warn };
+    const share = capTotal > 0 ? fte(total, capTotal) : total > 0 ? 1 : 0;
+    return { monday: week.monday, share, warn };
   });
 }
 

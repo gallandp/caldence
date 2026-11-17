@@ -160,7 +160,7 @@ describe('compareCadences', () => {
 });
 
 describe('teamLoad', () => {
-  it('averages the members’ shares and warns when one is over the maximum', () => {
+  it('pools the members’ hours like the cost table and warns when one is over the maximum', () => {
     const t = team('alpha', sprint(2), {
       members: [
         { personId: 'p1', roleId: 'po' },
@@ -186,8 +186,8 @@ describe('teamLoad', () => {
       { id: 'p2', name: 'Sam' },
     ];
     const cells = teamLoad(ws, t, loadPerWeek(ws, noIndex()));
-    // Pat: 13 h of 20 h = 65 %, Sam: 0 % → average 32.5 %, Pat is over 60 %.
-    expect(cells[0]!.share).toBeCloseTo(0.325);
+    // 13 h of 20 h + 40 h = 21.7 % (#262); Pat alone (13 of 20 h = 65 %) is over 60 %.
+    expect(cells[0]!.share).toBeCloseTo(13 / 60);
     expect(cells[0]!.warn).toBe(true);
   });
 

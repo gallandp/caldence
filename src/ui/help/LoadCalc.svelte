@@ -28,6 +28,10 @@
     hourlyRate: 'settings.hourlyRate',
     costs: 'cost.title',
     areas: sectionLink('manual-areas'),
+    overview: 'area.view.overview',
+    teamShare: 'overview.cost.col.share',
+    avg: 'overview.avg',
+    loadTile: 'overview.kpi.load',
   };
   const parts = [
     'duration',
@@ -40,6 +44,7 @@
     'warn',
     'cost',
     'areas',
+    'overview',
   ] as const;
 </script>
 
