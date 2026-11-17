@@ -180,12 +180,14 @@
     <tbody>
       {#each summary.byCategory as c (c.categoryId)}
         <tr data-category={c.categoryId}>
-          <th scope="row">
-            <span
-              class="dot"
-              aria-hidden="true"
-              style:background={$workspace.categories.find((x) => x.id === c.categoryId)?.colour}
-            ></span>{categoryName(c.categoryId)}
+          <th scope="row" class="nowrap">
+            <span class="cat"
+              ><span
+                class="dot"
+                aria-hidden="true"
+                style:background={$workspace.categories.find((x) => x.id === c.categoryId)?.colour}
+              ></span>{categoryName(c.categoryId)}</span
+            >
           </th>
           {#each summary.byRole as r (r.roleId)}
             <td class="num">{hours(summary.matrix[c.categoryId]?.[r.roleId] ?? 0)}</td>
@@ -211,7 +213,7 @@
           <th scope="row">{p.person.name}</th>
           <td class="num">{hours(p.average)}</td>
           <td class="num">{formatPercent($locale, p.fte)}</td>
-          <td class="num">
+          <td class="num nowrap">
             {#if p.peak}
               {$t('load.peak', { week: weekLabel(p.peak.monday), hours: hours(p.peak.hours) })}
             {:else}
@@ -515,11 +517,18 @@
   .total {
     font-weight: 700;
   }
+  .nowrap {
+    white-space: nowrap;
+  }
+  .cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
   .dot {
-    display: inline-block;
+    flex: none;
     width: 0.6rem;
     height: 0.6rem;
-    margin-right: 0.55rem;
     border-radius: 50%;
   }
   /* ---------- warnings ---------- */

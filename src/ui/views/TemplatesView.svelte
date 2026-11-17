@@ -195,10 +195,15 @@
             })}
           </li>
           <li>
-            {$t('templates.preview.cadence', {
-              kind: $t('team.cadence.kind.' + imported.team.cadence.kind),
-              weeks: imported.team.cadence.lengthWeeks,
-            })}
+            {$t(
+              imported.team.cadence.lengthWeeks === 1
+                ? 'templates.preview.cadence.one'
+                : 'templates.preview.cadence.other',
+              {
+                kind: $t('team.cadence.kind.' + imported.team.cadence.kind),
+                weeks: imported.team.cadence.lengthWeeks,
+              },
+            )}
           </li>
         </ul>
         <form class="row" onsubmit={submitImport}>

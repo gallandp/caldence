@@ -377,3 +377,28 @@ for (const lang of ['de', 'en'] as const) {
     });
   }
 }
+
+for (const lang of ['de', 'en'] as const) {
+  for (const width of [390, 1440]) {
+    test(`load tables keep dot + category and the peak week on one line (${lang}, ${width} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const panel = await openView(page, 'load', '2027-03-10', lang);
+      // One line = the content box of the text is no taller than about one line box.
+      const oneLine = async (el: import('@playwright/test').Locator) =>
+        el.evaluate((n) => {
+          const lh = parseFloat(getComputedStyle(n).lineHeight) || 20;
+          const range = document.createRange();
+          range.selectNodeContents(n);
+          return range.getBoundingClientRect().height < lh * 1.5;
+        });
+      const cats = panel.locator('tr[data-category] th .cat');
+      await expect(cats.first()).toBeVisible();
+      for (const cat of await cats.all()) expect(await oneLine(cat)).toBe(true);
+      const peaks = panel.locator('tr[data-person] td:last-child');
+      await expect(peaks.first()).toBeVisible();
+      for (const peak of await peaks.all()) expect(await oneLine(peak)).toBe(true);
+    });
+  }
+}
