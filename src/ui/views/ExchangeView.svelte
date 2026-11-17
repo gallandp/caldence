@@ -2,7 +2,13 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
-  import { attendsUnitMeetings, exportIcsWithCounts, scopeHasEvents } from '../../core/ics';
+  import {
+    attendsUnitMeetings,
+    exportIcsWithCounts,
+    scopeHasEvents,
+    type IcsExport,
+  } from '../../core/ics';
+  import { lastExport, rememberExport } from '../state/exports';
   import {
     parseIcs,
     reviewImport,
@@ -11,6 +17,7 @@
     type SkippedItem,
   } from '../../core/icsImport';
   import { slug } from '../../core/slug';
+  import { addDays } from '../../core/date';
   import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
@@ -40,7 +47,12 @@
   const zoneKnown = $derived(isKnownZone(ws.settings.timezone));
 
   let problem = $state<{ key: string; path?: string } | null>(null);
-  let exported = $state<{ name: string; series: number; single: number } | null>(null);
+  let exported = $state<{
+    name: string;
+    series: number;
+    single: number;
+    cancelled: number;
+  } | null>(null);
   /** The ZIP with one calendar per team, role or person, and how many files it holds. */
   let sharedAll = $state<{ name: string; files: number } | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
@@ -126,11 +138,17 @@
     empty ? `${uid}-${id}-err` : inverted ? `${uid}-range-err` : undefined;
 
   // Cheap: the file itself is only built when Export is pressed, so DTSTAMP is the save time.
+  // Bumped after each remembered export, so a scope whose last export can now be cancelled counts.
+  let exportsSeen = $state(0);
+  /** The scope has meetings, or an earlier export whose entries may now need cancelling. */
+  const hasContent = (filter: Filter) =>
+    exportsSeen >= 0 && (scopeHasEvents(ws, filter) || lastExport(ws.id, filter).length > 0);
+
   const canExport = $derived(
     !!chosen &&
       !rangeInvalid &&
       zoneKnown &&
-      (scopeHasEvents(ws, scope) || holidays || schoolHolidays || milestones),
+      (hasContent(scope) || holidays || schoolHolidays || milestones),
   );
 
   // The scope has no meetings at all and no all-day items are asked for.
@@ -139,9 +157,12 @@
   );
 
   function build(filter: Filter) {
-    const range = { ...ws.settings, horizon: { from, to } };
+    // A year around the range, so school holidays that cross its edges keep their real start,
+    // also the long periods of an imported region.
+    const range = { ...ws.settings, horizon: { from: addDays(from, -366), to: addDays(to, 366) } };
     return exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
       scope: filter,
+      previous: lastExport(ws.id, filter),
       from,
       to,
       reminderMinutes: reminder === '' ? null : Number(reminder),
@@ -156,19 +177,19 @@
 
   /** One file per team, role or person in the archive, skipping those without meetings. */
   const canShareAll = $derived(
-    !rangeInvalid &&
-      zoneKnown &&
-      choices.filter((c) => scopeHasEvents(ws, filterFor(c.id))).length > 1,
+    !rangeInvalid && zoneKnown && choices.filter((c) => hasContent(filterFor(c.id))).length > 1,
   );
 
   async function shareAll() {
     if (!canShareAll) return;
     const used: string[] = [];
     const files = [];
+    const remembered: { filter: Filter; built: IcsExport }[] = [];
     for (const c of choices) {
-      if (!scopeHasEvents(ws, filterFor(c.id))) continue;
+      if (!hasContent(filterFor(c.id))) continue;
       const built = build(filterFor(c.id));
-      if (built.series + built.single === 0) continue;
+      if (built.series + built.single + built.cancelled === 0) continue;
+      remembered.push({ filter: filterFor(c.id), built });
       let base = `caldence-${slug(c.name)}`;
       for (let n = 2; used.includes(base); n++) base = `caldence-${slug(c.name)}-${n}`;
       used.push(base);
@@ -188,6 +209,8 @@
         [{ description: $t('exchange.zip.type'), accept: { 'application/zip': ['.zip'] } }],
       );
       if (saved === null) return;
+      for (const r of remembered) rememberExport(ws.id, r.filter, r.built.events);
+      exportsSeen++;
       clearStatus();
       problem = null;
       sharedAll = { name: saved, files: files.length };
@@ -200,7 +223,7 @@
     event.preventDefault();
     if (!canExport || !chosen) return;
     const built = build(scope);
-    if (built.series + built.single === 0) {
+    if (built.series + built.single + built.cancelled === 0) {
       clearStatus();
       problem = null;
       exportEmpty = true;
@@ -214,10 +237,17 @@
         types(),
       );
       if (saved === null) return;
+      rememberExport(ws.id, scope, built.events);
+      exportsSeen++;
       saveExportPerson(ws.id, kind === 'person' ? chosen.id : null);
       clearStatus();
       problem = null;
-      exported = { name: saved, series: built.series, single: built.single };
+      exported = {
+        name: saved,
+        series: built.series,
+        single: built.single,
+        cancelled: built.cancelled,
+      };
     } catch {
       fail('file.error.write');
     }
@@ -330,6 +360,9 @@
         series: exported.series,
         single: exported.single,
       })}
+      {#if exported.cancelled > 0}
+        {$t('exchange.exported.cancelled', { n: exported.cancelled })}
+      {/if}
     {:else if sharedAll}
       {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
     {:else if exportEmpty}
