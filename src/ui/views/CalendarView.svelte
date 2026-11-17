@@ -315,13 +315,17 @@
   const step = (dir: 1 | -1) =>
     mode === 'month' ? addMonths(cursor, dir) : addDays(cursor, 7 * dir);
 
-  function select(date: ISODate) {
+  async function select(date: ISODate) {
     selected = date;
     cursor = date;
+    // Below the grid (narrow screens) the details may start off screen.
+    if (floating) return;
+    await tick();
+    board?.querySelector('.pop')?.scrollIntoView({ block: 'nearest' });
   }
 
   async function selectByKey(date: ISODate) {
-    select(date);
+    await select(date);
     await tick();
     details?.focus();
   }
@@ -367,8 +371,13 @@
     if (root) observer.observe(root);
     return () => observer.disconnect();
   });
-  /** Beside the grid only when the whole month fits; otherwise the details follow below it. */
-  const floating = $derived(boardWidth >= 44 * 16);
+  /**
+   * Beside the grid only when the whole month fits; otherwise the details follow below it and the
+   * grid is compact. 44rem matches the container query in the styles, at any root font size.
+   */
+  const floating = $derived(
+    boardWidth >= 44 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16),
+  );
 
   $effect(() => {
     void [selected, cursor, boardWidth, popWidth, popHeight, layout];
@@ -453,6 +462,8 @@
    */
   function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
     const all = c.chips.length;
+    // The compact grid shows a dot for every meeting.
+    if (!floating) return { shown: all, more: false };
     const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
     // A roomy row has the default height (see td in the styles).
     const room = (rowPx ?? 8.4 * r + 1) - 1 - (2.75 + 1.45 * tags) * r;
@@ -605,7 +616,7 @@
                     tabindex={date === cursor ? 0 : -1}
                     aria-selected={selected === date}
                     aria-current={c.today ? 'date' : undefined}
-                    onclick={() => select(date)}
+                    onclick={() => void select(date)}
                     onkeydown={(e) => onGridKeydown(e, date)}
                   >
                     <!-- The visible text is repeated in full for assistive technology. -->
@@ -776,6 +787,7 @@
     position: relative;
     overflow-x: auto;
     border-radius: var(--radius-lg);
+    container: month / inline-size;
   }
   table {
     border-collapse: separate;
@@ -972,6 +984,62 @@
   @container (min-width: 9rem) {
     .chip .t {
       display: inline;
+    }
+  }
+  /* Narrow (a phone): all seven days fit; a day shows its number and a dot per meeting. */
+  @container month (max-width: 44rem) {
+    table {
+      min-width: 0;
+    }
+    .weekcol {
+      display: none;
+    }
+    thead th {
+      padding: 0.5rem 0;
+      text-align: center;
+      letter-spacing: 0;
+    }
+    td {
+      height: 3.6rem;
+      padding: 0.3rem 0.1rem;
+      text-align: center;
+    }
+    .top {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .day {
+      min-width: 1.6rem;
+      height: 1.6rem;
+      padding: 0;
+    }
+    .load,
+    .tag,
+    .more {
+      display: none;
+    }
+    .warn {
+      padding: 0 0.3rem;
+    }
+    .visual {
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.2rem;
+    }
+    .chip {
+      align-self: auto;
+      /* A border, not a background: forced colours keep borders visible. */
+      box-sizing: content-box;
+      width: 0;
+      height: 0;
+      padding: 0;
+      border: 0.225rem solid var(--c);
+      border-radius: 50%;
+      font-size: 0;
+    }
+    .chip > span {
+      display: none;
     }
   }
   .more {

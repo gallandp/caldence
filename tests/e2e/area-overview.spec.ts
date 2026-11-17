@@ -25,10 +25,7 @@ async function openOverview(page: Page) {
   await openMenuIfNarrow(page);
   // With an area selected the Team entry is the area's page; the overview is its second page.
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
-  await page
-    .getByRole('group', { name: 'Page' })
-    .getByRole('button', { name: 'Cadence & load' })
-    .click();
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
   const overview = page.locator('[data-area-overview]');
   await expect(overview).toBeVisible();
   return overview;
@@ -42,9 +39,9 @@ test('the area overview compares cadences, shows load and the area steering', as
   // Gamma's 3-week sprints and Delta's Wednesday start are out of step.
   const kpi = overview.locator('[data-kpi="cadence"]');
   await expect(kpi.locator('b')).toHaveText('2 of 4');
-  await expect(kpi.locator('.tag')).toHaveText('Out of step: Team Gamma and Team Delta');
+  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Gamma and Team Delta');
   const cadence = overview.locator('[data-cadence]');
-  await expect(cadence.locator('[data-team-row="team-alpha"]')).toContainText('in step');
+  await expect(cadence.locator('[data-team-row="team-alpha"]')).toContainText('aligned');
   await expect(cadence.locator('[data-team-row="team-gamma"]')).toContainText(
     '3-week periods do not fit into 10 weeks',
   );
@@ -80,7 +77,7 @@ test('a load cell opens Load for that team and week', async ({ page }) => {
   const cell = overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]');
   await expect(cell).toHaveAccessibleName(/^Team Beta, W2: \d+% in meetings/);
   await cell.click();
-  await expect(page.getByRole('tab', { name: 'Load', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('tab', { name: 'Meeting load', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );

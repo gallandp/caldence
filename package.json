@@ -1,6 +1,6 @@
 {
   "name": "caldence",
-  "version": "1.42.2",
+  "version": "1.43.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -17,7 +17,8 @@
     "e2e": "playwright test --trace off",
     "icons": "node scripts/icons.mjs",
     "package": "node scripts/package.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "audit": "node scripts/audit.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

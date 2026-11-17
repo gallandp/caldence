@@ -39,6 +39,13 @@ export async function openTeamView(page: Page) {
   await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
 }
 
+/** Unfolds the workspace-wide people and roles on the Team view (folded by default, #231). */
+export async function openPeoplePool(page: Page) {
+  const pool = page.locator('details.pool');
+  if (!(await pool.evaluate((d: HTMLDetailsElement) => d.open)))
+    await pool.locator('summary').click();
+}
+
 /** Opens `ws` through the file input (fallback path) and waits for its name in the bar. */
 export async function openWorkspaceFile(page: Page, ws: unknown, name = 'test.caldence.json') {
   const chooser = page.waitForEvent('filechooser');

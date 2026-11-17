@@ -8,6 +8,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 const TODAY = '2027-03-17';
+/** The templates start their cadence on a Monday: the one after TODAY (a Wednesday). */
+const MONDAY = '2027-03-22';
 const calendar = (page: Page) => page.getByRole('tabpanel', { name: 'Calendar' });
 
 async function start(page: Page) {
@@ -41,7 +43,8 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
     await dialog.getByRole('radio', { name: template, exact: true }).check();
     await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.getByLabel('Team name')).toHaveValue(template);
-    await expect(dialog.getByLabel('Cadence starts on')).toHaveValue(TODAY);
+    await expect(dialog.getByLabel('Cadence starts on')).toHaveValue(MONDAY);
+    await expect(dialog.getByLabel('Cadence starts on')).toHaveAccessibleDescription('');
     await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.getByRole('heading', { name: 'Who is in the team?' })).toBeFocused();
     await dialog.getByLabel('I take part myself').check();
@@ -59,6 +62,32 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
   });
 }
 
+test('the wizard says when Scrum moves a picked date to the next Monday', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  const field = dialog.getByLabel('Cadence starts on');
+  await field.fill(TODAY);
+  await expect(field).toHaveAccessibleDescription(
+    'Scrum starts its cadence on a Monday, so yours starts on Monday, March 22, 2027.',
+  );
+  // A picked date stays when another way of working is chosen.
+  await dialog.getByRole('button', { name: 'Back' }).click();
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(field).toHaveValue(TODAY);
+  await dialog.getByRole('button', { name: 'Back' }).click();
+  await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(field).toHaveValue(TODAY);
+  for (let i = 0; i < 2; i++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await expect(page.getByText(/from 03\/22\/2027/)).toBeVisible();
+});
+
 test('the wizard without a template creates an empty team', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
@@ -66,8 +95,11 @@ test('the wizard without a template creates an empty team', async ({ page }) => 
   await dialog.getByRole('radio', { name: 'No template' }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByLabel('Team name')).toHaveValue('My team');
+  // Without a template the picked date stays as it is.
+  await expect(dialog.getByLabel('Cadence starts on')).toHaveValue(TODAY);
+  await expect(dialog.getByLabel('Cadence starts on')).toHaveAccessibleDescription('');
   await dialog.getByRole('button', { name: 'Next' }).click();
-  await expect(dialog.getByText(/no roles yet/)).toBeVisible();
+  await expect(dialog.getByText(/no roles here yet/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Back' }).click();
   await dialog.getByLabel('Team name').fill('');
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -113,7 +145,7 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await dialog.getByLabel('Horizon to').fill('2027-12-31');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
@@ -185,7 +217,7 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
 
 test('the views that need a team offer the same way in', async ({ page }) => {
   await start(page);
-  for (const name of ['Load', 'Meetings & cadence', 'Team']) {
+  for (const name of ['Meeting load', 'Meetings & cadence', 'Team']) {
     await page.getByRole('tab', { name, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name });
     await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
@@ -279,4 +311,12 @@ test('deleting the last team in the calendar returns to the start screen with fo
   }
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
   await expect(page.locator('#main')).toBeFocused();
+});
+
+test('the wizard names the template cadence with a proper plural', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await expect(dialog.getByText(/week\(s\)/)).toHaveCount(0);
+  await expect(dialog.getByText(/\b2 weeks\b/).first()).toBeVisible();
 });

@@ -40,7 +40,8 @@ jobs:
       - run: npm run screenshots -- --out "$RUNNER_TEMP/shots"
       # All packages are devDependencies (the bundle is built from them), so --omit=dev would
       # check nothing. Fails on high and critical advisories; lower ones go through Dependabot.
-      - run: npm audit --audit-level=high
+      # Accepted advisories (each with its reason) are listed in scripts/audit.mjs.
+      - run: npm run audit
 
   deploy-smoke:
     runs-on: ubuntu-latest

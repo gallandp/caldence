@@ -141,7 +141,7 @@ jobs:
             echo "Merging this PR publishes Caldence $VERSION ($LEVEL)."
             echo
             echo "It is rebuilt from main whenever another PR is merged,"
-            echo "and merged automatically once a day (18:00 Berlin winter time) when CI is green."
+            echo "and merged automatically once a day (about 17:45 Berlin winter time) when CI is green."
             echo
             cat release-notes.md
           } > body.md

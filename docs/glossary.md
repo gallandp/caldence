@@ -1,0 +1,51 @@
+# Caldence glossary (UI words)
+
+The words the German and English UI use for the same things. New and changed texts follow this list.
+German is the reference; the English UI follows the same split.
+
+## One threshold
+
+There is exactly **one** limit for "too much time in meetings": the Settings value
+`thresholds.maxFte` (default 0.6 = 60 % of a person's weekly hours). Every flag, pill, KPI,
+column and bar uses it and shows its value ("über 60 %").
+
+- UI name: **Grenze** / **limit**. Settings label: "Grenze: Anteil der Wochenstunden in Terminen"
+  (input in percent). Never "FTE" for this value.
+- No other share threshold (the prototype's hard-coded 25 % goes).
+- **FTE** only means capacity: meeting hours as full-time equivalents (role and total tiles in Terminlast). Per-person values are shown as a share in percent, so they compare with the Grenze.
+- The second rule (`warnFactor`, default 1.5 × the person's usual load) is a **Lastspitze** /
+  **load spike**. It is never called "Überlast" or "Grenze".
+- "Spitzenwoche" / "Peak week" stays: the week with the most hours.
+
+## Terms
+
+| DE | EN | Means | Do not use it for |
+|---|---|---|---|
+| **{levelArea} / {levelTeam}** | same | The two configurable levels. Always via level words when a text names the level or its view. | The file, a generic "group" |
+| **Datei** (was Arbeitsbereich) | **file** (was workspace) | The workspace file and everything that applies to all of it | The area level |
+| **Person** | person | A human, exists once per file | Membership |
+| **Mitglied** | member | Person + role + hours in one {levelTeam} | People in the area only ("Person {levelInArea}") |
+| **Eingeladen** | Invited | Roles (and so their people) invited to a meeting; meetings table column (was "Teilnehmer") | — |
+| **Termin** | meeting | A meeting series or single meeting | Export counts ("Terminserien und Einzeltermine") |
+| **Takt** | cadence | The rhythm: kind + length + start (Sprint, Flow, PI) | Being in sync |
+| **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |
+| **Terminlast** | meeting load | Hours in meetings and their share of weekly hours. Sidebar view, page title, KPI (was "Auslastung") | Total workload |
+| **Anteil in Terminen** | share in meetings | Every share column / bar | — |
+| **über Grenze** | over the limit | A person or week above the one Grenze | "Überlast" |
+| **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
+| **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
+| **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |
+
+## Two meeting-share numbers (H2)
+
+Same label for two values is not allowed:
+
+- **Termine des {levelTeam}** – meeting hours of the {levelTeam} ÷ the {levelTeam}'s hours (cost / framework comparison).
+- **Termine der Personen (alle {levelTeams})** – average over the people in scope, counting all their {levelTeams} and the {levelArea}.
+
+Where both appear near each other, add a one-line hint saying which scope is counted.
+
+## Tabs and page names
+
+- Area tabs: **Struktur | Überblick** (was "Takt & Auslastung"; name by role, not contents).
+- "Termine & Takt" stays as a page name (Takt = the rhythm defined there).

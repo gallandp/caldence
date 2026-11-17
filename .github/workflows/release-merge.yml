@@ -12,8 +12,10 @@ name: Release merge
 
 on:
   schedule:
-    # 17:00 UTC: 18:00 in Berlin in winter, 19:00 in summer. GitHub may start it a little late.
-    - cron: '0 17 * * *'
+    # 16:43 UTC: about 17:45 in Berlin in winter, 18:45 in summer. GitHub starts scheduled runs
+    # late or drops them when many fire at once, most of all on the full hour (on 2026-11-16 the
+    # 17:00 run had not started 30 minutes later), so this avoids the full hour and starts early.
+    - cron: '43 16 * * *'
   workflow_dispatch:
 
 permissions: {}

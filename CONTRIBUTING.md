@@ -40,7 +40,7 @@ Caldence targets WCAG 2.2 AA. Check every UI change against this list:
 - Branch from `main`, for example `feature/<topic>` or `fix/<topic>`.
 - Write the changelog entry in the PR description, in the section `## Changelog` (one line per change under `### Added`, `### Changed`, `### Fixed`, `### Removed` or `### Security`; without it the PR title is used). Do not edit `CHANGELOG.md`: the release writes it, so PRs never conflict over it.
 - Add tests: unit tests in `tests/unit/`, end-to-end tests in `tests/e2e/`.
-- Add exactly one release label. Never change the version by hand. After the merge, a release PR named "Release X.Y.Z" collects the version and changelog of everything merged since the last release (the largest label wins). Once a day (17:00 UTC) it is merged automatically if CI is green on it, and the release is published and deployed after the maintainer's approval. To release right away, run the workflow "Release merge" by hand.
+- Add exactly one release label. Never change the version by hand. After the merge, a release PR named "Release X.Y.Z" collects the version and changelog of everything merged since the last release (the largest label wins). Once a day (16:43 UTC, 17:43 in Berlin in winter, 18:43 in summer) it is merged automatically if CI is green on it, and the release is published and deployed after the maintainer's approval. To release right away, run the workflow "Release merge" by hand.
 
 | Label            | Effect on `Major.Minor.Hotfix`                       |
 | ---------------- | ---------------------------------------------------- |

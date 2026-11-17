@@ -209,7 +209,7 @@ test('a time zone this browser does not know still loads, is flagged and blocks 
   await openWorkspaceFile(page, ws, 'old.caldence.json');
   await expect(page.getByRole('alert').filter({ hasText: /\S/ })).toHaveCount(0);
 
-  await page.getByRole('tab', { name: 'Workspace settings' }).click();
+  await page.getByRole('tab', { name: 'Settings' }).click();
   const zone = page.getByLabel('Time zone');
   await expect(zone).toHaveAttribute('aria-invalid', 'true');
   await expect(zone).toHaveAccessibleDescription(/does not know the time zone Mitteleuropa/);
@@ -218,10 +218,10 @@ test('a time zone this browser does not know still loads, is flagged and blocks 
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
   const button = panel(page).getByRole('button', { name: 'Export .ics…' });
   await expect(button).toBeDisabled();
-  await expect(button).toHaveAccessibleDescription(/workspace time zone Mitteleuropa/);
+  await expect(button).toHaveAccessibleDescription(/time zone Mitteleuropa of this file/);
   await expect(panel(page).getByRole('button', { name: /Choose .ics file…/ })).toBeDisabled();
 
-  await page.getByRole('tab', { name: 'Workspace settings' }).click();
+  await page.getByRole('tab', { name: 'Settings' }).click();
   await zone.selectOption('Europe/Berlin');
   await expect(zone).not.toHaveAttribute('aria-invalid');
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();

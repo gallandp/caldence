@@ -29,8 +29,8 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. |
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
-| `thresholds` | `{ warnFactor, maxFte }` | Load warning limits, both above 0. |
-| `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Load show what meetings cost; without it, no costs are shown. |
+| `thresholds` | `{ warnFactor, maxFte }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. |
+| `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Meeting load show what meetings cost; without it, no costs are shown. |
 | `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty. Without it: `area`. |
 
 ### Team

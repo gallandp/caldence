@@ -4,6 +4,7 @@ import {
   openExample,
   openFixture,
   openTeamView,
+  openPeoplePool,
   useFileFallback,
   teamAction,
   pickUnit,
@@ -119,14 +120,14 @@ test('assumptions are added, changed, renamed to a free name only, and removed',
   const key = panel(page).getByLabel('Name of assumption bugs');
   await key.fill('stories');
   await key.blur();
-  await expect(panel(page).getByText('already has an assumption with this name')).toBeVisible();
+  await expect(panel(page).getByText('already is an assumption with this name')).toBeVisible();
   await expect(key).toHaveValue('stories');
 
   await panel(page).getByLabel('New name').fill('bugs');
   await panel(page).getByLabel('New value').fill('');
   await panel(page).getByRole('button', { name: 'Add assumption' }).click();
   await expect(
-    panel(page).getByText('already has an assumption with this name').first(),
+    panel(page).getByText('already is an assumption with this name').first(),
   ).toBeVisible();
 
   await key.fill('defects');
@@ -146,8 +147,8 @@ test('Plan another team runs the wizard and keeps known people', async ({ page }
   await dialog.getByLabel('Team name').fill('Team Gamma');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByText('Step 3 of 3')).toBeVisible();
-  const hint = await dialog.getByText(/Already in the workspace: /).textContent();
-  const known = /Already in the workspace: ([^,.]+)/.exec(hint ?? '')?.[1];
+  const hint = await dialog.getByText(/Already in this file: /).textContent();
+  const known = /Already in this file: ([^,.]+)/.exec(hint ?? '')?.[1];
   expect(known).toBeTruthy();
   // The wizard sits outside the context bar, so the bar's small uppercase labels stay out of it.
   await expect(dialog.locator('label').first()).toHaveCSS('text-transform', 'none');
@@ -240,6 +241,7 @@ test('a role filter is reset when the role is replaced and deleted', async ({ pa
   await openExample(page);
   await page.locator('.context').getByLabel('Role').selectOption({ label: 'Developer' });
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await openPeoplePool(page);
   await page.getByRole('button', { name: 'Delete Developer' }).click();
   await page
     .getByRole('dialog', { name: 'Replace Developer' })
@@ -344,9 +346,10 @@ test('people and roles are created in the team view, hours count per team', asyn
   await openExample(page);
   await openTeamView(page);
   const team = panel(page);
+  await openPeoplePool(page);
   await team.getByLabel('New person name').fill('Kim');
   await team.getByLabel('New person name').press('Enter');
-  await expect(team.getByText('not in a team yet')).toBeVisible();
+  await expect(team.getByText('not assigned yet')).toBeVisible();
   await team.getByLabel('Person', { exact: true }).fill('Kim');
   await team.getByLabel('Hrs/week in team').fill('12');
   await team.getByRole('button', { name: 'Add member' }).click();
@@ -354,4 +357,30 @@ test('people and roles are created in the team view, hours count per team', asyn
   await expect(team.getByText('Team Alpha 12 h', { exact: true })).toBeVisible();
   // Alex is in both example teams with 16 h each.
   await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
+});
+
+test('the team view folds the workspace-wide people and roles away (#231)', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  const people = team.getByRole('region', { name: 'People', exact: true });
+  await expect(team.getByText('All people and roles in this file')).toBeVisible();
+  await expect(team.getByText('2 people, 3 roles')).toBeVisible();
+  await expect(people).toBeHidden();
+  await expect(team.getByRole('region', { name: 'Roles', exact: true })).toBeHidden();
+  await openPeoplePool(page);
+  await expect(people).toBeVisible();
+});
+
+test('the folded people and roles open by themselves while there are no roles', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await openTeamView(page);
+  await teamAction(page, 'Add team');
+  const dialog = page.getByRole('dialog', { name: 'Add team' });
+  await dialog.getByLabel('Team name').fill('Alpha');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('First create a role under Roles below.')).toBeVisible();
+  await expect(page.getByLabel('New role name')).toBeVisible();
 });

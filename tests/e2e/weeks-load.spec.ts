@@ -1,6 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, setLanguage, showView, useFileFallback } from './helpers';
+import {
+  openExample,
+  openPeoplePool,
+  openWorkspaceFile,
+  pickUnit,
+  setLanguage,
+  showView,
+  useFileFallback,
+} from './helpers';
+import { structureWorkspace } from './structure-fixture';
 const pct = (locale: Lang, fraction: number): string =>
   new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(fraction);
 import {
@@ -20,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 type Lang = 'de' | 'en';
 const tabName = {
   weeks: { de: 'Kalender', en: 'Calendar' },
-  load: { de: 'Auslastung', en: 'Load' },
+  load: { de: 'Terminlast', en: 'Meeting load' },
 };
 const rangeName = { de: 'Zeitraum', en: 'Horizon' };
 
@@ -106,12 +115,12 @@ test('events are tags, a load warning is named, and the total has a bar', async 
   await expect(first.locator('.tag')).toHaveText(["New Year's Day", 'Christmas break']);
   // The kick-off workshop puts Alex above the usual load in week 2.
   const busy = weekRow(panel, '2027-01-11');
-  await expect(busy.getByRole('cell').nth(1)).toContainText('Load warning: Alex');
+  await expect(busy.getByRole('cell').nth(1)).toContainText('Warning: Alex');
   await expect(busy.locator('.bar > span')).toHaveClass(/high/);
   // Sprint starts come back every two weeks: their peak is the usual load, not a warning.
   const sprint3 = weekRow(panel, '2027-02-01');
   await expect(sprint3.getByRole('cell').nth(1)).toContainText('Sprint 3');
-  await expect(sprint3.getByRole('cell').nth(1)).not.toContainText('Load warning');
+  await expect(sprint3.getByRole('cell').nth(1)).not.toContainText('Warning: ');
   await expect(weekRow(panel, CADENCE_START_WEEK.monday).locator('.bar > span')).not.toHaveClass(
     /high/,
   );
@@ -133,7 +142,7 @@ test('the quick filters show weeks with a warning or a cadence start', async ({ 
   );
   const rows = panel.locator('tbody tr');
   await expect.poll(() => rows.count()).toBeLessThan(all);
-  await expect(rows.filter({ hasNotText: 'Load warning' })).toHaveCount(0);
+  await expect(rows.filter({ hasNotText: 'Warning: ' })).toHaveCount(0);
   expect(await rows.count()).toBeGreaterThan(0);
 
   await group.getByRole('button', { name: 'Cadence start' }).click();
@@ -186,7 +195,7 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
   page,
 }) => {
   const panel = await openView(page, 'weeks');
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Horizon from').fill('2026-06-01');
   await page.getByLabel('Horizon to').fill('2026-12-31');
   await expect(page.getByLabel('Horizon to')).not.toHaveAttribute('aria-invalid', 'true');
@@ -199,15 +208,15 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
   await expect(panel.locator('caption')).toHaveText('Weeks 06/01/2026–12/31/2026');
   expect(await panel.locator('tbody tr').count()).toBeGreaterThan(20);
   await expect(panel.getByText(/Sprint|Period/)).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   await expect(
-    page.getByRole('tabpanel', { name: 'Load' }).getByRole('table').first(),
+    page.getByRole('tabpanel', { name: 'Meeting load' }).getByRole('table').first(),
   ).toBeVisible();
 });
 
 test('empty workspace explains how to start in the load view', async ({ page }) => {
   await page.goto('/');
-  for (const name of ['Load']) {
+  for (const name of ['Meeting load']) {
     await page.getByRole('tab', { name, exact: true }).click();
     const panel = page.getByRole('tabpanel', { name });
     await expect(panel.getByRole('heading', { name: 'No teams yet' })).toBeVisible();
@@ -251,7 +260,7 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
   // Switching the language reformats the numbers.
   await setLanguage(page, 'de');
   const roleDe = page
-    .getByRole('tabpanel', { name: 'Auslastung' })
+    .getByRole('tabpanel', { name: 'Terminlast' })
     .getByRole('list', { name: 'Überblick' })
     .locator('[data-role="role-po"] .hours');
   await expect(roleDe).toHaveText(fmt('de', ROLE_HOURS[0]!.hours));
@@ -271,7 +280,7 @@ test('the person filter limits the person table and the warnings to that person'
   await expect(people.locator('tbody tr')).toHaveCount(1);
   await expect(people.locator('tr[data-person="person-alex"]').getByRole('cell')).toHaveText([
     fmt('en', ALEX.average),
-    fmt('en', ALEX.fte, 2),
+    pct('en', ALEX.fte),
     `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h)`,
   ]);
   const items = panel.getByRole('region', { name: 'Warnings', exact: true }).getByRole('listitem');
@@ -281,7 +290,7 @@ test('the person filter limits the person table and the warnings to that person'
   );
   const most = Math.max(...ALEX.warnings.map(([, hours]) => hours));
   await expect(items.first()).toHaveText(
-    `Alex: more than 1.5 × the usual load in ${weeks}, up to ${fmt('en', most)} h`,
+    `Alex: load spike (more than 1.5 × the usual load) in ${weeks}, up to ${fmt('en', most)} h`,
   );
   // The icon is generated by CSS, so it is not part of the text.
   await expect(items.first().locator('[aria-hidden]')).toHaveCount(0);
@@ -309,21 +318,22 @@ test('the chart summarises the hours per week and marks weeks with a warning', a
 test('a person without meetings shows no peak week', async ({ page }) => {
   const panel = await openView(page, 'load');
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await openPeoplePool(page);
   const people = page.getByRole('region', { name: 'People', exact: true });
   await people.getByLabel('New person name').fill('Robin');
   await people.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   // Robin is in no team yet: the person filter shows them.
   await page.locator('.context').getByLabel('Person').selectOption({ label: 'Robin' });
   const cells = panel.locator('tr[data-person]').filter({ hasText: 'Robin' }).getByRole('cell');
-  await expect(cells).toHaveText([fmt('en', 0), fmt('en', 0, 2), '–']);
+  await expect(cells).toHaveText([fmt('en', 0), pct('en', 0), '–']);
 });
 
 test('weeks above the FTE limit are listed as text', async ({ page }) => {
   const panel = await openView(page, 'load');
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
-  await page.getByLabel('Maximum FTE per person').fill('0.1');
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Limit: share of weekly hours in meetings').fill('10');
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const section = panel.getByRole('region', { name: 'Warnings', exact: true });
   // One line per person; many weeks are summed up as a span.
   await expect(section.getByRole('listitem')).toHaveCount(2);
@@ -331,17 +341,17 @@ test('weeks above the FTE limit are listed as text', async ({ page }) => {
     section
       .getByRole('listitem')
       .filter({ hasText: /^Alex: / })
-      .getByText(/more than 0\.10 FTE in \d+ weeks from W\d+ to W\d+, up to \d+\.\d h$/),
+      .getByText(/over the 10% limit in \d+ weeks from W\d+ to W\d+, up to \d+\.\d h$/),
   ).toBeVisible();
-  await expect(section.getByText(/^Sam: .*more than 0\.10 FTE/)).toBeVisible();
-  await expect(section.getByText(/more than 0\.10 FTE\. Peaks that come back/)).toBeVisible();
+  await expect(section.getByText(/^Sam: .*over the 10% limit/)).toBeVisible();
+  await expect(section.getByText(/more than 10% of their weekly hours in meetings/)).toBeVisible();
 });
 
 test('without warnings the list says so', async ({ page }) => {
   const panel = await openView(page, 'load');
-  await page.getByRole('tab', { name: 'Workspace settings', exact: true }).click();
-  await page.getByLabel('Warning factor').fill('10');
-  await page.getByRole('tab', { name: 'Load', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Load spike from (× usual load)').fill('10');
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const section = panel.getByRole('region', { name: 'Warnings', exact: true });
   await expect(section.getByText('No warnings')).toBeVisible();
   await expect(section.getByRole('listitem')).toHaveCount(0);
@@ -375,4 +385,82 @@ for (const lang of ['de', 'en'] as const) {
       expect(results.violations).toEqual([]);
     });
   }
+}
+
+// #238: a fresh Scrum team from the wizard squeezes the category column enough that,
+// before the fix, the dot stood alone and "(4,8 h)" broke. One line = the text box
+// is no taller than about one line box.
+for (const lang of ['de', 'en'] as const) {
+  for (const width of [390, 1440]) {
+    test(`load tables keep dot + category and the peak week on one line (${lang}, ${width} px)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.setFixedTime(new Date('2027-03-17T12:00:00'));
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Plan new', exact: true }).first().click();
+      const dialog = page.getByRole('dialog', { name: 'Plan new' });
+      await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByLabel('I take part myself').check();
+      await dialog.getByLabel('Your name').fill('Kim');
+      await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByRole('button', { name: 'Create team' }).click();
+      await expect(dialog).toBeHidden();
+      await setLanguage(page, lang);
+      await showView(page, tabName.load[lang]);
+      const panel = page.getByRole('tabpanel', { name: tabName.load[lang] });
+      const lines = (selector: string) =>
+        panel.locator(selector).evaluateAll((els) =>
+          els.map((n) => {
+            const range = document.createRange();
+            range.selectNodeContents(n);
+            const lh = parseFloat(getComputedStyle(n).lineHeight);
+            return `${n.textContent?.trim()}: ${range.getBoundingClientRect().height < lh * 1.5 ? 1 : 2}`;
+          }),
+        );
+      await expect(panel.locator('tr[data-category] th').first()).toBeVisible();
+      const cats = await lines('tr[data-category] th');
+      expect(cats).toEqual(cats.map((c) => c.replace(/\d$/, '1')));
+      await expect(panel.locator('tr[data-person] td:last-child').first()).toBeVisible();
+      const peaks = await lines('tr[data-person] td:last-child');
+      expect(peaks).toEqual(peaks.map((c) => c.replace(/\d$/, '1')));
+    });
+  }
+}
+
+for (const size of [
+  { name: 'desktop', width: 1440, height: 900 },
+  { name: 'phone', width: 390, height: 844 },
+]) {
+  test(`the average label stays visible when every week has the same load (${size.name})`, async ({
+    page,
+  }) => {
+    // The Payments area only has weekly meetings; without holidays every week has the same load,
+    // so the average line sits at the very top of the chart.
+    const ws = structureWorkspace();
+    ws.settings.skipHolidays = false;
+    await page.clock.setFixedTime(new Date('2026-03-10T12:00:00'));
+    // The Open button sits in a menu on phones: load on a wide screen, then narrow it.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/');
+    await openWorkspaceFile(page, ws);
+    await pickUnit(page, 'Payments');
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await showView(page, 'Meeting load');
+    const chart = page
+      .getByRole('tabpanel', { name: 'Meeting load' })
+      .getByRole('img', { name: /^Bar chart of the hours per week/ });
+    // Average and peak are the same.
+    await expect(chart).toHaveAttribute(
+      'aria-label',
+      /average (\d+\.\d) h, highest W\d+ with \1 h/,
+    );
+    const box = await chart.boundingBox();
+    const label = chart.locator('.avg span');
+    await expect(label).toBeVisible();
+    const text = await label.boundingBox();
+    expect(text!.y).toBeGreaterThanOrEqual(box!.y);
+  });
 }
