@@ -387,7 +387,7 @@
 }
 
 /* ---------- Panels are cards ---------- */
-#app [role='tabpanel'] > :not(h2, .stack),
+#app [role='tabpanel'] > :not(h2, .stack, .eyebrow),
 #app .stack .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -396,8 +396,8 @@
   padding: 1.5rem;
 }
 /* Content starts at the card's padding: no extra margin above the first heading or paragraph. */
-#app [role='tabpanel'] > :not(h2, .stack) > :first-child,
-#app [role='tabpanel'] > :not(h2, .stack) > :first-child > :first-child,
+#app [role='tabpanel'] > :not(h2, .stack, .eyebrow) > :first-child,
+#app [role='tabpanel'] > :not(h2, .stack, .eyebrow) > :first-child > :first-child,
 #app .stack .card > :first-child,
 #app .stack .card > :first-child > :first-child {
   margin-top: 0;
@@ -535,7 +535,7 @@ body {
   background-attachment: fixed;
 }
 /* Cards anchor their positioned children (tooltips, live regions). */
-#app [role='tabpanel'] > :not(h2, .stack),
+#app [role='tabpanel'] > :not(h2, .stack, .eyebrow),
 #app .stack .card {
   position: relative;
 }

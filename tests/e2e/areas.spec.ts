@@ -99,6 +99,28 @@ test('the views follow the area: Load sums its teams, the area page offers them'
   ).toBeVisible();
 });
 
+test('the headline names the selected area or team, except in workspace-wide views', async ({
+  page,
+}) => {
+  await openExample(page);
+  await addArea(page, 'Platform', ['Team Alpha']);
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  const scope = page.locator('#panel-load .eyebrow-text');
+  await expect(scope).toHaveText('Platform · Area');
+  await expect(page.locator('#panel-load h2')).toHaveText('Meeting load');
+  await pickUnit(page, 'Team Alpha');
+  await expect(scope).toHaveText('Team Alpha · Team');
+  for (const [tab, panel] of [
+    ['Settings', 'settings'],
+    ['Templates', 'templates'],
+    ['Import / Export', 'exchange'],
+    ['Help', 'help'],
+  ]) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    await expect(page.locator(`#panel-${panel} .eyebrow`)).toHaveCount(0);
+  }
+});
+
 test('rename an area, move a team into it after a question, delete it', async ({ page }) => {
   await openExample(page);
   await addArea(page, 'Platform', ['Team Alpha']);
