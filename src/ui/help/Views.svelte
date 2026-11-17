@@ -33,6 +33,25 @@
   </p>
   <p>
     <Rich
+      key="help.views.areas"
+      labels={{
+        areas: sectionLink('manual-areas'),
+        team: 'team.switcher.label',
+        area: 'view.area',
+        structure: 'area.view.structure',
+        overview: 'area.view.overview',
+        calendar: 'view.calendar',
+        load: 'view.load',
+        role: 'filter.role',
+        person: 'filter.person',
+        meetings: 'view.meetings',
+        settings: 'view.settings',
+        names: 'settings.levels.choice',
+      }}
+    />
+  </p>
+  <p>
+    <Rich
       key="help.views.phone"
       labels={{
         new: 'file.new',

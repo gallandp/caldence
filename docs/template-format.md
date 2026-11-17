@@ -1,6 +1,6 @@
 # Template format
 
-A Caldence template describes the roles, categories and recurring events of **one team**, without any people. It is a JSON file with the workspace schema version of the app that wrote it (currently `3`). Templates and workspaces share one version number: older versions (1 to 3) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in templates are version `2` and are migrated like any other.
+A Caldence template describes the roles, categories and recurring events of **one team**, without any people, and optionally the area above it. It is a JSON file with the workspace schema version of the app that wrote it (currently `5`). Templates and workspaces share one version number: older versions (1 to 4) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in templates are version `2` and are migrated like any other.
 
 ## Fields
 
@@ -14,14 +14,21 @@ A Caldence template describes the roles, categories and recurring events of **on
 | `roles` | list of `{ id, name, colour }` | Roles the events refer to. |
 | `categories` | list of `{ id, name, colour }` | Event categories. |
 | `team` | object | A team without `id`, `members` and `templateId`: `name`, `cadence`, `assumptions`, `cycles`, `events`. |
+| `area` | object, optional | The area above the team, without `id`, `members`, `memberHours` and `teamIds`: `name`, `cadence` (required here), `cycles`, `events` and optional `levelNames` (as in the workspace settings). |
 
-The `team` object, its events, rules, cycles and the `cadence` follow the same rules as in a workspace file. Dates and times are local; durations are in minutes.
+The `team` and `area` objects, their events, rules, cycles and cadences follow the same rules as in a workspace file; area meetings may invite a role `fromTeams` (from every team of the area). Dates and times are local; durations are in minutes.
+
+### Example: the SAFe template
+
+The built-in SAFe template (`src/data/templates/safe.en.json`) has a Scrum team and an `area` "Release Train" with a 10-week PI cadence (`kind: "pi"`), the cycle "PI 1" and the train's meetings: PI Planning (two days), ART Sync, System Demo, Inspect & Adapt and the PI Planning preparation on a milestone. They invite Product Owner, Scrum Master/Team Coach and Agile Team `fromTeams`, and Product Management and Release Train Engineer as the train's own roles. Its `levelNames` is `{ "preset": "train" }`, so a workspace without areas calls its levels Release Train and Team.
 
 ## Applying a template
 
 - Roles and categories are matched with existing ones by name (trimmed, ignoring case). Matches are reused; the others are added with new ids.
 - The team gets a new id and `templateId`.
 - All dates (cadence start, cycle milestones, `every-n-weeks` anchors, `once` dates) move by a whole number of weeks so that the cadence starts on the first matching weekday on or after the day of applying.
+- With an `area`, the first team from the template creates the area with the template's cadence, cycles and meetings, without people. It takes the template's `levelNames` only when it is the workspace's first area and the workspace has no level names yet.
+- A further team from the same template joins the area that already holds a team from it (or an empty area of the same name) instead of creating a second one. Its dates move so that its cadence starts with the area's first increment on or after the day of applying, keeping its iterations in step with the area. Existing areas made by hand are never changed.
 
 ## No personal data
 

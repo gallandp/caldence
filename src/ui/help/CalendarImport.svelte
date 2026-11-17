@@ -20,6 +20,16 @@
       labels={{ exchange: 'view.exchange', first: sectionLink('manual-first') }}
     />
   </p>
+  <p>
+    <Rich
+      key="help.ics.areas"
+      labels={{
+        scope: 'exchange.export.scope',
+        team: 'exchange.scope.team',
+        zip: 'exchange.zip.button.team',
+      }}
+    />
+  </p>
   {#each apps as app (app)}
     <h4>{$t('help.ics.' + app + '.title')}</h4>
     <ol>

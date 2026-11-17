@@ -176,6 +176,45 @@ test('the areas chapter of the manual names controls the area page has', async (
     await expect(area.getByRole(c.role, { name: en(c.name), exact: true })).toBeVisible();
 });
 
+test('the other manual chapters describe areas and name controls that exist (#193)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await showView(page, 'Help');
+  const help = panel(page, 'Help');
+  const paragraphs = [
+    'help.views.areas',
+    'help.calc.areas',
+    'help.files.areas',
+    'help.ics.areas',
+    'help.keyboard.areas',
+  ];
+  const text = (await help.textContent()) ?? '';
+  // Every paragraph is shown with its placeholders filled.
+  for (const key of paragraphs) {
+    const words = en(key)
+      .split(/\{\w+\}/)[0]!
+      .trim();
+    expect(text).toContain(words);
+  }
+  expect(text).not.toMatch(/\{level\w+\}/);
+  for (const name of ['Area', 'Structure', 'Overview', 'Levels', 'What to export'])
+    expect(text).toContain(name);
+  // The links lead to the areas chapter.
+  await expect(help.locator('a[href="#manual-areas"]')).not.toHaveCount(0);
+
+  // Controls the new paragraphs name, where they are.
+  await showView(page, 'Import / Export');
+  const exchange = panel(page, 'Import / Export');
+  await expect(exchange.getByText(en('exchange.export.scope'), { exact: true })).toBeVisible();
+  await expect(exchange.getByRole('radio', { name: 'Team', exact: true })).toBeVisible();
+  await expect(
+    exchange.getByRole('button', { name: en('exchange.zip.button.team'), exact: true }),
+  ).toBeVisible();
+  await showView(page, 'Settings');
+  await expect(panel(page, 'Settings').getByText(en('settings.levels.choice'))).toBeVisible();
+});
+
 for (const scheme of ['light', 'dark'] as const) {
   for (const width of [1280, 390]) {
     test(`axe passes on the hint, the ready card and the empty states (${scheme}, ${width} px)`, async ({

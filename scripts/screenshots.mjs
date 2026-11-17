@@ -27,6 +27,7 @@ const tabNames = {
 const horizon = { en: 'Horizon', de: 'Zeitraum' };
 const openExample = { en: 'Open the example', de: 'Das Beispiel öffnen' };
 const person = { en: 'Person', de: 'Person' };
+const areaTab = { en: 'Area', de: 'Bereich' };
 
 function freePort() {
   return new Promise((done, fail) => {
@@ -94,6 +95,20 @@ const withExample = (view, extra) => async (page, l) => {
   if (extra) await extra(page, l);
 };
 
+/** Selects the example's area in the sidebar switcher and opens one of its two pages. */
+const withArea = (page$) => async (page, l) => {
+  await withExample('calendar')(page, l);
+  await page.locator('.switcher .pick').click();
+  await page
+    .locator('.switcher .list')
+    .getByRole('button', { name: /^Commerce\b/ })
+    .click();
+  await page.getByRole('tab', { name: areaTab[l], exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: areaTab[l] });
+  await panel.getByRole('button', { name: page$[l], exact: true }).click();
+  await panel.locator('h3').first().waitFor();
+};
+
 const shots = [
   {
     view: 'start',
@@ -125,6 +140,9 @@ const shots = [
     view: 'meetings',
     steps: withExample('meetings', (page) => page.getByRole('table').first().waitFor()),
   },
+  // The example's area (#191): who works where, and the comparison of its teams.
+  { view: 'structure', steps: withArea({ en: 'Structure', de: 'Struktur' }) },
+  { view: 'overview', steps: withArea({ en: 'Overview', de: 'Überblick' }) },
   { view: 'templates', steps: withExample('templates') },
   { view: 'exchange', steps: withExample('exchange') },
   { view: 'help', steps: withExample('help') },
