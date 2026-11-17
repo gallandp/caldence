@@ -490,11 +490,18 @@ test('the people list sorts by share or free hours and explains a person on clic
   await free.getByRole('button').click();
   await expect(free).toHaveAttribute('aria-sort', 'descending');
   await expect(share).not.toHaveAttribute('aria-sort');
+  // The free column found by its header, so a column more or less cannot fool the check.
+  const column = await people
+    .locator('thead th')
+    .evaluateAll((ths) => ths.findIndex((th) => th.textContent!.includes('Free up to the limit')));
   const freeHours = await people
     .locator('tr[data-person]')
-    .evaluateAll((rows) =>
-      rows.map((r) => parseFloat(r.querySelectorAll('td')[4]!.textContent!.replace(',', '.'))),
+    .evaluateAll(
+      (rows, i) => rows.map((r) => parseFloat(r.children[i]!.textContent!.replace(',', '.'))),
+      column,
     );
+  expect(freeHours.length).toBeGreaterThan(1);
+  expect(freeHours.every((n) => Number.isFinite(n))).toBe(true);
   expect(freeHours).toEqual([...freeHours].sort((a, b) => b - a));
 
   // A click on a name shows where the time comes from, a second click hides it.
@@ -508,4 +515,18 @@ test('the people list sorts by share or free hours and explains a person on clic
   await expect(detail.getByRole('listitem').first()).toContainText('h in meetings');
   await alex.click();
   await expect(detail).toBeHidden();
+});
+
+test('the people list flags who is over the limit and leaves them no free hours', async ({
+  page,
+}) => {
+  const panel = await openView(page, 'load');
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Limit: share of weekly hours in meetings').fill('10');
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  const alex = panel
+    .getByRole('table', { name: 'People' })
+    .locator('tr[data-person="person-alex"]');
+  await expect(alex.getByRole('rowheader')).toContainText('over the limit');
+  await expect(alex.getByRole('cell').nth(4)).toHaveText(`${fmt('en', 0)} h`);
 });

@@ -652,6 +652,7 @@
   "load.col.free": "Free up to the limit",
   "load.over": "over the limit",
   "load.noHours": "no hours",
+  "load.sort": "sort",
   "load.onlyArea": "only {levelInArea}",
   "load.hoursOf": "{hours} of {of} h",
   "load.freeHours": "{hours} h",

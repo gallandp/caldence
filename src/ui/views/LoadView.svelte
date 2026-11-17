@@ -1,7 +1,15 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
-  import { areaHours, capacity, fte, hoursIn, loadPerWeek, warnings } from '../../core/load';
+  import {
+    areaHours,
+    capacity,
+    fte,
+    hoursIn,
+    loadPerWeek,
+    overMax,
+    warnings,
+  } from '../../core/load';
   import { unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
@@ -115,6 +123,11 @@
     ),
   );
   let openPerson = $state<string | null>(null);
+  // A person who left the list (another team or filter) does not come back opened.
+  $effect(() => {
+    if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
+      openPerson = null;
+  });
   /** Meetings without weekly hours to measure them against come first: always over the limit. */
   const noHours = (p: { average: number; cap: number }) => p.average > 0 && p.cap <= 0;
   const shareKey = (p: { average: number; cap: number; fte: number }) =>
@@ -272,9 +285,9 @@
         <th scope="col" class="num">{$t('load.col.hours')}</th>
         <th scope="col" aria-sort={sortBy === 'share' ? 'descending' : undefined}>
           <button type="button" class="sort" onclick={() => (sortBy = 'share')}
-            >{$t('load.col.fte')}{#if sortBy === 'share'}<span aria-hidden="true">
-                ↓</span
-              >{/if}</button
+            >{$t('load.col.fte')}{#if sortBy !== 'share'}<span class="sr-only"
+                >, {$t('load.sort')}</span
+              >{/if}{#if sortBy === 'share'}<span aria-hidden="true"> ↓</span>{/if}</button
           >
         </th>
         {#if teamId}
@@ -282,9 +295,9 @@
         {/if}
         <th scope="col" class="num" aria-sort={sortBy === 'free' ? 'descending' : undefined}>
           <button type="button" class="sort" onclick={() => (sortBy = 'free')}
-            >{$t('load.col.free')}{#if sortBy === 'free'}<span aria-hidden="true">
-                ↓</span
-              >{/if}</button
+            >{$t('load.col.free')}{#if sortBy !== 'free'}<span class="sr-only"
+                >, {$t('load.sort')}</span
+              >{/if}{#if sortBy === 'free'}<span aria-hidden="true"> ↓</span>{/if}</button
           >
         </th>
         <th scope="col" class="num">{$t('load.col.peak')}</th>
@@ -292,7 +305,7 @@
     </thead>
     <tbody>
       {#each sorted as p (p.person.id)}
-        {@const over = p.average > 0 && (p.cap > 0 ? p.fte > maxFte : true)}
+        {@const over = overMax(p.average, p.cap, maxFte)}
         <tr data-person={p.person.id} class:open={openPerson === p.person.id}>
           <th scope="row">
             <button
@@ -321,7 +334,7 @@
           <td class="nowrap">
             <span class="share">
               <span class="bar" aria-hidden="true"
-                ><i style:width="{barWidth(p.fte)}%" class:over></i><b></b></span
+                ><i style:width="{barWidth(shareKey(p))}%" class:over></i><b></b></span
               >
               <span class="num" class:over
                 >{noHours(p) ? $t('load.noHours') : formatPercent($locale, p.fte)}</span
@@ -694,8 +707,8 @@
   /* ---------- people ---------- */
   :global(#app) .people button.who,
   :global(#app) .people button.sort {
-    min-height: 0;
-    padding: 0;
+    min-height: 1.5rem;
+    padding: 0.15rem 0;
     border: 0;
     background: none;
     box-shadow: none;
@@ -720,8 +733,13 @@
   :global(#app) .people button.who:hover {
     text-decoration-color: currentColor;
   }
-  .people tr.open > * {
+  .people tr.open > *,
+  .people tr.open + tr.detail > * {
     background: var(--accent-soft);
+  }
+  /* The hidden detail row is the last row: the last person row has no line under it either. */
+  .people tbody tr[data-person]:nth-last-child(2) > * {
+    border-bottom: 0;
   }
   .over-tag {
     margin-left: 0.4rem;
