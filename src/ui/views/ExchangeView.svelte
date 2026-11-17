@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
-  import { exportIcsWithCounts, scopeHasEvents } from '../../core/ics';
+  import { attendsUnitMeetings, exportIcsWithCounts, scopeHasEvents } from '../../core/ics';
   import {
     parseIcs,
     reviewImport,
@@ -11,7 +11,7 @@
     type SkippedItem,
   } from '../../core/icsImport';
   import { slug } from '../../core/slug';
-  import { scopePeople, workspaceIndex, type Filter } from '../../core/views';
+  import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
@@ -83,8 +83,9 @@
     const request = get(exportRequest);
     exportRequest.set(null);
     if (request) {
-      const person = loadExportPerson();
-      if (person && scopePeople(get(workspace), { teamId: request.teamId }).has(person)) {
+      const current = get(workspace);
+      const person = loadExportPerson(current.id);
+      if (person && attendsUnitMeetings(current, request.teamId, person)) {
         kind = 'person';
         pickedId.person = person;
       } else {
@@ -213,7 +214,7 @@
         types(),
       );
       if (saved === null) return;
-      saveExportPerson(kind === 'person' ? chosen.id : null);
+      saveExportPerson(ws.id, kind === 'person' ? chosen.id : null);
       clearStatus();
       problem = null;
       exported = { name: saved, series: built.series, single: built.single };

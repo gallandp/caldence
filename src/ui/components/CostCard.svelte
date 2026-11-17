@@ -16,7 +16,7 @@
 </script>
 
 <section class="card cost" aria-labelledby="{uid}-title" data-costs>
-  <h3 id="{uid}-title">{$t('cost.title')}</h3>
+  <h3 id="{uid}-title" tabindex="-1">{$t('cost.title')}</h3>
   <p class="note">{$t('cost.hint', { rate: euro(rate) })}</p>
   <div class="totals">
     <p data-cost-week>

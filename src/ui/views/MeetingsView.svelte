@@ -350,7 +350,7 @@
     <CadenceCard {team} {area} />
     {#if costs && rate}
       <CostCard summary={costs} {rate} />
-    {:else if !rate}
+    {:else if !rate && team.events.length > 0}
       <RateInvite />
     {/if}
     <div class="card">

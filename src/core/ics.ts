@@ -197,6 +197,13 @@ function exportUnits(ws: Workspace, scope: Filter): Team[] {
   return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
 }
 
+/** True when the person attends at least one of the meetings a team's or area's export holds. */
+export function attendsUnitMeetings(ws: Workspace, unitId: string, personId: string): boolean {
+  return exportUnits(ws, { teamId: unitId }).some(
+    (unit) => eventsInScope(ws, unit, { personId }).length > 0,
+  );
+}
+
 /** An exported file and how many of its VEVENTs are recurring series and single entries. */
 export type IcsExport = { text: string; series: number; single: number };
 

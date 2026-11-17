@@ -22,6 +22,7 @@
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
+  import { exportRequest } from './state/exportScope';
 
   const { dirty } = workspace;
   const REPO_URL = 'https://github.com/gallandp/caldence';
@@ -107,6 +108,8 @@
 
   /** With `focus`, the view's visible tab gets the focus; a view without one (phones) its content. */
   function select(id: ViewId, focus = false) {
+    // A preselection for the export is only for the next visit right now.
+    if (id !== 'exchange') exportRequest.set(null);
     active = id;
     if (!focus) return;
     const tab = [tabs[id], barTabs[id]].find(shown);

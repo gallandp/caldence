@@ -1,26 +1,30 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { updateSettings } from '../../core/edit';
   import { LIMITS } from '../../core/limits';
-  import { translate as t } from '../../i18n';
+  import { parseRate } from '../rate';
+  import { formatNumber, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
   /**
    * Shown where the cost card would be while the file has no hourly rate: costs stay hidden
-   * (no "0 €"), but the rate can be set right here instead of a detour via Settings.
+   * (no "0 €"), but the rate can be set right here instead of a detour via Settings. After
+   * Apply, the focus moves to the heading of the cost figures that replace this card.
    */
+  let { focusAfter = '[data-costs] h3' }: { focusAfter?: string } = $props();
   const uid = $props.id();
   let value = $state('');
   let error = $state(false);
 
-  function submit(event: SubmitEvent) {
+  async function submit(event: SubmitEvent) {
     event.preventDefault();
-    const n = Number(value.trim().replace(',', '.'));
-    if (value.trim() === '' || !Number.isFinite(n) || n <= 0 || n > LIMITS.hourlyRate) {
+    const n = parseRate(value);
+    if (n === null || !workspace.apply((ws) => updateSettings(ws, { hourlyRate: n })).ok) {
       error = true;
       return;
     }
-    const result = workspace.apply((ws) => updateSettings(ws, { hourlyRate: n }));
-    error = !result.ok;
+    await tick();
+    document.querySelector<HTMLElement>(focusAfter)?.focus();
   }
 </script>
 
@@ -46,7 +50,9 @@
       <button type="submit" class="secondary">{$t('cost.invite.apply')}</button>
     </span>
     {#if error}
-      <p class="field-error" id="{uid}-err">{$t('cost.invite.error')}</p>
+      <p class="field-error" id="{uid}-err" role="alert">
+        {$t('cost.invite.error', { max: formatNumber($locale, LIMITS.hourlyRate, 0) })}
+      </p>
     {/if}
     <p class="scope" id="{uid}-scope">{$t('cost.invite.scope')}</p>
   </form>
