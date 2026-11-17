@@ -79,9 +79,24 @@ export async function pickUnit(page: Page, name: string) {
 
 /** Runs a team action from the sidebar: the actions sit behind the "Team actions" button. */
 export async function teamAction(page: Page, name: string) {
-  const button = page.getByRole('button', { name, exact: true });
+  // Only the switcher's own button: an area page shows some of the same actions.
+  const button = page.locator('.switcher').getByRole('button', { name, exact: true });
   if (!(await button.isVisible())) await page.getByRole('button', { name: 'Team actions' }).click();
   await button.click();
+}
+
+/** Deletes the selected team or area until no team is left (areas go first when selected). */
+export async function deleteAllUnits(page: Page) {
+  while ((await page.locator('.switcher .pick').count()) > 0) {
+    const area = /^Area ·/.test((await page.locator('.switcher .meta').textContent()) ?? '');
+    const action = area ? 'Delete area' : 'Delete team';
+    await teamAction(page, action);
+    await page
+      .getByRole('dialog', { name: /^Delete / })
+      .getByRole('button', { name: action })
+      .click();
+    await expect(page.getByRole('dialog', { name: /^Delete / })).toBeHidden();
+  }
 }
 
 /** Tab bar labels that are shorter than the view's name. */

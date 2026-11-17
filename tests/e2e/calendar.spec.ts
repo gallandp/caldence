@@ -231,6 +231,7 @@ test('teams without meetings show a hint that leads to the Meetings view', async
   const ws = structuredClone(example);
   ws.settings.locale = 'en';
   for (const team of ws.teams) team.events = [];
+  for (const area of ws.areas) area.events = [];
   await page.goto('/');
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Open', exact: true }).click();

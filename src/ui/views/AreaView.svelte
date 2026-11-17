@@ -4,27 +4,61 @@
 </script>
 
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
+  import { get } from 'svelte/store';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
+  import AreaReady from '../components/AreaReady.svelte';
   import AreaStructure from '../components/AreaStructure.svelte';
   import RoleList from '../components/RoleList.svelte';
+  import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
 
   /**
    * The upper level's page while an area is selected: one sidebar entry, two pages behind a
    * switch. The overview page comes from the caller.
    */
-  let { area, overview }: { area: Area; overview: Snippet } = $props();
+  let { area, overview, onMeetings }: { area: Area; overview: Snippet; onMeetings: () => void } =
+    $props();
 
-  let page = $state(remembered);
+  // A new area opens on its structure, where the "ready" card's steps act (only when shown).
+  // svelte-ignore state_referenced_locally
+  let page = $state(get(areaReady) === area.id ? 'structure' : remembered);
+  let pages: HTMLDivElement | undefined = $state();
+
+  /** Closing the card removes the focused button: focus moves to the page switch. */
+  async function closeCard() {
+    areaReady.set(undefined);
+    await tick();
+    pages?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+  }
+  let structure: AreaStructure | undefined = $state();
+
+  /** The card's buttons act on the structure page, so it is shown first. */
+  async function onStructure(run: (s: AreaStructure) => void) {
+    remembered = page = 'structure';
+    await tick();
+    if (structure) run(structure);
+  }
 </script>
 
 <div class="area-view">
   {#if page === 'structure'}
     <p class="subtitle">{$t('area.structure.subtitle')}</p>
   {/if}
-  <div class="pages" role="group" aria-label={$t('area.view.label')}>
+  {#if $areaReady === area.id}
+    <AreaReady
+      {area}
+      onTeams={() => onStructure((s) => s.chooseTeams())}
+      onPeople={() => onStructure((s) => s.addPerson())}
+      onMeetings={() => {
+        areaReady.set(undefined);
+        onMeetings();
+      }}
+      onClose={closeCard}
+    />
+  {/if}
+  <div class="pages" role="group" aria-label={$t('area.view.label')} bind:this={pages}>
     {#each ['structure', 'overview'] as const as p (p)}
       <button type="button" aria-pressed={page === p} onclick={() => (remembered = page = p)}
         >{$t(`area.view.${p}`)}</button
@@ -32,7 +66,7 @@
     {/each}
   </div>
   {#if page === 'structure'}
-    <AreaStructure {area} />
+    <AreaStructure bind:this={structure} {area} />
     <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
     <details class="roles">
       <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>

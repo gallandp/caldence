@@ -125,6 +125,16 @@
   let addButton: HTMLButtonElement | undefined = $state();
   let teamsButton: HTMLButtonElement | undefined = $state();
 
+  /** Opens "Choose teams" for the area (the "area is ready" card). */
+  export function chooseTeams() {
+    teamsDialog?.show(area);
+  }
+
+  /** Opens "+ Person" for the area (the "area is ready" card). */
+  export function addPerson() {
+    adder?.show(addButton);
+  }
+
   function pick(personId: string, event: Event, focusHours = false) {
     if (selected === personId && !focusHours) {
       selected = null;
@@ -555,7 +565,12 @@
             </div>
           </section>
         {:else}
-          <p class="none">{$t('area.view.empty', { name: area.name })}</p>
+          <div class="empty-teams">
+            <p>{$t('area.empty.teams', { name: area.name })}</p>
+            <button type="button" class="primary" onclick={() => teamsDialog?.show(area)}
+              >{$t('area.teams')}</button
+            >
+          </div>
         {/each}
       </div>
     </div>
@@ -810,6 +825,13 @@
     padding: 0.25rem;
     color: var(--text-muted);
     font-size: 0.8rem;
+  }
+  .empty-teams {
+    padding: 0.75rem 0;
+    font-size: 0.95rem;
+  }
+  .empty-teams p {
+    margin: 0 0 0.6rem;
   }
 
   /* area node */
