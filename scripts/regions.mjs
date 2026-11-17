@@ -6,7 +6,7 @@
 // response of the OpenHolidays API (https://openholidaysapi.org/SchoolHolidays?countryIsoCode=DE
 // &languageIsoCode=DE&validFrom=…&validTo=…), which someone with network access downloads first.
 // See docs/region-format.md, "Adding or updating regions".
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { format } from 'prettier';
 
@@ -136,10 +136,20 @@ function readSchool(file) {
   return byState;
 }
 
+/** The region file as it is now, or null for a new region (read once, no separate check). */
+function readExisting(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
 const school = readSchool(schoolFile);
 for (const [id, name, extras] of STATES) {
   const path = `${dir}${id}.json`;
-  const old = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
+  const old = readExisting(path);
   const holidays = [...Object.values(COMMON), ...extras.map((k) => EXTRA[k])].sort(
     (a, b) => order(a) - order(b),
   );
