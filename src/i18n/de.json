@@ -340,6 +340,7 @@
   "team.pool.roles.other": "{n} Rollen",
   "team.pool": "Alle Personen und Rollen dieser Datei",
   "team.people.inTeam": "{team} {hours} h",
+  "team.people.inArea": "{area} ({levelArea}) {hours} h",
   "team.people.sum": "Σ {hours} h",
   "team.members.needs": "Legen Sie unten unter Rollen zuerst eine Rolle an.",
   "team.cadence": "Takt",

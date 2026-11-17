@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
-  import { capacity } from '../../core/load';
+  import { areaHours, capacity } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
@@ -121,13 +121,31 @@
     );
   }
 
-  /** "Alpha 20 h · Beta 18 h · Σ 38 h", or that the person is in no team. */
+  /**
+   * "Alpha 20 h · Beta 18 h · Platform (area) 4 h · Σ 42 h", or that the person is in no team and
+   * no area. A person is in an area when they are its member or have hours there (#252).
+   */
   function teamsOf(personId: string): string {
-    const parts = $workspace.teams
-      .filter((x) => x.members.some((m) => m.personId === personId))
-      .map((x) => ({ name: x.name, h: capacity($workspace, personId, x.id) }));
+    const ws = $workspace;
+    const parts = [
+      ...ws.teams
+        .filter((x) => x.members.some((m) => m.personId === personId))
+        .map((x) => ({
+          text: (h: string) => $t('team.people.inTeam', { team: x.name, hours: h }),
+          h: capacity(ws, personId, x.id),
+        })),
+      ...ws.areas
+        .filter(
+          (a) =>
+            a.members.some((m) => m.personId === personId) || areaHours(ws, a.id, personId) > 0,
+        )
+        .map((a) => ({
+          text: (h: string) => $t('team.people.inArea', { area: a.name, hours: h }),
+          h: areaHours(ws, a.id, personId),
+        })),
+    ];
     if (parts.length === 0) return $t('team.people.noTeam');
-    const list = parts.map((x) => $t('team.people.inTeam', { team: x.name, hours: hours(x.h) }));
+    const list = parts.map((x) => x.text(hours(x.h)));
     if (parts.length > 1)
       list.push($t('team.people.sum', { hours: hours(parts.reduce((s, x) => s + x.h, 0)) }));
     return list.join(' · ');
