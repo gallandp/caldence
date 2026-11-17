@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { openPeoplePool, openWorkspaceFile, teamAction, setLanguage } from './helpers';
 
+/** The bundled regions: the 16 German states. */
+const BUILT_IN_REGIONS = 16;
+
 test.use({ locale: 'en-US' });
 
 test.beforeEach(async ({ page }) => {
@@ -193,7 +196,7 @@ test('an imported region file is added to the select and selected', async ({ pag
   const remove = page.getByRole('button', { name: 'Remove imported region Bavaria (sample)' });
   await expect(page.getByText('was imported and selected')).toHaveCount(0);
   await remove.click();
-  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(regionSelect(page).locator('option')).toHaveCount(BUILT_IN_REGIONS);
   await expect(page.getByRole('button', { name: 'Import region file…' })).toBeFocused();
 });
 
@@ -204,7 +207,7 @@ test('one undo removes the imported region and restores the previous one', async
   await page.getByRole('button', { name: 'Import region file…' }).focus();
   await page.keyboard.press('Control+z');
   await expect(regionSelect(page)).toHaveValue('de-sn');
-  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(regionSelect(page).locator('option')).toHaveCount(BUILT_IN_REGIONS);
 });
 
 test('a region file with a built-in id shows an inline error', async ({ page }) => {
@@ -215,7 +218,7 @@ test('a region file with a built-in id shows an inline error', async ({ page }) 
   ).toBeVisible();
   await expect(regionSelect(page)).toHaveAttribute('aria-invalid', 'true');
   await expect(regionSelect(page)).toHaveAccessibleDescription(/built-in region/);
-  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(regionSelect(page).locator('option')).toHaveCount(BUILT_IN_REGIONS);
 });
 
 test('a file that is not JSON shows an error and changes nothing', async ({ page }) => {
@@ -225,7 +228,7 @@ test('a file that is not JSON shows an error and changes nothing', async ({ page
     page.getByRole('alert').filter({ hasText: 'The file does not contain valid JSON' }),
   ).toBeVisible();
   await expect(regionSelect(page)).toHaveValue('de-sn');
-  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(regionSelect(page).locator('option')).toHaveCount(BUILT_IN_REGIONS);
   // Nothing was applied, so there is nothing to undo: the example stays unmodified.
   await page.getByRole('button', { name: 'Import region file…' }).focus();
   await page.keyboard.press('Control+z');
@@ -246,6 +249,16 @@ test('a horizon beyond the known school holidays shows a warning in Settings and
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await page.getByRole('tabpanel').getByRole('button', { name: 'Horizon', exact: true }).click();
   await expect(page.getByRole('tabpanel').getByText(warning)).toBeVisible();
+});
+
+test('a state without bundled school holidays says so instead of a date (#23)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await regionSelect(page).selectOption('de-by');
+  const note = 'No school holidays are known for Bavaria yet, so none are shown.';
+  await expect(page.getByText(note)).toBeVisible();
+  await expect(page.getByText(/known only until/)).toHaveCount(0);
 });
 
 for (const locale of ['de', 'en'] as const) {
@@ -291,7 +304,7 @@ test('a workspace with an unknown region opens and Settings says so', async ({ p
   await expect(regionSelect(page)).not.toHaveAttribute('aria-invalid', 'true');
   await regionSelect(page).selectOption('de-sn');
   await expect(page.getByText(note)).toHaveCount(0);
-  await expect(regionSelect(page).locator('option')).toHaveCount(1);
+  await expect(regionSelect(page).locator('option')).toHaveCount(BUILT_IN_REGIONS);
 });
 
 for (const locale of ['de', 'en'] as const) {

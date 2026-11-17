@@ -25,7 +25,7 @@ Status: stable, see the [latest release](https://github.com/gallandp/caldence/re
 - **Meeting costs (optional):** with an hourly rate, Meetings and Meeting load show what meetings cost per week and over the horizon.
 - Templates for Scrum, Kanban and SAFe (with a Release Train area above the team), plus your own template files; exporting a team as a template also writes its area.
 - Calendar export and import as `.ics` files (Outlook, Google Calendar, Apple Calendar), also one file per team or area as a ZIP; exporting again updates the entries of the earlier export in apps that support it.
-- Region files: import your own holiday data.
+- Public holidays of all 16 German states (school holidays for Saxony so far); region files import your own holiday data.
 - Installable app that works offline and asks before updating; works on phones.
 - German and English interface; light, dark or matching the system.
 - Accessible: keyboard operation, built for screen readers, targeting WCAG 2.2 AA (see the [accessibility statement](docs/accessibility.md)).

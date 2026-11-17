@@ -157,9 +157,9 @@ describe('resolveRegion', () => {
   });
 
   it('finds built-in and imported regions, and null for unknown ids', () => {
-    const ws = { ...emptyWorkspace('2026-11-08'), customRegions: [custom('de-by', 'Bavaria')] };
+    const ws = { ...emptyWorkspace('2026-11-08'), customRegions: [custom('at-9', 'Vienna')] };
     expect(resolveRegion(ws, 'de-sn')).toBe(REGIONS['de-sn']);
-    expect(resolveRegion(ws, 'de-by')?.name.en).toBe('Bavaria');
+    expect(resolveRegion(ws, 'at-9')?.name.en).toBe('Vienna');
     expect(resolveRegion(ws, 'xx')).toBeNull();
     expect(resolveRegion(ws, 'toString')).toBeNull();
   });
@@ -218,5 +218,46 @@ describe('region limits (security #41)', () => {
   it('pads the year of the repentance day', () => {
     const region = { ...REGIONS['de-sn']! };
     expect(() => holidaysFor(region, 999)).not.toThrow();
+  });
+});
+
+describe('bundled German states (#23)', () => {
+  const count2027 = (id: string) => holidayIndex(REGIONS[id]!, '2027-01-01', '2027-12-31').holidays;
+  it('has all 16 states', () => {
+    expect(Object.keys(REGIONS).filter((id) => id.startsWith('de-'))).toHaveLength(16);
+  });
+  it.each([
+    ['de-bw', 12],
+    ['de-by', 12],
+    ['de-be', 10],
+    ['de-bb', 12],
+    ['de-hb', 10],
+    ['de-hh', 10],
+    ['de-he', 10],
+    ['de-mv', 11],
+    ['de-ni', 10],
+    ['de-nw', 11],
+    ['de-rp', 11],
+    ['de-sl', 12],
+    ['de-sn', 11],
+    ['de-st', 11],
+    ['de-sh', 10],
+    ['de-th', 11],
+  ])('%s has %i public holidays in 2027', (id, n) => {
+    expect(count2027(id).size).toBe(n);
+  });
+  it('puts the regional holidays on their 2027 dates', () => {
+    expect(count2027('de-by').get('2027-05-27')?.de).toBe('Fronleichnam');
+    expect(count2027('de-be').get('2027-03-08')?.de).toBe('Internationaler Frauentag');
+    expect(count2027('de-th').get('2027-09-20')?.de).toBe('Weltkindertag');
+    expect(count2027('de-sl').get('2027-08-15')?.de).toBe('Mariä Himmelfahrt');
+    expect(count2027('de-bb').get('2027-03-28')?.de).toBe('Ostersonntag');
+    expect(count2027('de-sn').get('2027-11-17')?.de).toBe('Buß- und Bettag');
+    expect(count2027('de-he').has('2027-10-31')).toBe(false);
+  });
+  it('says that no school holidays are known for the new states yet', () => {
+    const index = holidayIndex(REGIONS['de-by']!, '2027-01-01', '2027-12-31');
+    expect(index.schoolHolidays.size).toBe(0);
+    expect(index.beyondKnown).toBe(true);
   });
 });
