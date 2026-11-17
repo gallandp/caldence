@@ -439,6 +439,7 @@
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
                   onSetHours={activeArea ? () => select('team', true) : undefined}
+                  onExport={() => select('exchange', true)}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}

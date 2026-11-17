@@ -11,7 +11,7 @@
     type SkippedItem,
   } from '../../core/icsImport';
   import { slug } from '../../core/slug';
-  import { workspaceIndex, type Filter } from '../../core/views';
+  import { scopePeople, workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
@@ -23,6 +23,7 @@
     type FilePickerType,
   } from '../state/files';
   import { pickFile } from '../state/picker';
+  import { exportRequest, loadExportPerson, saveExportPerson } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
 
   let { onOpenMeetings }: { onOpenMeetings?: () => void } = $props();
@@ -75,6 +76,23 @@
   let schoolHolidays = $state(false);
   let milestones = $state(false);
   const reminders = [5, 10, 15, 30];
+
+  // From "Add to calendar" in Meetings & cadence: the person exported last if they attend this
+  // team's meetings, otherwise the whole team.
+  {
+    const request = get(exportRequest);
+    exportRequest.set(null);
+    if (request) {
+      const person = loadExportPerson();
+      if (person && scopePeople(get(workspace), { teamId: request.teamId }).has(person)) {
+        kind = 'person';
+        pickedId.person = person;
+      } else {
+        kind = 'team';
+        pickedId.team = request.teamId;
+      }
+    }
+  }
 
   const choices = $derived(
     kind === 'team'
@@ -195,6 +213,7 @@
         types(),
       );
       if (saved === null) return;
+      saveExportPerson(kind === 'person' ? chosen.id : null);
       clearStatus();
       problem = null;
       exported = { name: saved, series: built.series, single: built.single };
