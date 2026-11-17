@@ -137,8 +137,7 @@
       ...ws.areas
         .filter(
           (a) =>
-            a.members.some((m) => m.personId === personId) ||
-            Object.hasOwn(a.memberHours, personId),
+            a.members.some((m) => m.personId === personId) || areaHours(ws, a.id, personId) > 0,
         )
         .map((a) => ({
           text: (h: string) => $t('team.people.inArea', { area: a.name, hours: h }),

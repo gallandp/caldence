@@ -370,6 +370,14 @@ test('the people pool names the area of people who work in an area (#252)', asyn
   await expect(row('Jordan')).toContainText('Commerce (area) 8 h');
   await expect(row('Jordan')).not.toContainText('not assigned yet');
   await expect(row('Kim')).toContainText('Team Gamma 32 h · Commerce (area) 4 h · Σ 36 h');
+  await setLanguage(page, 'de');
+  await openPeoplePool(page);
+  await expect(
+    page
+      .locator('#panel-team')
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('textbox', { name: 'Jordan' }) }),
+  ).toContainText('Commerce (Bereich) 8 h');
 });
 
 test('the team view folds the workspace-wide people and roles away (#231)', async ({ page }) => {
