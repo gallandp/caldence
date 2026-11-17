@@ -61,13 +61,13 @@ function invitedTo(ws: Workspace, unit: Team): Set<string> {
   return out;
 }
 
-function row(
+export function unitRow(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
-  invited: Set<string>,
   cap: number,
   rate: number | undefined,
+  invited: Set<string> = invitedTo(ws, unit),
 ): UnitRow {
   const hours = sum(Object.values(weeklyHoursByPerson(ws, unit.id)));
   const out: UnitRow = {
@@ -97,13 +97,13 @@ export function areaCosts(
     const people = [...new Set(t.members.map((m) => m.personId))];
     const own = invitedTo(ws, t);
     own.forEach((p) => invited.add(p));
-    return row(ws, index, t, own, sum(people.map((p) => capacity(ws, p, t.id))), rate);
+    return unitRow(ws, index, t, sum(people.map((p) => capacity(ws, p, t.id))), rate, own);
   });
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
   const areaUnit = areaAsTeam(area);
   const areaInvited = invitedTo(ws, areaUnit);
   areaInvited.forEach((p) => invited.add(p));
-  const areaRow = row(ws, index, areaUnit, areaInvited, 0, rate);
+  const areaRow = unitRow(ws, index, areaUnit, 0, rate, areaInvited);
   areaRow.share = 0;
   areaRow.noHours = false;
   const everyone = [

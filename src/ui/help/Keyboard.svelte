@@ -3,7 +3,7 @@
   import { shortcut } from './label';
   import Rich from './Rich.svelte';
 
-  const shortcuts = ['save', 'saveAs', 'open', 'undo', 'rail'] as const;
+  const shortcuts = ['save', 'saveAs', 'open', 'undo', 'rail', 'present'] as const;
   const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter', 'escape'] as const;
 </script>
 

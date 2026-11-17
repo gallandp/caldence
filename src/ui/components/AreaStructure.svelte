@@ -10,6 +10,7 @@
   import AreaPersonAdd from './AreaPersonAdd.svelte';
   import AreaPersonCard from './AreaPersonCard.svelte';
   import { workspace } from '../state/workspace';
+  import { presenting } from '../state/present';
 
   /** The structure page of an area: who works only in the area, in both, or only in a team. */
   let { area }: { area: Area } = $props();
@@ -332,7 +333,7 @@
             <b>{h(s.areaHours)}</b>
             <small>{$t('area.structure.perWeek')}</small>
           </div>
-          <div class="areaactions">
+          <div class="areaactions" data-no-present>
             <button
               type="button"
               class="secondary add"
@@ -404,7 +405,7 @@
                     ><b>{personName(p.personId)}</b><small
                       >{roleName(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])}</small
                     ><small class="org">{fromLine(p)}</small>{#if p.invitedOnly}<small class="unset"
-                        >{$t('area.hours.unset')}</small
+                        >{$t($presenting ? 'area.hours.none' : 'area.hours.unset')}</small
                       >{/if}</span
                   >
                   {#if !p.invitedOnly}<span class="h a">{h(p.areaHours)}</span>{/if}
@@ -501,7 +502,8 @@
                     >
                     <span class="splitlbl"
                       ><span>{h(own.hours)} {$t('area.structure.inTeam')}</span
-                      >{#if p.invitedOnly}<span class="unset">{$t('area.hours.unset')}</span
+                      >{#if p.invitedOnly}<span class="unset"
+                          >{$t($presenting ? 'area.hours.none' : 'area.hours.unset')}</span
                         >{:else}<span class="a">{h(p.areaHours)} {$t('area.structure.inArea')}</span
                         >{/if}</span
                     >
