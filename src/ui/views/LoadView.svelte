@@ -1,7 +1,7 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
-  import { capacity, fte, hoursIn, loadPerWeek, warnings } from '../../core/load';
+  import { areaHours, capacity, fte, hoursIn, loadPerWeek, warnings } from '../../core/load';
   import { unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
@@ -53,9 +53,74 @@
         const h = of(w);
         if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
-      return { person, average, fte: fte(average, capacity($workspace, person.id, teamId)), peak };
+      const cap = capacity($workspace, person.id, teamId);
+      const all = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
+      const allAverage = weeks.length > 0 ? all / weeks.length : 0;
+      return {
+        person,
+        average,
+        cap,
+        fte: fte(average, cap),
+        /** All meetings over all weekly hours, shown next to a team's or area's share. */
+        allShare: fte(allAverage, capacity($workspace, person.id)),
+        /** Hours per week that still fit into meetings before the limit (none without hours). */
+        free: Math.max(0, maxFte * cap - average),
+        units: unitsOf(person.id),
+        peak,
+      };
     }),
   );
+
+  // ---------- people list (M2) ----------
+
+  const maxFte = $derived($workspace.settings.thresholds.maxFte);
+  /** The teams and areas a person works in, with roles, weekly hours and meeting hours there. */
+  function unitsOf(personId: string) {
+    const ws = $workspace;
+    const avg = (id: string) =>
+      weeks.length > 0
+        ? weeks.reduce((sum, w) => sum + (w.byTeamPerson[id]?.[personId] ?? 0), 0) / weeks.length
+        : 0;
+    const teams = ws.teams
+      .filter((x) => x.members.some((m) => m.personId === personId))
+      .map((x) => ({
+        id: x.id,
+        name: x.name,
+        area: false,
+        roles: x.members.filter((m) => m.personId === personId).map((m) => roleName(m.roleId)),
+        hours: capacity(ws, personId, x.id),
+        meetings: avg(x.id),
+      }));
+    const areas = ws.areas
+      .filter(
+        (a) =>
+          a.members.some((m) => m.personId === personId) || Object.hasOwn(a.memberHours, personId),
+      )
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        area: true,
+        roles: a.members.filter((m) => m.personId === personId).map((m) => roleName(m.roleId)),
+        hours: areaHours(ws, a.id, personId),
+        meetings: avg(a.id),
+      }));
+    return [...teams, ...areas];
+  }
+  let sortBy = $state<'share' | 'free'>('share');
+  const sorted = $derived(
+    [...perPerson].sort((a, b) =>
+      sortBy === 'share'
+        ? shareKey(b) - shareKey(a) || a.person.name.localeCompare(b.person.name)
+        : b.free - a.free || a.person.name.localeCompare(b.person.name),
+    ),
+  );
+  let openPerson = $state<string | null>(null);
+  /** Meetings without weekly hours to measure them against come first: always over the limit. */
+  const noHours = (p: { average: number; cap: number }) => p.average > 0 && p.cap <= 0;
+  const shareKey = (p: { average: number; cap: number; fte: number }) =>
+    noHours(p) ? Infinity : p.fte;
+  const barWidth = (share: number) =>
+    maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
 
   const allWarnings = $derived(warnings(weeks, $workspace, $filter));
 
@@ -203,22 +268,100 @@
     <thead>
       <tr>
         <th scope="col">{$t('load.col.person')}</th>
+        <th scope="col">{$t('load.col.units')}</th>
         <th scope="col" class="num">{$t('load.col.hours')}</th>
-        <th scope="col" class="num">{$t('load.col.fte')}</th>
+        <th scope="col" aria-sort={sortBy === 'share' ? 'descending' : undefined}>
+          <button type="button" class="sort" onclick={() => (sortBy = 'share')}
+            >{$t('load.col.fte')}{#if sortBy === 'share'}<span aria-hidden="true">
+                ↓</span
+              >{/if}</button
+          >
+        </th>
+        {#if teamId}
+          <th scope="col" class="num">{$t('load.col.all')}</th>
+        {/if}
+        <th scope="col" class="num" aria-sort={sortBy === 'free' ? 'descending' : undefined}>
+          <button type="button" class="sort" onclick={() => (sortBy = 'free')}
+            >{$t('load.col.free')}{#if sortBy === 'free'}<span aria-hidden="true">
+                ↓</span
+              >{/if}</button
+          >
+        </th>
         <th scope="col" class="num">{$t('load.col.peak')}</th>
       </tr>
     </thead>
     <tbody>
-      {#each perPerson as p (p.person.id)}
-        <tr data-person={p.person.id}>
-          <th scope="row">{p.person.name}</th>
-          <td class="num">{hours(p.average)}</td>
-          <td class="num">{formatPercent($locale, p.fte)}</td>
+      {#each sorted as p (p.person.id)}
+        {@const over = p.average > 0 && (p.cap > 0 ? p.fte > maxFte : true)}
+        <tr data-person={p.person.id} class:open={openPerson === p.person.id}>
+          <th scope="row">
+            <button
+              type="button"
+              class="who"
+              aria-expanded={openPerson === p.person.id}
+              aria-controls="{uid}-detail-{p.person.id}"
+              onclick={() => (openPerson = openPerson === p.person.id ? null : p.person.id)}
+              >{p.person.name}</button
+            >
+            {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
+          </th>
+          <td class="units"
+            >{p.units.length === 0
+              ? '–'
+              : p.units.every((u) => u.area)
+                ? $t('load.onlyArea')
+                : p.units
+                    .filter((u) => !u.area)
+                    .map((u) => u.name)
+                    .join(', ')}</td
+          >
+          <td class="num nowrap"
+            >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
+          >
+          <td class="nowrap">
+            <span class="share">
+              <span class="bar" aria-hidden="true"
+                ><i style:width="{barWidth(p.fte)}%" class:over></i><b></b></span
+              >
+              <span class="num" class:over
+                >{noHours(p) ? $t('load.noHours') : formatPercent($locale, p.fte)}</span
+              >
+            </span>
+          </td>
+          {#if teamId}
+            <td class="num">{formatPercent($locale, p.allShare)}</td>
+          {/if}
+          <td class="num nowrap">{$t('load.freeHours', { hours: hours(p.free) })}</td>
           <td class="num nowrap">
             {#if p.peak}
               {$t('load.peak', { week: weekLabel(p.peak.monday), hours: hours(p.peak.hours) })}
             {:else}
               {$t('load.none')}
+            {/if}
+          </td>
+        </tr>
+        <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
+          <td colspan={teamId ? 7 : 6}>
+            {#if openPerson === p.person.id}
+              {#if p.units.length === 0}
+                <p class="note">{$t('load.detail.none')}</p>
+              {:else}
+                <ul class="split">
+                  {#each p.units as u (u.id)}
+                    <li>
+                      <span class="unit-name">{u.name}</span>
+                      <span class="muted"
+                        >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(
+                          ' · ',
+                        )}</span
+                      >
+                      <span class="num"
+                        >{$t('load.detail.meetings', { hours: hours(u.meetings) })}</span
+                      >
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
             {/if}
           </td>
         </tr>
@@ -314,6 +457,22 @@
     {/if}
   </section>
 
+  {#if $workspace.people.length > 0}
+    <section class="card people">
+      {@render region('person', $t('load.table.person'), personBody)}
+      <p class="note below">
+        {#if !$filter.personId}
+          {area
+            ? $t('load.table.person.noteArea', { name: area.name })
+            : teamId
+              ? $t('load.table.person.note')
+              : ''}
+        {/if}
+        {$t('load.table.person.free', { max: formatPercent($locale, maxFte) })}
+      </p>
+    </section>
+  {/if}
+
   <div class="grid">
     <div class="col">
       <div class="card">{@render region('base', $t('load.table.base'), baseBody)}</div>
@@ -323,16 +482,6 @@
         <CostCard summary={costs} {rate} />
       {:else if !rate && summary.byRole.length > 0}
         <RateInvite />
-      {/if}
-      {#if $workspace.people.length > 0}
-        <div class="card">
-          {@render region('person', $t('load.table.person'), personBody)}
-          {#if !$filter.personId}<p class="note below">
-              {area
-                ? $t('load.table.person.noteArea', { name: area.name })
-                : $t('load.table.person.note')}
-            </p>{/if}
-        </div>
       {/if}
     </div>
   </div>
@@ -542,6 +691,120 @@
     height: 0.6rem;
     border-radius: 50%;
   }
+  /* ---------- people ---------- */
+  :global(#app) .people button.who,
+  :global(#app) .people button.sort {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  :global(#app) .people button.sort {
+    text-transform: inherit;
+    letter-spacing: inherit;
+    font-size: inherit;
+    color: inherit;
+  }
+  :global(#app) .people button.who {
+    font-weight: 650;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 0.2em;
+  }
+  :global(#app) .people button.who:hover {
+    text-decoration-color: currentColor;
+  }
+  .people tr.open > * {
+    background: var(--accent-soft);
+  }
+  .over-tag {
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.45rem;
+    border-radius: 99px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 0.75rem;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .units {
+    color: var(--text-muted);
+  }
+  .share {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .share .num {
+    min-width: 3rem;
+  }
+  .num.over {
+    color: var(--warn);
+    font-weight: 700;
+  }
+  .bar {
+    position: relative;
+    display: block;
+    width: 6rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-gradient);
+  }
+  .bar i.over {
+    background: var(--warn);
+  }
+  /* The limit sits at two thirds of the scale (0 to 1.5 × the limit), as in the area overview. */
+  .bar b {
+    position: absolute;
+    left: 66.67%;
+    top: -0.2rem;
+    bottom: -0.2rem;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--text);
+  }
+  @media (forced-colors: active) {
+    .bar {
+      border: 1px solid CanvasText;
+    }
+    .bar i,
+    .bar b {
+      background: CanvasText;
+    }
+  }
+  .split {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0.25rem 0;
+    padding: 0;
+    list-style: none;
+  }
+  .split li {
+    display: grid;
+    grid-template-columns: minmax(8rem, 14rem) 1fr auto;
+    gap: 0.75rem;
+    align-items: baseline;
+  }
+  .unit-name {
+    font-weight: 600;
+  }
+  .muted {
+    color: var(--text-muted);
+  }
+
   /* ---------- warnings ---------- */
   .warnings {
     display: flex;
