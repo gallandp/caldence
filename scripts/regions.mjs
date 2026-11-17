@@ -93,8 +93,9 @@ const NOTHING_KNOWN = '2025-12-31';
 /** English names of the usual German school holidays; others keep the German name. */
 const SCHOOL_EN = {
   Winterferien: 'Winter break',
-  Osterferien: 'Easter break',
+  Faschingsferien: 'Carnival break',
   Frühjahrsferien: 'Spring break',
+  Osterferien: 'Easter break',
   Pfingstferien: 'Whitsun break',
   Sommerferien: 'Summer break',
   Herbstferien: 'Autumn break',
@@ -107,9 +108,14 @@ function readSchool(file) {
   const list = JSON.parse(readFileSync(file, 'utf8'));
   if (!Array.isArray(list)) throw new Error(`${file}: expected the API's list of holidays`);
   const byState = new Map();
+  let skipped = 0;
   for (const h of list) {
     const de = (h.name ?? []).find((x) => x.language === 'DE')?.text;
-    if (!de || !h.startDate || !h.endDate) continue;
+    if (!h.startDate || !h.endDate) continue;
+    if (!de) {
+      skipped++;
+      continue;
+    }
     const word = Object.keys(SCHOOL_EN).find((k) => de.startsWith(k));
     const name = n(de, word ? SCHOOL_EN[word] : de);
     // Holidays of the whole country have no subdivisions; regional ones (some cities) are left out.
@@ -123,6 +129,10 @@ function readSchool(file) {
       byState.get(id).push({ name, from: h.startDate, to: h.endDate });
     }
   }
+  if (skipped > 0)
+    console.warn(
+      `${skipped} holidays have no German name and were left out: use languageIsoCode=DE.`,
+    );
   return byState;
 }
 
@@ -137,15 +147,17 @@ for (const [id, name, extras] of STATES) {
   let knownUntil = old?.schoolHolidaysKnownUntil ?? NOTHING_KNOWN;
   const fresh = school?.get(id);
   if (fresh?.length) {
-    // New periods replace old ones from their first day on; earlier ones are kept.
+    // New periods replace the old ones within the downloaded range only; the rest is kept, and
+    // the date up to which school holidays are known never moves back.
     const start = fresh.map((s) => s.from).sort()[0];
-    schoolHolidays = [...schoolHolidays.filter((s) => s.to < start), ...fresh].sort((a, b) =>
-      a.from < b.from ? -1 : 1,
-    );
-    knownUntil = schoolHolidays
+    const end = fresh
       .map((s) => s.to)
       .sort()
       .at(-1);
+    schoolHolidays = [...schoolHolidays.filter((s) => s.to < start || s.from > end), ...fresh].sort(
+      (a, b) => (a.from < b.from ? -1 : 1),
+    );
+    if (end > knownUntil) knownUntil = end;
   }
   const region = { id, name, holidays, schoolHolidays, schoolHolidaysKnownUntil: knownUntil };
   writeFileSync(path, await format(JSON.stringify(region), { parser: 'json', printWidth: 100 }));

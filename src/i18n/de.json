@@ -138,6 +138,7 @@
   "settings.region.remove": "Importierte Region {name} entfernen",
   "region.unknown": "Die Region {region} ist unbekannt, daher werden keine Feiertage berücksichtigt. Wählen Sie eine Region oder importieren Sie ihre Regionsdatei.",
   "region.beyondKnown": "Schulferien für {region} sind nur bis {date} bekannt. Spätere Schulferien fehlen.",
+  "region.noSchool": "Für {region} sind noch keine Schulferien hinterlegt, daher werden keine angezeigt. Importieren Sie in den Einstellungen eine Regionsdatei mit Schulferien.",
   "settings.timezone": "Zeitzone",
   "settings.timezone.unknown": "Dieser Browser kennt die Zeitzone {zone} nicht. Wählen Sie eine Zeitzone aus der Liste, zum Beispiel Europe/Berlin; Kalenderexport und -import brauchen sie.",
   "settings.hoursPerWeek": "Standard-Wochenstunden",

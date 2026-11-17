@@ -125,3 +125,30 @@ describe('migrate', () => {
     expect(migrate({ schemaVersion: 0 })).toEqual({ ok: false, key: 'error.schema.unknown' });
   });
 });
+
+describe('imported regions with an id that is now bundled (#23)', () => {
+  const region = (id: string, en: string) => ({
+    id,
+    name: { de: en, en },
+    holidays: [],
+    schoolHolidays: [{ name: { de: 'Ferien', en: 'Break' }, from: '2027-02-15', to: '2027-02-19' }],
+    schoolHolidaysKnownUntil: '2027-12-31',
+  });
+  it('get a new id, and the selection follows, so the file opens with its own holidays', () => {
+    const ws = {
+      ...emptyWorkspace('2026-11-17'),
+      customRegions: [region('de-by', 'My Bavaria'), region('de-by-imported', 'Taken')],
+    };
+    ws.settings.region = 'de-by';
+    const r = loadWorkspace(JSON.stringify(ws));
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.value.customRegions.map((x) => x.id)).toEqual(['de-by-imported-2', 'de-by-imported']);
+    expect(r.value.settings.region).toBe('de-by-imported-2');
+    expect(r.value.customRegions[0]!.schoolHolidays).toHaveLength(1);
+  });
+  it('leave other imported regions alone', () => {
+    const ws = { ...emptyWorkspace('2026-11-17'), customRegions: [region('at-9', 'Vienna')] };
+    const m = migrate(ws);
+    expect(m.ok && (m.value as typeof ws).customRegions[0]!.id).toBe('at-9');
+  });
+});

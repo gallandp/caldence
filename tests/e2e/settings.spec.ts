@@ -251,6 +251,16 @@ test('a horizon beyond the known school holidays shows a warning in Settings and
   await expect(page.getByRole('tabpanel').getByText(warning)).toBeVisible();
 });
 
+test('a state without bundled school holidays says so instead of a date (#23)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await regionSelect(page).selectOption('de-by');
+  const note = 'No school holidays are known for Bavaria yet, so none are shown.';
+  await expect(page.getByText(note)).toBeVisible();
+  await expect(page.getByText(/known only until/)).toHaveCount(0);
+});
+
 for (const locale of ['de', 'en'] as const) {
   test(`axe finds no violations with an imported region and the coverage warning (${locale})`, async ({
     page,
