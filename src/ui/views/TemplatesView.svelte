@@ -115,6 +115,10 @@
     teams.find((x) => x.id === (chosenTeam ?? firstTeamOf($activeTeamId))) ?? teams[0],
   );
   const exportName = $derived(nameDraft ?? exportTeam?.name ?? '');
+  /** The area the chosen team is in: its part goes into the template too. */
+  const exportArea = $derived(
+    exportTeam ? $workspace.areas.find((a) => a.teamIds.includes(exportTeam.id)) : undefined,
+  );
 
   async function exportFile(event: SubmitEvent) {
     event.preventDefault();
@@ -267,8 +271,18 @@
           }}
         />
       </div>
-      <button type="submit" disabled={teams.length === 0}>{$t('templates.export.button')}</button>
+      <button
+        type="submit"
+        disabled={teams.length === 0}
+        aria-describedby={exportArea ? `${uid}-export-area` : undefined}
+        >{$t('templates.export.button')}</button
+      >
     </form>
+    {#if exportArea && exportTeam}
+      <p class="empty" id="{uid}-export-area">
+        {$t('templates.export.area', { team: exportTeam.name, area: exportArea.name })}
+      </p>
+    {/if}
     {#if exportError}
       <p class="field-error" id="{uid}-export-err">{$t('templates.error.name')}</p>
     {/if}

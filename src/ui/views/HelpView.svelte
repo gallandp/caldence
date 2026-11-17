@@ -1,6 +1,7 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
   import Accessibility from '../help/Accessibility.svelte';
+  import Areas from '../help/Areas.svelte';
   import CalendarImport from '../help/CalendarImport.svelte';
   import Files from '../help/Files.svelte';
   import FirstSteps from '../help/FirstSteps.svelte';
@@ -23,6 +24,7 @@
 
   <FirstSteps />
   <Views />
+  <Areas />
   <LoadCalc />
   <Where />
   <Templates />

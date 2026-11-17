@@ -111,7 +111,7 @@ for (const locale of ['de', 'en'] as const) {
         const help = panel(page, c['view.help']!);
         const toc = help.getByRole('navigation', { name: c['help.toc'], exact: true });
         const links = toc.getByRole('link');
-        await expect(links).toHaveCount(9);
+        await expect(links).toHaveCount(10);
         for (const link of await links.all()) {
           const name = ((await link.textContent()) ?? '').trim();
           const href = (await link.getAttribute('href')) ?? '';

@@ -211,6 +211,8 @@
   const coverage = $derived.by(() => {
     const region = schoolHolidayGap($workspace, $index);
     if (!region) return null;
+    if (region.schoolHolidays.length === 0)
+      return $t('region.noSchool', { region: region.name[$locale] });
     return $t('region.beyondKnown', {
       region: region.name[$locale],
       date: formatDisplayDate($locale, region.schoolHolidaysKnownUntil, 'short'),

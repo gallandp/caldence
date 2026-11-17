@@ -32,4 +32,5 @@
       }}
     />
   </p>
+  <p><Rich key="help.first.areas" labels={{ areas: sectionLink('manual-areas') }} /></p>
 </section>

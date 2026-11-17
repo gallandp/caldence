@@ -4,6 +4,7 @@
   import type { Area } from '../core/model';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
+  import { areaReady } from './state/hints';
   import { activeTeamId, workspace } from './state/workspace';
 
   /** Where focus goes when the dialog closes (the switcher's menu button). */
@@ -65,7 +66,10 @@
       general = result.errors[0]?.key ?? 'error.type';
       return;
     }
-    if (!target && result.id) activeTeamId.set(result.id);
+    if (!target && result.id) {
+      activeTeamId.set(result.id);
+      areaReady.set(result.id);
+    }
     dialog?.close();
   }
 

@@ -4,6 +4,7 @@
 
   const parts = [
     'format',
+    'areas',
     'buttons',
     'status',
     'present',

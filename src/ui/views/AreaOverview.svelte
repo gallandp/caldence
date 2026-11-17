@@ -550,13 +550,12 @@
     <RateInvite focusAfter="[data-area-costs] h3" />
   {/if}
 
-  <section class="card" aria-labelledby="{uid}-strip">
-    <h3 id="{uid}-strip">{$t('overview.strip.title')}</h3>
-    <p class="note">{$t('overview.strip.hint', { n: formatNumber($locale, weekCount, 0) })}</p>
+  <!-- Without teams there is nothing to compare; the choice of teams is offered above. -->
+  {#if teams.length > 0}
+    <section class="card" aria-labelledby="{uid}-strip">
+      <h3 id="{uid}-strip">{$t('overview.strip.title')}</h3>
+      <p class="note">{$t('overview.strip.hint', { n: formatNumber($locale, weekCount, 0) })}</p>
 
-    {#if teams.length === 0}
-      <p>{$t('area.view.empty', { name: area.name })}</p>
-    {:else}
       <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
       <div
         class="scroll"
@@ -678,8 +677,8 @@
           })}
         </li>
       </ul>
-    {/if}
-  </section>
+    </section>
+  {/if}
 
   <section class="card" aria-labelledby="{uid}-steer">
     <h3 id="{uid}-steer">{$t('overview.steer.title')}</h3>

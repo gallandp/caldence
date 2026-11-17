@@ -55,7 +55,7 @@ async function storedTeams(page: Page): Promise<number> {
 test('autosave restores the changed data and the unsaved marker after reload', async ({ page }) => {
   await openExample(page);
   await setLanguage(page, 'de');
-  await expect.poll(() => storedTeams(page)).toBe(2);
+  await expect.poll(() => storedTeams(page)).toBe(4);
   await page.reload();
   // The changed value (language de) survived, and so did the dirty flag and the example.
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
@@ -206,7 +206,7 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
 }) => {
   await openExample(page);
   await setLanguage(page, 'de');
-  await expect.poll(() => storedTeams(page)).toBe(2);
+  await expect.poll(() => storedTeams(page)).toBe(4);
   await page.goto('/?reset');
   await expect(
     page.getByRole('button', { name: /Beispiel öffnen|Open the example/ }),
@@ -227,5 +227,5 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
         req.onerror = () => resolve(-1);
       }),
   );
-  expect(backupTeams).toBe(2);
+  expect(backupTeams).toBe(4);
 });
