@@ -341,6 +341,7 @@
   "team.pool.roles.other": "{n} roles",
   "team.pool": "All people and roles in this file",
   "team.people.inTeam": "{team} {hours} h",
+  "team.people.inArea": "{area} ({levelAreaLc}) {hours} h",
   "team.people.sum": "Σ {hours} h",
   "team.members.needs": "First create a role under Roles below.",
   "team.cadence": "Cadence",

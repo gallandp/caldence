@@ -359,6 +359,19 @@ test('people and roles are created in the team view, hours count per team', asyn
   await expect(team.getByText('Team Alpha 16 h · Team Beta 16 h · Σ 32 h')).toBeVisible();
 });
 
+test('the people pool names the area of people who work in an area (#252)', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  await openPeoplePool(page);
+  const row = (name: string) =>
+    team.getByRole('listitem').filter({ has: page.getByRole('textbox', { name }) });
+  // Jordan leads the Commerce area and is in no team; Kim is in Team Gamma and the area.
+  await expect(row('Jordan')).toContainText('Commerce (area) 8 h');
+  await expect(row('Jordan')).not.toContainText('not assigned yet');
+  await expect(row('Kim')).toContainText('Team Gamma 32 h · Commerce (area) 4 h · Σ 36 h');
+});
+
 test('the team view folds the workspace-wide people and roles away (#231)', async ({ page }) => {
   await openExample(page);
   await openTeamView(page);
