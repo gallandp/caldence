@@ -37,13 +37,10 @@ export function inRange(version, range) {
 export function evaluate(report, latest, accepted = ACCEPTED) {
   const failures = [];
   const ignored = [];
-  const seen = new Set();
   for (const vuln of Object.values(report.vulnerabilities ?? {})) {
     for (const via of vuln.via) {
       if (typeof via === 'string' || !BLOCKING.has(via.severity)) continue;
       const id = via.url.split('/').pop();
-      if (seen.has(id)) continue;
-      seen.add(id);
       const line = `${via.name}: ${via.title} (${via.url}, ${via.range})`;
       if (accepted[id] !== via.name) {
         failures.push(line);
@@ -69,7 +66,8 @@ function main() {
     out = e.stdout;
   }
   const report = JSON.parse(out);
-  if (report.error) throw new Error(`npm audit failed: ${JSON.stringify(report.error)}`);
+  if (report.error)
+    throw new Error(`npm audit failed: ${report.message ?? JSON.stringify(report.error)}`);
   const latest = {};
   for (const name of new Set(Object.values(ACCEPTED))) {
     latest[name] = execFileSync('npm', ['view', name, 'version'], { encoding: 'utf8' }).trim();
