@@ -132,10 +132,12 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await expect(
     load.getByRole('list', { name: 'Summary' }).locator('[data-role] .hours').first(),
   ).toHaveText('2.0');
-  const kim = load.getByRole('table', { name: 'Per person' }).locator('tr[data-person]');
+  const kim = load.getByRole('table', { name: 'People' }).locator('tr[data-person]');
   await expect(kim).toHaveCount(1);
   // The average over the horizon is a little below 2.0 where a holiday skips a Wednesday.
-  const average = Number((await kim.getByRole('cell').first().innerText()).replace(',', '.'));
+  // The hours column reads "1.9 of 40.0 h": the first number is the average.
+  const hoursText = await kim.getByRole('cell').nth(1).innerText();
+  const average = Number(hoursText.split(' ')[0]!.replace(',', '.'));
   expect(average).toBeGreaterThanOrEqual(1.8);
   expect(average).toBeLessThanOrEqual(2);
 
