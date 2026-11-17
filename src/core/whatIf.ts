@@ -47,7 +47,7 @@ export function whatIfEffect(
   if (!team) return undefined;
   const people = [...new Set(team.members.map((m) => m.personId))];
   const cap = people.reduce((a, p) => a + capacity(ws, p, team.id), 0);
-  const row = unitRow(ws, index, team, people, cap, rate);
+  const row = unitRow(ws, index, team, cap, rate);
   const out: Effect = { hours: row.hours, share: row.share };
   if (row.cost) out.cost = row.cost;
   return out;

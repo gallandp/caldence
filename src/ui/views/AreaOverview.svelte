@@ -319,10 +319,10 @@
         <span class="label"
           >{$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}</span
         >
-        {#if costs.total.people > 0}
+        {#if costs.total.invited > 0}
           <span class="label"
             >{$t('overview.kpi.cost.person', {
-              amount: euro(costs.total.cost.perWeek / costs.total.people),
+              amount: euro(costs.total.cost.perWeek / costs.total.invited),
             })}</span
           >
         {/if}
@@ -348,7 +348,10 @@
         <h3 id="{uid}-cost" tabindex="-1">
           {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
         </h3>
-        <p class="note">{$t('overview.cost.hint')}</p>
+        <p class="note">
+          {$t('overview.cost.hint')}{#if rate}
+            {$t('overview.cost.hint.person')}{/if}
+        </p>
       </div>
       {#if rate}
         <div class="period" role="group" aria-label={$t('overview.cost.period')}>
@@ -414,7 +417,7 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong">{euro(costOf(r.cost))}</td>
-                <td class="num muted">{r.people > 0 ? euro(costOf(r.cost) / r.people) : '–'}</td>
+                <td class="num muted">{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td>
               {/if}
             </tr>
           {/each}
@@ -443,7 +446,11 @@
             <td></td>
             {#if rate && costs.area.cost}
               <td class="num strong">{euro(costOf(costs.area.cost))}</td>
-              <td></td>
+              <td class="num muted"
+                >{costs.area.invited > 0
+                  ? euro(costOf(costs.area.cost) / costs.area.invited)
+                  : '–'}</td
+              >
             {/if}
           </tr>
         </tbody>
@@ -460,8 +467,8 @@
             {#if rate && costs.total.cost}
               <td class="num">{euro(costOf(costs.total.cost))}</td>
               <td class="num"
-                >{costs.total.people > 0
-                  ? euro(costOf(costs.total.cost) / costs.total.people)
+                >{costs.total.invited > 0
+                  ? euro(costOf(costs.total.cost) / costs.total.invited)
                   : '–'}</td
               >
             {/if}
