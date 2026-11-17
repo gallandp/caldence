@@ -2,7 +2,7 @@
   import { translate as t } from '../../i18n';
   import { shortcut } from './label';
 
-  const shortcuts = ['save', 'saveAs', 'open', 'undo'] as const;
+  const shortcuts = ['save', 'saveAs', 'open', 'undo', 'rail'] as const;
   const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter', 'escape'] as const;
 </script>
 
