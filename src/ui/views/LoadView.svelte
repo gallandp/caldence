@@ -13,6 +13,7 @@
     translate as t,
   } from '../../i18n';
   import CostCard from '../components/CostCard.svelte';
+  import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
   import { filter, index, workspace } from '../state/workspace';
 
@@ -320,6 +321,8 @@
     <div class="col">
       {#if costs && rate}
         <CostCard summary={costs} {rate} />
+      {:else if !rate && summary.byRole.length > 0}
+        <RateInvite />
       {/if}
       {#if $workspace.people.length > 0}
         <div class="card">

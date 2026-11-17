@@ -241,3 +241,31 @@ for (const locale of ['de', 'en'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('"Add to calendar" opens the export for this team, then for the person exported last', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
+  await openExample(page);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar…' }).click();
+  await expect(panel(page)).toBeVisible();
+  await expect(panel(page).getByRole('radio', { name: 'Team', exact: true })).toBeChecked();
+  await expect(panel(page).getByLabel('Selected team')).toHaveValue(/team-alpha/);
+  // Export one person's meetings: the next "Add to calendar" starts there.
+  await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();
+  const person = panel(page).getByLabel('Selected person');
+  await person.selectOption({ label: 'Sam' });
+  const picked = await person.inputValue();
+  await exportText(page);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar…' }).click();
+  await expect(panel(page).getByRole('radio', { name: 'Person', exact: true })).toBeChecked();
+  await expect(panel(page).getByLabel('Selected person')).toHaveValue(picked);
+  // A team export forgets the person again.
+  await panel(page).getByRole('radio', { name: 'Team', exact: true }).check();
+  await exportText(page);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar…' }).click();
+  await expect(panel(page).getByRole('radio', { name: 'Team', exact: true })).toBeChecked();
+});

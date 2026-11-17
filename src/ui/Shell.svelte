@@ -24,6 +24,7 @@
   import { registerFileInput } from './state/picker';
   import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
+  import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
 
   const { dirty } = workspace;
@@ -118,6 +119,8 @@
 
   /** With `focus`, the view's visible tab gets the focus; a view without one (phones) its content. */
   function select(id: ViewId, focus = false) {
+    // A preselection for the export is only for the next visit right now.
+    if (id !== 'exchange') exportRequest.set(null);
     active = id;
     if (!focus) return;
     const tab = [tabs[id], barTabs[id]].find(shown);
@@ -512,6 +515,7 @@
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
                   onSetHours={activeArea ? () => select('team', true) : undefined}
+                  onExport={() => select('exchange', true)}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}<TeamView />{/if}
