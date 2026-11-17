@@ -1,0 +1,86 @@
+/* Print and "Save as PDF" (persona concept M4, #22): the current view on white paper, without
+   navigation, file actions or controls that only make sense on screen. Light colours always. */
+@media print {
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
+    --bg: #fff;
+    --surface: #fff;
+    --shadow: none;
+    --shadow-lg: none;
+  }
+  html,
+  html.presenting {
+    font-size: 90%;
+  }
+  body {
+    background: #fff;
+  }
+  /* Bars, dots and heat cells carry meaning: print their colours. */
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .skip,
+  .sidebar,
+  .tabbar,
+  #app .content > header.bar,
+  [data-whatif-bar],
+  [data-no-print],
+  [data-no-present],
+  [data-rate-invite] {
+    display: none !important;
+  }
+  #app .layout {
+    display: block;
+    min-height: 0;
+  }
+  #app main {
+    padding: 0;
+  }
+  /* The filters stay as one line of text: what the page is about. */
+  #app .content > .bar.context {
+    border: 0;
+    padding: 0 0 0.5rem;
+    background: none;
+  }
+  #app .stack .card,
+  #app .card {
+    box-shadow: none;
+    border-color: #c9cddc;
+  }
+  /* Scrolling regions print in full instead of cutting columns off. */
+  #app [role='region'][tabindex],
+  #app .scroll,
+  #app .table-wrap {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  /* Tables fit the paper: no minimum widths, cells may wrap. */
+  #app table {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+  #app th,
+  #app td {
+    padding-inline: 0.35rem !important;
+    white-space: normal !important;
+  }
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+  }
+  tr,
+  li,
+  figure {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

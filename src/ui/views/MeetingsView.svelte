@@ -368,7 +368,7 @@
       <RateInvite />
     {/if}
     <div class="card">
-      <div class="toolbar">
+      <div class="toolbar" data-no-print>
         <button
           type="button"
           class="primary add"

@@ -983,6 +983,7 @@
   "area.card.unit": "h",
   "file.present": "Präsentieren",
   "file.present.stop": "Präsentation beenden",
+  "file.print": "Drucken",
   "present.banner": "Präsentation · Ändern nur als „Was wäre wenn“ · Esc beendet",
   "present.hideNames": "Namen ausblenden",
   "present.person": "Person {n}",

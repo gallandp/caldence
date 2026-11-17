@@ -983,6 +983,7 @@
   "area.card.unit": "h",
   "file.present": "Present",
   "file.present.stop": "End presentation",
+  "file.print": "Print",
   "present.banner": "Presenting · changes only as what-ifs · Esc ends",
   "present.hideNames": "Hide names",
   "present.person": "Person {n}",

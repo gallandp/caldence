@@ -28,6 +28,9 @@
   const { dirty, fileName } = workspace;
   /** A screen with a play mark: presenting (persona concept M1). */
   const PRESENT_ICON = 'M3 4h18v12H3zM12 16v4M8 20h8M10 8l4 2-4 2z';
+  /** A printer: print or save the current view as PDF (persona concept M4). */
+  const PRINT_ICON =
+    'M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z';
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
   const autosaveOn = autosave.status;
@@ -305,6 +308,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRESENT_ICON} /></svg>
         {$t('file.present')}
       </button>
+      <button type="button" class="present-toggle print" data-print onclick={() => window.print()}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRINT_ICON} /></svg>
+        {$t('file.print')}
+      </button>
     {/if}
   {/if}
   <div role="status" class="notice">
@@ -424,7 +431,8 @@
   }
   /* Phones keep their file menu: presenting is for a projector or a shared screen. */
   @media (max-width: 40rem) {
-    .present-toggle.start {
+    .present-toggle.start,
+    .present-toggle.print {
       display: none;
     }
   }

@@ -10,6 +10,7 @@
   import './tokens.css';
   import './global.css';
   import './theme.css';
+  import './print.css';
 
   // The UI language is a workspace setting.
   // The UI language and the level names are workspace settings. Derived first, so that an edit
