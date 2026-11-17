@@ -241,3 +241,28 @@ for (const locale of ['de', 'en'] as const) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('a second export updates the first and cancels a deleted meeting (#21)', async ({ page }) => {
+  await openExchange(page);
+  const first = await exportText(page);
+  expect(first.text).toMatch(/\r\nSEQUENCE:\d+\r\n/);
+  expect(first.text).not.toContain('STATUS:CANCELLED');
+
+  // Delete the Weekly Sync of Team Alpha, then export the same team again.
+  await showView(page, 'Meetings & cadence');
+  const meetings = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  await meetings.locator('[data-more]').first().waitFor();
+  const row = meetings.locator('tr', { hasText: 'Weekly Sync' });
+  await row.locator('[data-more]').click();
+  await meetings
+    .getByRole('button', { name: /^Delete/ })
+    .first()
+    .click();
+  await expect(meetings.locator('tr', { hasText: 'Weekly Sync' })).toHaveCount(0);
+
+  await showView(page, 'Import / Export');
+  const second = await exportText(page);
+  expect(second.text).toContain('STATUS:CANCELLED');
+  expect(second.text).toMatch(/UID:ev-sync\.team-alpha\.[^\r]+\r\n/);
+  await expect(panel(page).getByRole('status')).toContainText('included as cancelled: 1');
+});

@@ -619,3 +619,86 @@ describe('line helpers (security #39)', () => {
     expect(paramValue('a"b\r\n')).toBe('ab');
   });
 });
+
+describe('exportIcs as an update of an earlier export (#21)', () => {
+  function build(ws: Workspace, o: IcsExportOptions) {
+    const copy: Workspace = {
+      ...ws,
+      settings: { ...ws.settings, horizon: { from: o.from, to: o.to } },
+    };
+    return exportIcsWithCounts(ws, workspaceIndex(copy), o);
+  }
+  const later = new Date(Date.UTC(2026, 10, 8, 9, 30, 0));
+
+  it('gives every VEVENT a SEQUENCE that grows with the export time, and LAST-MODIFIED', () => {
+    const first = build(example(), opts());
+    const second = build(example(), opts({ now: later }));
+    const seq = (text: string) =>
+      new Set(blocks(text, 'VEVENT').map((b) => b.find((l) => l.startsWith('SEQUENCE:'))));
+    expect(seq(first.text).size).toBe(1);
+    const a = Number([...seq(first.text)][0]!.slice(9));
+    const b = Number([...seq(second.text)][0]!.slice(9));
+    expect(b).toBeGreaterThan(a);
+    for (const block of blocks(first.text, 'VEVENT'))
+      expect(block).toContain('LAST-MODIFIED:20261107T120000Z');
+  });
+
+  it('sends a deleted meeting again as cancelled, with the same UID', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    expect(first.cancelled).toBe(0);
+    const alpha = ws.teams[0]!;
+    const gone = alpha.events.find((e) => e.id === 'ev-sync')!;
+    alpha.events = alpha.events.filter((e) => e !== gone);
+    const second = build(ws, opts({ now: later, previous: first.events }));
+    expect(second.cancelled).toBe(1);
+    const cancelled = blocks(second.text, 'VEVENT').filter((b) => b.includes('STATUS:CANCELLED'));
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]).toContain(`UID:ev-sync.team-alpha.${ws.id}@caldence`);
+    expect(cancelled[0]).toContain('SUMMARY:Weekly Sync');
+    // The cancelled entry is not remembered for the next export.
+    expect(second.events.some((e) => e.uid.startsWith('ev-sync.'))).toBe(false);
+    expect(build(ws, opts({ now: later, previous: second.events })).cancelled).toBe(0);
+    // ical.js reads the file.
+    expect(() => ICAL.parse(second.text)).not.toThrow();
+  });
+
+  it('cancels all-day items left out now, but nothing outside a shorter range', () => {
+    const ws = example();
+    const first = build(
+      ws,
+      opts({ allDay: { holidays: true, schoolHolidays: false, milestones: false } }),
+    );
+    const shorter = build(
+      ws,
+      opts({
+        from: '2027-01-01',
+        to: '2027-03-31',
+        now: later,
+        previous: first.events,
+        allDay: { holidays: true, schoolHolidays: false, milestones: false },
+      }),
+    );
+    expect(shorter.cancelled).toBe(0);
+    // What lies after March is still in the calendar and stays remembered.
+    expect(shorter.events.some((e) => e.date > '2027-03-31')).toBe(true);
+
+    const noHolidays = build(ws, opts({ now: later, previous: first.events }));
+    const holidays = first.events.filter((e) => e.uid.startsWith('holiday-')).length;
+    expect(holidays).toBeGreaterThan(0);
+    expect(noHolidays.cancelled).toBe(holidays);
+  });
+
+  it('keeps a series that has no date in a shorter range', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const kickoff = first.events.find((e) => e.uid.startsWith('ev-review.team-alpha'));
+    expect(kickoff?.series).toBe(true);
+    const short = build(
+      ws,
+      opts({ from: '2027-01-04', to: '2027-01-05', now: later, previous: first.events }),
+    );
+    expect(short.cancelled).toBe(0);
+    expect(short.events.map((e) => e.uid)).toContain(kickoff!.uid);
+  });
+});

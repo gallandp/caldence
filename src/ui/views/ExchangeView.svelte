@@ -2,7 +2,8 @@
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
   import { importEvents } from '../../core/edit';
-  import { exportIcsWithCounts, scopeHasEvents } from '../../core/ics';
+  import { exportIcsWithCounts, scopeHasEvents, type IcsExport } from '../../core/ics';
+  import { lastExport, rememberExport } from '../state/exports';
   import {
     parseIcs,
     reviewImport,
@@ -39,7 +40,12 @@
   const zoneKnown = $derived(isKnownZone(ws.settings.timezone));
 
   let problem = $state<{ key: string; path?: string } | null>(null);
-  let exported = $state<{ name: string; series: number; single: number } | null>(null);
+  let exported = $state<{
+    name: string;
+    series: number;
+    single: number;
+    cancelled: number;
+  } | null>(null);
   /** The ZIP with one calendar per team, role or person, and how many files it holds. */
   let sharedAll = $state<{ name: string; files: number } | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
@@ -123,6 +129,7 @@
     const range = { ...ws.settings, horizon: { from, to } };
     return exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
       scope: filter,
+      previous: lastExport(ws.id, filter),
       from,
       to,
       reminderMinutes: reminder === '' ? null : Number(reminder),
@@ -146,10 +153,12 @@
     if (!canShareAll) return;
     const used: string[] = [];
     const files = [];
+    const remembered: { filter: Filter; built: IcsExport }[] = [];
     for (const c of choices) {
       if (!scopeHasEvents(ws, filterFor(c.id))) continue;
       const built = build(filterFor(c.id));
       if (built.series + built.single === 0) continue;
+      remembered.push({ filter: filterFor(c.id), built });
       let base = `caldence-${slug(c.name)}`;
       for (let n = 2; used.includes(base); n++) base = `caldence-${slug(c.name)}-${n}`;
       used.push(base);
@@ -169,6 +178,7 @@
         [{ description: $t('exchange.zip.type'), accept: { 'application/zip': ['.zip'] } }],
       );
       if (saved === null) return;
+      for (const r of remembered) rememberExport(ws.id, r.filter, r.built.events);
       clearStatus();
       problem = null;
       sharedAll = { name: saved, files: files.length };
@@ -195,9 +205,15 @@
         types(),
       );
       if (saved === null) return;
+      rememberExport(ws.id, scope, built.events);
       clearStatus();
       problem = null;
-      exported = { name: saved, series: built.series, single: built.single };
+      exported = {
+        name: saved,
+        series: built.series,
+        single: built.single,
+        cancelled: built.cancelled,
+      };
     } catch {
       fail('file.error.write');
     }
@@ -310,6 +326,9 @@
         series: exported.series,
         single: exported.single,
       })}
+      {#if exported.cancelled > 0}
+        {$t('exchange.exported.cancelled', { n: exported.cancelled })}
+      {/if}
     {:else if sharedAll}
       {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
     {:else if exportEmpty}
