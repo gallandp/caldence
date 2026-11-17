@@ -697,19 +697,14 @@ describe('exportIcs as an update of an earlier export (#21)', () => {
     expect(noMilestones.cancelled).toBe(milestones);
   });
 
-  it('cancels a series whose occurrences in range are all gone', () => {
+  it('keeps a series that still belongs to the selection but has nothing in this range', () => {
     const ws = example();
     const first = build(ws, opts());
-    const old = first.events.find((e) => e.series && e.date >= FROM)!;
-    const [eventId, unitId] = old.key!.split('.') as [string, string];
-    const unit = [...ws.teams, ...ws.areas].find((u) => u.id === unitId)!;
-    const event = unit.events.find((e) => e.id === eventId)!;
-    // Moved past the range: still a meeting of this selection, but nothing to write now.
-    event.rule = { type: 'once', date: '2099-01-01' } as typeof event.rule;
-    const second = build(ws, opts({ now: later, previous: first.events }));
-    expect(second.events.map((e) => e.uid)).not.toContain(old.uid);
-    expect(second.text).toContain(`UID:${old.uid}`);
-    expect(second.cancelled).toBeGreaterThan(0);
+    const old = first.events.find((e) => e.series && e.date > FROM)!;
+    // A range that ends before the series' first date: nothing to write, but it is not gone.
+    const second = build(ws, opts({ to: FROM, now: later, previous: first.events }));
+    expect(second.text).not.toContain(`UID:${old.uid}`);
+    expect(second.events.map((e) => e.uid)).toContain(old.uid);
   });
 
   it('names school holidays by their first day, not by the start of the range', () => {

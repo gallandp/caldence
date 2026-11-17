@@ -458,9 +458,10 @@ export function exportIcsWithCounts(
   }
 
   // What the last export wrote and is gone now: cancelled, so calendars that honour updates
-  // remove it: a series whose meeting left this selection or no longer exists, is now written in
-  // another form or has no occurrence in range though it starts there (one that starts outside
-  // is kept), and single entries within this export's range that were not written again.
+  // remove it: a series whose meeting left this selection or no longer exists or is now written
+  // in another form, and single entries within this export's range that were not written again.
+  // A series that is still a meeting of this selection stays, even with nothing to write in this
+  // range (all occurrences skipped, or the range is shorter): it may still run outside the range.
   // Holidays and school holidays are the same in every selection, so one calendar holding several
   // selections keeps them: never cancelled, only forgotten.
   // What is neither written nor cancelled is still in the calendar: it stays remembered.
@@ -474,7 +475,7 @@ export function exportIcsWithCounts(
       continue;
     }
     const gone = old.series
-      ? !old.key || !scopeKeys.has(old.key) || writtenKeys.has(old.key) || inRangeNow(old.date)
+      ? !old.key || !scopeKeys.has(old.key) || writtenKeys.has(old.key)
       : inRangeNow(old.date);
     if (!gone) {
       kept.push(old);

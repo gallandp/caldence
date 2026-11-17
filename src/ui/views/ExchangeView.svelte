@@ -133,8 +133,9 @@
   );
 
   function build(filter: Filter) {
-    // Two months around the range, so school holidays that cross its edges keep their real start.
-    const range = { ...ws.settings, horizon: { from: addDays(from, -62), to: addDays(to, 62) } };
+    // A year around the range, so school holidays that cross its edges keep their real start,
+    // also the long periods of an imported region.
+    const range = { ...ws.settings, horizon: { from: addDays(from, -366), to: addDays(to, 366) } };
     return exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
       scope: filter,
       previous: lastExport(ws.id, filter),
