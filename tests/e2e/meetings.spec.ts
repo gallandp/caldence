@@ -533,6 +533,28 @@ test.describe('on a phone', () => {
     await panel(page).getByLabel('Sort').selectOption({ label: 'Name A–Z' });
     await expect(panel(page).getByRole('rowheader').first()).toContainText('Backlog Refinement');
   });
+
+  test('with costs in German the cards stay one width and nothing scrolls sideways (#279)', async ({
+    page,
+  }) => {
+    await openMeetings(page);
+    await setLanguage(page, 'de');
+    await showView(page, 'Einstellungen');
+    const rate = page.getByLabel('Stundensatz (optional)');
+    await rate.fill('90');
+    await rate.press('Enter');
+    await showView(page, 'Termine & Takt');
+    const planning = row(page, 'Sprint Planning');
+    await expect(planning.locator('[data-cost-prep]')).toHaveText('inkl. 25 % Vorbereitung');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
+    const widths = await panel(page)
+      .locator('tr.row')
+      .evaluateAll((rows) => rows.map((r) => Math.round(r.getBoundingClientRect().width)));
+    expect(widths.length).toBeGreaterThan(1);
+    expect(new Set(widths).size).toBe(1);
+  });
 });
 
 test('participants are aligned rows: role, share and remove, with column heads once', async ({

@@ -656,7 +656,8 @@
                         {#if event.preparation > 0}
                           <span class="sub" data-cost-prep
                             >{$t('meet.cost.prep', {
-                              percent: formatPercent($locale, event.preparation),
+                              // Up to two decimals, as the form takes them (12.5 %).
+                              percent: formatPercent($locale, event.preparation, 2),
                             })}</span
                           >
                         {/if}
