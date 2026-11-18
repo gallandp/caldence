@@ -203,10 +203,10 @@ describe('area hours', () => {
 });
 
 describe('the FTE check for area meetings', () => {
-  const fteWarned = (ws: Workspace, filter = {}) =>
+  const fteWarned = (ws: Workspace) =>
     [
       ...new Set(
-        warnings(loadPerWeek(ws, noIndex()), ws, filter)
+        warnings(loadPerWeek(ws, noIndex()), ws)
           .filter((w) => w.kind === 'above-fte')
           .map((w) => w.personId),
       ),
@@ -215,14 +215,12 @@ describe('the FTE check for area meetings', () => {
   it('flags people invited from every team without area hours, whatever their team hours', () => {
     const ws = workspace();
     expect(fteWarned(ws)).toEqual(['alex', 'bo']);
-    expect(fteWarned(ws, { teamId: 'area' })).toEqual(['alex', 'bo']);
   });
 
-  it('is quiet once they have area hours, and for a single team', () => {
+  it('is quiet once they have area hours', () => {
     const ws = workspace();
     ws.areas[0]!.memberHours = { hana: 10, alex: 4, bo: 2 };
     expect(fteWarned(ws)).toEqual([]);
-    expect(fteWarned(workspace(), { teamId: 'alpha' })).toEqual([]);
   });
 
   it('a PO forum does not raise the load of a team', () => {
