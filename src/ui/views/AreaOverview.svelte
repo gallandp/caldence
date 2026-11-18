@@ -930,6 +930,10 @@
   :global(#app) table.costs td.num {
     text-align: right;
   }
+  /* Number headings may wrap: the cost one names the planning horizon (#278). */
+  :global(#app) table.costs thead th.num {
+    white-space: normal;
+  }
   :global(#app) table.costs td {
     white-space: nowrap;
   }

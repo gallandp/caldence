@@ -34,6 +34,9 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await expect(card).toContainText('At €100 per hour and person');
   await tab(page, 'Meeting load');
   await expect(page.locator('[data-costs] [data-cost-week]')).toContainText('/ week');
+  await expect(page.locator('[data-costs] [data-cost-horizon]')).toContainText(
+    'in the planning horizon (2027, 52 wks)',
+  );
 
   await setRate(page, '');
   await tab(page, 'Meetings & cadence');

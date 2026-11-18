@@ -3,7 +3,14 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import de from '../../src/i18n/de.json';
 import en from '../../src/i18n/en.json';
-import { detectLocale, formatDisplayDate, formatNumber, formatPercent, t } from '../../src/i18n';
+import {
+  detectLocale,
+  formatDisplayDate,
+  formatHorizon,
+  formatNumber,
+  formatPercent,
+  t,
+} from '../../src/i18n';
 import { levelParams, levelWords } from '../../src/i18n/levels';
 
 function walk(dir: string, ext: string): string[] {
@@ -76,6 +83,21 @@ describe('formatting', () => {
     expect(formatPercent('en', 0.5)).toBe('50%');
     expect(formatPercent('de', 0.5)).toBe('50\u00a0%');
     expect(formatPercent('en', 0.1109)).toBe('11%');
+  });
+});
+
+describe('formatHorizon', () => {
+  it('names a full calendar year by its year, with the weeks', () => {
+    expect(formatHorizon('de', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52 Wo.');
+    expect(formatHorizon('en', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52 wks');
+  });
+  it('names any other horizon by its dates', () => {
+    expect(formatHorizon('de', { from: '2027-03-01', to: '2027-05-30' })).toBe(
+      '01.03.2027–30.05.2027, 13 Wo.',
+    );
+    expect(formatHorizon('en', { from: '2027-03-01', to: '2027-03-07' })).toBe(
+      '03/01/2027–03/07/2027, 1 wk',
+    );
   });
 });
 
