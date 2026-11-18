@@ -63,7 +63,13 @@
     people: { key: number; personId: string; share: number | null }[];
     /** Percent, 0 to 100. */
     preparation: number | null;
+    /** On site rather than remote (#309), with travel minutes there and back for everyone. */
+    onSite: boolean;
+    travel: number | null;
   }
+
+  /** Travel time an on-site meeting starts with: half an hour there and back. */
+  const DEFAULT_TRAVEL = 30;
 
   let nextKey = 0;
   let addButton: HTMLButtonElement | undefined = $state();
@@ -93,6 +99,8 @@
         p.personId !== undefined ? [{ key: nextKey++, personId: p.personId, share: p.share }] : [],
       ),
       preparation: Math.round(e.preparation * 10000) / 100,
+      onSite: e.onSite !== undefined,
+      travel: e.onSite?.travel ?? DEFAULT_TRAVEL,
     };
   }
 
@@ -270,6 +278,7 @@
         ? Number.NaN
         : Number((n(d.preparation) / 100).toFixed(4)),
     };
+    if (d.onSite) out.onSite = { travel: n(d.travel) };
     if (d.scaled)
       out.scaling = {
         base: n(d.base),
@@ -444,6 +453,43 @@
         <p class="hint" id="{id('preparation')}-hint">{$t('meet.prep.hint')}</p>
         {@render err('preparation', $t('meet.prep'))}
       </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <span class="label" id={id('place')}>{$t('meet.place')}</span>
+        <div class="segmented" role="group" aria-labelledby={id('place')}>
+          <button
+            type="button"
+            data-field="place.remote"
+            aria-pressed={!draft.onSite}
+            onclick={() => (draft.onSite = false)}>{$t('meet.place.remote')}</button
+          >
+          <button
+            type="button"
+            data-field="place.onSite"
+            aria-pressed={draft.onSite}
+            onclick={() => (draft.onSite = true)}>{$t('meet.place.onSite')}</button
+          >
+        </div>
+      </div>
+      {#if draft.onSite}
+        <div class="field">
+          <label for={id('onSite.travel')}>{$t('meet.travel')}</label>
+          <input
+            id={id('onSite.travel')}
+            type="number"
+            min="0"
+            step="5"
+            data-field="onSite.travel"
+            bind:value={draft.travel}
+            aria-invalid={invalid('onSite.travel')}
+            aria-describedby={describe('onSite.travel', `${id('onSite.travel')}-hint`)}
+          />
+          <p class="hint" id="{id('onSite.travel')}-hint">{$t('meet.travel.hint')}</p>
+          {@render err('onSite.travel', $t('meet.travel'))}
+        </div>
+      {/if}
     </div>
 
     <!-- Areas have no assumptions to scale by. -->
@@ -779,6 +825,11 @@
   }
   .grow {
     flex: 1 1 14rem;
+  }
+  /* The place group has no <label>: it looks like one. */
+  .label {
+    font-size: 0.85rem;
+    font-weight: 550;
   }
   .hint {
     margin: 0;

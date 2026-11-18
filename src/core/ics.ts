@@ -47,6 +47,12 @@ export interface IcsExportOptions {
   locale: 'de' | 'en';
 }
 
+/** Words for an on-site meeting (#309); the export has no i18n of its own. */
+const ON_SITE = {
+  de: { place: 'Vor Ort', travel: (m: number) => `Anreise: ${m} Min. (hin und zurück)` },
+  en: { place: 'On site', travel: (m: number) => `Travel: ${m} min (there and back)` },
+} as const;
+
 const pad = (n: number, w = 2): string => String(Math.abs(n)).padStart(w, '0');
 
 /** Escapes a TEXT value: backslash, semicolon, comma and newlines. */
@@ -325,10 +331,14 @@ export function exportIcsWithCounts(
         )
         .filter((n): n is string => n !== undefined);
       const category = categoryNames.get(event.categoryId);
+      // Remote meetings are written as before, so existing subscriptions do not change (#309).
+      const words = ON_SITE[opts.locale];
+      const travel = event.onSite?.travel ? `\n${words.travel(event.onSite.travel)}` : '';
       const common = [
         `SUMMARY:${escapeText(event.name)}`,
         ...(category !== undefined ? [`CATEGORIES:${escapeText(category)}`] : []),
-        `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}`)}`,
+        ...(event.onSite ? [`LOCATION:${escapeText(words.place)}`] : []),
+        `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${travel}`)}`,
         'TRANSP:OPAQUE',
       ];
       // A series whose every occurrence in range is skipped is not written.
