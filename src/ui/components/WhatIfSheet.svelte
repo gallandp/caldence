@@ -7,16 +7,17 @@
 </script>
 
 <script lang="ts">
-  import { setAreaCadence, updateTeam, upsertEvent } from '../../core/edit';
+  import { setCadenceLength, shiftedDays, upsertEvent } from '../../core/edit';
   import { areaAsTeam, type Workspace } from '../../core/model';
   import { validate } from '../../core/validate';
   import { workspaceIndex } from '../../core/views';
   import { effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
-  import { formatEuro, formatNumber, formatPercent, locale, translate as t } from '../../i18n';
-  import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
+  import { translate as t } from '../../i18n';
+  import { movedText, RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import { applyOwn } from '../state/problems.svelte';
   import { index, localToday, workspace } from '../state/workspace';
   import RuleFields from './RuleFields.svelte';
+  import WhatIfEffect from './WhatIfEffect.svelte';
 
   let { target, onclose }: { target: WhatIfTarget; onclose: () => void } = $props();
 
@@ -54,7 +55,9 @@
 
   /** The workspace with the draft applied, or the key of what is wrong with it. */
   const candidate = $derived.by(
-    (): { ws: Workspace } | { error: string; params?: Record<string, string | number> } => {
+    ():
+      | { ws: Workspace; moved?: string }
+      | { error: string; params?: Record<string, string | number> } => {
       const ws = $workspace;
       if (!unit) return { error: 'error.type' };
       if (target.kind === 'meeting') {
@@ -71,17 +74,15 @@
       if (length === null || !Number.isInteger(length) || length < 1)
         return { error: 'whatif.error.length' };
       const n = length;
-      const beyond = unit.events.find((e) => e.rule.type === 'cadence-day' && e.rule.day >= n * 7);
-      if (beyond && beyond.rule.type === 'cadence-day')
-        return {
-          error: 'team.cadence.dayBeyond',
-          params: { name: beyond.name, day: beyond.rule.day + 1, weeks: n },
-        };
-      const cadence = { ...unit.cadence, lengthWeeks: n };
-      const next = area
-        ? setAreaCadence(ws, unit.id, cadence)
-        : updateTeam(ws, unit.id, { cadence });
-      return next.ok ? { ws: next.value } : { error: 'whatif.error.length' };
+      const next = setCadenceLength(ws, unit.id, n);
+      if (next.ok) {
+        const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, n);
+        return { ws: next.value, moved: movedText(unit.events, days, $t) };
+      }
+      const error = next.errors[0];
+      return error?.key === 'team.cadence.dayBeyond'
+        ? { error: error.key, params: error.params }
+        : { error: 'whatif.error.length' };
     },
   );
 
@@ -97,12 +98,6 @@
       $workspace.teams.find((x) => x.id === scope)?.name ??
       '',
   );
-
-  const signed = (n: number, format: (x: number) => string) =>
-    (n > 0.004 ? '+' : n < -0.004 ? '−' : '±') + format(Math.abs(n));
-  const hours = (n: number) => formatNumber($locale, n, 1);
-  const euro = (n: number) => formatEuro($locale, n);
-  const pct = (n: number) => formatPercent($locale, n);
 
   const title = $derived(
     target.kind === 'meeting'
@@ -169,48 +164,13 @@
       {/if}
     </div>
 
-    <div class="effect" aria-live="polite">
-      <p class="effect-title">{$t('whatif.effect')}</p>
-      {#if 'error' in candidate}
-        <p class="error">{$t(candidate.error, candidate.params)}</p>
-      {:else if before && after}
-        <dl>
-          <div>
-            <dt>{$t('whatif.effect.hours')}</dt>
-            <dd class:up={after.hours - before.hours > 0.004}>
-              {$t('whatif.perWeek.hours', { value: signed(after.hours - before.hours, hours) })}
-            </dd>
-          </div>
-          {#if before.cost && after.cost}
-            <div>
-              <dt>{$t('whatif.effect.cost')}</dt>
-              <dd class:up={after.cost.perWeek - before.cost.perWeek > 0.004}>
-                {$t('whatif.effect.costValue', {
-                  week: signed(after.cost.perWeek - before.cost.perWeek, euro),
-                  horizon: signed(after.cost.horizon - before.cost.horizon, euro),
-                })}
-              </dd>
-            </div>
-          {/if}
-          <div>
-            <dt>{$t('whatif.effect.share', { name: scopeName })}</dt>
-            <dd>{$t('whatif.arrow', { from: pct(before.share), to: pct(after.share) })}</dd>
-          </div>
-          {#if before.inStep && after.inStep}
-            <div>
-              <dt>{$t('whatif.effect.inStep')}</dt>
-              <dd>
-                {$t('whatif.inStepValue', {
-                  from: before.inStep.n,
-                  to: after.inStep.n,
-                  of: after.inStep.of,
-                })}
-              </dd>
-            </div>
-          {/if}
-        </dl>
-      {/if}
-    </div>
+    <WhatIfEffect
+      {before}
+      {after}
+      {scopeName}
+      error={'error' in candidate ? $t(candidate.error, candidate.params) : undefined}
+      note={'moved' in candidate ? candidate.moved : undefined}
+    />
     <p class="hint">{$t('whatif.hint')}</p>
     <div class="actions">
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
@@ -258,45 +218,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-  }
-  .effect {
-    padding: 0.75rem 1rem;
-    border-radius: var(--radius);
-    background: var(--accent-soft);
-  }
-  .effect-title {
-    margin: 0 0 0.35rem;
-    font-size: 0.75rem;
-    font-weight: 650;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent-text, var(--accent));
-  }
-  dl {
-    margin: 0;
-    display: grid;
-    gap: 0.3rem;
-  }
-  dl > div {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 0.25rem 1rem;
-  }
-  dt,
-  dd {
-    margin: 0;
-  }
-  dd {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  dd.up {
-    color: var(--warn);
-  }
-  .error {
-    margin: 0;
-    font-weight: 600;
   }
   .hint {
     color: var(--text-muted);

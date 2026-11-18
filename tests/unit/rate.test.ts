@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadExportPerson, saveExportPerson } from '../../src/ui/state/exportScope';
+import { loadExportChoice, saveExportChoice } from '../../src/ui/state/exportScope';
 import { parseRate } from '../../src/ui/rate';
 
 describe('parseRate', () => {
@@ -39,17 +39,26 @@ function memory(initial: Record<string, string> = {}) {
   };
 }
 
-describe('remembered export person', () => {
+describe('remembered export choice', () => {
   it('belongs to one file', () => {
     const store = memory();
-    saveExportPerson('ws-1', 'p-1', store);
-    expect(loadExportPerson('ws-1', store)).toBe('p-1');
-    expect(loadExportPerson('ws-2', store)).toBeNull();
-    saveExportPerson('ws-1', null, store);
-    expect(loadExportPerson('ws-1', store)).toBeNull();
+    saveExportChoice('ws-1', { kind: 'person', id: 'p-1' }, store);
+    expect(loadExportChoice('ws-1', store)).toEqual({ kind: 'person', id: 'p-1' });
+    expect(loadExportChoice('ws-2', store)).toBeNull();
+    saveExportChoice('ws-1', { kind: 'team', id: 't-1' }, store);
+    expect(loadExportChoice('ws-1', store)).toEqual({ kind: 'team', id: 't-1' });
+  });
+  it('reads the person remembered by earlier versions', () => {
+    const old = JSON.stringify({ workspaceId: 'ws-1', personId: 'p-1' });
+    expect(loadExportChoice('ws-1', memory({ 'caldence.exportPerson': old }))).toEqual({
+      kind: 'person',
+      id: 'p-1',
+    });
   });
   it('survives junk and blocked storage', () => {
-    expect(loadExportPerson('ws-1', memory({ 'caldence.exportPerson': '{oops' }))).toBeNull();
+    expect(loadExportChoice('ws-1', memory({ 'caldence.exportPerson': '{oops' }))).toBeNull();
+    const odd = JSON.stringify({ workspaceId: 'ws-1', kind: 'file', id: 'x' });
+    expect(loadExportChoice('ws-1', memory({ 'caldence.exportPerson': odd }))).toBeNull();
     const blocked = {
       getItem: () => {
         throw new Error('blocked');
@@ -57,11 +66,8 @@ describe('remembered export person', () => {
       setItem: () => {
         throw new Error('blocked');
       },
-      removeItem: () => {
-        throw new Error('blocked');
-      },
     };
-    expect(loadExportPerson('ws-1', blocked)).toBeNull();
-    saveExportPerson('ws-1', 'p-1', blocked);
+    expect(loadExportChoice('ws-1', blocked)).toBeNull();
+    saveExportChoice('ws-1', { kind: 'person', id: 'p-1' }, blocked);
   });
 });

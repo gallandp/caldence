@@ -64,16 +64,21 @@ test('a cadence what-if shows its effect, counts in the bar and is gone after Es
   await expect(cadence).toContainText('Sprint · 2 weeks');
   await cadence.getByRole('button', { name: 'What if …' }).click();
   const sheet = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
-  // A length that would cut off the sprint review is refused with the reason.
-  await sheet.getByLabel('Length (weeks)').fill('1');
-  await expect(sheet.getByText(/Sprint Review/)).toBeVisible();
+  // A length that is not a whole number of weeks is refused with the reason.
+  await sheet.getByLabel('Length (weeks)').fill('0');
+  await expect(sheet.getByText('Enter a length in whole weeks.')).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Apply' })).toBeDisabled();
   await sheet.getByLabel('Length (weeks)').fill('3');
   await expect(sheet.getByText('Hours in meetings, everyone')).toBeVisible();
   await expect(sheet.getByText(/^Meeting load · Team Alpha$/)).toBeVisible();
+  // The review moves with the end of the sprint, and the effect says so.
+  await expect(sheet.getByText('Kept at the end: Sprint Review: day 14 → day 21')).toBeVisible();
   await sheet.getByRole('button', { name: 'Apply' }).click();
   await expect(sheet).toBeHidden();
   await expect(cadence).toContainText('Sprint · 3 weeks');
+  await expect(
+    page.locator('#panel-meetings').getByRole('row').filter({ hasText: 'Sprint Review' }),
+  ).toContainText('Day 21 of the sprint');
   await expect(whatIfBar(page)).toContainText('What if · 1 change');
   // Escape in a sheet closes only the sheet; on the page it ends presenting.
   await cadence.getByRole('button', { name: 'What if …' }).click();
@@ -83,6 +88,9 @@ test('a cadence what-if shows its effect, counts in the bar and is gone after Es
   await page.keyboard.press('Escape');
   await expect(whatIfBar(page)).toBeHidden();
   await expect(cadence).toContainText('Sprint · 2 weeks');
+  await expect(
+    page.locator('#panel-meetings').getByRole('row').filter({ hasText: 'Sprint Review' }),
+  ).toContainText('Day 14 of the sprint');
   // The file is as it was: nothing unsaved.
   await expect(bar(page).getByText('Unsaved changes')).toHaveCount(0);
 });

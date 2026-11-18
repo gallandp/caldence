@@ -60,7 +60,11 @@ export class Problems {
       this.errors = rest;
       return true;
     }
-    this.errors = { ...rest, [id]: { key: result.errors[0]?.key ?? 'error.type', path: label } };
+    const error = result.errors[0];
+    this.errors = {
+      ...rest,
+      [id]: { key: error?.key ?? 'error.type', path: label, params: error?.params },
+    };
     return false;
   };
 
