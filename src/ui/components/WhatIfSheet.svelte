@@ -74,18 +74,14 @@
       if (length === null || !Number.isInteger(length) || length < 1)
         return { error: 'whatif.error.length' };
       const n = length;
-      const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, n);
-      const beyond = unit.events.find(
-        (e) => e.rule.type === 'cadence-day' && (days.get(e.id) ?? e.rule.day) >= n * 7,
-      );
-      if (beyond && beyond.rule.type === 'cadence-day')
-        return {
-          error: 'team.cadence.dayBeyond',
-          params: { name: beyond.name, day: beyond.rule.day + 1, weeks: n },
-        };
       const next = setCadenceLength(ws, unit.id, n);
-      return next.ok
-        ? { ws: next.value, moved: movedText(unit.events, days, $t) }
+      if (next.ok) {
+        const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, n);
+        return { ws: next.value, moved: movedText(unit.events, days, $t) };
+      }
+      const error = next.errors[0];
+      return error?.key === 'team.cadence.dayBeyond'
+        ? { error: error.key, params: error.params }
         : { error: 'whatif.error.length' };
     },
   );

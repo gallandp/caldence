@@ -356,12 +356,25 @@ export function shiftedDays(
   return out;
 }
 
-/** Sets the cadence length of a team or an area and moves its meetings by `shiftedDays`. */
+/**
+ * Sets the cadence length of a team or an area and moves its meetings by `shiftedDays`. Refuses
+ * with `team.cadence.dayBeyond` (name, 1-based day, weeks) when a cadence-day meeting does not fit.
+ */
 export function setCadenceLength(ws: Workspace, unitId: string, weeks: number): Result<Workspace> {
   const out = structuredClone(ws);
   const unit = out.teams.find((t) => t.id === unitId) ?? out.areas.find((a) => a.id === unitId);
   if (!unit?.cadence) return fail(`teams.${unitId}`, 'error.ref.unknown');
   const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, weeks);
+  const beyond = unit.events.find(
+    (e) => e.rule.type === 'cadence-day' && (days.get(e.id) ?? e.rule.day) >= weeks * 7,
+  );
+  if (beyond?.rule.type === 'cadence-day') {
+    const params = { name: beyond.name, day: beyond.rule.day + 1, weeks };
+    return {
+      ok: false,
+      errors: [{ path: 'cadence.lengthWeeks', key: 'team.cadence.dayBeyond', params }],
+    };
+  }
   unit.cadence.lengthWeeks = weeks;
   unit.events = unit.events.map((e) => {
     const day = days.get(e.id);

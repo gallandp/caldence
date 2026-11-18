@@ -686,7 +686,16 @@ describe('cadence length', () => {
   it('leaves a meeting that would fall before the start where it is, so it does not fit', () => {
     const ws = sprint(4, [0, 6, 14, 27]);
     expect([...shiftedDays(ws.teams[0]!.events, 4, 1)]).toEqual([['d3', 6]]);
-    expect(setCadenceLength(ws, 't1', 1).ok).toBe(false);
+    expect(setCadenceLength(ws, 't1', 1)).toEqual({
+      ok: false,
+      errors: [
+        {
+          path: 'cadence.lengthWeeks',
+          key: 'team.cadence.dayBeyond',
+          params: { name: 'Review', day: 15, weeks: 1 },
+        },
+      ],
+    });
   });
 
   it('does the same for an area cadence and refuses an unknown unit', () => {

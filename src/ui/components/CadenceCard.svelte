@@ -83,6 +83,7 @@
 
   function setCadence(field: keyof Cadence, label: string, patch: Partial<Cadence>) {
     const { id, cadence } = team;
+    moved = undefined;
     commit(`cadence-${field}`, label, (ws) =>
       area
         ? setAreaCadence(ws, id, { ...cadence, ...patch })
@@ -97,22 +98,13 @@
     if (input.value.trim() === '' || !Number.isFinite(n))
       return fail('cadence-lengthWeeks', 'error.number.invalid', label);
     const { id, events, cadence } = team;
-    const days = shiftedDays(events, cadence.lengthWeeks, n);
-    const beyond = events.find(
-      (e) => e.rule.type === 'cadence-day' && (days.get(e.id) ?? e.rule.day) >= n * 7,
-    );
-    if (beyond && beyond.rule.type === 'cadence-day')
-      return fail('cadence-lengthWeeks', 'team.cadence.dayBeyond', label, {
-        name: beyond.name,
-        day: beyond.rule.day + 1,
-        weeks: n,
-      });
-    const text = movedText(events, days, $t);
+    const text = movedText(events, shiftedDays(events, cadence.lengthWeeks, n), $t);
+    moved = undefined;
     if (commit('cadence-lengthWeeks', label, (ws) => setCadenceLength(ws, id, n)))
       moved = { text, epoch: problems.epoch };
   }
 
-  /** The meetings the last length change moved; gone with the next undo, team or closing. */
+  /** The meetings the last length change moved; gone with the next change, undo, team or closing. */
   let moved = $state<{ text: string; epoch: number }>();
   const movedLine = $derived(moved?.epoch === problems.epoch ? moved.text : '');
 

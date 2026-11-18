@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 import {
   openExample,
   teamAction,
@@ -7,6 +8,7 @@ import {
   pickUnit,
   currentUnit,
   setLanguage,
+  openWorkspaceFile,
 } from './helpers';
 
 test.use({ locale: 'en-US' });
@@ -101,6 +103,29 @@ test('a new length keeps the sprint review at the end; undo takes it back', asyn
     'Kept at the end: Sprint Review: day 14 → day 7',
   );
   await expect(review).toContainText('Day 7 of the sprint');
+});
+
+test('a meeting that cannot fit into a shorter cadence is refused inline', async ({ page }) => {
+  // Three-week sprints with the review on day 10, in the first half: it keeps its day.
+  const ws = structuredClone(example);
+  ws.settings.locale = 'en';
+  const alpha = ws.teams.find((t) => t.id === 'team-alpha')!;
+  alpha.cadence.lengthWeeks = 3;
+  alpha.events.find((e) => e.name === 'Sprint Review')!.rule = { type: 'cadence-day', day: 9 };
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await editCadence(page);
+  const length = cadence(page).getByLabel('Length (weeks)');
+  await length.fill('1');
+  await length.blur();
+  await expect(
+    cadence(page).getByText('Meeting “Sprint Review” is on day 10 and does not fit into 1 weeks.'),
+  ).toBeVisible();
+  await expect(length).toHaveAttribute('aria-invalid', 'true');
+  await expect(length).toHaveAttribute('aria-describedby', /.+/);
+  await expect(length).toHaveValue('1');
+  await expect(cadence(page)).toContainText('Sprint · 3 weeks');
 });
 
 test('changing the cadence keeps an open meeting form', async ({ page }) => {
