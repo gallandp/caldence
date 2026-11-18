@@ -1,16 +1,21 @@
 <script lang="ts">
-  import type { CostSummary } from '../../core/cost';
+  import { costPerCadence, type CostSummary } from '../../core/cost';
+  import type { Cadence } from '../../core/model';
   import { formatEuro, formatNumber, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
   interface Props {
     summary: CostSummary;
     rate: number;
+    /** The team's or area's Takt: adds the cost per sprint or PI (#279). */
+    cadence?: Cadence;
   }
-  let { summary, rate }: Props = $props();
+  let { summary, rate, cadence }: Props = $props();
 
   const uid = $props.id();
   const euro = (n: number) => formatEuro($locale, n);
+  const perCadence = $derived(cadence ? costPerCadence(summary.perWeek, cadence) : undefined);
+  const kind = $derived(cadence ? $t(`meet.kind.${cadence.kind}`) : '');
   const max = $derived(Math.max(0, ...summary.byCategory.map((c) => c.perWeek)));
   const category = (id: string) => $workspace.categories.find((c) => c.id === id);
   const roleName = (id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id;
@@ -36,6 +41,12 @@
     <p data-cost-week>
       <span class="value">{euro(summary.perWeek)}</span> <small>{$t('cost.perWeek')}</small>
     </p>
+    {#if perCadence !== undefined}
+      <p data-cost-cadence>
+        <span class="value">{euro(perCadence)}</span>
+        <small>{$t('cost.perCadence', { kind })}</small>
+      </p>
+    {/if}
     <p data-cost-horizon>
       <span class="value">{euro(summary.horizon)}</span> <small>{$t('cost.horizon')}</small>
     </p>
