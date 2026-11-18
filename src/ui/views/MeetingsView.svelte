@@ -41,12 +41,18 @@
     edit?: string;
     /** Called once that meeting is open, so that it is not opened again. */
     onEditOpened?: () => void;
+    /** Id of a meeting to scroll to and highlight, without opening it (drill-in, #277). */
+    show?: string;
+    /** Called once that meeting is shown. */
+    onShown?: () => void;
     /** Opens where a person's hours in an area are set. */
     onSetHours?: () => void;
     /** Opens Import / Export with this team (or the person exported last) preselected. */
     onExport?: () => void;
   }
-  let { edit, onEditOpened, onSetHours, onExport }: Props = $props();
+  let { edit, onEditOpened, show, onShown, onSetHours, onExport }: Props = $props();
+  /** The meeting a drill-in pointed at; highlighted until the unit changes. */
+  let pointed = $state<string | undefined>();
 
   const { canUndo } = workspace;
 
@@ -81,6 +87,7 @@
       }),
       activeTeamId.subscribe(() => {
         editing = null;
+        pointed = undefined;
         query = '';
       }),
     ];
@@ -88,6 +95,16 @@
       const event = team?.events.find((e) => e.id === edit);
       if (event) open(event, event.id);
       onEditOpened?.();
+    }
+    if (show !== undefined) {
+      pointed = show;
+      onShown?.();
+      // The row's name takes the focus, so a screen reader hears the meeting, not an edit button.
+      void tick().then(() => {
+        const name = root?.querySelector<HTMLElement>('tr[data-shown] th');
+        name?.closest('tr')?.scrollIntoView({ block: 'center' });
+        name?.focus({ preventScroll: true });
+      });
     }
     // "Next" moves on as meetings end, also while the view stays open.
     const clock = setInterval(() => (now = new Date()), 60_000);
@@ -568,8 +585,12 @@
                   {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
                   {@const cost = costOf(event)}
                   {@const when = next?.get(event.id)}
-                  <tr class="row">
-                    <th scope="row" class="c-name">
+                  <tr
+                    class="row"
+                    data-shown={pointed === event.id || undefined}
+                    aria-current={pointed === event.id || undefined}
+                  >
+                    <th scope="row" class="c-name" tabindex={pointed === event.id ? -1 : undefined}>
                       <span class="name">
                         <span class="bar" style:background={category?.colour} aria-hidden="true"
                         ></span>
@@ -1047,6 +1068,19 @@
   th .sort.active svg {
     opacity: 1;
   }
+  /* The meeting a drill-in from the area overview points at (#277). */
+  :global(#app) tr.row[data-shown],
+  :global(#app) tr.row[data-shown] > * {
+    background: var(--accent-soft);
+  }
+  :global(#app) tr.row[data-shown] > th {
+    box-shadow: inset 0.25rem 0 0 var(--accent);
+  }
+  @media (forced-colors: active) {
+    :global(#app) tr.row[data-shown] {
+      outline: 2px solid Highlight;
+    }
+  }
   /* ---------- groups ---------- */
   :global(#app) tr.group > * {
     padding-top: 1.1rem;
@@ -1239,6 +1273,10 @@
       row-gap: 0.4rem;
       padding: 0.85rem 0;
       border-bottom: 1px solid var(--border);
+    }
+    :global(#app) table tr.row[data-shown] {
+      padding-inline: 0.5rem;
+      border-radius: var(--radius);
     }
     :global(#app) table tr.row > * {
       display: block;
