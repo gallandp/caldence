@@ -174,11 +174,6 @@
   const noMeetings = $derived(
     !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
   );
-  // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
-  const areaEmpty = $derived(
-    noMeetings && kind === 'team' && ws.areas.some((a) => a.id === chosen?.id),
-  );
-
   function build(filter: Filter) {
     // A year around the range, so school holidays that cross its edges keep their real start,
     // also the long periods of an imported region.
@@ -202,18 +197,37 @@
   const zipArea = $derived(
     kind === 'team' && ws.areas.length > 1 ? ws.areas.find((a) => a.id === chosen?.id) : undefined,
   );
-  const zipChoices = $derived(
-    zipArea ? choices.filter((c) => unitLoadIds(ws, zipArea.id).includes(c.id)) : choices,
-  );
+  const zipChoices = $derived.by(() => {
+    if (!zipArea) return choices;
+    const ids = unitLoadIds(ws, zipArea.id);
+    return choices.filter((c) => ids.includes(c.id));
+  });
+  // Names the area only when its own calendar is in the ZIP.
   const zipLabel = $derived(
-    zipArea
-      ? $t('exchange.zip.button.area', { name: zipArea.name })
-      : $t('exchange.zip.button.' + kind),
+    !zipArea
+      ? $t('exchange.zip.button.' + kind)
+      : $t(
+          hasContent(filterFor(zipArea.id))
+            ? 'exchange.zip.button.area'
+            : 'exchange.zip.button.areaTeams',
+          {
+            name: zipArea.name,
+          },
+        ),
   );
 
-  /** One file per team, role or person in the archive, skipping those without meetings. */
+  /**
+   * One file per team, role or person in the archive, skipping those without meetings. An area's
+   * own ZIP may hold a single file: its only team with meetings.
+   */
   const canShareAll = $derived(
-    !rangeInvalid && zoneKnown && zipChoices.filter((c) => hasContent(filterFor(c.id))).length > 1,
+    !rangeInvalid &&
+      zoneKnown &&
+      zipChoices.filter((c) => hasContent(filterFor(c.id))).length > (zipArea ? 0 : 1),
+  );
+  // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
+  const areaEmpty = $derived(
+    noMeetings && kind === 'team' && canShareAll && ws.areas.some((a) => a.id === chosen?.id),
   );
 
   async function shareAll() {
@@ -401,7 +415,10 @@
         {$t('exchange.exported.cancelled', { n: exported.cancelled })}
       {/if}
     {:else if sharedAll}
-      {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
+      {$t(sharedAll.files === 1 ? 'exchange.zip.done.one' : 'exchange.zip.done', {
+        name: sharedAll.name,
+        n: sharedAll.files,
+      })}
     {/if}
     {#if exported || sharedAll}
       <span>{$t('exchange.exported.next')}</span>

@@ -96,13 +96,13 @@ test('an area without own meetings leads with one file per team', async ({ page 
   await expect(panel.getByLabel('Selected team or area')).toHaveValue(/.+/);
   await expect(panel.getByRole('button', { name: 'Export .ics…' })).toBeDisabled();
   const zip = panel.getByRole('button', {
-    name: 'One file each for Platform and its teams (ZIP)…',
+    name: 'One file per team of Platform (ZIP)…',
   });
   await expect(zip).toBeEnabled();
   await expect(zip).toHaveClass(/primary/);
   await expect(
     panel.getByText(
-      'Platform has no meetings of its own. One file each for Platform and its teams (ZIP)… creates a file for each team.',
+      'Platform has no meetings of its own. One file per team of Platform (ZIP)… creates a file for each team.',
     ),
   ).toBeVisible();
   // A team with meetings leads with its own file again.
