@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 1.47.0 – 2026-11-18
+
+### Added
+
+- Import / Export can save the whole file as an Excel workbook (.xlsx): people per area and team with roles and hours, the areas and teams with their cadence, and all meetings, ready for filters and pivot tables. (#317)
+- Meetings can be remote or on site. On site, a flat travel time (there and back) counts for everyone attending, in meeting load and costs, and is shown in the meetings table and written to the calendar export. (#325)
+- Organisation level above areas and teams: select the organisation at the top of the sidebar to see the calendar and meeting load of all teams and areas together, and a tree of areas and teams on its own page. Give it a name in the selection's actions menu; with own level names the top level can be renamed too. (#329)
+
+### Changed
+
+- Help is now a set of short visual guides: pick a task, follow a few numbered steps that show the real buttons, and open the view in one click. Details and reference topics are one tap away. (#326)
+- The page header names the selected team or area only once and has more room below the file bar; the Team and area page shows the unit's name as its headline. (#332)
+
 ## 1.46.0 – 2026-11-18
 
 ### Added
