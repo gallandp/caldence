@@ -30,10 +30,17 @@
     type FilePickerType,
   } from '../state/files';
   import { pickFile } from '../state/picker';
-  import { exportRequest, loadExportPerson, saveExportPerson } from '../state/exportScope';
+  import {
+    exportRequest,
+    loadExportChoice,
+    saveExportChoice,
+    type ExportChoice,
+    type ExportKind,
+  } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
 
-  let { onOpenMeetings }: { onOpenMeetings?: () => void } = $props();
+  let { onOpenMeetings, onOpenHelp }: { onOpenMeetings?: () => void; onOpenHelp?: () => void } =
+    $props();
 
   const uid = $props.id();
   const env = browserFileEnv((accept) => pickFile(accept ?? '.ics,text/calendar'));
@@ -77,7 +84,7 @@
 
   // ---------- export ----------
 
-  type ScopeKind = 'team' | 'role' | 'person';
+  type ScopeKind = ExportKind;
   const scopeKinds: ScopeKind[] = ['team', 'role', 'person'];
   let kind = $state<ScopeKind>('team');
   let pickedId = $state<Record<ScopeKind, string | null>>({ team: null, role: null, person: null });
@@ -90,20 +97,30 @@
   const reminders = [5, 10, 15, 30];
 
   // From "Add to calendar" in Meetings & cadence: the person exported last if they attend this
-  // team's meetings, otherwise the whole team.
+  // team's meetings, otherwise the whole team. Opened any other way: what was exported last.
   {
     const request = get(exportRequest);
     exportRequest.set(null);
+    const current = get(workspace);
+    const last = loadExportChoice(current.id);
+    const exists = (c: ExportChoice) =>
+      (c.kind === 'team'
+        ? [...current.teams, ...current.areas]
+        : c.kind === 'role'
+          ? current.roles
+          : current.people
+      ).some((x) => x.id === c.id);
     if (request) {
-      const current = get(workspace);
-      const person = loadExportPerson(current.id);
-      if (person && attendsUnitMeetings(current, request.teamId, person)) {
+      if (last?.kind === 'person' && attendsUnitMeetings(current, request.teamId, last.id)) {
         kind = 'person';
-        pickedId.person = person;
+        pickedId.person = last.id;
       } else {
         kind = 'team';
         pickedId.team = request.teamId;
       }
+    } else if (last && exists(last)) {
+      kind = last.kind;
+      pickedId[last.kind] = last.id;
     }
   }
 
@@ -154,6 +171,10 @@
   // The scope has no meetings at all and no all-day items are asked for.
   const noMeetings = $derived(
     !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
+  );
+  // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
+  const areaEmpty = $derived(
+    noMeetings && kind === 'team' && ws.areas.some((a) => a.id === chosen?.id),
   );
 
   function build(filter: Filter) {
@@ -211,6 +232,7 @@
       if (saved === null) return;
       for (const r of remembered) rememberExport(ws.id, r.filter, r.built.events);
       exportsSeen++;
+      if (chosen) saveExportChoice(ws.id, { kind, id: chosen.id });
       clearStatus();
       problem = null;
       sharedAll = { name: saved, files: files.length };
@@ -239,7 +261,7 @@
       if (saved === null) return;
       rememberExport(ws.id, scope, built.events);
       exportsSeen++;
-      saveExportPerson(ws.id, kind === 'person' ? chosen.id : null);
+      saveExportChoice(ws.id, { kind, id: chosen.id });
       clearStatus();
       problem = null;
       exported = {
@@ -365,6 +387,10 @@
       {/if}
     {:else if sharedAll}
       {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
+    {/if}
+    {#if exported || sharedAll}
+      <span>{$t('exchange.exported.next')}</span>
+      <button type="button" onclick={() => onOpenHelp?.()}>{$t('exchange.exported.help')}</button>
     {:else if exportEmpty}
       {$t('exchange.export.empty')}
     {/if}
@@ -405,7 +431,11 @@
           </div>
         </fieldset>
         <div class="field">
-          <label for="{uid}-scope-pick">{$t('exchange.scope.pick.' + kind)}</label>
+          <label for="{uid}-scope-pick"
+            >{$t(
+              'exchange.scope.pick.' + (kind === 'team' && ws.areas.length > 0 ? 'unit' : kind),
+            )}</label
+          >
           <select
             id="{uid}-scope-pick"
             disabled={choices.length === 0}
@@ -490,6 +520,7 @@
       <div class="row">
         <button
           type="submit"
+          class:primary={!(areaEmpty && canShareAll)}
           disabled={!canExport}
           aria-describedby={!zoneKnown
             ? `${uid}-zone-hint`
@@ -497,12 +528,19 @@
               ? `${uid}-empty-hint`
               : undefined}>{$t('exchange.export.button')}</button
         >
-        <button type="button" disabled={!canShareAll} onclick={shareAll}
-          >{$t('exchange.zip.button.' + kind)}</button
+        <button
+          type="button"
+          class:primary={areaEmpty && canShareAll}
+          disabled={!canShareAll}
+          onclick={shareAll}>{$t('exchange.zip.button.' + kind)}</button
         >
       </div>
       {#if noMeetings}
-        <p class="empty" id="{uid}-empty-hint">{$t('exchange.export.empty')}</p>
+        <p class="empty" id="{uid}-empty-hint">
+          {$t(areaEmpty ? 'exchange.export.areaEmpty' : 'exchange.export.empty', {
+            zip: $t('exchange.zip.button.team'),
+          })}
+        </p>
       {/if}
     </form>
   </section>

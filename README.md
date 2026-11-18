@@ -24,7 +24,7 @@ Status: stable, see the [latest release](https://github.com/gallandp/caldence/re
 - **Meeting load:** hours per week, role and person with their share in meetings, a weekly chart, and warnings for weeks over the one limit (share of weekly hours in meetings, set in Settings) or with a load spike; peaks that come back with the cadence are ignored. Time in an area is counted on its own and does not raise a team's load.
 - **Meeting costs (optional):** with an hourly rate, Meetings and Meeting load show what meetings cost per week and over the horizon.
 - Templates for Scrum, Kanban and SAFe (with a Release Train area above the team), plus your own template files; exporting a team as a template also writes its area.
-- Calendar export and import as `.ics` files (Outlook, Google Calendar, Apple Calendar), also one file per team or area as a ZIP; exporting again updates the entries of the earlier export in apps that support it.
+- Calendar export and import as `.ics` files (Outlook, Google Calendar, Apple Calendar), also one file per team or area as a ZIP; exporting again updates the entries of the earlier export in apps that support it. The export opens on what this browser exported last, or on your own person after "I take part myself" in the wizard.
 - Public holidays of all 16 German states (school holidays for Saxony so far); region files import your own holiday data.
 - Installable app that works offline and asks before updating; works on phones.
 - German and English interface; light, dark or matching the system.
