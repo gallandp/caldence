@@ -3,6 +3,7 @@
   import { removeFromArea, setAreaHours, setAreaRole } from '../../core/areaEdit';
   import { roleByName, updateTeam } from '../../core/edit';
   import { LIMITS } from '../../core/limits';
+  import { capacity, overbooked } from '../../core/load';
   import { attendees, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
@@ -330,6 +331,14 @@
     <div class="row sum">
       <span>{$t('area.card.total')}</span><span>{num(p.total)} {$t('area.card.unit')}</span>
     </div>
+    {#if personId && overbooked($workspace, personId)}
+      <p class="over" data-over>
+        {$t('team.people.over', {
+          hours: num(capacity($workspace, personId)),
+          max: num($workspace.settings.hoursPerWeek),
+        })}
+      </p>
+    {/if}
 
     {#if meetings.length > 0}
       <p class="hint">
@@ -458,6 +467,14 @@
     border-top: 2px solid var(--border);
     border-bottom: 0;
     font-weight: 700;
+  }
+  .over {
+    margin: 0.25rem 0 0;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 600;
   }
   .hint {
     margin: 0.375rem 0 0;

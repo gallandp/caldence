@@ -169,6 +169,33 @@ export function capacity(ws: Workspace, personId: string, teamId?: string): numb
   return areas.reduce((sum, a) => sum + areaHours(ws, a.id, personId), inTeams);
 }
 
+/** Names of the teams and areas a person works in: as a member, or with hours in an area. */
+export function placesOf(ws: Workspace, personId: string): string[] {
+  return [
+    ...ws.teams.filter((t) => t.members.some((m) => m.personId === personId)),
+    ...ws.areas.filter(
+      (a) =>
+        Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId),
+    ),
+  ].map((u) => u.name);
+}
+
+const placed = (ws: Workspace, personId: string): boolean => placesOf(ws, personId).length > 0;
+
+/**
+ * Weekly hours a person has left for one more team: the Settings weekly hours minus their hours
+ * in all teams and areas, at least 0. Someone in no team has them all (#274).
+ */
+export function hoursLeft(ws: Workspace, personId: string): number {
+  const used = placed(ws, personId) ? capacity(ws, personId) : 0;
+  return Math.max(0, ws.settings.hoursPerWeek - used);
+}
+
+/** The person's hours in all teams and areas add up to more than the Settings weekly hours. */
+export function overbooked(ws: Workspace, personId: string): boolean {
+  return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;
+}
+
 /** A person's hours in a week in these teams. */
 export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: string): number {
   return teamIds.reduce((sum, id) => sum + (week.byTeamPerson[id]?.[personId] ?? 0), 0);

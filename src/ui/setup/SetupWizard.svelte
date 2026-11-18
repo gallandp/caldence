@@ -1,6 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
+  import { capacity, hoursLeft, placesOf } from '../../core/load';
+  import { record } from '../../core/record';
   import { setupTeam, type SetupMember } from '../../core/setup';
   import { templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
@@ -39,6 +41,8 @@
   let withFrame = $state(true);
   let nameError = $state(false);
   let problem = $state<{ key: string; path?: string } | null>(null);
+  /** Hours typed for people already in another team, by name (trimmed, lower case). */
+  let hoursHere = $state<Record<string, string>>({});
 
   const template = $derived<Template | null>(
     choice === 'none' ? null : builtinTemplate(choice, $locale),
@@ -69,6 +73,29 @@
     }
     return names;
   });
+  /** Typed names of people already in a team or area: they get asked for their hours here. */
+  const already = $derived.by(() => {
+    const ws = $workspace;
+    const seen: string[] = [];
+    const out: { key: string; name: string; places: string; hours: number; left: number }[] = [];
+    for (const m of members()) {
+      const key = m.name.trim().toLowerCase();
+      if (key === '' || seen.includes(key)) continue;
+      seen.push(key);
+      const person = ws.people.find((p) => p.name.trim().toLowerCase() === key);
+      const places = person ? placesOf(ws, person.id) : [];
+      if (!person || places.length === 0) continue;
+      out.push({
+        key,
+        name: person.name,
+        places: places.join(', '),
+        hours: capacity(ws, person.id),
+        left: hoursLeft(ws, person.id),
+      });
+    }
+    return out;
+  });
+  const num = (n: number) => new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const zones = supportedZones();
   const zoneOptions = $derived(
     zones && timezone !== '' && !zones.includes(timezone) ? [timezone, ...zones] : zones,
@@ -88,6 +115,7 @@
     start = localToday();
     startPicked = false;
     names = {};
+    hoursHere = {};
     me = false;
     myName = '';
     myRole = '';
@@ -144,11 +172,25 @@
       return;
     }
     const trimmed = name.trim();
+    const hours = record<number>();
+    for (const a of already) {
+      const raw = hoursHere[a.key] ?? '';
+      const n = raw.trim() === '' ? a.left : Number(raw);
+      if (!Number.isFinite(n) || n < 0) {
+        problem = {
+          key: 'error.number.invalid',
+          path: get(t)('team.members.hoursOf', { name: a.name, team: trimmed }),
+        };
+        return;
+      }
+      hours[a.key] = n;
+    }
     const input = {
       template,
       name: trimmed,
       start: start || localToday(),
       members: members(),
+      hours,
       ...(withFrame ? { settings: { timezone, region, horizon: { from, to } } } : {}),
     };
     const result = workspace.apply((ws) => setupTeam(ws, input));
@@ -272,6 +314,27 @@
               aria-describedby="{uid}-people-hint"
               bind:value={names[role.id]}
             />
+          </div>
+        {/each}
+        {#each already as a, i (a.key)}
+          <div class="already">
+            <label for="{uid}-hours-{i}"
+              >{$t('team.people.already', {
+                name: a.name,
+                units: a.places,
+                hours: num(a.hours),
+              })}</label
+            >
+            <span class="hours"
+              ><input
+                id="{uid}-hours-{i}"
+                type="number"
+                min="0"
+                step="0.5"
+                value={hoursHere[a.key] ?? String(a.left)}
+                oninput={(e) => (hoursHere[a.key] = e.currentTarget.value)}
+              />{$t('settings.people.unit')}</span
+            >
           </div>
         {/each}
         <div class="me">
@@ -422,6 +485,27 @@
     flex-wrap: wrap;
     gap: 0 1rem;
   }
+  .already {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--accent);
+    background: var(--surface-2);
+  }
+  .already label {
+    flex: 1 1 14rem;
+  }
+  .already .hours {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .already input {
+    width: 5rem;
+  }
   .check {
     display: flex;
     gap: 0.5rem;
@@ -440,6 +524,7 @@
     color: var(--danger);
   }
   input[type='text'],
+  input[type='number'],
   input[type='date'],
   select {
     max-width: 100%;

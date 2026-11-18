@@ -7,6 +7,7 @@
     fte,
     hoursIn,
     loadPerWeek,
+    overbooked,
     overMax,
     warnings,
   } from '../../core/load';
@@ -34,6 +35,9 @@
     $workspace.categories.find((c) => c.id === id)?.name ?? id;
 
   const hours = (n: number): string => formatNumber($locale, n, 1);
+  /** Weekly hours as people say them: 52 h, 37.5 h. */
+  const weekly = (n: number): string =>
+    new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const weekLabel = (monday: string): string =>
     $t('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
 
@@ -317,6 +321,14 @@
               >{p.person.name}</button
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
+            {#if overbooked($workspace, p.person.id)}
+              <span class="overbooked" data-overbooked
+                >{$t('team.people.over', {
+                  hours: weekly(capacity($workspace, p.person.id)),
+                  max: weekly(hpw),
+                })}</span
+              >
+            {/if}
           </th>
           <td class="units"
             >{p.units.length === 0
@@ -374,7 +386,9 @@
                         )}</span
                       >
                       <span class="num"
-                        >{$t('load.detail.meetings', { hours: hours(u.meetings) })}</span
+                        >{u.meetings > 0
+                          ? $t('load.detail.meetings', { hours: hours(u.meetings) })
+                          : $t('load.detail.noMeetings')}</span
                       >
                     </li>
                   {/each}
@@ -755,6 +769,13 @@
     font-size: 0.75rem;
     font-weight: 650;
     white-space: nowrap;
+  }
+  .overbooked {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--warn);
+    font-size: 0.8rem;
+    font-weight: 600;
   }
   .units {
     color: var(--text-muted);
