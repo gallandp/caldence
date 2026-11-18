@@ -1,4 +1,5 @@
 import { areaCosts, unitRow } from './areaCosts';
+import { shiftedDays } from './edit';
 import { compareCadences } from './areaOverview';
 import { capacity } from './load';
 import { areaAsTeam, areaOf, type Workspace } from './model';
@@ -55,7 +56,7 @@ export function whatIfEffect(
 
 /**
  * How many things differ from the state when presenting started: each meeting whose duration or
- * rhythm changed, and each team or area whose cadence changed.
+ * rhythm changed, and each team or area whose cadence changed (with the meetings it moved).
  */
 export function countChanges(base: Workspace, ws: Workspace): number {
   const before = new Map(
@@ -67,9 +68,13 @@ export function countChanges(base: Workspace, ws: Workspace): number {
     if (!old) continue;
     if (JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence)) n++;
     const events = new Map(old.events.map((e) => [e.id, e] as const));
+    // A meeting that moved with a new cadence length is part of that one change.
+    const moved = shiftedDays(old.events, old.cadence.lengthWeeks, unit.cadence.lengthWeeks);
     for (const e of unit.events) {
       const o = events.get(e.id);
       if (!o) continue;
+      const shifted = e.rule.type === 'cadence-day' && moved.get(e.id) === e.rule.day;
+      if (shifted && o.duration === e.duration) continue;
       if (o.duration !== e.duration || JSON.stringify(o.rule) !== JSON.stringify(e.rule)) n++;
     }
   }

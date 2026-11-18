@@ -62,6 +62,27 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
   });
 }
 
+test('"I take part myself" makes the export start with my own calendar', async ({ page }) => {
+  await start(page);
+  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Plan new' });
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('I take part myself').check();
+  await dialog.getByLabel('Your name').fill('Kim');
+  await dialog.getByLabel('Your role').selectOption({ label: 'Product Owner' });
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await calendar(page).getByRole('button', { name: 'Share calendars' }).click();
+  const exchange = page.getByRole('tabpanel', { name: 'Import / Export' });
+  await expect(exchange.getByRole('radio', { name: 'Person', exact: true })).toBeChecked();
+  await expect(exchange.getByLabel('Selected person').locator('option:checked')).toHaveText('Kim');
+  // "Add to calendar" too, since Kim attends the team's meetings.
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar…' }).click();
+  await expect(exchange.getByLabel('Selected person').locator('option:checked')).toHaveText('Kim');
+});
+
 test('the wizard says when Scrum moves a picked date to the next Monday', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
