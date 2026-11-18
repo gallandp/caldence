@@ -123,6 +123,8 @@
   }
   /* Cards: whole card is the button. #app raises specificity above the global button style. */
   :global(#app) .card {
+    /* No colour transition: a theme switch must not pass through low-contrast mixes. */
+    transition: border-color 0.15s;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -180,6 +182,8 @@
     margin-top: 0.75rem;
   }
   :global(#app) .view {
+    /* No colour transition: a theme switch must not pass through low-contrast mixes. */
+    transition: border-color 0.15s;
     display: flex;
     align-items: flex-start;
     gap: 0.7rem;
@@ -218,6 +222,8 @@
     border-top: 1px solid var(--border);
   }
   :global(#app) .row {
+    /* No colour transition: a theme switch must not pass through low-contrast mixes. */
+    transition: border-color 0.15s;
     display: flex;
     align-items: center;
     gap: 0.85rem;

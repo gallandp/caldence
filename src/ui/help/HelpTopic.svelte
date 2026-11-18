@@ -164,6 +164,7 @@
     max-width: 46rem;
   }
   :global(#app) .back {
+    transition: none;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
