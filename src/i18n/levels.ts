@@ -9,6 +9,7 @@ export interface LevelWords {
   area: string;
   areaLc: string;
   areas: string;
+  areasLc: string;
   team: string;
   teamLc: string;
   teams: string;
@@ -38,6 +39,7 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
       area,
       areaLc: area,
       areas: area,
+      areasLc: area,
       team,
       teamLc: team,
       teams: team,
@@ -54,6 +56,7 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
     area: word('area'),
     areaLc: lc(word('area')),
     areas: word('areas'),
+    areasLc: lc(word('areas')),
     team: word('team'),
     teamLc: lc(word('team')),
     teams: word('teams'),
@@ -72,6 +75,7 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelArea: w.area,
     levelAreaLc: w.areaLc,
     levelAreas: w.areas,
+    levelAreasLc: w.areasLc,
     levelTeam: w.team,
     levelTeamLc: w.teamLc,
     levelTeams: w.teams,

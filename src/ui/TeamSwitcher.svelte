@@ -360,7 +360,7 @@
           <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
           <!-- Not .opt-name: that class lists the teams and areas. -->
           <span class="opt-name-org">{org.name}</span>
-          <span class="sr-only">{$t('org.option')}</span>
+          {#if $workspace.organisation}<span class="sr-only">{$t('org.option')}</span>{/if}
           <span class="count org-count">{orgCount}</span>
         </button>
       {/if}

@@ -557,7 +557,10 @@ export function validate(input: unknown): Result<Workspace> {
 
   if (w.organisation !== undefined) {
     const o = c.obj(w.organisation, 'organisation');
-    if (o) c.str(o, 'name', 'organisation');
+    // An emptied name reads as missing; the app removes the entry instead (renameOrganisation).
+    if (o && typeof o.name === 'string' && o.name.trim() === '')
+      c.err('organisation.name', 'error.required');
+    else if (o) c.str(o, 'name', 'organisation');
   }
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.

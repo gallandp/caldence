@@ -126,11 +126,13 @@
     noTeams
       ? undefined
       : activeOrg
-        ? $workspace.organisation?.name
+        ? ($workspace.organisation?.name ?? '')
         : (activeArea ?? activeTeam)?.name,
   );
   const scope = $derived(
-    `${scopeName} · ${activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team}`,
+    activeOrg && scopeName === ''
+      ? $levels.org
+      : `${scopeName} · ${activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team}`,
   );
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
@@ -166,6 +168,8 @@
           [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
       )
         activeTeamId.set(unit);
+      // The organisation of the file before is not this file's: start on its first team.
+      else if ($activeTeamId === ORG_UNIT) activeTeamId.set($workspace.teams[0]?.id ?? null);
       areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
       const page = views.find((id) => id === saved?.page);
       if (page) select(page);
@@ -619,7 +623,7 @@
               })}</button
             >
           {/if}
-          {#if scopeName !== undefined && SCOPED.includes(id)}
+          {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope}>
               {#if activeOrg}
                 <span class="mark org"><OrgIcon /></span>

@@ -60,6 +60,7 @@ describe('organisation level (#313)', () => {
     expect(scopeUnits(w, { teamId: ORG_UNIT }).length).toBe(scopeUnits(w, {}).length);
     for (const p of w.people)
       expect(capacity(w, p.id, ORG_UNIT)).toBe(capacity(w, p.id, undefined));
+    expect(validate({ ...w, organisation: { name: '  ' } }).ok).toBe(false);
   });
 
   it('can never be a team or area id', () => {
