@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, showView, openWorkspaceFile, useFileFallback, setLanguage } from './helpers';
+import {
+  openExample,
+  pickUnit,
+  showView,
+  openWorkspaceFile,
+  useFileFallback,
+  setLanguage,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -293,6 +300,31 @@ test('"Add to calendar" opens the export for this team, then for the person expo
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await page.getByRole('button', { name: 'Add to calendar…' }).click();
   await expect(panel(page).getByRole('radio', { name: 'Team', exact: true })).toBeChecked();
+});
+
+test('"Add to calendar" falls back to the team when the remembered person is not in it', async ({
+  page,
+}) => {
+  await openExchange(page);
+  await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();
+  await panel(page).getByLabel('Selected person').selectOption({ label: 'Sam' });
+  await exportText(page);
+  await pickUnit(page, 'Team Gamma');
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await page.getByRole('button', { name: 'Add to calendar…' }).click();
+  await expect(panel(page).getByRole('radio', { name: 'Team', exact: true })).toBeChecked();
+  await expect(panel(page).getByLabel('Selected team')).toHaveValue('team-gamma');
+});
+
+test('after a team export, Import / Export opens on the unit selected now', async ({ page }) => {
+  await openExchange(page);
+  await panel(page).getByLabel('Selected team').selectOption({ label: 'Team Alpha' });
+  await exportText(page);
+  await pickUnit(page, 'Team Gamma');
+  await showView(page, 'Calendar');
+  await showView(page, 'Import / Export');
+  await expect(panel(page).getByRole('radio', { name: 'Team', exact: true })).toBeChecked();
+  await expect(panel(page).getByLabel('Selected team')).toHaveValue('team-gamma');
 });
 
 test('Import / Export opens on the last export, which points to the manual', async ({ page }) => {

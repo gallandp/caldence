@@ -94,7 +94,9 @@ test('an area without own meetings leads with one file per team', async ({ page 
   await expect(zip).toBeEnabled();
   await expect(zip).toHaveClass(/primary/);
   await expect(
-    panel.getByText('The area has no meetings of its own. One file per team (ZIP)… creates'),
+    panel.getByText(
+      'Platform has no meetings of its own. One file per team (ZIP)… creates a file for each team.',
+    ),
   ).toBeVisible();
   // A team with meetings leads with its own file again.
   await panel.getByLabel('Selected team or area').selectOption({ label: 'Team Alpha' });

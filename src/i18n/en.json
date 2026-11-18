@@ -912,7 +912,7 @@
   "exchange.include.milestones": "Milestones",
   "exchange.export.button": "Export .ics…",
   "exchange.export.empty": "There is nothing to export for this scope and period.",
-  "exchange.export.areaEmpty": "The {levelAreaLc} has no meetings of its own. {zip} creates one file per {levelTeamLc}.",
+  "exchange.export.areaEmpty": "{name} has no meetings of its own. {zip} creates a file for each {levelTeamLc}.",
   "exchange.export.none": "There is nothing to export yet. Open the example or add a {levelTeamLc} first.",
   "exchange.zone.unknown": "This browser does not know the time zone {zone} of this file. Choose a known time zone in the settings to export or import calendars.",
   "exchange.exported": "Saved {name}: {series} recurring series and {single} single events.",

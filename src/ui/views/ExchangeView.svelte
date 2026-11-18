@@ -34,7 +34,6 @@
     exportRequest,
     loadExportChoice,
     saveExportChoice,
-    type ExportChoice,
     type ExportKind,
   } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
@@ -84,10 +83,13 @@
 
   // ---------- export ----------
 
-  type ScopeKind = ExportKind;
-  const scopeKinds: ScopeKind[] = ['team', 'role', 'person'];
-  let kind = $state<ScopeKind>('team');
-  let pickedId = $state<Record<ScopeKind, string | null>>({ team: null, role: null, person: null });
+  const scopeKinds: ExportKind[] = ['team', 'role', 'person'];
+  let kind = $state<ExportKind>('team');
+  let pickedId = $state<Record<ExportKind, string | null>>({
+    team: null,
+    role: null,
+    person: null,
+  });
   let fromDraft = $state<string | null>(null);
   let toDraft = $state<string | null>(null);
   let reminder = $state('');
@@ -97,19 +99,13 @@
   const reminders = [5, 10, 15, 30];
 
   // From "Add to calendar" in Meetings & cadence: the person exported last if they attend this
-  // team's meetings, otherwise the whole team. Opened any other way: what was exported last.
+  // team's meetings, otherwise the whole team. Opened any other way: what was exported last, but
+  // for a team the one selected in the sidebar.
   {
     const request = get(exportRequest);
     exportRequest.set(null);
     const current = get(workspace);
     const last = loadExportChoice(current.id);
-    const exists = (c: ExportChoice) =>
-      (c.kind === 'team'
-        ? [...current.teams, ...current.areas]
-        : c.kind === 'role'
-          ? current.roles
-          : current.people
-      ).some((x) => x.id === c.id);
     if (request) {
       if (last?.kind === 'person' && attendsUnitMeetings(current, request.teamId, last.id)) {
         kind = 'person';
@@ -118,7 +114,12 @@
         kind = 'team';
         pickedId.team = request.teamId;
       }
-    } else if (last && exists(last)) {
+    } else if (last?.kind === 'team') {
+      kind = 'team';
+    } else if (
+      last &&
+      current[last.kind === 'role' ? 'roles' : 'people'].some((x) => x.id === last.id)
+    ) {
       kind = last.kind;
       pickedId[last.kind] = last.id;
     }
@@ -390,11 +391,16 @@
     {/if}
     {#if exported || sharedAll}
       <span>{$t('exchange.exported.next')}</span>
-      <button type="button" onclick={() => onOpenHelp?.()}>{$t('exchange.exported.help')}</button>
     {:else if exportEmpty}
       {$t('exchange.export.empty')}
     {/if}
   </div>
+  {#if exported || sharedAll}
+    <!-- Outside the live region: only the message is announced. -->
+    <button type="button" class="to-help" onclick={() => onOpenHelp?.()}
+      >{$t('exchange.exported.help')}</button
+    >
+  {/if}
   <div role="alert" class="error">
     {#if problem}{$t(problem.key, { path: problem.path ?? '' })}{/if}
   </div>
@@ -538,6 +544,7 @@
       {#if noMeetings}
         <p class="empty" id="{uid}-empty-hint">
           {$t(areaEmpty ? 'exchange.export.areaEmpty' : 'exchange.export.empty', {
+            name: chosen?.name ?? '',
             zip: $t('exchange.zip.button.team'),
           })}
         </p>
@@ -783,6 +790,9 @@
   button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+  .to-help {
+    margin-top: 0.5rem;
   }
   button.primary {
     background: var(--accent);
