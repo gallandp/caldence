@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.46.0 – 2026-11-18
+
+### Added
+
+- The Team view member list and people pool flag a person whose hours in all teams add up to more than the weekly hours, as Meeting load does (#291) (#301)
+
+### Changed
+
+- On phones the most expensive meetings of the area Overview are cards with the cost on top, no sideways scrolling (#283) (#304)
+- With an area selected in a file with several areas, the ZIP export holds only that area's calendar and its teams' calendars, and the button says so (#284) (#305)
+
+### Fixed
+
+- The area Overview's key figure tiles and cards now have the same gap as other views instead of touching (#293) (#303)
+- The week detail in Meeting load and the outlined weeks in the area Overview judge a person on all their meetings ÷ all their weekly hours, like the people table; the week detail shows the part in the team in its own column (#294) (#308)
+
 ## 1.45.0 – 2026-11-18
 
 ### Added
