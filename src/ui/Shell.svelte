@@ -4,6 +4,9 @@
   import { APP_VERSION } from '../version';
   import TeamSwitcher from './TeamSwitcher.svelte';
   import AreaIcon from './components/AreaIcon.svelte';
+  import OrgIcon from './components/OrgIcon.svelte';
+  import OrgView from './views/OrgView.svelte';
+  import { hasOrgLevel, ORG_UNIT } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -31,7 +34,7 @@
   import { rail, setRail } from './state/sidebar';
   import { areaPage, currentView } from './state/view';
   import { presenting, stopPresenting } from './state/present';
-  import { AREA_ICON, VIEW_ICONS } from './viewIcons';
+  import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import { openTopic } from './help/topics';
   import WhatIfBar from './components/WhatIfBar.svelte';
 
@@ -56,7 +59,8 @@
   const groupBefore: ReadonlySet<ViewId> = new Set(['meetings', 'settings', 'help']);
 
   const icons: Record<ViewId, string> = VIEW_ICONS;
-  const iconOf = (id: ViewId) => (id === 'team' && activeArea ? AREA_ICON : icons[id]);
+  const iconOf = (id: ViewId) =>
+    id === 'team' && activeOrg ? ORG_ICON : id === 'team' && activeArea ? AREA_ICON : icons[id];
 
   /** Presenting: the sidebar is unfolded for the list of teams and areas. */
   let pickOpen = $state(false);
@@ -68,7 +72,14 @@
 
   /** While presenting only the views that show the plan stay; the rest is workspace editing. */
   const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
-  const navViews = $derived($presenting ? views.filter((id) => PRESENTED.has(id)) : views);
+  /** The organisation has no meetings of its own yet, so it has no Meetings view. */
+  const navViews = $derived(
+    views.filter((id) => (!$presenting || PRESENTED.has(id)) && !(id === 'meetings' && activeOrg)),
+  );
+  const barViews = $derived(primary.filter((id) => !(id === 'meetings' && activeOrg)));
+  $effect(() => {
+    if (activeOrg && active === 'meetings') select('team');
+  });
   $effect(() => {
     if ($presenting && !PRESENTED.has(active)) select('calendar');
   });
@@ -85,15 +96,32 @@
   const noTeams = $derived($workspace.teams.length === 0);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
+  /** The organisation is selected (#313): Calendar and Load show everything. */
+  const activeOrg = $derived($activeTeamId === ORG_UNIT);
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
-  const viewKey = (id: ViewId) => (id === 'team' && activeArea ? 'view.area' : `view.${id}`);
+  const viewKey = (id: ViewId) =>
+    id === 'team' && activeOrg
+      ? 'view.org'
+      : id === 'team' && activeArea
+        ? 'view.area'
+        : `view.${id}`;
   /** Views whose numbers depend on the selected team or area name it above the headline. */
   const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
-  const scopeName = $derived(noTeams ? undefined : (activeArea ?? activeTeam)?.name);
-  const level = $derived(activeArea ? $levels.area : $levels.team);
-  /** The Team / area page is about the unit itself: its name is the headline, the level sits above (#312). */
-  const scope = (id: ViewId) => (id === 'team' ? level : `${scopeName} · ${level}`);
+  const scopeName = $derived(
+    noTeams
+      ? undefined
+      : activeOrg
+        ? ($workspace.organisation?.name ?? '')
+        : (activeArea ?? activeTeam)?.name,
+  );
+  const level = $derived(activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team);
+  /**
+   * The Team / area page is about the unit itself: its name is the headline, the level sits above
+   * (#312). An unnamed organisation is its level word alone.
+   */
+  const scope = (id: ViewId) =>
+    id === 'team' || scopeName === '' ? level : `${scopeName} · ${level}`;
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -122,8 +150,14 @@
     untrack(() => {
       const saved = $workspace.view;
       const unit = saved?.unit;
-      if (unit && [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
+      if (
+        unit &&
+        ((unit === ORG_UNIT && hasOrgLevel($workspace)) ||
+          [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
+      )
         activeTeamId.set(unit);
+      // The organisation of the file before is not this file's: start on its first team.
+      else if ($activeTeamId === ORG_UNIT) activeTeamId.set($workspace.teams[0]?.id ?? null);
       areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
       const page = views.find((id) => id === saved?.page);
       if (page) select(page);
@@ -577,9 +611,11 @@
               })}</button
             >
           {/if}
-          {#if scopeName !== undefined && SCOPED.includes(id)}
+          {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
-              {#if activeArea}
+              {#if activeOrg}
+                <span class="mark org"><OrgIcon /></span>
+              {:else if activeArea}
                 <span class="mark area"><AreaIcon /></span>
               {:else}
                 <span class="mark team" aria-hidden="true">{initials(scopeName)}</span>
@@ -588,7 +624,7 @@
             </p>
           {/if}
           <h2 class:sr-only={id === 'calendar' && noTeams}>
-            {id === 'team' && scopeName !== undefined ? scopeName : $t(viewKey(id))}
+            {id === 'team' && scopeName ? scopeName : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
             {#if id === 'calendar' && noTeams}
@@ -620,6 +656,10 @@
                   >
                 </div>
               </section>
+            {:else if id === 'team' && activeOrg}
+              {#if active === id}
+                <OrgView onOpen={(unit) => activeTeamId.set(unit)} />
+              {/if}
             {:else if id === 'team' && activeArea}
               {#if active === id}
                 <AreaView area={activeArea} onMeetings={() => select('meetings', true)}>
@@ -723,7 +763,7 @@
 
 <!-- Phones: the main views are one tap away at the bottom, in reach of the thumb (HIG tab bars). -->
 <nav class="tabbar" aria-label={$t('nav.views')}>
-  {#each primary as id (id)}
+  {#each barViews as id (id)}
     <button
       type="button"
       aria-current={active === id ? 'page' : undefined}
@@ -1106,6 +1146,9 @@
   }
   .mark.area {
     color: var(--area);
+  }
+  .mark.org {
+    color: var(--org);
   }
   /* The switcher's team badge, small; initials stay at least 10 px and widen it if needed (#215). */
   .mark.team {

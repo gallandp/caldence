@@ -174,14 +174,39 @@ export interface Workspace {
   /** Region files imported into this workspace; ids never equal a built-in region id. */
   customRegions: Region[];
   /**
+   * The organisation the file maps (#313): the top of the tree organisation → areas → teams. One
+   * file is one organisation; without this entry it is shown with its level name.
+   */
+  organisation?: Organisation;
+  /**
    * Where the file was looking when it was saved, so it opens there again (persona concept Q5):
    * the selected team or area, the view and the area page. Unknown values are ignored on open.
    */
   view?: SavedView;
 }
 
+export interface Organisation {
+  name: string;
+}
+
+/**
+ * The unit id of the organisation in the selection (the `activeTeamId` store and the saved view).
+ * Never a team or area id: the validator rejects it there.
+ */
+export const ORG_UNIT = '@organisation';
+
+/** The organisation is a choice once there is something to group: an area or two teams. */
+export function hasOrgLevel(ws: Workspace): boolean {
+  return ws.areas.length > 0 || ws.teams.length >= 2;
+}
+
+/** The organisation's name, or the level's name (`fallback`) while it has none. */
+export function orgName(ws: Workspace, fallback: string): string {
+  return ws.organisation?.name || fallback;
+}
+
 export interface SavedView {
-  /** Id of the selected team or area. */
+  /** Id of the selected team or area, or ORG_UNIT. */
   unit?: string;
   /** The view: calendar, load, meetings, team, templates, settings, exchange or help. */
   page?: string;
@@ -212,16 +237,18 @@ export function emptyWorkspace(today: ISODate): Workspace {
   };
 }
 
-/** The teams a selected unit stands for: an area's teams, or the team itself. */
+/** The teams a selected unit stands for: all teams, an area's teams, or the team itself. */
 export function unitTeamIds(ws: Workspace, unitId: string): string[] {
+  if (unitId === ORG_UNIT) return ws.teams.map((t) => t.id);
   return ws.areas.find((a) => a.id === unitId)?.teamIds ?? [unitId];
 }
 
 /**
- * The units whose hours a selected unit counts: an area's teams and the area itself (its own
- * meetings), or the team itself. Keys of WeekLoad.byTeamPerson.
+ * The units whose hours a selected unit counts: every unit for the organisation, an area's teams
+ * and the area itself (its own meetings), or the team itself. Keys of WeekLoad.byTeamPerson.
  */
 export function unitLoadIds(ws: Workspace, unitId: string): string[] {
+  if (unitId === ORG_UNIT) return [...ws.teams.map((t) => t.id), ...ws.areas.map((a) => a.id)];
   const area = ws.areas.find((a) => a.id === unitId);
   return area ? [...area.teamIds, area.id] : [unitId];
 }
@@ -324,7 +351,8 @@ export function missingRoles(
 
 /**
  * The areas whose own meetings a filter counts: with a person filter the areas where the person
- * attends a meeting, with a team filter the selected area (none for a team), otherwise all.
+ * attends a meeting, with a team filter the selected area (none for a team), otherwise (also for
+ * the organisation) all.
  */
 export function areasInScope(
   ws: Workspace,
@@ -335,7 +363,7 @@ export function areasInScope(
     .filter((a) =>
       personId
         ? a.events.some((e) => eventAttendees(ws, a.id, e).includes(personId))
-        : teamId === undefined || a.id === teamId,
+        : teamId === undefined || teamId === ORG_UNIT || a.id === teamId,
     )
     .map(areaAsTeam);
 }

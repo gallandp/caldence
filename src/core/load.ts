@@ -4,6 +4,7 @@ import {
   participantKey,
   units,
   unitTeamIds,
+  ORG_UNIT,
   type CalEvent,
   type Rule,
   type Team,
@@ -152,7 +153,9 @@ export function areaHours(ws: Workspace, areaId: string, personId: string): numb
  * areas. Area time without an entry is 0 h; only a person in no team and no area has the
  * workspace default (#265).
  */
-export function capacity(ws: Workspace, personId: string, teamId?: string): number {
+export function capacity(ws: Workspace, personId: string, unitId?: string): number {
+  // The organisation is everything: the same as no unit.
+  const teamId = unitId === ORG_UNIT ? undefined : unitId;
   const fallback = ws.settings.hoursPerWeek;
   const scope = teamId === undefined ? undefined : new Set(unitTeamIds(ws, teamId));
   const teams = ws.teams.filter(

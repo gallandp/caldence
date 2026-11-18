@@ -261,11 +261,14 @@
         levelNames: value === 'area' ? undefined : { preset: value as LevelPreset },
       });
   }
-  function onLevelName(level: 'area' | 'team', event: Event) {
+  function onLevelName(level: 'organisation' | 'area' | 'team', event: Event) {
     const names = settings.levelNames;
     if (!names || 'preset' in names) return;
     const text = (event.currentTarget as HTMLInputElement).value.trim();
-    commit([`levelNames.${level}`], { levelNames: { ...names, [level]: text } });
+    const next = { ...names, [level]: text };
+    // The top level's name is optional: emptied, the organisation keeps its word (#313).
+    if (level === 'organisation' && text === '') delete next.organisation;
+    commit([`levelNames.${level}`], { levelNames: next });
   }
 
   const lang = (event: Event) =>
@@ -535,14 +538,15 @@
       </div>
       {#if settings.levelNames && !('preset' in settings.levelNames)}
         <div class="grid">
-          {#each ['area', 'team'] as const as level (level)}
+          {#each ['organisation', 'area', 'team'] as const as level (level)}
             <div class="field">
               <label for="set-level-{level}">{$t('settings.levels.' + level)}</label>
               <input
                 id="set-level-{level}"
                 type="text"
                 maxlength={LIMITS.textChars}
-                value={settings.levelNames[level]}
+                placeholder={level === 'organisation' ? $t('level.org') : undefined}
+                value={settings.levelNames[level] ?? ''}
                 aria-invalid={errors[`levelNames.${level}`] ? 'true' : undefined}
                 aria-describedby={describe(`levelNames.${level}`)}
                 onchange={(e) => onLevelName(level, e)}

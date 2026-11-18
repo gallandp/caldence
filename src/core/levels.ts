@@ -6,5 +6,9 @@
 export const LEVEL_PRESETS = ['area', 'department', 'platform', 'chapter', 'train'] as const;
 export type LevelPreset = (typeof LEVEL_PRESETS)[number];
 
-/** A preset, or own names for both levels (then `preset` is absent). */
-export type LevelNames = { preset: LevelPreset } | { area: string; team: string };
+/**
+ * A preset, or own names for both levels (then `preset` is absent). Own names may also name the
+ * top level, the organisation (#313); presets call it "Organisation".
+ */
+export type LevelNames =
+  { preset: LevelPreset } | { area: string; team: string; organisation?: string };

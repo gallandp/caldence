@@ -15,3 +15,7 @@ export type ViewId = keyof typeof VIEW_ICONS;
 
 /** The area's page has the area marker (layers), not the people of a team. */
 export const AREA_ICON = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
+
+/** The organisation's page has its marker, a building (#313). */
+export const ORG_ICON =
+  'M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M3 21h18M8 8h3M8 12h3M8 16h3';

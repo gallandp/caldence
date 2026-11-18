@@ -22,6 +22,7 @@ column and bar uses it and shows its value ("über 60 %").
 | DE | EN | Means | Do not use it for |
 |---|---|---|---|
 | **{levelArea} / {levelTeam}** | same | The two configurable levels. Always via level words when a text names the level or its view. | The file, a generic "group" |
+| **{levelOrg}** (Organisation) | **{levelOrg}** (Organisation) | The top level above all {levelAreas} and {levelTeams} (#313). One file is one organisation; its own name is optional. Configurable only with own level names. Avoid articles before it ("Unternehmen" is neuter) | A {levelArea}, the line organisation (separate concept) |
 | **Datei** (was Arbeitsbereich) | **file** (was workspace) | The workspace file and everything that applies to all of it | The area level |
 | **Person** | person | A human, exists once per file | Membership |
 | **Mitglied** | member | Person + role + hours in one {levelTeam} | People in the area only ("Person {levelInArea}") |

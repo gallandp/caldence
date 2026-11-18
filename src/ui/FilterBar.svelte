@@ -1,25 +1,32 @@
 <script lang="ts">
-  import { translate as t } from '../i18n';
+  import { levels, translate as t } from '../i18n';
+  import { ORG_UNIT } from '../core/model';
   import { activeTeamId, filter, workspace } from './state/workspace';
 
   const uid = $props.id();
 
   let roleId = $state('');
   let personId = $state('');
-  /** With an area selected: one of its teams, or '' for the whole area. */
+  /**
+   * With an area selected: one of its teams, or '' for the whole area. With the organisation: one
+   * of its areas or teams, or '' for all.
+   */
   let teamId = $state('');
 
+  const org = $derived($activeTeamId === ORG_UNIT);
   const area = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   const areaTeams = $derived(
     area ? $workspace.teams.filter((team) => area.teamIds.includes(team.id)) : [],
   );
+  /** The units the Team filter offers: the area's teams, or every area and team. */
+  const choices = $derived(org ? [...$workspace.areas, ...$workspace.teams] : areaTeams);
 
   // A filter must not point at something that was deleted or replaced by an undo or an opened file.
   $effect(() => {
     if (roleId !== '' && !$workspace.roles.some((r) => r.id === roleId)) roleId = '';
     if (personId !== '' && !$workspace.people.some((p) => p.id === personId)) personId = '';
     // Also when another team or area is picked, or the team leaves the area.
-    if (teamId !== '' && !areaTeams.some((team) => team.id === teamId)) teamId = '';
+    if (teamId !== '' && !choices.some((unit) => unit.id === teamId)) teamId = '';
   });
 
   // The person view spans all teams; otherwise the filter follows the active team.
@@ -28,7 +35,8 @@
     else {
       const next: { teamId?: string; roleId?: string } = {};
       if (teamId !== '') next.teamId = teamId;
-      else if ($activeTeamId !== null) next.teamId = $activeTeamId;
+      // The organisation is everything, the same as no team filter.
+      else if ($activeTeamId !== null && !org) next.teamId = $activeTeamId;
       if (roleId !== '') next.roleId = roleId;
       filter.set(next);
     }
@@ -45,6 +53,31 @@
         {#each areaTeams as team (team.id)}
           <option value={team.id}>{team.name}</option>
         {/each}
+      </select>
+    </div>
+  {:else if org}
+    <div class="field">
+      <label for="{uid}-team"
+        >{$t($workspace.areas.length > 0 ? 'filter.unit' : 'filter.team')}</label
+      >
+      <select id="{uid}-team" bind:value={teamId} disabled={personId !== ''}>
+        <option value="">{$t('filter.all')}</option>
+        {#if $workspace.areas.length > 0}
+          <optgroup label={$levels.areas}>
+            {#each $workspace.areas as unit (unit.id)}
+              <option value={unit.id}>{unit.name}</option>
+            {/each}
+          </optgroup>
+          <optgroup label={$levels.teams}>
+            {#each $workspace.teams as unit (unit.id)}
+              <option value={unit.id}>{unit.name}</option>
+            {/each}
+          </optgroup>
+        {:else}
+          {#each $workspace.teams as unit (unit.id)}
+            <option value={unit.id}>{unit.name}</option>
+          {/each}
+        {/if}
       </select>
     </div>
   {/if}
