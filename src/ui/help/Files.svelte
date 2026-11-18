@@ -7,6 +7,7 @@
     'areas',
     'buttons',
     'status',
+    'print',
     'present',
     'fallback',
     'autosave',
@@ -29,6 +30,7 @@
     stop: 'file.present.stop',
     hideNames: 'present.hideNames',
     reset: 'whatif.reset',
+    print: 'file.print',
   };
 </script>
 

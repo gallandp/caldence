@@ -36,6 +36,19 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
+test('paper names the file, print date and planning horizon; no rate without one', async ({
+  page,
+}) => {
+  await openExample(page);
+  const meta = page.locator('[data-print-meta]');
+  await expect(meta).toBeHidden();
+  await page.emulateMedia({ media: 'print' });
+  await expect(meta).toBeVisible();
+  expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(
+    /^"Untitled · printed on \d\d\/\d\d\/\d{4} · planning horizon 2027, 52\u00a0wks"$/,
+  );
+});
+
 test('the calendar prints without its navigation buttons', async ({ page }) => {
   await openExample(page);
   await page.emulateMedia({ media: 'print' });

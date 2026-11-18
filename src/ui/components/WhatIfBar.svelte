@@ -57,6 +57,7 @@
         <span
           >{$t('whatif.bar.cost', {
             value: signedEuro(after.cost.perWeek - before.cost.perWeek),
+            horizonValue: signedEuro(after.cost.horizon - before.cost.horizon),
           })}</span
         >
       {/if}
