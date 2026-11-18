@@ -89,7 +89,9 @@ test('the views follow the area: Load sums its teams, the area page offers them'
   await openExample(page);
   await addArea(page, 'Platform', ['Team Alpha', 'Team Beta']);
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
-  await expect(page.getByText(/^Hours in the teams of Platform/)).toBeVisible();
+  await expect(
+    page.getByText(/“of which in the area” shows only the meetings in Platform/),
+  ).toBeVisible();
 
   // With an area selected the Team entry is the area's page; its second page lists the teams.
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
