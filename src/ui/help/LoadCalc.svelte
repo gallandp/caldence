@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { translate as t } from '../../i18n';
   import Rich from './Rich.svelte';
-  import { sectionLink } from './sections';
+  import { topicLink } from './topics';
 
   const labels = {
     duration: 'meet.duration',
@@ -31,7 +30,7 @@
     settings: 'view.settings',
     hourlyRate: 'settings.hourlyRate',
     costs: 'cost.title',
-    areas: sectionLink('manual-areas'),
+    areas: topicLink('areas'),
     overview: 'area.view.overview',
     teamShare: 'overview.cost.col.share',
     avg: 'overview.avg',
@@ -54,12 +53,8 @@
   ] as const;
 </script>
 
-<section aria-labelledby="manual-calc">
-  <h3 id="manual-calc">{$t('help.calc.title')}</h3>
-  <ul>
-    {#each parts as part (part)}
-      <li><Rich key={'help.calc.' + part} {labels} /></li>
-    {/each}
-  </ul>
-  <p>{$t('help.calc.example')}</p>
-</section>
+<ul>
+  {#each parts as part (part)}
+    <li><Rich key={'help.calc.' + part} {labels} /></li>
+  {/each}
+</ul>

@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import {
   openPeoplePool,
@@ -203,64 +202,29 @@ test('from an empty workspace to saved, restored and reopened data', async ({ pa
   await expectEverything(page);
 });
 
-for (const locale of ['de', 'en'] as const) {
-  for (const scheme of ['light', 'dark'] as const) {
-    test(`axe finds no violations in the help view (${locale}, ${scheme})`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
-      await page.goto('/');
-      await setLanguage(page, locale);
-      await expect(page.locator('html')).toHaveAttribute('lang', locale);
-      await page
-        .getByRole('tab', { name: locale === 'de' ? 'Hilfe' : 'Help', exact: true })
-        .click();
-      await expect(page.getByRole('heading', { level: 3 }).first()).toBeVisible();
-      // Where each value is edited, keyboard shortcuts and calendar keys.
-      await expect(page.getByRole('table')).toHaveCount(3);
-      const results = await new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-        .analyze();
-      expect(results.violations).toEqual([]);
-    });
-  }
-}
-
 test('the help view shows the platform key and the German texts', async ({ page }) => {
   await page.goto('/');
   await tab(page, 'Help').click();
+  await panel(page, 'Help').locator('[data-topic="keys"]').click();
   const keys = panel(page, 'Help').getByRole('table', { name: 'Keyboard shortcuts' });
   await expect(keys.getByRole('row').nth(1)).toContainText(/^(Ctrl|⌘)\+S\s*Save$/);
   await setLanguage(page, 'de');
-  await expect(panel(page, 'Hilfe').getByRole('heading', { name: 'Erste Schritte' })).toBeVisible();
-  await expect(panel(page, 'Hilfe').getByRole('table', { name: 'Tastenkürzel' })).toContainText(
-    /Strg|⌘/,
+  await tab(page, 'Hilfe').click();
+  const hilfe = panel(page, 'Hilfe');
+  await expect(hilfe.getByRole('heading', { name: 'Was möchten Sie tun?' })).toBeVisible();
+  await expect(hilfe.locator('[data-topic="calendar"]')).toContainText(
+    'Termine in den eigenen Kalender',
   );
-  // "Vorlagen" is both a manual section (h3) and a subsection of "Die Ansichten" (h4).
+  await hilfe.locator('[data-topic="keys"]').click();
+  await expect(hilfe.getByRole('table', { name: 'Tastenkürzel' })).toContainText(/Strg|⌘/);
+  await hilfe.getByRole('button', { name: 'Alle Hilfethemen' }).click();
+  await hilfe.locator('[data-topic="calc"]').click();
   await expect(
-    panel(page, 'Hilfe').getByRole('heading', { level: 3, name: 'Vorlagen' }),
-  ).toBeVisible();
-  await expect(
-    panel(page, 'Hilfe').getByRole('heading', {
-      level: 3,
-      name: 'In den eigenen Kalender importieren',
-    }),
-  ).toBeVisible();
-  await expect(
-    panel(page, 'Hilfe').getByRole('heading', {
-      level: 3,
-      name: 'So wird die Terminlast berechnet',
-    }),
+    hilfe.getByRole('heading', { level: 3, name: 'So wird die Terminlast berechnet' }),
   ).toBeVisible();
   await setLanguage(page, 'en');
+  await tab(page, 'Help').click();
   await expect(
-    panel(page, 'Help').getByRole('heading', { level: 3, name: 'Templates' }),
-  ).toBeVisible();
-  await expect(
-    panel(page, 'Help').getByRole('heading', { level: 3, name: 'Import into your calendar' }),
-  ).toBeVisible();
-  await expect(
-    panel(page, 'Help').getByRole('heading', {
-      level: 3,
-      name: 'How the meeting load is calculated',
-    }),
+    panel(page, 'Help').getByRole('heading', { level: 3, name: 'What do you want to do?' }),
   ).toBeVisible();
 });

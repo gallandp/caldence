@@ -219,10 +219,11 @@ test('a click anywhere on an option card picks that way of working', async ({ pa
   await expect(none).toBeChecked();
 });
 
-test('the manual link switches to Help', async ({ page }) => {
+test('the manual link switches to Help, on the guide for getting started', async ({ page }) => {
   await start(page);
   await calendar(page).getByRole('button', { name: 'Read the manual' }).click();
   await expect(page.getByRole('tabpanel', { name: 'Help' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Get started' })).toBeVisible();
 });
 
 test('New after a change, then Discard, shows the start screen again', async ({ page }) => {

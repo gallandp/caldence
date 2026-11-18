@@ -28,38 +28,35 @@
   ];
 </script>
 
-<section aria-labelledby="manual-where">
-  <h3 id="manual-where">{$t('help.where.title')}</h3>
-  <p>
-    <Rich
-      key="help.where.intro"
-      labels={{
-        settings: 'view.settings',
-        team: 'view.team',
-        meetings: 'view.meetings',
-        assumptions: 'team.assumptions',
-        hourlyRate: 'settings.hourlyRate',
-      }}
-    />
-  </p>
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
-  <div class="scroll" role="region" aria-labelledby="manual-where-caption" tabindex="0">
-    <table>
-      <caption id="manual-where-caption" class="sr-only">{$t('help.where.caption')}</caption>
-      <thead>
+<p>
+  <Rich
+    key="help.where.intro"
+    labels={{
+      settings: 'view.settings',
+      team: 'view.team',
+      meetings: 'view.meetings',
+      assumptions: 'team.assumptions',
+      hourlyRate: 'settings.hourlyRate',
+    }}
+  />
+</p>
+<!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+<div class="scroll" role="region" aria-labelledby="manual-where-caption" tabindex="0">
+  <table>
+    <caption id="manual-where-caption" class="sr-only">{$t('help.where.caption')}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{$t('help.where.col.field')}</th>
+        <th scope="col">{$t('help.where.col.where')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each rows as row (row.label)}
         <tr>
-          <th scope="col">{$t('help.where.col.field')}</th>
-          <th scope="col">{$t('help.where.col.where')}</th>
+          <th scope="row">{$t(row.label)}</th>
+          <td>{$t('view.' + row.view)}</td>
         </tr>
-      </thead>
-      <tbody>
-        {#each rows as row (row.label)}
-          <tr>
-            <th scope="row">{$t(row.label)}</th>
-            <td>{$t('view.' + row.view)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-</section>
+      {/each}
+    </tbody>
+  </table>
+</div>

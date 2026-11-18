@@ -7,57 +7,54 @@
   const calendarKeys = ['arrows', 'homeEnd', 'page', 'enter', 'escape'] as const;
 </script>
 
-<section aria-labelledby="manual-keys">
-  <h3 id="manual-keys">{$t('help.keyboard.title')}</h3>
-  <p>{$t('help.keyboard.intro')}</p>
-  <p>
-    <Rich
-      key="help.keyboard.areas"
-      labels={{ structure: 'area.view.structure', overview: 'area.view.overview' }}
-    />
-  </p>
+<p>{$t('help.keyboard.intro')}</p>
+<p>
+  <Rich
+    key="help.keyboard.areas"
+    labels={{ structure: 'area.view.structure', overview: 'area.view.overview' }}
+  />
+</p>
 
-  <h4>{$t('help.keys.title')}</h4>
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
-  <div class="scroll" role="region" aria-labelledby="manual-keys-caption" tabindex="0">
-    <table>
-      <caption id="manual-keys-caption" class="sr-only">{$t('help.keys.caption')}</caption>
-      <thead>
+<h4>{$t('help.keys.title')}</h4>
+<!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+<div class="scroll" role="region" aria-labelledby="manual-keys-caption" tabindex="0">
+  <table>
+    <caption id="manual-keys-caption" class="sr-only">{$t('help.keys.caption')}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{$t('help.keys.col.keys')}</th>
+        <th scope="col">{$t('help.keys.col.action')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each shortcuts as id (id)}
         <tr>
-          <th scope="col">{$t('help.keys.col.keys')}</th>
-          <th scope="col">{$t('help.keys.col.action')}</th>
+          <td><kbd>{$shortcut(id)}</kbd></td>
+          <td>{$t('help.keys.action.' + id)}</td>
         </tr>
-      </thead>
-      <tbody>
-        {#each shortcuts as id (id)}
-          <tr>
-            <td><kbd>{$shortcut(id)}</kbd></td>
-            <td>{$t('help.keys.action.' + id)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
+      {/each}
+    </tbody>
+  </table>
+</div>
 
-  <h4>{$t('help.cal.title')}</h4>
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
-  <div class="scroll" role="region" aria-labelledby="manual-cal-caption" tabindex="0">
-    <table>
-      <caption id="manual-cal-caption" class="sr-only">{$t('help.cal.caption')}</caption>
-      <thead>
+<h4>{$t('help.cal.title')}</h4>
+<!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
+<div class="scroll" role="region" aria-labelledby="manual-cal-caption" tabindex="0">
+  <table>
+    <caption id="manual-cal-caption" class="sr-only">{$t('help.cal.caption')}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{$t('help.keys.col.keys')}</th>
+        <th scope="col">{$t('help.keys.col.action')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each calendarKeys as id (id)}
         <tr>
-          <th scope="col">{$t('help.keys.col.keys')}</th>
-          <th scope="col">{$t('help.keys.col.action')}</th>
+          <td><kbd>{$t('help.cal.' + id)}</kbd></td>
+          <td>{$t('help.cal.action.' + id)}</td>
         </tr>
-      </thead>
-      <tbody>
-        {#each calendarKeys as id (id)}
-          <tr>
-            <td><kbd>{$t('help.cal.' + id)}</kbd></td>
-            <td>{$t('help.cal.action.' + id)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-</section>
+      {/each}
+    </tbody>
+  </table>
+</div>
