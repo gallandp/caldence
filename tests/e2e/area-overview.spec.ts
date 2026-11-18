@@ -182,9 +182,13 @@ test('with a rate the overview shows cost per team and the most expensive meetin
   const total = table.locator('[data-cost-total]');
   const weekly = await overview.locator('[data-kpi="cost"] b').textContent();
   await expect(total).toContainText(weekly!);
-  await table.getByRole('button', { name: 'in the planning horizon' }).click();
+  // Every long-term cost names its period (#278): the example plans the year 2027.
+  await expect(overview.locator('[data-kpi="cost"]')).toContainText(
+    'in the planning horizon (2027, 52\u00a0wks)',
+  );
+  await table.getByRole('button', { name: 'in the planning horizon (2027, 52\u00a0wks)' }).click();
   await expect(
-    table.getByRole('columnheader', { name: 'Cost in the planning horizon' }),
+    table.getByRole('columnheader', { name: 'Cost in the planning horizon (2027, 52\u00a0wks)' }),
   ).toBeVisible();
   const costly = overview.locator('[data-costly]');
   await expect(costly.locator('tbody tr')).toHaveCount(5);

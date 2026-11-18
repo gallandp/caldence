@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, type Snippet } from 'svelte';
   import { get } from 'svelte/store';
-  import { translate as t } from '../i18n';
+  import { formatDisplayDate, formatEuro, locale, translate as t } from '../i18n';
   import { emptyWorkspace, type Workspace } from '../core/model';
   import { exampleWorkspace } from '../data/examples';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
@@ -59,6 +59,10 @@
   /** Without a team there is nothing to filter or save yet; the start screen leads. */
   const empty = $derived($workspace.teams.length === 0);
   const autosaveOn = autosave.status;
+  /** Paper names where its figures come from (#278); the date is the day of printing. */
+  const today = () => new Date().toLocaleDateString('sv-SE');
+  let printedOn = $state(today());
+  const rate = $derived($workspace.settings.hourlyRate);
 
   type Problem = { key: string; params?: Record<string, string | number>; more: number };
   let error = $state<Problem | null>(null);
@@ -239,7 +243,7 @@
   }
 </script>
 
-<svelte:window onpointerdown={onWindowPointer} />
+<svelte:window onpointerdown={onWindowPointer} onbeforeprint={() => (printedOn = today())} />
 
 <header class="bar" class:presenting={$presenting}>
   {#if $presenting}
@@ -260,7 +264,17 @@
     </label>
     <button
       type="button"
-      class="present-toggle"
+      class="present-toggle print"
+      data-print
+      title={$t('file.print')}
+      onclick={() => window.print()}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d={PRINT_ICON} /></svg>
+      <span class="label">{$t('file.print')}</span>
+    </button>
+    <button
+      type="button"
+      class="present-toggle stop"
       data-present
       aria-pressed="true"
       bind:this={endButton}
@@ -368,6 +382,16 @@
   <div class="bar context" class:off={!filters}>
     <FilterBar />
   </div>
+  <!-- Drawn from the attribute, so the page text holds the file name only once (the status). -->
+  <p
+    class="print-meta"
+    data-print-only
+    data-print-meta={$t(rate ? 'print.meta' : 'print.meta.noRate', {
+      file: $fileName ?? $t('file.untitled'),
+      date: formatDisplayDate($locale, printedOn, 'short'),
+      rate: rate ? formatEuro($locale, rate) : '',
+    })}
+  ></p>
 {/if}
 
 <ConfirmDialog
@@ -465,7 +489,7 @@
     align-items: center;
     gap: 0.4rem;
   }
-  .presenting .present-toggle {
+  .presenting .present-toggle.print {
     margin-left: auto;
   }
   /* Where the room beside the sidebar is narrow, the file bar stays one row: the two buttons keep only their icons
@@ -488,9 +512,18 @@
   /* Phones keep their file menu: presenting is for a projector or a shared screen. */
   @media (max-width: 40rem) {
     .present-toggle.start,
-    .present-toggle.print {
+    .bar:not(.presenting) .present-toggle.print {
       display: none;
     }
+  }
+  .print-meta {
+    margin: 0;
+    padding: 0 0 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .print-meta::before {
+    content: attr(data-print-meta);
   }
   .error {
     flex-basis: 100%;

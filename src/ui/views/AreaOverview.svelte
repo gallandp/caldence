@@ -903,6 +903,16 @@
     color: var(--text-muted);
     font-weight: 600;
   }
+  /* Phones: the toggle takes the card's width, so the horizon label keeps to one line. */
+  @media (max-width: 40rem) {
+    .period {
+      display: flex;
+      width: 100%;
+    }
+    :global(#app) .period button {
+      flex: 1;
+    }
+  }
   :global(#app) .period button[aria-pressed='true'] {
     background: var(--surface);
     color: var(--text);
@@ -933,6 +943,10 @@
   :global(#app) table.costs thead th.num,
   :global(#app) table.costs td.num {
     text-align: right;
+  }
+  /* Number headings may wrap: the cost one names the planning horizon (#278). */
+  :global(#app) table.costs thead th.num {
+    white-space: normal;
   }
   :global(#app) table.costs td {
     white-space: nowrap;
