@@ -97,12 +97,13 @@
       onEditOpened?.();
     }
     if (show !== undefined) {
-      const id = (pointed = show);
+      pointed = show;
       onShown?.();
+      // The row's name takes the focus, so a screen reader hears the meeting, not an edit button.
       void tick().then(() => {
-        const pencil = root?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(id)}"]`);
-        pencil?.closest('tr')?.scrollIntoView({ block: 'center' });
-        pencil?.focus({ preventScroll: true });
+        const name = root?.querySelector<HTMLElement>('tr[data-shown] th');
+        name?.closest('tr')?.scrollIntoView({ block: 'center' });
+        name?.focus({ preventScroll: true });
       });
     }
     // "Next" moves on as meetings end, also while the view stays open.
@@ -584,8 +585,12 @@
                   {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
                   {@const cost = costOf(event)}
                   {@const when = next?.get(event.id)}
-                  <tr class="row" data-shown={pointed === event.id || undefined}>
-                    <th scope="row" class="c-name">
+                  <tr
+                    class="row"
+                    data-shown={pointed === event.id || undefined}
+                    aria-current={pointed === event.id || undefined}
+                  >
+                    <th scope="row" class="c-name" tabindex={pointed === event.id ? -1 : undefined}>
                       <span class="name">
                         <span class="bar" style:background={category?.colour} aria-hidden="true"
                         ></span>

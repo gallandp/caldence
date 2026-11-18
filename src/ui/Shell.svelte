@@ -170,11 +170,11 @@
    * while it still shows that unit (#277). No history, just the last drill-in.
    */
   let back = $state<{ areaId: string; unit: string; view: ViewId } | null>(null);
-  const backArea = $derived(
-    back && back.unit === $activeTeamId && back.view === active
-      ? $workspace.areas.find((a) => a.id === back?.areaId)
-      : undefined,
-  );
+  // Leaving the drill-in's unit or view ends it: coming back later shows no link.
+  $effect(() => {
+    if (back && (back.unit !== $activeTeamId || back.view !== active)) back = null;
+  });
+  const backArea = $derived(back ? $workspace.areas.find((a) => a.id === back?.areaId) : undefined);
   function drillIn(unit: string, view: ViewId) {
     if (activeArea) back = { areaId: activeArea.id, unit, view };
     activeTeamId.set(unit);
@@ -201,7 +201,11 @@
     const unit = $activeTeamId;
     if (unit === lastUnit) return;
     lastUnit = unit;
-    if (untrack(() => $presenting) && $workspace.areas.some((a) => a.id === unit)) {
+    const area = $workspace.areas.find((a) => a.id === unit);
+    if (!area || !untrack(() => $presenting)) return;
+    // Calendar and Load show the area too; the area page and an empty meeting list move on.
+    const now = untrack(() => active);
+    if (now === 'team' || (now === 'meetings' && area.events.length === 0)) {
       areaPage.set('overview');
       select('team');
     }

@@ -1043,6 +1043,19 @@
   .how[open] summary::before {
     transform: rotate(45deg);
   }
+  /* Paper has no disclosure: the explanation prints, open or closed. */
+  @media print {
+    .how summary {
+      display: none;
+    }
+    .how::details-content {
+      content-visibility: visible;
+      display: block;
+    }
+    .how > :global(:not(summary)) {
+      display: block;
+    }
+  }
   .how .note {
     max-width: 48rem;
     margin: 0 0 0.5rem;

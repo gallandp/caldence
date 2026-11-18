@@ -104,17 +104,19 @@ test('an area meeting opens in Meetings & cadence', async ({ page }) => {
     'true',
   );
   await expect(currentUnit(page)).toHaveText('Payments');
-  // The meeting is shown, not opened for editing (#277): the row is highlighted, the pencil focused.
+  // The meeting is shown, not opened for editing (#277): the row is highlighted, its name focused.
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
   const row = page.locator('#panel-meetings tr[data-shown]');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('PO forum');
+  await expect(row).toHaveAttribute('aria-current', 'true');
   await expect(row).toBeInViewport();
-  await expect(page.getByRole('button', { name: 'Edit PO forum' })).toBeFocused();
+  await expect(row.getByRole('rowheader')).toBeFocused();
   // One click back to the area overview.
   await page.getByRole('button', { name: 'Payments overview' }).click();
   await expect(page.locator('[data-area-overview]')).toBeVisible();
   await expect(currentUnit(page)).toHaveText('Payments');
+  await expect(page.getByRole('tab', { name: 'Area', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
 });
 
@@ -127,15 +129,30 @@ test('the back link appears after a drill-in only and leaves with the view', asy
   // Another view is not the drill-in's target: no back link there.
   await showView(page, 'Calendar');
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
+  // Leaving ends the drill-in: coming back shows no link either.
+  await showView(page, 'Meeting load');
+  await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
 });
 
-test('switching from a team to the area while presenting opens the overview', async ({ page }) => {
-  await openOverview(page);
+test('presenting, an area without meetings opens on its overview, not an empty list', async ({
+  page,
+}) => {
+  await openOverview(page, undefined, (ws) => {
+    (ws.areas[0] as { events: unknown[] }).events = [];
+  });
   await pickUnit(page, 'Team Beta');
   await showView(page, 'Meetings & cadence');
   await page.getByRole('button', { name: 'Present', exact: true }).click();
   await pickUnit(page, 'Payments');
   await expect(page.locator('[data-area-overview]')).toBeVisible();
+  // Calendar and Meeting load show the area as well: they stay.
+  await pickUnit(page, 'Team Beta');
+  await showView(page, 'Meeting load');
+  await pickUnit(page, 'Payments');
+  await expect(page.getByRole('tab', { name: 'Meeting load', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   // The team-pick hint is a builder's hint and lives on Structure.
   await expect(page.locator('.area-teams')).toHaveCount(0);
 });
@@ -287,4 +304,28 @@ test('a team row and the cost card name unfilled roles that only add cost (#264)
   );
   const axe2 = await new AxeBuilder({ page }).include('[data-costs]').analyze();
   expect(axe2.violations).toEqual([]);
+});
+
+test('the first screen holds the answers: KPI tiles at 1280×720 presenting, cost rows at 1440×900', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const overview = await openOverview(page, 100);
+  const row = (await overview.locator('[data-area-costs] tbody tr').first().boundingBox())!;
+  expect(row.y + row.height).toBeLessThanOrEqual(900);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/presenting/);
+  for (const tile of await overview.locator('[data-kpi]').all()) {
+    const box = (await tile.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(720);
+  }
+});
+
+test('printing shows the "How is this counted?" text without the summary', async ({ page }) => {
+  const overview = await openOverview(page, 100);
+  await page.emulateMedia({ media: 'print' });
+  const how = overview.locator('[data-area-costs] details.how');
+  await expect(how.locator('summary')).toBeHidden();
+  await expect(how.getByText(/counts only the meetings of that unit/)).toBeVisible();
 });
