@@ -7,8 +7,6 @@
     'areas',
     'buttons',
     'status',
-    'print',
-    'present',
     'fallback',
     'autosave',
     'privacy',
@@ -34,13 +32,10 @@
   };
 </script>
 
-<section aria-labelledby="manual-files">
-  <h3 id="manual-files">{$t('help.files.title')}</h3>
-  {#each parts as part (part)}
-    <p><Rich key={'help.files.' + part} {labels} /></p>
-  {/each}
-  <h4>{$t('help.install.title')}</h4>
-  {#each installParts as part (part)}
-    <p><Rich key={'help.install.' + part} {labels} /></p>
-  {/each}
-</section>
+{#each parts as part (part)}
+  <p><Rich key={'help.files.' + part} {labels} /></p>
+{/each}
+<h4>{$t('help.install.title')}</h4>
+{#each installParts as part (part)}
+  <p><Rich key={'help.install.' + part} {labels} /></p>
+{/each}

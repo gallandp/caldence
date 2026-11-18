@@ -196,6 +196,9 @@ test('reflow at 320 px: every table that scrolls is a region reached by Tab with
   let scrolled = 0;
   for (const name of ['Meetings & cadence', 'Help', 'Import / Export']) {
     await pickView(page, name);
+    // Help keeps its tables on reference pages: the keyboard page has two.
+    if (name === 'Help')
+      await page.getByRole('tabpanel', { name }).locator('[data-topic="keys"]').click();
     if (name === 'Import / Export') {
       // The import review table appears once an .ics file is chosen.
       const chooser = page.waitForEvent('filechooser');

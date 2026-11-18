@@ -157,15 +157,23 @@ test('closing the ready card keeps the focus on the page', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Structure', exact: true })).toBeFocused();
 });
 
-test('the areas chapter of the manual names controls the area page has', async ({ page }) => {
+/** Opens a help topic from the home page; `more` unfolds its details. */
+async function openTopic(page: Page, id: string, more = false) {
+  const help = panel(page, 'Help');
+  if (await help.getByRole('button', { name: 'All help topics' }).isVisible())
+    await help.getByRole('button', { name: 'All help topics' }).click();
+  await help.locator(`[data-topic="${id}"]`).click();
+  if (more) await help.getByText('Good to know', { exact: true }).click();
+  return help.getByRole('article');
+}
+
+test('the areas guide names controls the area page has', async ({ page }) => {
   await openExample(page);
   await showView(page, 'Help');
-  const help = panel(page, 'Help');
-  const chapter = help.getByRole('region', { name: 'Areas', exact: true });
-  await expect(chapter).toBeVisible();
-  const text = (await chapter.textContent()) ?? '';
+  const guide = await openTopic(page, 'areas', true);
+  await expect(guide.getByRole('heading', { level: 3, name: 'Group teams' })).toBeVisible();
+  const text = (await guide.textContent()) ?? '';
   for (const c of AREA_CONTROLS) expect(text).toContain(en(AREA_LABELS[c.label]!));
-  await help.getByRole('link', { name: 'Areas' }).first().click();
 
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
@@ -174,32 +182,39 @@ test('the areas chapter of the manual names controls the area page has', async (
     await expect(area.getByRole(c.role, { name: en(c.name), exact: true })).toBeVisible();
 });
 
-test('the other manual chapters describe areas and name controls that exist (#193)', async ({
+test('the other help topics describe areas and name controls that exist (#193)', async ({
   page,
 }) => {
   await openExample(page);
   await showView(page, 'Help');
-  const help = panel(page, 'Help');
-  const paragraphs = [
-    'help.views.areas',
-    'help.calc.areas',
-    'help.files.areas',
-    'help.ics.areas',
-    'help.keyboard.areas',
+  const paragraphs: [string, string, boolean][] = [
+    ['help.views.areas', 'views', false],
+    ['help.calc.areas', 'calc', false],
+    ['help.files.areas', 'files', true],
+    ['help.ics.areas', 'calendar', true],
+    ['help.keyboard.areas', 'keys', false],
   ];
-  const text = (await help.textContent()) ?? '';
-  // Every paragraph is shown with its placeholders filled.
-  for (const key of paragraphs) {
-    const words = en(key)
-      .split(/\{\w+\}/)[0]!
-      .trim();
-    expect(text).toContain(words);
+  let text = '';
+  for (const [key, topic, more] of paragraphs) {
+    const article = await openTopic(page, topic, more);
+    const shown = (await article.textContent()) ?? '';
+    // Every paragraph is shown with its placeholders filled.
+    expect(shown).toContain(
+      en(key)
+        .split(/\{\w+\}/)[0]!
+        .trim(),
+    );
+    text += shown;
   }
   expect(text).not.toMatch(/\{level\w+\}/);
   for (const name of ['Area', 'Structure', 'Overview', 'Levels', 'What to export'])
     expect(text).toContain(name);
-  // The links lead to the areas chapter.
-  await expect(help.locator('a[href="#manual-areas"]')).not.toHaveCount(0);
+  // The links lead to the areas guide.
+  await openTopic(page, 'views');
+  await panel(page, 'Help').locator('a[href="#help-areas"]').first().click();
+  await expect(
+    panel(page, 'Help').getByRole('heading', { level: 3, name: 'Group teams' }),
+  ).toBeFocused();
 
   // Controls the new paragraphs name, where they are.
   await showView(page, 'Import / Export');
