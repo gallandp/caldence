@@ -55,7 +55,7 @@ export function whatIfEffect(
 
 /**
  * How many things differ from the state when presenting started: each meeting whose duration or
- * rhythm changed, and each team or area whose cadence changed.
+ * rhythm changed, and each team or area whose cadence changed (with the meetings it moved).
  */
 export function countChanges(base: Workspace, ws: Workspace): number {
   const before = new Map(
@@ -65,11 +65,14 @@ export function countChanges(base: Workspace, ws: Workspace): number {
   for (const unit of [...ws.teams, ...ws.areas.map(areaAsTeam)]) {
     const old = before.get(unit.id);
     if (!old) continue;
-    if (JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence)) n++;
+    const cadenceChanged = JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence);
+    if (cadenceChanged) n++;
     const events = new Map(old.events.map((e) => [e.id, e] as const));
     for (const e of unit.events) {
       const o = events.get(e.id);
       if (!o) continue;
+      // A meeting that moved with a new cadence length is part of that one change.
+      if (cadenceChanged && o.duration === e.duration && o.rule.type === 'cadence-day') continue;
       if (o.duration !== e.duration || JSON.stringify(o.rule) !== JSON.stringify(e.rule)) n++;
     }
   }

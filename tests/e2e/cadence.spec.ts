@@ -74,22 +74,33 @@ test('cadence length is validated inline and the draft is kept', async ({ page }
   await expect(cadence(page).getByLabel('Type')).toHaveValue('pi');
 });
 
-test('shrinking the cadence below a meeting day explains why', async ({ page }) => {
+test('a new length keeps the sprint review at the end; undo takes it back', async ({ page }) => {
   await openMeetings(page);
+  const review = panel(page).getByRole('row').filter({ hasText: 'Sprint Review' });
+  await expect(review).toContainText('Day 14 of the sprint');
   await editCadence(page);
   const length = cadence(page).getByLabel('Length (weeks)');
+  await length.fill('3');
+  await length.blur();
+  await expect(cadence(page).getByRole('status')).toHaveText(
+    'Kept at the end: Sprint Review: day 14 → day 21',
+  );
+  await expect(review).toContainText('Day 21 of the sprint');
+  // Planning on day 1 stays; one undo restores the length and the review.
+  await expect(panel(page).getByRole('row').filter({ hasText: 'Sprint Planning' })).toContainText(
+    'Day 1 of the sprint',
+  );
+  await panel(page).getByRole('button', { name: 'Undo' }).click();
+  await expect(cadence(page)).toContainText('Sprint · 2 weeks');
+  await expect(review).toContainText('Day 14 of the sprint');
+  await expect(cadence(page).getByRole('status')).toBeEmpty();
+  // Shrinking moves it back to the end of the shorter sprint.
   await length.fill('1');
   await length.blur();
-  await expect(
-    cadence(page).getByText('Meeting “Sprint Review” is on day 14 and does not fit into 1 weeks.'),
-  ).toBeVisible();
-  await expect(length).toHaveAttribute('aria-invalid', 'true');
-  await expect(length).toHaveAttribute('aria-describedby', /.+/);
-  await expect(length).toHaveValue('1');
-  // Done drops the refused draft; the saved cadence stays.
-  await cadence(page).getByRole('button', { name: 'Done' }).click();
-  await expect(cadence(page)).toContainText('Sprint · 2 weeks');
-  await expect(cadence(page).getByText(/does not fit/)).toHaveCount(0);
+  await expect(cadence(page).getByRole('status')).toHaveText(
+    'Kept at the end: Sprint Review: day 14 → day 7',
+  );
+  await expect(review).toContainText('Day 7 of the sprint');
 });
 
 test('changing the cadence keeps an open meeting form', async ({ page }) => {

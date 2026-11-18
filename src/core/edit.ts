@@ -336,6 +336,40 @@ export function setAreaCadence(
   return validate(out);
 }
 
+/**
+ * New 0-based days of the cadence-day meetings that move when the cadence length changes: those in
+ * the second half keep their distance to the end, so Review and Retro stay at the end of the
+ * sprint. One that would land before the start stays put (and then does not fit).
+ */
+export function shiftedDays(
+  events: CalEvent[],
+  fromWeeks: number,
+  toWeeks: number,
+): Map<string, number> {
+  const delta = (toWeeks - fromWeeks) * 7;
+  const out = new Map<string, number>();
+  for (const e of events) {
+    if (e.rule.type !== 'cadence-day' || delta === 0) continue;
+    const day = e.rule.day + delta;
+    if (2 * e.rule.day >= fromWeeks * 7 && day >= 0) out.set(e.id, day);
+  }
+  return out;
+}
+
+/** Sets the cadence length of a team or an area and moves its meetings by `shiftedDays`. */
+export function setCadenceLength(ws: Workspace, unitId: string, weeks: number): Result<Workspace> {
+  const out = structuredClone(ws);
+  const unit = out.teams.find((t) => t.id === unitId) ?? out.areas.find((a) => a.id === unitId);
+  if (!unit?.cadence) return fail(`teams.${unitId}`, 'error.ref.unknown');
+  const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, weeks);
+  unit.cadence.lengthWeeks = weeks;
+  unit.events = unit.events.map((e) => {
+    const day = days.get(e.id);
+    return day === undefined ? e : { ...e, rule: { type: 'cadence-day', day } };
+  });
+  return validate(out);
+}
+
 /** Removes an area with its own people, cycles and meetings; its teams stay, without an area. */
 export function removeArea(ws: Workspace, areaId: string): Workspace {
   const out = structuredClone(ws);

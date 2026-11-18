@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { mondayOf } from '../../core/date';
-  import { setAreaCadence, updateTeam } from '../../core/edit';
+  import { setAreaCadence, setCadenceLength, shiftedDays, updateTeam } from '../../core/edit';
   import type { Area, Cadence, Team } from '../../core/model';
   import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, localToday } from '../state/workspace';
+  import { movedText } from '../meetings/rules';
   import FieldError from './FieldError.svelte';
   import WhatIfSheet from './WhatIfSheet.svelte';
   import { presenting } from '../state/present';
@@ -95,15 +96,25 @@
     const label = $t('team.cadence.length');
     if (input.value.trim() === '' || !Number.isFinite(n))
       return fail('cadence-lengthWeeks', 'error.number.invalid', label);
-    const beyond = team.events.find((e) => e.rule.type === 'cadence-day' && e.rule.day >= n * 7);
+    const { id, events, cadence } = team;
+    const days = shiftedDays(events, cadence.lengthWeeks, n);
+    const beyond = events.find(
+      (e) => e.rule.type === 'cadence-day' && (days.get(e.id) ?? e.rule.day) >= n * 7,
+    );
     if (beyond && beyond.rule.type === 'cadence-day')
       return fail('cadence-lengthWeeks', 'team.cadence.dayBeyond', label, {
         name: beyond.name,
         day: beyond.rule.day + 1,
         weeks: n,
       });
-    setCadence('lengthWeeks', label, { lengthWeeks: n });
+    const text = movedText(events, days, $t);
+    if (commit('cadence-lengthWeeks', label, (ws) => setCadenceLength(ws, id, n)))
+      moved = { text, epoch: problems.epoch };
   }
+
+  /** The meetings the last length change moved; gone with the next undo, team or closing. */
+  let moved = $state<{ text: string; epoch: number }>();
+  const movedLine = $derived(moved?.epoch === problems.epoch ? moved.text : '');
 
   function onStart(event: Event) {
     const value = (event.currentTarget as HTMLInputElement).value;
@@ -201,6 +212,7 @@
           <FieldError {problems} id="cadence-remove" />
         {/if}
       {/key}
+      <p class="moved" class:empty={!movedLine} role="status">{movedLine}</p>
     {/if}
   </div>
 </section>
@@ -236,6 +248,12 @@
   }
   .remove {
     margin: 0.75rem 0 0;
+  }
+  .moved {
+    margin: 0.75rem 0 0;
+  }
+  .moved.empty {
+    margin: 0;
   }
   .grid {
     display: grid;
