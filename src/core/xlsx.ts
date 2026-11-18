@@ -47,10 +47,10 @@ export function sheetNames(names: string[]): string[] {
         .replace(/[[\]:*?/\\]/g, ' ')
         .trim()
         .replace(/^'+|'+$/g, '') || `Sheet${i + 1}`;
-    let name = base.slice(0, 31);
+    let name = base.slice(0, 31).trimEnd();
     for (let n = 2; used.has(name.toLowerCase()); n++) {
       const suffix = ` (${n})`;
-      name = base.slice(0, 31 - suffix.length) + suffix;
+      name = base.slice(0, 31 - suffix.length).trimEnd() + suffix;
     }
     used.add(name.toLowerCase());
     return name;

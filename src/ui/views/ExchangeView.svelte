@@ -314,13 +314,13 @@
 
   async function exportWorkbook() {
     if (!canWorkbook) return;
-    const sheets = structureSheets(ws, {
-      t: $t,
-      repeats: (e, unit) => ruleSummary(e.rule, unit, $t, $locale),
-      percent: (share) =>
-        $t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) }),
-    });
     try {
+      const sheets = structureSheets(ws, {
+        t: $t,
+        repeats: (e, unit) => ruleSummary(e.rule, unit, $t, $locale),
+        percent: (share) =>
+          $t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) }),
+      });
       const saved = await exportTextFile(
         env,
         `caldence-${slug($t('xlsx.file'))}.xlsx`,

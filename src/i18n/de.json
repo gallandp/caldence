@@ -819,7 +819,7 @@
   "help.files.fallback": "Browser ohne Dateizugriff laden die Datei beim Speichern herunter und fragen beim Öffnen danach.",
   "help.files.autosave": "Caldence sichert Ihre Arbeit außerdem in diesem Browser, sodass sie nach einem Neuladen wieder da ist. Das ersetzt nicht das Speichern in eine Datei. Lässt der Browser das nicht zu, steht in der Leiste {autosaveOff}.",
   "help.files.privacy": "Es wird nichts versendet. Ihre Daten bleiben auf Ihrem Gerät.",
-  "help.files.excel": "In {exchange} speichert {excel} die ganze Datei als Excel-Arbeitsmappe: wer in welchem {levelArea} und {levelTeam} mit welchen Rollen und Stunden ist, die {levelAreas} und {levelTeams} mit ihrem Takt und alle Termine. Jedes Blatt ist eine schlichte Tabelle mit Filterknöpfen, bereit für Pivot-Tabellen.",
+  "help.files.excel": "In {exchange} speichert {excel} die ganze Datei als Excel-Arbeitsmappe: die Personen je {levelArea} und {levelTeam} mit Rollen und Stunden, die {levelAreas} und {levelTeams} mit ihrem Takt und alle Termine. Jedes Blatt ist eine schlichte Tabelle mit Filterknöpfen, bereit für Pivot-Tabellen.",
   "help.install.title": "Installieren und offline nutzen",
   "help.install.install": "Caldence lässt sich über Ihren Browser installieren (Installationssymbol in der Adressleiste oder Zum Startbildschirm hinzufügen). Nach dem ersten Besuch funktioniert es auch offline.",
   "help.install.update": "Caldence sucht stündlich und immer dann, wenn Sie zurückkehren, nach einer neuen Version. Gibt es eine, erscheint die Meldung {available} {reload} sichert Ihre Arbeit in diesem Browser und wechselt zur neuen Version; {later} blendet die Meldung aus.",
