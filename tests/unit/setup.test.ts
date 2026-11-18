@@ -149,4 +149,28 @@ describe('setupTeam', () => {
     expect(area.members).toHaveLength(1);
     expect(area.memberHours).toEqual({});
   });
+
+  it('sets the hours given for a person already in another team (#274)', () => {
+    const first = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'Alpha',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+    });
+    if (!first.ok) throw new Error('setup');
+    const r = setupTeam(first.value[0], {
+      template: scrum,
+      name: 'Beta',
+      start: today,
+      members: [
+        { name: 'sam', roleId: roleId('Developers') },
+        { name: 'Ben', roleId: roleId('Developers') },
+      ],
+      hours: { sam: 10 },
+    });
+    if (!r.ok) throw new Error('setup');
+    const [out, teamId] = r.value;
+    const sam = out.people.find((p) => p.name === 'Sam')!.id;
+    expect(out.teams.find((t) => t.id === teamId)!.memberHours).toEqual({ [sam]: 10 });
+  });
 });

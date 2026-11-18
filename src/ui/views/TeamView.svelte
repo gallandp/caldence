@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
-  import { areaHours, capacity } from '../../core/load';
+  import { areaHours, capacity, hoursLeft, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
@@ -60,6 +60,19 @@
   const roleChoice = $derived(roles.some((r) => r.id === addRole) ? addRole : (roles[0]?.id ?? ''));
   /** People who are not in this team yet, offered while typing a name. */
   const others = $derived(people.filter((p) => !grouped.some((g) => g.personId === p.id)));
+  /** The typed person already works in another team or area: their hours left fill the field. */
+  const elsewhere = $derived.by(() => {
+    const key = addName.trim().toLowerCase();
+    const person = others.find((p) => p.name.trim().toLowerCase() === key);
+    const places = person ? placesOf($workspace, person.id) : [];
+    if (!person || places.length === 0) return null;
+    return {
+      name: person.name,
+      places: places.join(', '),
+      hours: capacity($workspace, person.id),
+      left: hoursLeft($workspace, person.id),
+    };
+  });
 
   function withHours(hours: Record<string, number>, personId: string, h: number) {
     return Object.assign(record<number>(), hours, { [personId]: h });
@@ -70,9 +83,9 @@
     if (!team || roleChoice === '') return;
     const name = addName.trim();
     if (name === '') return fail('member-add', 'error.required', $t('team.members.person'));
-    // A blank field keeps the person's hours in this team, or leaves a new member on the
-    // workspace default (no entry, so they follow it).
-    const hours = addHours;
+    // A blank field keeps the person's hours in this team, gives someone from another team the
+    // hours they have left, or leaves a new member on the workspace default (no entry).
+    const hours = addHours ?? elsewhere?.left ?? null;
     if (hours !== null && (!Number.isFinite(hours) || hours < 0))
       return fail('member-add', 'error.number.invalid', $t('team.members.hours'));
     const { id, members, memberHours } = team;
@@ -386,7 +399,8 @@
                   min="0"
                   step="0.5"
                   placeholder={String(defaultHours)}
-                  value={addHours ?? ''}
+                  value={addHours ?? elsewhere?.left ?? ''}
+                  aria-describedby={elsewhere ? `${uid}-elsewhere` : undefined}
                   oninput={(e) => {
                     const v = e.currentTarget.value;
                     addHours = v.trim() === '' ? null : Number(v);
@@ -397,6 +411,17 @@
                 >{@render plus()}{$t('team.members.add')}</button
               >
             </form>
+            {#if elsewhere}
+              <p class="hint" id="{uid}-elsewhere" data-no-present>
+                {$t('team.people.left', {
+                  name: elsewhere.name,
+                  units: elsewhere.places,
+                  hours: hours(elsewhere.hours),
+                  left: hours(elsewhere.left),
+                })}
+                {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
+              </p>
+            {/if}
             {@render err('member-add')}
           {/if}
         </section>

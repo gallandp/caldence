@@ -27,7 +27,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `region` | string | Id of a built-in or imported region. An unknown id still loads, but then no holidays are used. |
 | `timezone` | string | IANA time zone, for example `Europe/Berlin`. |
 | `workdays` | list of 1-7 | Working weekdays, Monday is 1, Sunday is 7. Not empty, no duplicates. |
-| `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. |
+| `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. The app also uses them as the weekly limit: a person whose hours in all teams and areas add up to more is flagged, and adding a person to one more team proposes the hours left. |
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
 | `thresholds` | `{ warnFactor, maxFte }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. |
