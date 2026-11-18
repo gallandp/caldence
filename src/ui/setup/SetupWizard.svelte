@@ -4,7 +4,7 @@
   import { capacity, hoursLeft, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import { setupTeam, type SetupMember } from '../../core/setup';
-  import { templateStart, type Template } from '../../core/template';
+  import { areaRoleIds, templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
   import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { resolveRegion } from '../../core/regions';
@@ -44,6 +44,8 @@
   let problem = $state<{ key: string; path?: string } | null>(null);
   /** Hours typed for people already in another team, by name (trimmed, lower case). */
   let hoursHere = $state<Record<string, string>>({});
+  /** The name whose hours are not a valid number, if any. */
+  let badHours = $state<string | null>(null);
 
   const template = $derived<Template | null>(
     choice === 'none' ? null : builtinTemplate(choice, $locale),
@@ -79,7 +81,9 @@
     const ws = $workspace;
     const seen: string[] = [];
     const out: { key: string; name: string; places: string; hours: number; left: number }[] = [];
-    for (const m of members()) {
+    // Someone entered only for an area role (SAFe RTE) does not join the team: no hours asked.
+    const areaOnly = template ? areaRoleIds(template) : new Set<string>();
+    for (const m of members().filter((x) => !areaOnly.has(x.roleId))) {
       const key = m.name.trim().toLowerCase();
       if (key === '' || seen.includes(key)) continue;
       seen.push(key);
@@ -117,6 +121,7 @@
     startPicked = false;
     names = {};
     hoursHere = {};
+    badHours = null;
     me = false;
     myName = '';
     myRole = '';
@@ -174,7 +179,7 @@
     }
     const trimmed = name.trim();
     const hours = record<number>();
-    for (const a of already) {
+    for (const [i, a] of already.entries()) {
       const raw = hoursHere[a.key] ?? '';
       const n = raw.trim() === '' ? a.left : Number(raw);
       if (!Number.isFinite(n) || n < 0) {
@@ -182,6 +187,8 @@
           key: 'error.number.invalid',
           path: get(t)('team.members.hoursOf', { name: a.name, team: trimmed }),
         };
+        badHours = a.key;
+        document.getElementById(`${uid}-hours-${i}`)?.focus();
         return;
       }
       hours[a.key] = n;
@@ -338,9 +345,17 @@
                 min="0"
                 step="0.5"
                 value={hoursHere[a.key] ?? String(a.left)}
-                oninput={(e) => (hoursHere[a.key] = e.currentTarget.value)}
+                aria-invalid={badHours === a.key ? 'true' : undefined}
+                aria-describedby={a.left === 0 ? `${uid}-none-${i}` : undefined}
+                oninput={(e) => {
+                  hoursHere[a.key] = e.currentTarget.value;
+                  if (badHours === a.key) badHours = null;
+                }}
               />{$t('settings.people.unit')}</span
             >
+            {#if a.left === 0}
+              <p class="none-left" id="{uid}-none-{i}">{$t('team.people.noneLeft')}</p>
+            {/if}
           </div>
         {/each}
         <div class="me">
@@ -511,6 +526,11 @@
   }
   .already input {
     width: 5rem;
+  }
+  .none-left {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--warn);
   }
   .check {
     display: flex;

@@ -413,13 +413,13 @@
             </form>
             {#if elsewhere}
               <p class="hint" id="{uid}-elsewhere" data-no-present>
-                {$t('team.people.already', {
+                {$t('team.people.left', {
                   name: elsewhere.name,
                   units: elsewhere.places,
                   hours: hours(elsewhere.hours),
+                  left: hours(elsewhere.left),
                 })}
-                {hours(elsewhere.left)}
-                {$t('settings.people.unit')}
+                {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
               </p>
             {/if}
             {@render err('member-add')}

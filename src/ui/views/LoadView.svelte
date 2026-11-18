@@ -323,11 +323,13 @@
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if overbooked($workspace, p.person.id)}
+              {@const total = weekly(capacity($workspace, p.person.id))}
               <span class="overbooked" data-overbooked
-                >{$t('team.people.over', {
-                  hours: weekly(capacity($workspace, p.person.id)),
-                  max: weekly(hpw),
-                })}</span
+                ><span class="long"
+                  >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
+                ><span class="short" aria-hidden="true"
+                  >{$t('team.people.overShort', { hours: total, max: weekly(hpw) })}</span
+                ></span
               >
             {/if}
           </th>
@@ -795,6 +797,24 @@
     color: var(--warn);
     font-size: 0.8rem;
     font-weight: 600;
+  }
+  .overbooked .short {
+    display: none;
+  }
+  /* Phones: the short form fits the narrow name column; the sentence stays for screen readers. */
+  @media (max-width: 600px) {
+    .overbooked .short {
+      display: inline;
+      white-space: nowrap;
+    }
+    .overbooked .long {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
   .units {
     color: var(--text-muted);
