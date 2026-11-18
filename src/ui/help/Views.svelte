@@ -185,6 +185,18 @@
       }}
     />
   </p>
+  <p>
+    <Rich
+      key="help.views.split"
+      labels={{
+        another: 'setup.another',
+        members: 'team.members',
+        hpw: 'settings.hoursPerWeek',
+        load: 'view.load',
+        structure: 'area.view.structure',
+      }}
+    />
+  </p>
 
   <h4>{$t('view.settings')}</h4>
   <p>
