@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 6;
+export const CURRENT_SCHEMA = 7;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -120,6 +120,11 @@ export interface CalEvent {
   scaling?: { base: number; perUnit: number; assumption: string; grid: number };
   participants: Participant[];
   preparation: number;
+  /**
+   * Set when the meeting takes place on site (#309); missing means remote. Everyone attending
+   * travels `travel` minutes per occurrence, there and back together.
+   */
+  onSite?: { travel: number };
 }
 
 export interface Team {

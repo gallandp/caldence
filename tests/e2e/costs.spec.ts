@@ -118,3 +118,41 @@ test('without a rate the cost card invites one and applies it to the file', asyn
   await tab(page, 'Settings');
   await expect(page.getByLabel('Hourly rate (optional)')).toHaveValue('85.5');
 });
+
+test('an on-site meeting adds its travel time to cost and load (#309)', async ({ page }) => {
+  await openExample(page);
+  await setRate(page, '100');
+  await tab(page, 'Meetings & cadence');
+  const panel = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  const sync = panel.getByRole('row', { name: /Weekly Sync/ });
+  // 15 minutes, Product Owner and Scrum Master: €50 remote.
+  await expect(sync.locator('[data-cost]')).toContainText('Ø €50 / week');
+  await expect(sync.locator('[data-place]')).toHaveCount(0);
+
+  await sync.getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  const form = panel.getByRole('region', { name: /Weekly Sync/ });
+  const place = form.getByRole('group', { name: 'Place' });
+  await expect(place.getByRole('button', { name: 'Remote' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(form.getByLabel('Travel (minutes)')).toHaveCount(0);
+  await place.getByRole('button', { name: 'On site' }).click();
+  await expect(form.getByLabel('Travel (minutes)')).toHaveValue('30');
+  await form.getByLabel('Travel (minutes)').fill('15');
+  expect(await new AxeBuilder({ page }).include('form').analyze()).toHaveProperty('violations', []);
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toBeHidden();
+
+  // 15 + 15 minutes for two people: twice the cost.
+  await expect(sync.locator('[data-place]')).toHaveText('On site · 15 min travel');
+  await expect(sync.locator('[data-cost-travel]')).toHaveText('incl. 15 min travel');
+  await expect(sync.locator('[data-cost]')).toContainText('Ø €100 / week');
+
+  // Back to remote: the travel time is gone again.
+  await sync.getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  await place.getByRole('button', { name: 'Remote' }).click();
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(sync.locator('[data-place]')).toHaveCount(0);
+  await expect(sync.locator('[data-cost]')).toContainText('Ø €50 / week');
+});

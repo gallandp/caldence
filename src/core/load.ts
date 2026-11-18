@@ -54,9 +54,13 @@ export function occurrencesPerWeek(rule: Rule, team: Team): number {
   }
 }
 
-/** Hours of one occurrence for a participant with the given share. */
+/**
+ * Hours of one occurrence for a participant with the given share: the meeting with its
+ * preparation, plus the travel time of an on-site meeting (#309), which preparation does not grow.
+ */
 export function occurrenceHours(event: CalEvent, minutes: number, share: number): number {
-  return ((minutes * (1 + event.preparation)) / 60) * share;
+  const travel = event.onSite?.travel ?? 0;
+  return ((minutes * (1 + event.preparation) + travel) / 60) * share;
 }
 
 /** Analytical recurring average in hours per week, independent of horizon and holidays. */

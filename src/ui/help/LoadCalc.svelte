@@ -14,6 +14,8 @@
     share: 'meet.participants.share',
     named: 'meet.people',
     prep: 'meet.prep',
+    onSite: 'meet.place.onSite',
+    travel: 'meet.travel',
     skip: 'settings.skipHolidays',
     baseTable: 'load.table.base',
     roleTable: 'load.summary',
@@ -38,6 +40,7 @@
   const parts = [
     'duration',
     'share',
+    'travel',
     'members',
     'named',
     'holidays',
