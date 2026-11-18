@@ -123,7 +123,7 @@ test('the back link appears after a drill-in only and leaves with the view', asy
   await overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]').click();
   const back = page.locator('#panel-load').getByRole('button', { name: 'Payments overview' });
   await expect(back).toBeVisible();
-  await expect(back).toHaveText('← Payments overview');
+  await expect(back).toHaveText(/^←\s*Payments overview$/);
   // Another view is not the drill-in's target: no back link there.
   await showView(page, 'Calendar');
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
@@ -148,7 +148,10 @@ test('the team-pick hint is on Structure, the cost explanation folds', async ({ 
   await expect(how.getByText(/counts only the meetings of that unit/)).toBeHidden();
   await how.locator('summary').click();
   await expect(how.getByText(/counts only the meetings of that unit/)).toBeVisible();
-  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Structure' }).click();
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Structure' })
+    .click();
   await expect(page.locator('.area-teams')).toContainText('Pick one in Payments');
 });
 

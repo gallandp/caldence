@@ -52,7 +52,7 @@
   }
   let { edit, onEditOpened, show, onShown, onSetHours, onExport }: Props = $props();
   /** The meeting a drill-in pointed at; highlighted until the unit changes. */
-  let shown = $state<string | undefined>();
+  let pointed = $state<string | undefined>();
 
   const { canUndo } = workspace;
 
@@ -87,7 +87,7 @@
       }),
       activeTeamId.subscribe(() => {
         editing = null;
-        shown = undefined;
+        pointed = undefined;
         query = '';
       }),
     ];
@@ -97,10 +97,10 @@
       onEditOpened?.();
     }
     if (show !== undefined) {
-      shown = show;
+      const id = (pointed = show);
       onShown?.();
       void tick().then(() => {
-        const pencil = root?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(show)}"]`);
+        const pencil = root?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(id)}"]`);
         pencil?.closest('tr')?.scrollIntoView({ block: 'center' });
         pencil?.focus({ preventScroll: true });
       });
@@ -585,7 +585,7 @@
                   {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
                   {@const cost = costOf(event)}
                   {@const when = next?.get(event.id)}
-                  <tr class="row" data-shown={shown === event.id || undefined}>
+                  <tr class="row" data-shown={pointed === event.id || undefined}>
                     <th scope="row" class="c-name">
                       <span class="name">
                         <span class="bar" style:background={category?.colour} aria-hidden="true"
@@ -1257,6 +1257,10 @@
       row-gap: 0.4rem;
       padding: 0.85rem 0;
       border-bottom: 1px solid var(--border);
+    }
+    :global(#app) table tr.row[data-shown] {
+      padding-inline: 0.5rem;
+      border-radius: var(--radius);
     }
     :global(#app) table tr.row > * {
       display: block;

@@ -359,11 +359,16 @@
         <h3 id="{uid}-cost" tabindex="-1">
           {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
         </h3>
-        <p class="note">
-          {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
-              >{' ' + $t('overview.cost.hint.person')}</span
-            >{/if}
-        </p>
+        <!-- One line on the first screen; the counting rules unfold (#277). -->
+        <details class="how">
+          <summary>{$t('overview.how')}</summary>
+          <p class="note">
+            {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
+                >{' ' + $t('overview.cost.hint.person')}</span
+              >{/if}
+          </p>
+          <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
+        </details>
       </div>
       {#if rate}
         <div class="period" data-no-print role="group" aria-label={$t('overview.cost.period')}>
@@ -497,9 +502,6 @@
         </tfoot>
       </table>
     </div>
-    <p class="note below">
-      {$t('overview.cost.scale', { max: percent(maxFte) })}
-    </p>
   </section>
 
   {#if rate}
@@ -508,7 +510,10 @@
         <div class="head">
           <div>
             <h3 id="{uid}-costly">{$t('overview.costly.title')}</h3>
-            <p class="note">{$t('overview.costly.hint')}</p>
+            <details class="how">
+              <summary>{$t('overview.how')}</summary>
+              <p class="note">{$t('overview.costly.hint')}</p>
+            </details>
           </div>
           <span class="muted">{$t('overview.costly.period.' + period)}</span>
         </div>
@@ -1016,8 +1021,31 @@
       background: CanvasText;
     }
   }
-  .note.below {
-    margin: 0.75rem 0 0;
+  .how summary {
+    width: fit-content;
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--accent-text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .how summary::before {
+    content: '';
+    width: 0.4em;
+    height: 0.4em;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: rotate(-45deg);
+  }
+  .how[open] summary::before {
+    transform: rotate(45deg);
+  }
+  .how .note {
+    max-width: 48rem;
+    margin: 0 0 0.5rem;
   }
 
   /* ---------- cadence strip and heat map on one axis ---------- */
@@ -1416,7 +1444,7 @@
     :global(#app) [data-area-costs] .extra,
     [data-area-costs] .bar,
     [data-area-costs] .person-hint,
-    [data-area-costs] .note.below {
+    [data-area-costs] .scale {
       display: none;
     }
     [data-area-costs] .cap {

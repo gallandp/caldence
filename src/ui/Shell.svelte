@@ -577,7 +577,7 @@
               class="back link"
               data-no-print
               onclick={() => backToArea(backArea.id)}
-              ><span aria-hidden="true">← </span>{$t('overview.back', {
+              ><span aria-hidden="true">←</span>{$t('overview.back', {
                 name: backArea.name,
               })}</button
             >
@@ -1064,23 +1064,29 @@
   .eyebrow + h2 {
     margin-top: 0;
   }
-  /* Back to the area overview after a drill-in (#277): a link-like button, 44 px tall. */
+  /* Back to the area overview after a drill-in (#277): stays in reach while the view scrolls to
+     the row it points at. */
   :global(#app) button.back {
+    position: sticky;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    top: 0.75rem;
+    z-index: 3;
+    width: fit-content;
     min-height: 2.75rem;
-    margin: -0.5rem 0 0;
-    padding: 0 0.25rem 0 0;
-    border: 0;
-    background: none;
-    box-shadow: none;
+    margin: 1rem 0 0;
+    padding: 0 1rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
     color: var(--accent-text);
     font: inherit;
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 0.15em;
   }
   :global(#app) button.back:hover {
-    background: none;
-    color: var(--accent-hover);
+    background: var(--accent-soft);
   }
   /* Narrow: the filters sit above, not beside the headline; give the line room below them. */
   @container (max-width: 55.99rem) {
