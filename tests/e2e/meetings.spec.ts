@@ -593,6 +593,9 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   await form.getByLabel('Duration (minutes)').fill('30');
   await expect(effect).toContainText('+0.5 h per week');
   await expect(effect).toContainText(/Meeting load · Team Alpha\s*\d+% → \d+%/);
+  // An empty duration has no effect to show.
+  await form.getByLabel('Duration (minutes)').fill('');
+  await expect(effect).toContainText('The effect shows once all entries are valid.');
   await form.getByRole('button', { name: 'Cancel' }).click();
   await expect(row(page, 'Weekly Sync')).toContainText('15 min');
   await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
@@ -608,7 +611,7 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   // On a phone the box collapses to one line.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load \d+% → \d+%$/),
+    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load Team Alpha: \d+% → \d+%$/),
   ).toBeVisible();
   await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
   await form.getByRole('button', { name: 'Save' }).click();

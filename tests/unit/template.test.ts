@@ -150,12 +150,12 @@ describe('applyTemplate', () => {
     const areaRoles = new Set(['Release Train Engineer', 'Product Management']);
     for (const e of area.events)
       for (const p of e.participants)
-        expect((p as { fromTeams?: boolean }).fromTeams, `${e.name}/${roleName(p.roleId)}`).toBe(
-          areaRoles.has(roleName(p.roleId)) ? undefined : true,
+        expect((p as { fromTeams?: boolean }).fromTeams, `${e.name}/${roleName(p.roleId!)}`).toBe(
+          areaRoles.has(roleName(p.roleId!)) ? undefined : true,
         );
     // RTE and Product Management are no longer stuffed into the team.
     for (const e of team.events)
-      for (const p of e.participants) expect(areaRoles.has(roleName(p.roleId))).toBe(false);
+      for (const p of e.participants) expect(areaRoles.has(roleName(p.roleId!))).toBe(false);
     for (const e of [...team.events, ...area.events])
       if (e.rule.type === 'every-n-weeks')
         expect(e.rule.anchor).toBe(

@@ -6,6 +6,7 @@
    * The "Wirkung" box: what a change does to hours, cost, Terminlast and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
    * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
+   * `live` false drops the live region, where the box follows every keystroke of a form.
    */
   let {
     before,
@@ -14,6 +15,7 @@
     error,
     note,
     compact = false,
+    live = true,
   }: {
     before?: Effect;
     after?: Effect;
@@ -21,6 +23,7 @@
     error?: string;
     note?: string;
     compact?: boolean;
+    live?: boolean;
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -33,11 +36,12 @@
     $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
       hours: signed(a.hours - b.hours, hours),
       cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
+      name: scopeName,
       share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }),
     });
 </script>
 
-<div class="effect" aria-live="polite">
+<div class="effect" aria-live={live ? 'polite' : undefined}>
   <p class="effect-title">{$t('whatif.effect')}</p>
   {#if error}
     <p class="error">{error}</p>

@@ -1,6 +1,6 @@
 # Template format
 
-A Caldence template describes the roles, categories and recurring events of **one team**, without any people, and optionally the area above it. It is a JSON file with the workspace schema version of the app that wrote it (currently `5`). Templates and workspaces share one version number: older versions (1 to 4) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in Scrum and Kanban templates are version `2` and are migrated like any other; SAFe, which has an area, is version `5`.
+A Caldence template describes the roles, categories and recurring events of **one team**, without any people, and optionally the area above it. It is a JSON file with the workspace schema version of the app that wrote it (currently `6`). Templates and workspaces share one version number: older versions (1 to 5) are migrated on load, and fields that a migration adds only to workspaces (such as `customRegions`) are dropped; newer versions are rejected. The built-in Scrum and Kanban templates are version `2` and are migrated like any other; SAFe, which has an area, is version `6`.
 
 ## Fields
 
@@ -32,7 +32,7 @@ The built-in SAFe template (`src/data/templates/safe.en.json`) has a Scrum team 
 
 ## No personal data
 
-A template must never contain personal data. It has no `people`, no `settings`, no `customRegions` and no `team.members`. A file that has any of them is rejected, so that a workspace file or a team with names cannot be shared as a template by mistake. When a team is exported as a template, only the roles used by its events and members and the categories used by its events are kept. When the team is in an area, the export also writes the optional `area` part (name, cadence, cycles, meetings and the file's level names) with the roles and categories of the area's meetings; area members, area hours and team ids are never written. An area without its own cadence gets the team's cadence in the template.
+A template must never contain personal data. It has no `people`, no `settings`, no `customRegions` and no `team.members`. A file that has any of them is rejected, so that a workspace file or a team with names cannot be shared as a template by mistake. Meetings invite only roles: people invited by name are left out when a team is exported, and a template meeting that names a person is rejected. When a team is exported as a template, only the roles used by its events and members and the categories used by its events are kept. When the team is in an area, the export also writes the optional `area` part (name, cadence, cycles, meetings and the file's level names) with the roles and categories of the area's meetings; area members, area hours and team ids are never written. An area without its own cadence gets the team's cadence in the template.
 
 ## Example
 
