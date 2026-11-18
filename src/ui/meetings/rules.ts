@@ -1,5 +1,5 @@
 import { mondayOf } from '../../core/date';
-import type { Rule, Team } from '../../core/model';
+import type { CalEvent, Rule, Team } from '../../core/model';
 import { formatDisplayDate, formatNumber, type Locale } from '../../i18n';
 
 export const RULE_TYPES = [
@@ -233,4 +233,28 @@ export function ruleShort(
     case 'once':
       return t('meet.short.once');
   }
+}
+
+/**
+ * "Kept at the end: Review, Retro: day 12 → day 19" for the meetings that `shiftedDays` moves,
+ * meetings with the same move together; empty when nothing moves.
+ */
+export function movedText(
+  events: CalEvent[],
+  days: Map<string, number>,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const moves = new Map<string, { names: string[]; from: number; to: number }>();
+  for (const e of events) {
+    const to = days.get(e.id);
+    if (e.rule.type !== 'cadence-day' || to === undefined) continue;
+    const key = `${e.rule.day} ${to}`;
+    const move = moves.get(key) ?? { names: [], from: e.rule.day + 1, to: to + 1 };
+    move.names.push(e.name);
+    moves.set(key, move);
+  }
+  const parts = [...moves.values()].map((m) =>
+    t('team.cadence.movedPart', { names: m.names.join(', '), from: m.from, to: m.to }),
+  );
+  return parts.length > 0 ? t('team.cadence.moved', { moves: parts.join('; ') }) : '';
 }
