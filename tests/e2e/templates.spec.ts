@@ -99,7 +99,7 @@ test('undo removes the applied team', async ({ page }) => {
   await expect(panel(page).getByRole('status')).toContainText('Kanban');
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await expect(currentUnit(page)).toHaveText('Kanban');
-  await page.getByRole('heading', { level: 2, name: 'Team' }).click();
+  await page.locator('#panel-team > h2').click();
   await page.keyboard.press('Control+z');
   await expect(currentUnit(page)).toHaveCount(0);
 });

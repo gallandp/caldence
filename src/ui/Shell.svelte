@@ -115,11 +115,13 @@
         ? ($workspace.organisation?.name ?? '')
         : (activeArea ?? activeTeam)?.name,
   );
-  const scope = $derived(
-    activeOrg && scopeName === ''
-      ? $levels.org
-      : `${scopeName} · ${activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team}`,
-  );
+  const level = $derived(activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team);
+  /**
+   * The Team / area page is about the unit itself: its name is the headline, the level sits above
+   * (#312). An unnamed organisation is its level word alone.
+   */
+  const scope = (id: ViewId) =>
+    id === 'team' || scopeName === '' ? level : `${scopeName} · ${level}`;
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -610,7 +612,7 @@
             >
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
-            <p class="eyebrow" title={scope}>
+            <p class="eyebrow" title={scope(id)}>
               {#if activeOrg}
                 <span class="mark org"><OrgIcon /></span>
               {:else if activeArea}
@@ -618,15 +620,11 @@
               {:else}
                 <span class="mark team" aria-hidden="true">{initials(scopeName)}</span>
               {/if}
-              <span class="eyebrow-text">{scope}</span>
+              <span class="eyebrow-text">{scope(id)}</span>
             </p>
           {/if}
           <h2 class:sr-only={id === 'calendar' && noTeams}>
-            {id === 'team' && activeOrg && $workspace.organisation
-              ? $t('org.view.title', { name: $workspace.organisation.name })
-              : id === 'team' && activeArea
-                ? $t('area.view.title', { name: activeArea.name })
-                : $t(viewKey(id))}
+            {id === 'team' && scopeName ? scopeName : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
             {#if id === 'calendar' && noTeams}
@@ -1077,7 +1075,7 @@
     container: content / inline-size;
   }
   main {
-    padding: 0 2rem 2.5rem;
+    padding: var(--head-gap, 0) 2rem 2.5rem;
   }
   main:focus {
     outline: none;
@@ -1380,7 +1378,7 @@
       margin-top: 0;
     }
     main {
-      padding: 0 1rem 2rem;
+      padding: var(--head-gap, 0) 1rem 2rem;
     }
   }
   .tabbar {
