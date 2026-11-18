@@ -264,6 +264,7 @@ function checkEvent(
   p: string,
   categoryIds: Set<string>,
   roleIds: Set<string>,
+  personIds: Set<string>,
   cycles: Map<string, Set<string>>,
   cadenceDays: number | undefined,
   inArea: boolean,
@@ -284,13 +285,23 @@ function checkEvent(
       c.str(sc, 'assumption', sp);
     }
   }
+  const named = new Set<string>();
   c.each(e.participants, `${p}.participants`, (pt, pp) => {
-    c.ref(pt, 'roleId', pp, roleIds);
+    // A participant is a role or one person invited by name (#285), never both.
+    if (pt.personId !== undefined) {
+      if (pt.roleId !== undefined) c.err(`${pp}.roleId`, 'error.participant.both');
+      if (pt.fromTeams !== undefined) c.err(`${pp}.fromTeams`, 'error.participant.both');
+      c.ref(pt, 'personId', pp, personIds);
+      if (isStr(pt.personId)) {
+        if (named.has(pt.personId)) c.err(`${pp}.personId`, 'error.id.duplicate');
+        named.add(pt.personId);
+      }
+    } else c.ref(pt, 'roleId', pp, roleIds);
     if (pt.share === undefined) c.err(`${pp}.share`, 'error.required');
     else if (!isNum(pt.share) || pt.share <= 0 || pt.share > 1)
       c.err(`${pp}.share`, 'error.share.range');
     // "Role X from every team" exists only in an area, which has teams to invite from.
-    if (pt.fromTeams !== undefined) {
+    if (pt.fromTeams !== undefined && pt.personId === undefined) {
       if (!inArea) c.err(`${pp}.fromTeams`, 'error.fromTeams.team');
       else if (typeof pt.fromTeams !== 'boolean') c.err(`${pp}.fromTeams`, 'error.type');
     }
@@ -350,6 +361,7 @@ function checkCyclesAndEvents(
   t: Obj,
   p: string,
   roleIds: Set<string>,
+  personIds: Set<string>,
   categoryIds: Set<string>,
   cadenceDays: number | undefined,
   inArea = false,
@@ -371,7 +383,7 @@ function checkCyclesAndEvents(
   const events = c.arr(t.events, `${p}.events`) ?? [];
   c.ids(events, `${p}.events`);
   c.each(events, `${p}.events`, (e, ep) =>
-    checkEvent(c, e, ep, categoryIds, roleIds, cycles, cadenceDays, inArea),
+    checkEvent(c, e, ep, categoryIds, roleIds, personIds, cycles, cadenceDays, inArea),
   );
 }
 
@@ -401,7 +413,7 @@ function checkTeam(
     }
   }
 
-  checkCyclesAndEvents(c, t, p, roleIds, categoryIds, cadenceDays);
+  checkCyclesAndEvents(c, t, p, roleIds, personIds, categoryIds, cadenceDays);
 }
 
 /**
@@ -439,6 +451,7 @@ function checkArea(
     a,
     p,
     ids.roles,
+    ids.people,
     ids.categories,
     a.cadence === undefined ? 0 : cadenceDays,
     true,

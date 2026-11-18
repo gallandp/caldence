@@ -3,6 +3,7 @@ import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
 import {
   areaAsTeam,
   attendees,
+  unfilled,
   type Area,
   type CalEvent,
   type Team,
@@ -54,8 +55,9 @@ function invitedTo(ws: Workspace, unit: Team): Set<string> {
   const out = new Set<string>();
   for (const e of unit.events)
     for (const p of e.participants) {
-      const ids = attendees(ws, unit.id, p);
-      if (ids.length === 0) out.add(`role:${unit.id}:${p.roleId}`);
+      const ids = attendees(ws, unit.id, p, e);
+      if (p.roleId !== undefined && unfilled(ws, unit.id, p))
+        out.add(`role:${unit.id}:${p.roleId}`);
       for (const id of ids) out.add(id);
     }
   return out;
@@ -165,14 +167,16 @@ export function meetingCosts(
       const perWeek =
         occurrencesPerWeek(event.rule, unit) *
         meetingCost(ws, unit, event, effectiveDuration(event, unit), rate);
-      const lists = event.participants.map((p) => attendees(ws, unit.id, p));
+      const lists = event.participants.map((p) => attendees(ws, unit.id, p, event));
       list.push({
         unitId: unit.id,
         event,
         perWeek,
         horizon: horizon.get(event.id) ?? 0,
         invited: new Set(lists.flat()).size,
-        unfilled: event.participants.filter((_, i) => lists[i]!.length === 0).map((p) => p.roleId),
+        unfilled: event.participants.flatMap((p) =>
+          p.roleId !== undefined && unfilled(ws, unit.id, p) ? [p.roleId] : [],
+        ),
       });
     }
   }

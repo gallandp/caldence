@@ -44,6 +44,9 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   },
   // 4 -> 5: teams can be grouped into areas; existing files have none.
   4: (w) => ({ ...(w as Record<string, unknown>), areas: [] }),
+  // 5 -> 6: meetings can invite people by name (#285); existing files only have roles, so
+  // nothing changes but the version, which keeps older apps from misreading new files.
+  5: (w) => w,
 };
 
 export type MigrateResult =

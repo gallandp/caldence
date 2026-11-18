@@ -246,18 +246,22 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
     );
     await expect(row.getByRole('cell')).toHaveText([...cells, total]);
   }
-  // One summary tile per role: hours, share of 40 h and FTE.
+  // One summary tile per role: hours, share of the person's weekly hours there, FTE of 40 h.
   const tiles = panel.getByRole('list', { name: 'Summary' });
   for (const r of ROLE_HOURS) {
     const tile = tiles.locator(`[data-role="${r.roleId}"]`);
     await expect(tile.locator('.label')).toHaveText(r.name);
     await expect(tile.locator('.hours')).toHaveText(fmt('en', r.hours));
     await expect(tile.locator('.sub')).toHaveText(
-      `${pct('en', r.hours / 40)} of 40 h · ${fmt('en', r.hours / 40, 2)} FTE`,
+      `${pct('en', r.hours / r.weekly)} of ${r.weekly} h · ${fmt('en', r.hours / 40, 2)} FTE`,
     );
   }
   const total = ROLE_HOURS.reduce((sum, r) => sum + r.hours, 0);
   await expect(tiles.locator('[data-total] .value')).toHaveText(`${fmt('en', total)} h / week`);
+  await expect(tiles.locator('[data-total] .sub')).toHaveText(
+    `typical week · ${fmt('en', total / 40, 2)} FTE`,
+  );
+  await expect(tiles.locator('[data-unfilled]')).toHaveCount(0);
   // Switching the language reformats the numbers.
   await setLanguage(page, 'de');
   const roleDe = page
@@ -266,6 +270,45 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
     .locator('[data-role="role-po"] .hours');
   await expect(roleDe).toHaveText(fmt('de', ROLE_HOURS[0]!.hours));
   await expect(roleDe).toHaveText('3,1');
+});
+
+test('in an area every person counts: total × rate is the weekly cost (#272)', async ({ page }) => {
+  await openView(page, 'load');
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  const rate = page.getByLabel('Hourly rate (optional)');
+  await rate.fill('100');
+  await rate.press('Enter');
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Meeting load');
+  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
+  const tiles = panel.getByRole('list', { name: 'Summary' });
+  // Kim and Lee are the Product Owners of Gamma and Delta: one tile for both, Ø per person.
+  await expect(tiles.locator('[data-role="role-po"] .sub')).toContainText(
+    /^Ø \d+% per person · 2\speople · /,
+  );
+  const total = Number((await tiles.locator('[data-total] .value').textContent())!.split(' ')[0]);
+  const cost = Number(
+    (await panel.locator('[data-cost-week] .value').textContent())!.replace(/[^\d.]/g, ''),
+  );
+  // The tile rounds to 0.1 h, the cost to whole euros.
+  expect(Math.abs(total * 100 - cost)).toBeLessThanOrEqual(5);
+  await expect(panel.locator('[data-basis]')).toContainText('typical week');
+  await expect(panel.locator('.chart .avg')).toContainText('in the planning horizon');
+});
+
+test('the Total names a role without people, counted as one person (#272)', async ({ page }) => {
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  // Team Alpha has no developer, yet its planning now invites one.
+  ws.teams[0].events[0].participants.push({ roleId: 'role-dev', share: 1 });
+  await page.clock.setFixedTime(new Date('2027-03-10T12:00:00'));
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await setLanguage(page, 'en');
+  await showView(page, 'Meeting load');
+  const total = page.getByRole('tabpanel', { name: 'Meeting load' }).locator('[data-total]');
+  await expect(total.locator('[data-unfilled]')).toHaveText(
+    'incl. 1 role without people, counted as one person',
+  );
 });
 
 test('the person filter limits the person table and the warnings to that person', async ({

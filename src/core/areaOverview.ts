@@ -195,7 +195,7 @@ export function areaMeetingHours(ws: Workspace, area: Area): AreaMeetingHours[] 
   return area.events.map((event) => {
     const perWeek = occurrencesPerWeek(event.rule, unit);
     const minutes = effectiveDuration(event, unit);
-    const lists = event.participants.map((p) => attendees(ws, area.id, p));
+    const lists = event.participants.map((p) => attendees(ws, area.id, p, event));
     const hours = event.participants.reduce(
       (sum, p, i) => sum + perWeek * occurrenceHours(event, minutes, p.share) * lists[i]!.length,
       0,

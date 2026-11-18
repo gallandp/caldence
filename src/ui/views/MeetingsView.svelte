@@ -3,7 +3,7 @@
   import { get } from 'svelte/store';
   import { meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import { areaAsTeam, type CalEvent } from '../../core/model';
+  import { areaAsTeam, participantName, type CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
@@ -110,7 +110,6 @@
     opener === 'add' ? '[data-add]' : `[data-edit="${CSS.escape(opener)}"]`;
 
   const categoryOf = (id: string) => categories.find((c) => c.id === id);
-  const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? id;
 
   // ---------- table data ----------
 
@@ -229,7 +228,7 @@
         categoryOf(e.categoryId)?.name ?? '',
         summaries.get(e.id) ?? '',
         shorts.get(e.id) ?? '',
-        ...e.participants.map((p) => roleName(p.roleId)),
+        ...e.participants.map((p) => participantName($workspace, p)),
       ].some((text) => text.toLocaleLowerCase($locale).includes(q)),
     );
   });
@@ -626,15 +625,18 @@
                       {:else}
                         <ul class="roles">
                           {#each event.participants as p, pi (pi)}
-                            {@const name = roleName(p.roleId)}
-                            {@const colour = roleOf(p.roleId)?.colour ?? '#4b5470'}
+                            {@const name = participantName($workspace, p)}
+                            {@const person = p.personId !== undefined}
+                            {@const colour =
+                              (p.roleId !== undefined && roleOf(p.roleId)?.colour) || '#4b5470'}
+                            {@const who = person ? $t('meet.person.named', { name }) : name}
                             {@const label =
                               p.share < 1
                                 ? $t('meet.role.share', {
-                                    role: name,
+                                    role: who,
                                     share: formatNumber($locale, p.share * 100, 0),
                                   })
-                                : name}
+                                : who}
                             <!-- Focusable by tap but not by Tab, so a touch screen can show the name too. -->
                             <li
                               class="role"
@@ -644,8 +646,9 @@
                             >
                               <span
                                 class="ini"
-                                style:background={colour}
-                                style:color={inkOn(colour)}
+                                class:person
+                                style:background={person ? null : colour}
+                                style:color={person ? null : inkOn(colour)}
                                 aria-hidden="true">{initials(name)}</span
                               >
                               {#if p.share < 1}<span class="share" aria-hidden="true"
@@ -964,6 +967,14 @@
     font-weight: 700;
     letter-spacing: 0.02em;
     box-shadow: 0 0 0 2px var(--surface);
+  }
+  /* A person invited by name (#285): an outlined avatar, so it reads apart from the roles. */
+  .ini.person {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow:
+      inset 0 0 0 1.5px var(--text-muted),
+      0 0 0 2px var(--surface);
   }
   .role::after {
     content: attr(data-tip);
