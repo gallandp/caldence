@@ -361,8 +361,7 @@ test('the month fits a laptop screen and keeps its roomy rows on large ones', as
 });
 
 test('meeting names wrap to two lines and the rest is counted as "+n more"', async ({ page }) => {
-  // Tall enough that the month fits above the minimum row height (the header gained room, #312).
-  await page.setViewportSize({ width: 1280, height: 830 });
+  await page.setViewportSize({ width: 1280, height: 800 });
   await openCalendar(page, '2027-01-15');
   const kickoff = cellOf(page, '2027-01-11').locator('.chip', { hasText: 'Kick-off Workshop' });
   await expect(kickoff).toBeVisible();

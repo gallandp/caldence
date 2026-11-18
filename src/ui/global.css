@@ -59,6 +59,7 @@ html.presenting [data-no-present] {
 }
 /* The what-if bar opens the page: the filters keep their own row instead of sitting beside it. */
 html.presenting #app .content > .bar.context {
+  --head-gap: 0;
   margin-bottom: 0;
   height: auto;
   padding-bottom: 0.5rem;

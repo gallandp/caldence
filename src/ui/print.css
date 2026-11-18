@@ -46,6 +46,9 @@
     border: 0;
     padding: 0 0 0.5rem;
     background: none;
+    /* Its own line on paper too, not pulled beside the headline (theme.css, wide layout). */
+    height: auto;
+    margin-bottom: 0;
   }
   #app .stack .card,
   #app .card {
