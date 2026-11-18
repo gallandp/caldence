@@ -1,10 +1,11 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
-import { fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
+import { capacity, fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
   attendees,
   unitTeamIds,
   type CalEvent,
+  type Participant,
   type Settings,
   type Team,
   type Workspace,
@@ -102,6 +103,14 @@ function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter)
   );
 }
 
+/**
+ * People a counted participant stands for: everyone in the role, one if nobody holds it yet (as
+ * cost counts them), or just the selected person.
+ */
+function heads(ws: Workspace, unitId: string, p: Participant, filter: Filter): number {
+  return filter.personId ? 1 : Math.max(1, attendees(ws, unitId, p).length);
+}
+
 /** Ids of the people in scope with a load warning, by Monday (each person once per week). */
 export function warnedWeeks(
   ws: Workspace,
@@ -135,7 +144,9 @@ function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attribu
       const byRole = record<number>();
       event.participants.forEach((p, i) => {
         if (!counts[i]) return;
-        const hours = occ.skippedHoliday ? 0 : occurrenceHours(event, occ.duration, p.share);
+        const hours = occ.skippedHoliday
+          ? 0
+          : occurrenceHours(event, occ.duration, p.share) * heads(ws, unit.id, p, filter);
         byRole[p.roleId] = (byRole[p.roleId] ?? 0) + hours;
       });
       out.push({ occ, byRole });
@@ -227,30 +238,59 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   return rows;
 }
 
+/**
+ * Typical week by category and role, counting every person in a role (an unfilled role as one).
+ * A role's percent is its hours ÷ the weekly hours of its people (an unfilled role: the default
+ * hours), so it is the average share per person; fte is the hours ÷ the default weekly hours.
+ */
 export function loadSummary(
   ws: Workspace,
   filter: Filter,
 ): {
   byCategory: { categoryId: string; hours: number }[];
-  byRole: { roleId: string; hours: number; percent: number; fte: number }[];
+  byRole: {
+    roleId: string;
+    hours: number;
+    /** People in the role (an unfilled role counts as one) and their weekly hours. */
+    people: number;
+    weekly: number;
+    percent: number;
+    fte: number;
+  }[];
   /** Hours per week by category and role (only entries that exist). */
   matrix: Record<string, Record<string, number>>;
+  /** Roles invited where nobody holds them (per unit), each counted as one person. */
+  unfilled: number;
 } {
   const roleHours = record<number>();
   const catHours = record<number>();
   const matrix = record<Record<string, number>>();
   const seenRoles = new Set<string>();
   const seenCats = new Set<string>();
+  /** People holding each role in scope; an unfilled role counts once per unit. */
+  const holders = record<Set<string>>();
+  const unfilled = record<number>();
   const hpw = ws.settings.hoursPerWeek;
   for (const unit of scopeUnits(ws, filter)) {
     // Only the participants the filter counts, so an area's "from every team" follows the person.
     const events = unit.events.map((event) => {
       seenCats.add(event.categoryId);
       const counts = counted(ws, unit.id, event, filter);
-      const participants = event.participants.filter((_, i) => counts[i]);
+      const participants = event.participants
+        .filter((_, i) => counts[i])
+        .map((p) => ({ ...p, share: p.share * heads(ws, unit.id, p, filter) }));
       for (const p of participants) seenRoles.add(p.roleId);
       return { ...event, participants };
     });
+    // Every invitation line counts; a role nobody holds on some line is unfilled once per unit.
+    const empty = new Set<string>();
+    for (const p of events.flatMap((e) => e.participants)) {
+      const ids = filter.personId ? [filter.personId] : attendees(ws, unit.id, p);
+      const set = (holders[p.roleId] ??= new Set());
+      for (const id of ids) set.add(id);
+      if (ids.length === 0) empty.add(p.roleId);
+    }
+    for (const roleId of empty) unfilled[roleId] = (unfilled[roleId] ?? 0) + 1;
     const base = weeklyBaseLoad({ ...unit, events });
     for (const [roleId, h] of Object.entries(base.byRole)) {
       roleHours[roleId] = (roleHours[roleId] ?? 0) + h;
@@ -263,8 +303,10 @@ export function loadSummary(
       }
     }
   }
+  const scope = filter.personId ? undefined : filter.teamId;
   return {
     matrix,
+    unfilled: Object.values(unfilled).reduce((a, b) => a + b, 0),
     byCategory: ws.categories
       .filter((c) => seenCats.has(c.id) || c.id in catHours)
       .map((c) => ({ categoryId: c.id, hours: catHours[c.id] ?? 0 })),
@@ -272,10 +314,15 @@ export function loadSummary(
       .filter((r) => seenRoles.has(r.id) || r.id in roleHours)
       .map((r) => {
         const hours = roleHours[r.id] ?? 0;
+        const ids = [...(holders[r.id] ?? [])];
+        const empty = unfilled[r.id] ?? 0;
+        const weekly = ids.reduce((sum, id) => sum + capacity(ws, id, scope), empty * hpw);
         return {
           roleId: r.id,
           hours,
-          percent: hpw > 0 ? (hours / hpw) * 100 : 0,
+          people: ids.length + empty,
+          weekly,
+          percent: weekly > 0 ? (hours / weekly) * 100 : 0,
           fte: fte(hours, hpw),
         };
       }),
