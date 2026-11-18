@@ -218,6 +218,32 @@ describe('teamLoad', () => {
     expect(judge(2, 3)).toMatchObject({ share: 2 / 16, warn: true });
   });
 
+  it('does not warn for area meetings without area hours when the total is under the limit', () => {
+    const t = team('alpha', sprint(2), {
+      members: [{ personId: 'alex', roleId: 'po' }],
+      memberHours: { alex: 32 },
+    });
+    const a = area(['alpha']);
+    a.events = [
+      {
+        id: 'forum',
+        name: 'PO forum',
+        categoryId: 'c1',
+        rule: { type: 'weekly', weekday: 2 },
+        time: '10:00',
+        duration: 60,
+        participants: [{ roleId: 'po', share: 1, fromTeams: true }],
+        preparation: 0,
+      },
+    ];
+    const ws = workspace([t]);
+    ws.areas = [a];
+    ws.people = [{ id: 'alex', name: 'Alex' }];
+    ws.settings.thresholds.maxFte = 0.5;
+    // 1 h of 32 h is 3 %; the 0 h in the area are warned about in Load, not outlined here.
+    expect(teamLoad(ws, t, loadPerWeek(ws, noIndex()))[0]!.warn).toBe(false);
+  });
+
   it('is 0 without members', () => {
     const t = team('alpha', sprint(2));
     const ws = workspace([t]);

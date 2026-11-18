@@ -125,7 +125,7 @@ test('the strip and the week detail judge a person on all their teams (#294)', a
   await expect(focus.getByRole('heading')).toHaveText('W3 · Team Alpha');
   await expect(focus.getByRole('columnheader', { name: 'of which in the team' })).toBeVisible();
   const alex = focus.locator('tr[data-person="person-alex"]');
-  await expect(alex.getByRole('cell')).toHaveText(['4.1', '13%', '2.8 of 16.0 h · 17%'], {
+  await expect(alex.getByRole('cell')).toHaveText(['4.1 of 32.0 h', '13%', '2.8 of 16.0 h · 17%'], {
     useInnerText: true,
   });
   await expect(alex).not.toContainText('over the limit');
@@ -139,6 +139,24 @@ test('the strip and the week detail judge a person on all their teams (#294)', a
   await expect(focus2.locator('tr[data-person="person-alex"]')).toContainText(
     '26%over the limit (15%)',
   );
+});
+
+test('area meetings without area hours do not outline every week (#294)', async ({ page }) => {
+  // The unchanged fixture: area meetings invite people "from every team" who have no area hours
+  // yet. Load warns about that; the strip and the week detail judge only the total (limit 60 %).
+  const overview = await openOverview(page);
+  const cells = overview.locator('[data-load] tbody button[data-week]');
+  await expect(cells).toHaveCount(48);
+  const outlined = await overview.locator('[data-load] tbody button[data-week].warn').count();
+  expect(outlined).toBeLessThan(48);
+  await overview.locator('tr[data-team="team-alpha"] button[data-week="2027-01-11"]').click();
+  const focus = page.locator('[data-week-focus="2027-01-11"]');
+  await expect(focus.locator('tbody tr')).toHaveCount(2);
+  for (const row of await focus.locator('tbody tr').all()) {
+    const share = await row.getByRole('cell').nth(1).innerText();
+    const percent = Number(share.match(/^(\d+)%/)![1]);
+    if (percent <= 60) await expect(row).not.toContainText('over the limit');
+  }
 });
 
 test('an area meeting opens in Meetings & cadence', async ({ page }) => {

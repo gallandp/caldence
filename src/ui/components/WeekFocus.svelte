@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { isoWeek } from '../../core/date';
-  import { aboveFte, capacity, fte, hoursIn, loadPerWeek } from '../../core/load';
+  import { capacity, fte, hoursIn, loadPerWeek, overMax } from '../../core/load';
   import { unitLoadIds } from '../../core/model';
   import { scopePeople } from '../../core/views';
   import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
@@ -37,7 +37,8 @@
           person,
           hours,
           share: cap > 0 ? fte(hours, cap) : hours > 0 ? 1 : 0,
-          over: aboveFte($workspace, week, person.id, cap),
+          cap,
+          over: overMax(hours, cap, maxFte),
           here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
         };
       });
@@ -99,7 +100,11 @@
               : $t('load.noHours')}
           <tr data-person={r.person.id} class:over={r.over}>
             <th scope="row">{r.person.name}</th>
-            <td class="num">{hours(r.hours)}</td>
+            <td class="num"
+              ><span class="long"
+                >{$t('load.hoursOf', { hours: hours(r.hours), of: hours(r.cap) })}</span
+              ><span class="short" aria-hidden="true">{hours(r.hours)}</span></td
+            >
             <td class="num"
               >{formatPercent($locale, r.share)}{#if r.over}<span class="flag"
                   >{$t('load.week.over', { max: formatPercent($locale, maxFte) })}</span
@@ -150,7 +155,7 @@
   .short {
     display: none;
   }
-  /* Phones: the part in the team shows its share only; the hours stay for screen readers. */
+  /* Phones: hours and the part in the team in short; the full text stays for screen readers. */
   @media (max-width: 600px) {
     .short {
       display: inline;
@@ -171,5 +176,13 @@
     background: var(--warn-soft);
     color: var(--warn);
     font-size: 0.78rem;
+  }
+  @media (max-width: 600px) {
+    .flag {
+      display: block;
+      width: fit-content;
+      margin: 0.25rem 0 0 auto;
+      border-radius: 0.5rem;
+    }
   }
 </style>
