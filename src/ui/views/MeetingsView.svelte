@@ -621,6 +621,17 @@
                           { n: minutes },
                         )}</span
                       >
+                      {#if event.onSite}
+                        <span class="sub place" data-place={event.id}
+                          ><svg viewBox="0 0 24 24" aria-hidden="true"
+                            ><path
+                              d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
+                            /><circle cx="12" cy="9.5" r="2.5" /></svg
+                          >{event.onSite.travel > 0
+                            ? $t('meet.place.travel', { n: event.onSite.travel })
+                            : $t('meet.place.onSite')}</span
+                        >
+                      {/if}
                     </td>
                     <td class="next c-next">
                       <span class="m-label">{$t('meet.col.next')}</span>
@@ -652,6 +663,11 @@
                           <span class="sub">{$t('meet.cost.once')}</span>
                         {:else if event.rule.type === 'cycle-milestone'}
                           <span class="sub">{$t('meet.cost.milestone')}</span>
+                        {/if}
+                        {#if event.onSite?.travel}
+                          <span class="sub" data-cost-travel
+                            >{$t('meet.cost.travel', { n: event.onSite.travel })}</span
+                          >
                         {/if}
                         {#if event.preparation > 0}
                           <span class="sub" data-cost-prep
@@ -1051,6 +1067,21 @@
   .when {
     display: block;
     white-space: nowrap;
+  }
+  .place {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .place svg {
+    width: 0.9em;
+    height: 0.9em;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .c-when .sub {
     white-space: nowrap;

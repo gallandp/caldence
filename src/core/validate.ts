@@ -281,6 +281,10 @@ function checkEvent(
   c.time(e, 'time', p);
   c.num(e, 'duration', p, { min: 0, exclusive: true, int: true, max: LIMITS.minutes });
   c.num(e, 'preparation', p, { min: 0, max: 1 });
+  if (e.onSite !== undefined) {
+    const os = c.obj(e.onSite, `${p}.onSite`);
+    if (os) c.num(os, 'travel', `${p}.onSite`, { min: 0, int: true, max: LIMITS.minutes });
+  }
   if (e.scaling !== undefined) {
     const sc = c.obj(e.scaling, `${p}.scaling`);
     if (sc) {

@@ -1,12 +1,12 @@
 # Workspace format
 
-A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams, areas and their meetings. The current schema version is `6`.
+A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams, areas and their meetings. The current schema version is `7`.
 
 ## Fields
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | integer | Schema version of the file (`6`). |
+| `schemaVersion` | integer | Schema version of the file (`7`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
 | `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
@@ -74,6 +74,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `scaling` | `{ base, perUnit, assumption, grid }`, optional | Duration grows with a team assumption: `base` plus `perUnit` per unit of `assumption`, rounded to `grid` minutes. |
 | `participants` | list of `{ roleId, share, fromTeams? }` or `{ personId, share }` | Roles and people taking part; `share` is above 0 and at most 1. Only in an area's meetings, `fromTeams: true` invites the role from every team of the area ("Product Owner from every team") instead of the area's own members with that role. In a team's meeting `fromTeams` is an error. `{ personId, share }` invites one person by name, from any team or area; each person at most once per meeting, never together with `roleId`. A person invited by name counts once, with that share, also when one of their roles is invited too. |
 | `preparation` | number, 0 to 1 | Preparation time as a fraction of the duration. |
+| `onSite` | `{ travel }`, optional | The meeting takes place on site; without it, it is remote. `travel` is an integer of minutes, 0 to 1440: the travel time there and back of everyone attending, per occurrence. It counts in load and costs like the meeting itself, weighted by `share`, but preparation does not grow it. |
 
 ## Rule types
 
@@ -91,7 +92,7 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
-Older files (schema 1 to 5) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer.
+Older files (schema 1 to 6) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). Schema 7 lets meetings take place on site with a travel time (`onSite`; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer. Schema 7 files need Caldence 1.47 or newer.
 
 ## Limits
 
@@ -126,7 +127,7 @@ A workspace file contains names of people, their working hours and your meeting 
 
 ```json
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "id": "6f1c1d52-4b0e-4f0a-9a43-0c2f6a1d8e11",
   "settings": {
     "locale": "en",

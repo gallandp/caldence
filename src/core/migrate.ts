@@ -47,6 +47,9 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   // 5 -> 6: meetings can invite people by name (#285); existing files only have roles, so
   // nothing changes but the version, which keeps older apps from misreading new files.
   5: (w) => w,
+  // 6 -> 7: meetings can take place on site with a travel time (#309); existing meetings are
+  // remote, so only the version changes, which keeps older apps from ignoring travel time.
+  6: (w) => w,
 };
 
 export type MigrateResult =

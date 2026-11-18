@@ -11,6 +11,7 @@
     'present',
     'fallback',
     'autosave',
+    'excel',
     'privacy',
   ] as const;
   const installParts = ['install', 'update'] as const;
@@ -31,6 +32,8 @@
     hideNames: 'present.hideNames',
     reset: 'whatif.reset',
     print: 'file.print',
+    exchange: 'view.exchange',
+    excel: 'exchange.xlsx.button',
   };
 </script>
 
