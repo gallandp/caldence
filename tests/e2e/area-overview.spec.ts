@@ -340,7 +340,7 @@ test('the key figure tiles and the cards keep the same gap at 1440, 1280 present
     });
   const sameGap = async () => {
     const [kpiToCost, ...others] = await gaps();
-    expect(kpiToCost).toBeGreaterThan(0);
+    expect(kpiToCost).toBeGreaterThanOrEqual(16);
     for (const gap of others) expect(gap).toBe(kpiToCost);
   };
   await page.setViewportSize({ width: 1440, height: 900 });
