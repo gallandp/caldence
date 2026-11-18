@@ -149,6 +149,9 @@
         cost: 'meet.col.cost',
         group: 'meet.group',
         scale: 'meet.scaling.enable',
+        effect: 'whatif.effect',
+        save: 'meet.save',
+        cancel: 'meet.cancel',
         categories: 'meet.categories',
       }}
     />
