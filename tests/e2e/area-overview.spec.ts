@@ -147,8 +147,7 @@ test('area meetings without area hours do not outline every week (#294)', async 
   const overview = await openOverview(page);
   const cells = overview.locator('[data-load] tbody button[data-week]');
   await expect(cells).toHaveCount(48);
-  const outlined = await overview.locator('[data-load] tbody button[data-week].warn').count();
-  expect(outlined).toBeLessThan(48);
+  await expect(overview.locator('[data-load] tbody button[data-week].warn')).toHaveCount(0);
   await overview.locator('tr[data-team="team-alpha"] button[data-week="2027-01-11"]').click();
   const focus = page.locator('[data-week-focus="2027-01-11"]');
   await expect(focus.locator('tbody tr')).toHaveCount(2);
