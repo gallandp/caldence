@@ -26,6 +26,7 @@ Status: stable, see the [latest release](https://github.com/gallandp/caldence/re
 - **Print and PDF:** prints the current view, also while presenting with its what-ifs, with one line naming the file, print date, hourly rate and planning horizon.
 - Templates for Scrum, Kanban and SAFe (with a Release Train area above the team), plus your own template files; exporting a team as a template also writes its area.
 - Calendar export and import as `.ics` files (Outlook, Google Calendar, Apple Calendar), also one file per team or area as a ZIP (with an area selected in a file with several areas, only that area and its teams); exporting again updates the entries of the earlier export in apps that support it. The export opens on what this browser exported last, or on your own person after "I take part myself" in the wizard.
+- Excel export (`.xlsx`) of the whole file for filtering and pivot tables: people per area and team with roles and hours, the areas and teams with their cadence, and all meetings. Built in the browser, no library.
 - Public holidays of all 16 German states (school holidays for Saxony so far); region files import your own holiday data.
 - Installable app that works offline and asks before updating; works on phones.
 - German and English interface; light, dark or matching the system.

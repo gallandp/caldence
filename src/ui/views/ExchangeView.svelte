@@ -21,6 +21,8 @@
   import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
+  import { xlsx } from '../../core/xlsx';
+  import { structureSheets } from '../../core/structureSheets';
   import { unitLoadIds } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
@@ -62,6 +64,8 @@
   } | null>(null);
   /** The ZIP with one calendar per team, role or person, and how many files it holds. */
   let sharedAll = $state<{ name: string; files: number } | null>(null);
+  /** The name the Excel workbook was saved under. */
+  let workbook = $state<string | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
   let exportEmpty = $state(false);
 
@@ -69,6 +73,7 @@
   function clearStatus() {
     exported = null;
     sharedAll = null;
+    workbook = null;
     imported = null;
     exportEmpty = false;
   }
@@ -303,6 +308,41 @@
     }
   }
 
+  // ---------- Excel ----------
+
+  const canWorkbook = $derived(ws.teams.length + ws.areas.length > 0);
+
+  async function exportWorkbook() {
+    if (!canWorkbook) return;
+    const sheets = structureSheets(ws, {
+      t: $t,
+      repeats: (e, unit) => ruleSummary(e.rule, unit, $t, $locale),
+      percent: (share) =>
+        $t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) }),
+    });
+    try {
+      const saved = await exportTextFile(
+        env,
+        `caldence-${slug($t('xlsx.file'))}.xlsx`,
+        xlsx(sheets, new Date()),
+        [
+          {
+            description: $t('exchange.xlsx.type'),
+            accept: {
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+            },
+          },
+        ],
+      );
+      if (saved === null) return;
+      clearStatus();
+      problem = null;
+      workbook = saved;
+    } catch {
+      fail('file.error.write');
+    }
+  }
+
   // ---------- import ----------
 
   let fileName = $state('');
@@ -418,6 +458,8 @@
         name: sharedAll.name,
         n: sharedAll.files,
       })}
+    {:else if workbook}
+      {$t('exchange.xlsx.done', { name: workbook })}
     {/if}
     {#if exported || sharedAll}
       <span>{$t('exchange.exported.next')}</span>
@@ -577,6 +619,17 @@
         </p>
       {/if}
     </form>
+  </section>
+
+  <section aria-labelledby="{uid}-xlsx-h">
+    <h3 id="{uid}-xlsx-h">{$t('exchange.xlsx')}</h3>
+    <p class="help" id="{uid}-xlsx-help">{$t('exchange.xlsx.help')}</p>
+    <button
+      type="button"
+      disabled={!canWorkbook}
+      aria-describedby="{uid}-xlsx-help"
+      onclick={exportWorkbook}>{$t('exchange.xlsx.button')}</button
+    >
   </section>
 
   <section aria-labelledby="{uid}-import-h">
