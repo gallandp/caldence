@@ -18,7 +18,6 @@
   } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
-  import AreaIcon from '../components/AreaIcon.svelte';
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import CadenceCard from '../components/CadenceCard.svelte';
   import CostCard from '../components/CostCard.svelte';
@@ -67,10 +66,6 @@
   const area = $derived($workspace.areas.find((x) => x.id === $activeTeamId));
   const team = $derived(
     $workspace.teams.find((x) => x.id === $activeTeamId) ?? (area ? areaAsTeam(area) : undefined),
-  );
-  /** The words before and after the area's name in the line under the title. */
-  const intro = $derived(
-    area ? $t('area.view.meetingsIntro', { name: '\u0000' }).split('\u0000') : [],
   );
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
@@ -381,12 +376,6 @@
   {#if !team}
     <p class="empty card">{$t('meet.none')}</p>
   {:else}
-    {#if area}
-      <p class="area-intro">
-        <span class="area-mark"><AreaIcon /></span>
-        <span>{intro[0]}<strong>{area.name}</strong>{intro[1]}</span>
-      </p>
-    {/if}
     <CadenceCard {team} {area} />
     {#if costs && rate}
       <CostCard summary={costs} {rate} cadence={team?.cadence} />
@@ -836,20 +825,6 @@
 {/if}
 
 <style>
-  .area-intro {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-    color: var(--text-muted);
-  }
-  .area-intro strong {
-    color: var(--text);
-  }
-  .area-mark {
-    display: inline-flex;
-    color: var(--area);
-  }
   .area-empty {
     max-width: 44rem;
     margin-top: 0.75rem;

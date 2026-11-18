@@ -34,7 +34,9 @@ async function addScrumOfScrums(page: Page) {
 
 test('an area plans its own meetings and invites a role from every team', async ({ page }) => {
   const panel = await openAreaMeetings(page);
-  await expect(panel.getByText(/^Meetings of Platform\. For meetings of the teams/)).toBeVisible();
+  // The eyebrow names the area; no second line under the headline repeats it (#312).
+  await expect(page.locator('#panel-meetings .eyebrow-text')).toHaveText('Platform · Area');
+  await expect(panel.getByText(/^Meetings of Platform\./)).toHaveCount(0);
   await expect(panel.getByText(/^No cadence of its own/)).toBeVisible();
 
   const form = await addScrumOfScrums(page);

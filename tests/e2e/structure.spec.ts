@@ -14,7 +14,9 @@ async function openStructure(page: Page, teams: 4 | 9 = 4) {
   await openWorkspaceFile(page, structureWorkspace({ teams }));
   await pickUnit(page, 'Payments');
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Area Payments' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Payments', exact: true }),
+  ).toBeVisible();
 }
 
 const node = (page: Page) => page.locator('.areanode');

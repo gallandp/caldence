@@ -102,7 +102,9 @@
   const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
   const scopeName = $derived(noTeams ? undefined : (activeArea ?? activeTeam)?.name);
-  const scope = $derived(`${scopeName} · ${activeArea ? $levels.area : $levels.team}`);
+  const level = $derived(activeArea ? $levels.area : $levels.team);
+  /** The Team / area page is about the unit itself: its name is the headline, the level sits above (#312). */
+  const scope = (id: ViewId) => (id === 'team' ? level : `${scopeName} · ${level}`);
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
 
@@ -587,19 +589,17 @@
             >
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id)}
-            <p class="eyebrow" title={scope}>
+            <p class="eyebrow" title={scope(id)}>
               {#if activeArea}
                 <span class="mark area"><AreaIcon /></span>
               {:else}
                 <span class="mark team" aria-hidden="true">{initials(scopeName)}</span>
               {/if}
-              <span class="eyebrow-text">{scope}</span>
+              <span class="eyebrow-text">{scope(id)}</span>
             </p>
           {/if}
           <h2 class:sr-only={id === 'calendar' && noTeams}>
-            {id === 'team' && activeArea
-              ? $t('area.view.title', { name: activeArea.name })
-              : $t(viewKey(id))}
+            {id === 'team' && scopeName !== undefined ? scopeName : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
             {#if id === 'calendar' && noTeams}
@@ -1042,7 +1042,7 @@
     container: content / inline-size;
   }
   main {
-    padding: 0 2rem 2.5rem;
+    padding: var(--head-gap, 0) 2rem 2.5rem;
   }
   main:focus {
     outline: none;
@@ -1342,7 +1342,7 @@
       margin-top: 0;
     }
     main {
-      padding: 0 1rem 2rem;
+      padding: var(--head-gap, 0) 1rem 2rem;
     }
   }
   .tabbar {
