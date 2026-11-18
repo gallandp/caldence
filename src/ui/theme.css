@@ -402,8 +402,9 @@
 #app .stack .card > :first-child > :first-child {
   margin-top: 0;
 }
-/* A view made of several cards: the wrapper itself stays plain. */
-#app [role='tabpanel'] > .stack {
+/* A view made of several cards: the wrapper itself stays plain. Also when nested, as the
+   area Overview inside the area page (#293). */
+#app .stack {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
