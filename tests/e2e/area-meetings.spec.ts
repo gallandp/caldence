@@ -42,6 +42,8 @@ test('an area plans its own meetings and invites a role from every team', async 
   await expect(form.getByText('1 person: Sam (Team Alpha)')).toBeVisible();
   await expect(form.getByText('No Scrum Master in Team Beta')).toBeVisible();
   await expect(form.getByText('Sam has 0 h in the area')).toBeVisible();
+  // The form's effect is measured in the area.
+  await expect(form.locator('.effect')).toContainText('Meeting load · Platform');
 
   // Only the area's members count without "every team": here nobody.
   await form.getByLabel('Who: Scrum Master').selectOption({ label: 'Area' });
