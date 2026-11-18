@@ -3,6 +3,9 @@ import { t, type Locale } from './index';
 
 /** Words for the two levels; `…Lc` is the form inside an English sentence (German keeps capitals). */
 export interface LevelWords {
+  /** The top level, the organisation (#313). */
+  org: string;
+  orgLc: string;
   area: string;
   areaLc: string;
   areas: string;
@@ -30,6 +33,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
     const inArea = t(locale, 'level.custom.inArea', { name: area });
     const inTeamCap = t(locale, 'level.custom.inTeamCap', { name: team });
     return {
+      org: names.organisation || t(locale, 'level.org'),
+      orgLc: names.organisation || lc(t(locale, 'level.org')),
       area,
       areaLc: area,
       areas: area,
@@ -44,6 +49,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
   }
   const word = (k: string) => t(locale, `level.${names?.preset ?? 'area'}.${k}`);
   return {
+    org: t(locale, 'level.org'),
+    orgLc: lc(t(locale, 'level.org')),
     area: word('area'),
     areaLc: lc(word('area')),
     areas: word('areas'),
@@ -60,6 +67,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
 /** Placeholders every translated text can use, e.g. `{levelTeam}`. */
 export function levelParams(w: LevelWords): Record<string, string> {
   return {
+    levelOrg: w.org,
+    levelOrgLc: w.orgLc,
     levelArea: w.area,
     levelAreaLc: w.areaLc,
     levelAreas: w.areas,

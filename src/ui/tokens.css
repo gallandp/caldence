@@ -34,6 +34,8 @@
     #7cc9bd,
     #2b6f66
   ); /* decorative only: tree and connection lines (aria-hidden) */
+  --org: light-dark(#1d4e89, #8cb8f0); /* organisation level (#313): text, icons, borders */
+  --org-soft: light-dark(#e6eef8, #142337); /* organisation level: backgrounds */
   --ok: light-dark(#0b6b47, #6fdcaa);
   --ok-soft: light-dark(#e3f5ec, #10301f);
   --side-bg: light-dark(#0e1124, #070914);

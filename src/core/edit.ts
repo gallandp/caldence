@@ -304,6 +304,16 @@ export function renameArea(ws: Workspace, areaId: string, name: string): Result<
   return v.ok ? { ok: true, value: out } : v;
 }
 
+/** Names the organisation (#313); an empty name removes it, so the level's name shows again. */
+export function renameOrganisation(ws: Workspace, name: string): Result<Workspace> {
+  const out = structuredClone(ws);
+  const text = name.trim();
+  if (text === '') delete out.organisation;
+  else out.organisation = { name: text };
+  const v = validate(out);
+  return v.ok ? { ok: true, value: out } : v;
+}
+
 /**
  * Sets an area's teams, in the order of the workspace's teams. A team can be in one area only:
  * one that was in another area leaves it. Unknown team ids are refused.

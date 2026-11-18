@@ -192,6 +192,12 @@ function checkSettings(c: Checker, v: unknown): void {
           c.err(`settings.levelNames.${k}`, 'error.required');
         else c.str(n, k, 'settings.levelNames');
       }
+      // The top level's own name is optional (#313); without it the organisation keeps its word.
+      if (n.organisation !== undefined) {
+        if (typeof n.organisation === 'string' && n.organisation.trim() === '')
+          c.err('settings.levelNames.organisation', 'error.required');
+        else c.str(n, 'organisation', 'settings.levelNames');
+      }
     }
   }
 }
@@ -548,6 +554,11 @@ export function validate(input: unknown): Result<Workspace> {
   const claimed = new Set<string>();
   const known = { roles: roleIds, people: personIds, categories: categoryIds, teams: teamIds };
   c.each(areas, 'areas', (a, p) => checkArea(c, a, p, known, claimed));
+
+  if (w.organisation !== undefined) {
+    const o = c.obj(w.organisation, 'organisation');
+    if (o) c.str(o, 'name', 'organisation');
+  }
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
   checkCustomRegions(c, w.customRegions);

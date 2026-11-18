@@ -6,11 +6,12 @@
     removeArea,
     removeTeam,
     renameArea,
+    renameOrganisation,
     updateTeam,
   } from '../core/edit';
-  import { areaOf, type Area } from '../core/model';
+  import { areaOf, hasOrgLevel, ORG_UNIT, orgName, type Area } from '../core/model';
   import { initials as nameInitials } from './avatar';
-  import { translate as t } from '../i18n';
+  import { levels, translate as t } from '../i18n';
   import AreaDialog from './AreaDialog.svelte';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
@@ -24,7 +25,18 @@
   /** The selection is a team or an area. */
   const active = $derived(teams.find((x) => x.id === $activeTeamId));
   const activeArea = $derived(areas.find((x) => x.id === $activeTeamId));
-  const current = $derived(activeArea ?? active);
+  /** The organisation (#313): the top entry once there is something to group. */
+  const showOrg = $derived(hasOrgLevel($workspace));
+  const activeOrg = $derived(showOrg && $activeTeamId === ORG_UNIT);
+  const org = $derived({ id: ORG_UNIT, name: orgName($workspace, $levels.org) });
+  const current = $derived(activeOrg ? org : (activeArea ?? active));
+  const orgCount = $derived(
+    areas.length > 0
+      ? $t(areas.length === 1 ? 'org.count.areas.one' : 'org.count.areas.other', {
+          n: areas.length,
+        })
+      : $t(teams.length === 1 ? 'area.count.one' : 'area.count.other', { n: teams.length }),
+  );
   const activeAreaOf = $derived(active ? areaOf($workspace, active.id) : undefined);
   const ungrouped = $derived(teams.filter((x) => !areaOf($workspace, x.id)));
   const teamName = (id: string) => teams.find((x) => x.id === id)?.name ?? '';
@@ -34,7 +46,7 @@
     });
 
   let dialog: HTMLDialogElement | undefined;
-  let mode = $state<'add' | 'rename' | 'renameArea'>('add');
+  let mode = $state<'add' | 'rename' | 'renameArea' | 'renameOrg'>('add');
   let areaDialog: AreaDialog | undefined = $state();
   let name = $state('');
   let error = $state('');
@@ -48,17 +60,19 @@
   const initials = $derived(nameInitials(current?.name ?? ''));
   /** Long names are cut after two lines; the tooltip keeps the whole text. */
   const pickTitle = $derived(
-    activeArea
-      ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
-      : active
-        ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
-            'team.switcher.meta',
-            {
-              kind: $t('team.cadence.kind.' + active.cadence.kind),
-              weeks: active.cadence.lengthWeeks,
-            },
-          )}`
-        : '',
+    activeOrg
+      ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
+      : activeArea
+        ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
+        : active
+          ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
+              'team.switcher.meta',
+              {
+                kind: $t('team.cadence.kind.' + active.cadence.kind),
+                weeks: active.cadence.lengthWeeks,
+              },
+            )}`
+          : '',
   );
 
   /** The list of teams and areas is a disclosure too, in the flow like the menu. */
@@ -147,23 +161,42 @@
     menu?.querySelector('button')?.focus();
   }
 
-  async function openDialog(next: 'add' | 'rename' | 'renameArea') {
+  async function openDialog(next: 'add' | 'rename' | 'renameArea' | 'renameOrg') {
     mode = next;
     name =
       next === 'rename'
         ? (active?.name ?? '')
         : next === 'renameArea'
           ? (activeArea?.name ?? '')
-          : '';
+          : next === 'renameOrg'
+            ? ($workspace.organisation?.name ?? '')
+            : '';
     error = '';
     await tick();
     dialog?.showModal();
     dialog?.querySelector<HTMLInputElement>('input')?.select();
   }
 
+  const nameLabel = $derived(
+    mode === 'renameArea'
+      ? 'area.dialog.name'
+      : mode === 'renameOrg'
+        ? 'org.dialog.name'
+        : 'team.dialog.name',
+  );
+
   function submit(event: Event) {
     event.preventDefault();
     const value = name.trim();
+    // An empty name gives the organisation its level's name back.
+    if (mode === 'renameOrg') {
+      const result = workspace.apply((ws) => renameOrganisation(ws, value));
+      if (!result.ok) {
+        error = result.errors[0]?.key ?? 'error.type';
+        return;
+      }
+      return dialog?.close();
+    }
     if (value === '') {
       error = 'team.error.empty';
       return;
@@ -230,6 +263,14 @@
   >
 {/snippet}
 
+{#snippet orgIcon()}
+  <svg viewBox="0 0 24 24" aria-hidden="true"
+    ><path
+      d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M3 21h18M8 8h3M8 12h3M8 16h3"
+    /></svg
+  >
+{/snippet}
+
 {#snippet teamOption(id: string)}
   <li>
     <button
@@ -255,7 +296,9 @@
       aria-controls="{uid}-list"
       onclick={openList}
     >
-      {#if activeArea}
+      {#if activeOrg}
+        <span class="avatar org" aria-hidden="true">{@render orgIcon()}</span>
+      {:else if activeArea}
         <span class="avatar area" aria-hidden="true">{@render areaIcon()}</span>
       {:else}
         <span class="avatar" aria-hidden="true">{initials}</span>
@@ -269,7 +312,9 @@
           ></span
         >
         <span class="meta">
-          {#if activeArea}
+          {#if activeOrg}
+            {$t('org.meta', { count: orgCount })}
+          {:else if activeArea}
             {$t('area.meta', { count: teamCount(activeArea) })}
           {:else if active}
             {#if activeAreaOf}<b>{activeAreaOf.name}</b>&#32;·&#32;
@@ -305,6 +350,20 @@
       onkeydown={onListKeydown}
       onfocusout={onListFocusout}
     >
+      {#if showOrg}
+        <button
+          type="button"
+          class="opt org"
+          aria-current={activeOrg ? 'true' : undefined}
+          onclick={() => choose(ORG_UNIT)}
+        >
+          <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
+          <!-- Not .opt-name: that class lists the teams and areas. -->
+          <span class="opt-name-org">{org.name}</span>
+          <span class="sr-only">{$t('org.option')}</span>
+          <span class="count org-count">{orgCount}</span>
+        </button>
+      {/if}
       {#if areas.length > 0}
         <ul>
           {#each areas as area (area.id)}
@@ -360,7 +419,11 @@
       >
       <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button>
       <hr />
-      {#if activeArea}
+      {#if activeOrg}
+        <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
+          >{$t('org.rename')}</button
+        >
+      {:else if activeArea}
         {@const area = activeArea}
         <button type="button" onclick={() => run(() => openDialog('renameArea'))}
           >{$t('area.rename')}</button
@@ -415,16 +478,17 @@
           ? 'team.dialog.add'
           : mode === 'rename'
             ? 'team.dialog.rename'
-            : 'area.rename',
+            : mode === 'renameOrg'
+              ? 'org.rename'
+              : 'area.rename',
       )}
     </h2>
     <div class="field">
-      <label for="{uid}-name"
-        >{$t(mode === 'renameArea' ? 'area.dialog.name' : 'team.dialog.name')}</label
-      >
+      <label for="{uid}-name">{$t(nameLabel)}</label>
       <input
         id="{uid}-name"
         type="text"
+        placeholder={mode === 'renameOrg' ? $levels.org : undefined}
         bind:value={name}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? `${uid}-err` : undefined}
@@ -432,7 +496,7 @@
       />
       {#if error}
         <p class="field-error" id="{uid}-err">
-          {$t(error, { path: $t(mode === 'renameArea' ? 'area.dialog.name' : 'team.dialog.name') })}
+          {$t(error, { path: $t(nameLabel) })}
         </p>
       {/if}
     </div>
@@ -553,6 +617,9 @@
   .avatar.area {
     background: linear-gradient(135deg, #14b8a6, #22c3ee);
   }
+  .avatar.org {
+    background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+  }
   .avatar svg {
     width: 1.1rem;
     height: 1.1rem;
@@ -639,9 +706,23 @@
     font-weight: 650;
   }
   /* In the list, names wrap in full: it is where people tell similar names apart. */
-  .opt-name {
+  .opt-name,
+  .opt-name-org {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+  /* The organisation sits above the tree, set off by a hairline. */
+  :global(#app) .switcher .list button.opt.org {
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+  }
+  .list button.org + * {
+    padding-top: 0.3rem;
+    border-top: 1px solid var(--border);
+  }
+  .count.org-count {
+    background: var(--org-soft);
+    color: var(--org);
   }
   /* Only the number: the teams are listed right below. */
   .count {

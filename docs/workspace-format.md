@@ -15,7 +15,8 @@ A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. 
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
 | `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
-| `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored on open (a malformed `view` does not keep the file from opening). Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
+| `organisation` | object, optional | The organisation the file maps, the top of the tree organisation → areas → teams: `{ "name": "Nordwind GmbH" }` (a string of at most 200 characters). One file is one organisation; without this entry the app shows the level's name ("Organisation"). Older app versions ignore it. |
+| `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area, or `@organisation` for the organisation), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored on open (a malformed `view` does not keep the file from opening). Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
 
 All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
 
@@ -32,7 +33,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
 | `thresholds` | `{ warnFactor, maxFte }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. |
 | `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Meeting load show what meetings cost; without it, no costs are shown. |
-| `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty. Without it: `area`. |
+| `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty; own names may add `"organisation": "Konzern"` for the top level (non-empty; without it "Organisation"). Without it: `area`. |
 
 ### Team
 
@@ -90,7 +91,7 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
-Older files (schema 1 to 5) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer.
+Older files (schema 1 to 5) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer.
 
 ## Limits
 

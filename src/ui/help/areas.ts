@@ -1,7 +1,16 @@
 import type { ManualControl } from './steps';
 
 /** The paragraphs of the manual's chapter on areas, in order (i18n keys `help.areas.<part>`). */
-export const AREA_PARTS = ['what', 'pages', 'drill', 'groups', 'time', 'invite', 'names'] as const;
+export const AREA_PARTS = [
+  'what',
+  'pages',
+  'drill',
+  'groups',
+  'time',
+  'invite',
+  'org',
+  'names',
+] as const;
 
 /** Labels the chapter names (placeholder -> i18n key, or `template:<id>`). */
 export const AREA_LABELS: Record<string, string> = {
@@ -19,6 +28,8 @@ export const AREA_LABELS: Record<string, string> = {
   teamOnly: 'area.group.teamOnly',
   participants: 'meet.participants',
   fromTeams: 'area.participants.fromTeams',
+  org: 'view.org',
+  rename: 'org.rename',
   settings: 'view.settings',
   names: 'settings.levels.choice',
   safe: 'template:safe',
