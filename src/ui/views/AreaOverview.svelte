@@ -390,12 +390,12 @@
         <thead>
           <tr>
             <th scope="col">{$t('overview.cost.col.unit')}</th>
-            <th scope="col">{$t('overview.cost.col.cadence')}</th>
+            <th scope="col" class="extra">{$t('overview.cost.col.cadence')}</th>
             <th scope="col" class="num">{$t('overview.cost.col.hours')}</th>
             <th scope="col">{$t('overview.cost.col.share')}</th>
             {#if rate}
               <th scope="col" class="num">{$t('overview.cost.col.cost.' + period)}</th>
-              <th scope="col" class="num">{$t('overview.cost.col.person')}</th>
+              <th scope="col" class="num extra">{$t('overview.cost.col.person')}</th>
             {/if}
           </tr>
         </thead>
@@ -418,7 +418,7 @@
                   <small data-unfilled>{unfilledNote(r.cost?.unfilled)}</small>
                 {/if}
               </th>
-              <td>{cadenceShort(unitOf(r.unitId).cadence)}</td>
+              <td class="extra">{cadenceShort(unitOf(r.unitId).cadence)}</td>
               <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
               <td>
                 <span class="share">
@@ -427,11 +427,14 @@
                     ></i><b></b></span
                   >
                   <span class="num" class:over={over(r)}>{shareText(r)}</span>
+                  <span class="cap muted" aria-hidden="true">{$t('overview.cost.col.share')}</span>
                 </span>
               </td>
               {#if rate && r.cost}
-                <td class="num strong">{euro(costOf(r.cost))}</td>
-                <td class="num muted">{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td>
+                <td class="num strong cost">{euro(costOf(r.cost))}</td>
+                <td class="num muted extra"
+                  >{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td
+                >
               {/if}
             </tr>
           {/each}
@@ -458,12 +461,12 @@
                 <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
               {/if}
             </th>
-            <td>{cadenceShort(area.cadence)}</td>
+            <td class="extra">{cadenceShort(area.cadence)}</td>
             <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
             <td></td>
             {#if rate && costs.area.cost}
-              <td class="num strong">{euro(costOf(costs.area.cost))}</td>
-              <td class="num muted"
+              <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
+              <td class="num muted extra"
                 >{costs.area.invited > 0
                   ? euro(costOf(costs.area.cost) / costs.area.invited)
                   : '–'}</td
@@ -474,7 +477,7 @@
         <tfoot>
           <tr data-cost-total>
             <th scope="row">{$t('overview.cost.total')}</th>
-            <td></td>
+            <td class="extra"></td>
             <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
             >
             <td
@@ -482,8 +485,8 @@
               <span class="muted">{$t('overview.kpi.load')}</span></td
             >
             {#if rate && costs.total.cost}
-              <td class="num">{euro(costOf(costs.total.cost))}</td>
-              <td class="num"
+              <td class="num cost">{euro(costOf(costs.total.cost))}</td>
+              <td class="num extra"
                 >{costs.total.invited > 0
                   ? euro(costOf(costs.total.cost) / costs.total.invited)
                   : '–'}</td
@@ -968,6 +971,9 @@
   .share .num {
     min-width: 3rem;
   }
+  .share .cap {
+    display: none;
+  }
   .share .num.over {
     color: var(--warn);
     font-weight: 700;
@@ -1015,6 +1021,8 @@
 
   /* ---------- cadence strip and heat map on one axis ---------- */
   .scroll {
+    /* Holds the hidden segment texts (absolute), so they do not widen the page (#281). */
+    position: relative;
     overflow-x: auto;
   }
   .scroll:focus-visible {
@@ -1360,6 +1368,14 @@
     .overview {
       --label: 6.75rem;
     }
+    :global(#app) .overview .card {
+      padding: 1rem;
+    }
+    /* The cost table becomes cards: team and cost on top, hours and share below (#281). */
+    :global(#app) [data-area-costs] table.costs {
+      min-width: 0;
+    }
+    :global(#app) [data-area-costs] thead,
     :global(#app) .meetings thead {
       position: absolute;
       width: 1px;
@@ -1367,6 +1383,7 @@
       overflow: hidden;
       clip-path: inset(50%);
     }
+    :global(#app) [data-area-costs] tr,
     :global(#app) .meetings tr {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -1376,9 +1393,32 @@
       border-radius: var(--radius);
       background: var(--surface-2);
     }
+    :global(#app) [data-area-costs] table.costs :is(th, td),
     :global(#app) .meetings td {
       padding: 0.15rem 0;
       border: 0;
+    }
+    :global(#app) [data-area-costs] tr {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      column-gap: 0.75rem;
+    }
+    :global(#app) [data-area-costs] td {
+      white-space: normal;
+    }
+    :global(#app) [data-area-costs] th[scope='row'] {
+      grid-column: 1 / 3;
+    }
+    :global(#app) [data-area-costs] .cost {
+      grid-row: 1;
+      grid-column: 3;
+    }
+    :global(#app) [data-area-costs] .extra,
+    [data-area-costs] .bar,
+    [data-area-costs] .note.below {
+      display: none;
+    }
+    [data-area-costs] .cap {
+      display: inline;
     }
     :global(#app) .meetings td.who {
       grid-column: 1 / -1;
