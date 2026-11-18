@@ -551,17 +551,17 @@
                       >
                     {:else}{m.event.name}{/if}
                   </th>
-                  <td>
+                  <td class="where">
                     {#if m.unitId === area.id}<span class="area-name"><AreaIcon /> {area.name}</span
                       >{:else}{unitName(m.unitId)}{/if}
                   </td>
-                  <td class="muted">
+                  <td class="muted when">
                     {$t('overview.costly.when', {
                       rule: ruleShort(m.event.rule, unitOf(m.unitId), $t, $locale),
                       minutes: formatNumber($locale, m.event.duration, 0),
                     })}
                   </td>
-                  <td class="num"
+                  <td class="num invited"
                     >{$t('overview.costly.people', {
                       n: formatNumber($locale, m.invited, 0),
                     })}{#if m.unfilled.length > 0}<small class="unfilled"
@@ -570,8 +570,13 @@
                         })}</small
                       >{/if}</td
                   >
-                  <td class="num strong">{euro(m.cost)}</td>
-                  <td class="num">{percent(m.shareOfAll)}</td>
+                  <td class="num strong cost">{euro(m.cost)}</td>
+                  <td class="num share-all"
+                    >{percent(m.shareOfAll)}
+                    <span class="cap muted" aria-hidden="true"
+                      >{$t('overview.costly.col.share')}</span
+                    ></td
+                  >
                 </tr>
               {/each}
             </tbody>
@@ -978,6 +983,52 @@
     display: block;
     color: var(--warn);
     font-size: 0.75rem;
+  }
+  .share-all .cap {
+    display: none;
+  }
+  /* Phones: the most expensive meetings become cards like the cost per team (#283):
+     meeting and cost on top, then where and invited, when, and the share on the right. */
+  @media (max-width: 640px) {
+    :global(#app) [data-costly] table.costs {
+      min-width: 0;
+    }
+    :global(#app) [data-costly] thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    :global(#app) [data-costly] tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) fit-content(50%);
+      column-gap: 0.75rem;
+      margin-bottom: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+    }
+    :global(#app) [data-costly] tbody :is(th, td) {
+      padding: 0.15rem 0;
+      border: 0;
+      white-space: normal;
+    }
+    :global(#app) [data-costly] tbody :is(.when, .share-all) {
+      grid-column: 1 / -1;
+    }
+    :global(#app) [data-costly] tbody .cost {
+      grid-row: 1;
+      grid-column: 2;
+    }
+    :global(#app) [data-costly] tbody .invited {
+      grid-row: 2;
+      grid-column: 2;
+    }
+    .share-all .cap {
+      display: inline;
+    }
   }
   .muted {
     color: var(--text-muted);
