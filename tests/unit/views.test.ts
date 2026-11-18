@@ -289,8 +289,11 @@ describe('loadSummary', () => {
     const ws = base();
     ws.settings.hoursPerWeek = 40;
     ws.teams[0]!.events = [{ ...ev('w', '09:00', 1200), rule: { type: 'weekly', weekday: 1 } }];
+    ws.teams[0]!.memberHours = {};
     const s = loadSummary(ws, {});
-    expect(s.byRole).toEqual([{ roleId: 'r1', hours: 20, percent: 50, fte: 0.5 }]);
+    expect(s.byRole).toEqual([
+      { roleId: 'r1', hours: 20, people: 1, weekly: 40, percent: 50, fte: 0.5 },
+    ]);
     expect(s.byCategory).toEqual([{ categoryId: 'c1', hours: 20 }]);
   });
   it('has a category by role matrix that sums to the totals', () => {
@@ -335,7 +338,66 @@ describe('loadSummary', () => {
     expect(loadSummary(ws, { personId: 'p1' }).byRole[0]!.hours).toBe(3);
     expect(loadSummary(ws, { teamId: 't2' }).byRole[0]!.hours).toBe(2);
     ws.settings.hoursPerWeek = 0;
+    for (const t of ws.teams) t.memberHours = {};
     expect(loadSummary(ws, {}).byRole[0]).toMatchObject({ percent: 0, fte: 0 });
+  });
+});
+
+describe('several people in one role (#272)', () => {
+  /** Team t1: p1 (32 h) and p2 (40 h) in role r1, nobody in r2; one weekly hour for both roles. */
+  function team(): Workspace {
+    const ws = base();
+    ws.roles.push({ id: 'r2', name: 'PO', colour: '#112233' });
+    ws.people.push({ id: 'p2', name: 'Bo' });
+    const t = ws.teams[0]!;
+    t.cycles = [];
+    t.members.push({ personId: 'p2', roleId: 'r1' });
+    t.events = [
+      {
+        ...ev('w', '09:00', 60),
+        rule: { type: 'weekly', weekday: 1 },
+        participants: [
+          { roleId: 'r1', share: 1 },
+          { roleId: 'r2', share: 1 },
+        ],
+      },
+    ];
+    return ws;
+  }
+  it('counts role hours × people, an unfilled role as one person', () => {
+    const s = loadSummary(team(), { teamId: 't1' });
+    expect(s.byRole).toEqual([
+      { roleId: 'r1', hours: 2, people: 2, weekly: 72, percent: (2 / 72) * 100, fte: 2 / 40 },
+      { roleId: 'r2', hours: 1, people: 1, weekly: 40, percent: (1 / 40) * 100, fte: 1 / 40 },
+    ]);
+    expect(s.matrix).toEqual({ c1: { r1: 2, r2: 1 } });
+    expect(s.byCategory).toEqual([{ categoryId: 'c1', hours: 3 }]);
+  });
+  it('names how many roles without people count as one person', () => {
+    expect(loadSummary(team(), { teamId: 't1' }).unfilled).toBe(1);
+    expect(loadSummary(team(), { personId: 'p1' }).unfilled).toBe(0);
+  });
+  it('counts every person in the hours of a calendar day', () => {
+    const ws = team();
+    expect(dayLoad(ws, workspaceIndex(ws), { teamId: 't1' }).get('2026-11-09')).toBe(3);
+    expect(dayLoad(ws, workspaceIndex(ws), { personId: 'p1' }).get('2026-11-09')).toBe(1);
+  });
+  it('measures a selected person against their own weekly hours', () => {
+    const s = loadSummary(team(), { personId: 'p1' });
+    expect(s.byRole).toEqual([
+      { roleId: 'r1', hours: 1, people: 1, weekly: 32, percent: (1 / 32) * 100, fte: 1 / 40 },
+    ]);
+  });
+  it('counts every person in the week rows', () => {
+    const ws = team();
+    const rows = weekRows(ws, workspaceIndex(ws), { teamId: 't1' });
+    const week = rows.find((r) => r.monday === '2026-11-09')!;
+    expect(week.byRole).toEqual({ r1: 2, r2: 1 });
+    expect(week.total).toBe(3);
+    expect(
+      weekRows(ws, workspaceIndex(ws), { personId: 'p2' }).find((r) => r.monday === '2026-11-09')!
+        .total,
+    ).toBe(1);
   });
 });
 

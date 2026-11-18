@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { attendees, missingRoles, type Area, type CalEvent } from '../../core/model';
+  import {
+    attendees,
+    missingRoles,
+    participantName,
+    type Area,
+    type CalEvent,
+  } from '../../core/model';
   import { formatNumber, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
@@ -23,14 +29,21 @@
 
 <ul class="area-roles">
   {#each event.participants as p, i (i)}
-    <li class="area-chip" class:from-teams={p.fromTeams}>
+    <li class="area-chip" class:from-teams={p.fromTeams} class:person={p.personId !== undefined}>
       {#if p.fromTeams}<span class="split-dot" aria-hidden="true"></span>{$t(
           'area.fromTeams.count',
           {
-            role: roleName(p.roleId),
-            n: formatNumber($locale, attendees(ws, area.id, p).length, 0),
+            role: participantName(ws, p),
+            n: formatNumber($locale, attendees(ws, area.id, p, event).length, 0),
           },
-        )}{:else}{roleName(p.roleId)}{/if}{shareSuffix(p.share)}
+        )}{:else if p.personId !== undefined}<svg
+          class="person-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg
+        ><span class="sr-only">{$t('meet.person.namedPrefix')}</span>{participantName(
+          ws,
+          p,
+        )}{:else}{participantName(ws, p)}{/if}{shareSuffix(p.share)}
     </li>
   {/each}
 </ul>
@@ -60,6 +73,20 @@
     color: var(--area);
     font-size: 0.78rem;
     font-weight: 600;
+  }
+  /* A person invited by name (#285): outlined, with a person glyph. */
+  .area-chip.person {
+    background: transparent;
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .person-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
   }
   .split-dot {
     width: 8px;

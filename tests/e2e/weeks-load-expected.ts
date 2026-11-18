@@ -6,10 +6,13 @@
  * so tests/unit/weeks-load-expected.test.ts checks these constants against the core.
  */
 
-/** Base load in hours per week by role (filter { teamId: 'team-alpha' }), in role order. */
-export const ROLE_HOURS: { roleId: string; name: string; hours: number }[] = [
-  { roleId: 'role-po', name: 'Product Owner', hours: 3.088461538461538 },
-  { roleId: 'role-sm', name: 'Scrum Master', hours: 2.525 },
+/**
+ * Base load in hours per week by role (filter { teamId: 'team-alpha' }), in role order, with the
+ * weekly hours of the role's one person in Team Alpha.
+ */
+export const ROLE_HOURS: { roleId: string; name: string; hours: number; weekly: number }[] = [
+  { roleId: 'role-po', name: 'Product Owner', hours: 3.088461538461538, weekly: 16 },
+  { roleId: 'role-sm', name: 'Scrum Master', hours: 2.525, weekly: 20 },
 ];
 
 /** Base load by category and role (filter { teamId: 'team-alpha' }): [id, name, hours by role id]. */
