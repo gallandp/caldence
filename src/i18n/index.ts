@@ -1,5 +1,5 @@
 import { derived, writable } from 'svelte/store';
-import type { ISODate } from '../core/date';
+import { diffDays, type ISODate } from '../core/date';
 import type { Settings } from '../core/model';
 import de from './de.json';
 import en from './en.json';
@@ -41,6 +41,21 @@ export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | '
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(utc);
 }
 
+/**
+ * The planning horizon as cost labels name it: "2027, 52 Wo." for a full calendar year,
+ * otherwise "01.03.2027–30.05.2027, 13 Wo.".
+ */
+export function formatHorizon(locale: Locale, horizon: { from: ISODate; to: ISODate }): string {
+  const { from, to } = horizon;
+  const year = from.slice(0, 4);
+  const period =
+    from === `${year}-01-01` && to === `${year}-12-31`
+      ? year
+      : `${formatDisplayDate(locale, from, 'short')}–${formatDisplayDate(locale, to, 'short')}`;
+  const n = Math.max(1, Math.round((diffDays(to, from) + 1) / 7));
+  return t(locale, n === 1 ? 'horizon.label.one' : 'horizon.label.other', { period, n });
+}
+
 export function formatNumber(locale: Locale, n: number, digits: number): string {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: digits,
@@ -70,11 +85,14 @@ export function formatPercent(locale: Locale, fraction: number): string {
 export const locale = writable<Locale>(detectLocale());
 /** The workspace's names for the two levels; App keeps it in step with settings and locale. */
 export const levels = writable<LevelWords>(levelWords(undefined, detectLocale()));
+/** The workspace's planning horizon as `formatHorizon` names it; App keeps it in step. */
+export const horizonLabel = writable('');
 /**
  * Store of a translate function; import as `translate as t` in components and use `$t(key)`.
- * Every text can use the level names as `{levelTeam}`, `{levelTeamsLc}` and so on.
+ * Every text can use the level names as `{levelTeam}`, `{levelTeamsLc}` and so on, and the
+ * planning horizon as `{planningHorizon}`, so every long-term cost names its period (#278).
  */
-export const translate = derived([locale, levels], ([$locale, $levels]) => {
-  const defaults = levelParams($levels);
+export const translate = derived([locale, levels, horizonLabel], ([$locale, $levels, $horizon]) => {
+  const defaults = { ...levelParams($levels), planningHorizon: $horizon };
   return (key: string, params?: Params) => t($locale, key, params, defaults);
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { levels, locale } from '../i18n';
+  import { formatHorizon, horizonLabel, levels, locale } from '../i18n';
   import { onMount } from 'svelte';
   import { levelWords } from '../i18n/levels';
   import { translate as t } from '../i18n';
@@ -23,6 +23,8 @@
     const names = JSON.parse(levelKey) as Parameters<typeof levelWords>[0] | null;
     levels.set(levelWords(names ?? undefined, uiLocale));
   });
+  const horizonText = $derived(formatHorizon(uiLocale, $workspace.settings.horizon));
+  $effect(() => horizonLabel.set(horizonText));
 
   const { dirty, fileName, version, presentBase } = workspace;
   let ready = $state(false);

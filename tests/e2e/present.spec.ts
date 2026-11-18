@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { openExample, openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 import { structureWorkspace } from './structure-fixture';
 
 test.use({ locale: 'en-US' });
@@ -122,6 +123,45 @@ test('a meeting what-if changes duration and rhythm; Reset brings the plan back'
   await whatIfBar(page).getByRole('button', { name: 'Reset' }).click();
   await expect(row).toContainText('15 min');
   await expect(whatIfBar(page)).toContainText('While presenting, you can change');
+});
+
+test('the what-if bar names the cost in the planning horizon; Print works while presenting', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const ws = structuredClone(example) as typeof example & { settings: { hourlyRate?: number } };
+  ws.settings.locale = 'en';
+  ws.settings.hourlyRate = 100;
+  await openWorkspaceFile(page, ws, 'plan.caldence.json');
+  await present(page);
+  await openMeetings(page);
+  const panel = page.locator('#panel-meetings');
+  await panel.getByRole('button', { name: 'What if: Weekly Sync', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Weekly Sync' });
+  await sheet.getByLabel('Duration (minutes)').fill('30');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  // Twice the time for the Product Owner and the Scrum Master: +€50 a week, every week of 2027.
+  await expect(whatIfBar(page)).toContainText(
+    /Cost \+€50 per week · \+€[\d,]+ in the planning horizon \(2027, 52\u00a0wks\)/,
+  );
+
+  await page.evaluate(() => {
+    (window as unknown as { printed: number }).printed = 0;
+    window.print = () => {
+      (window as unknown as { printed: number }).printed++;
+    };
+  });
+  await bar(page).getByRole('button', { name: 'Print', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+  // On paper the what-if bar stays, and one line says where the figures come from.
+  await page.emulateMedia({ media: 'print' });
+  await expect(whatIfBar(page)).toContainText('What if · 1 change');
+  const meta = page.locator('[data-print-meta]');
+  await expect(meta).toBeVisible();
+  expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(
+    /^"plan\.caldence\.json · printed on \d\d\/\d\d\/\d{4} · €100 per hour and person · planning horizon 2027, 52\u00a0wks"$/,
+  );
 });
 
 test('names can be hidden while presenting and come back when it ends', async ({ page }) => {
