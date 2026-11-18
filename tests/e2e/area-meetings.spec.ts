@@ -69,7 +69,7 @@ test('the area is a calendar of its own, also in the ZIP of all teams', async ({
   await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
   const panel = page.getByRole('tabpanel', { name: 'Import / Export' });
   // The selected area is preselected; its file holds its own meetings only.
-  await expect(panel.getByLabel('Selected team')).toHaveValue(/.+/);
+  await expect(panel.getByLabel('Selected team or area')).toHaveValue(/.+/);
   let download = page.waitForEvent('download');
   await panel.getByRole('button', { name: 'Export .ics…' }).click();
   let file = await download;
@@ -82,6 +82,26 @@ test('the area is a calendar of its own, also in the ZIP of all teams', async ({
   await panel.getByRole('button', { name: 'One file per team (ZIP)…' }).click();
   file = await download;
   expect(readFileSync((await file.path())!).toString('latin1')).toContain('caldence-platform.ics');
+});
+
+test('an area without own meetings leads with one file per team', async ({ page }) => {
+  await openAreaMeetings(page);
+  await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Import / Export' });
+  await expect(panel.getByLabel('Selected team or area')).toHaveValue(/.+/);
+  await expect(panel.getByRole('button', { name: 'Export .ics…' })).toBeDisabled();
+  const zip = panel.getByRole('button', { name: 'One file per team (ZIP)…' });
+  await expect(zip).toBeEnabled();
+  await expect(zip).toHaveClass(/primary/);
+  await expect(
+    panel.getByText(
+      'Platform has no meetings of its own. One file per team (ZIP)… creates a file for each team.',
+    ),
+  ).toBeVisible();
+  // A team with meetings leads with its own file again.
+  await panel.getByLabel('Selected team or area').selectOption({ label: 'Team Alpha' });
+  await expect(panel.getByRole('button', { name: 'Export .ics…' })).toHaveClass(/primary/);
+  await expect(zip).not.toHaveClass(/primary/);
 });
 
 for (const scheme of ['light', 'dark'] as const) {

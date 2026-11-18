@@ -6,7 +6,11 @@ import { CURRENT_SCHEMA, type Workspace } from './model';
 import { validateRegion } from './regionFile';
 import { isBuiltinRegion } from './regions';
 
-export type ValidationError = { path: string; key: string };
+export type ValidationError = {
+  path: string;
+  key: string;
+  params?: Record<string, string | number>;
+};
 export type Result<T> = { ok: true; value: T } | { ok: false; errors: ValidationError[] };
 
 type Obj = Record<string, unknown>;

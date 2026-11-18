@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 import {
   openExample,
   teamAction,
@@ -7,6 +8,7 @@ import {
   pickUnit,
   currentUnit,
   setLanguage,
+  openWorkspaceFile,
 } from './helpers';
 
 test.use({ locale: 'en-US' });
@@ -74,22 +76,56 @@ test('cadence length is validated inline and the draft is kept', async ({ page }
   await expect(cadence(page).getByLabel('Type')).toHaveValue('pi');
 });
 
-test('shrinking the cadence below a meeting day explains why', async ({ page }) => {
+test('a new length keeps the sprint review at the end; undo takes it back', async ({ page }) => {
   await openMeetings(page);
+  const review = panel(page).getByRole('row').filter({ hasText: 'Sprint Review' });
+  await expect(review).toContainText('Day 14 of the sprint');
+  await editCadence(page);
+  const length = cadence(page).getByLabel('Length (weeks)');
+  await length.fill('3');
+  await length.blur();
+  await expect(cadence(page).getByRole('status')).toHaveText(
+    'Kept at the end: Sprint Review: day 14 → day 21',
+  );
+  await expect(review).toContainText('Day 21 of the sprint');
+  // Planning on day 1 stays; one undo restores the length and the review.
+  await expect(panel(page).getByRole('row').filter({ hasText: 'Sprint Planning' })).toContainText(
+    'Day 1 of the sprint',
+  );
+  await panel(page).getByRole('button', { name: 'Undo' }).click();
+  await expect(cadence(page)).toContainText('Sprint · 2 weeks');
+  await expect(review).toContainText('Day 14 of the sprint');
+  await expect(cadence(page).getByRole('status')).toBeEmpty();
+  // Shrinking moves it back to the end of the shorter sprint.
+  await length.fill('1');
+  await length.blur();
+  await expect(cadence(page).getByRole('status')).toHaveText(
+    'Kept at the end: Sprint Review: day 14 → day 7',
+  );
+  await expect(review).toContainText('Day 7 of the sprint');
+});
+
+test('a meeting that cannot fit into a shorter cadence is refused inline', async ({ page }) => {
+  // Three-week sprints with the review on day 10, in the first half: it keeps its day.
+  const ws = structuredClone(example);
+  ws.settings.locale = 'en';
+  const alpha = ws.teams.find((t) => t.id === 'team-alpha')!;
+  alpha.cadence.lengthWeeks = 3;
+  alpha.events.find((e) => e.name === 'Sprint Review')!.rule = { type: 'cadence-day', day: 9 };
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await editCadence(page);
   const length = cadence(page).getByLabel('Length (weeks)');
   await length.fill('1');
   await length.blur();
   await expect(
-    cadence(page).getByText('Meeting “Sprint Review” is on day 14 and does not fit into 1 weeks.'),
+    cadence(page).getByText('Meeting “Sprint Review” is on day 10 and does not fit into 1 weeks.'),
   ).toBeVisible();
   await expect(length).toHaveAttribute('aria-invalid', 'true');
   await expect(length).toHaveAttribute('aria-describedby', /.+/);
   await expect(length).toHaveValue('1');
-  // Done drops the refused draft; the saved cadence stays.
-  await cadence(page).getByRole('button', { name: 'Done' }).click();
-  await expect(cadence(page)).toContainText('Sprint · 2 weeks');
-  await expect(cadence(page).getByText(/does not fit/)).toHaveCount(0);
+  await expect(cadence(page)).toContainText('Sprint · 3 weeks');
 });
 
 test('changing the cadence keeps an open meeting form', async ({ page }) => {

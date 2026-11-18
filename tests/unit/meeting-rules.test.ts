@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Rule, Team } from '../../src/core/model';
 import {
+  movedText,
   ruleDraft,
   ruleShort,
   ruleSummary,
@@ -137,5 +138,25 @@ describe('short rule texts', () => {
       'meet.short.cadenceDay{"day":"1","kind":"meet.kind.sprint"}',
     );
     expect(ruleShort({ type: 'once', date: '2027-01-06' }, team, tr, 'en')).toBe('meet.short.once');
+  });
+});
+
+describe('movedText', () => {
+  const t = (key: string, p?: Record<string, string | number>) => `${key} ${JSON.stringify(p)}`;
+  it('names the moved meetings, the same move together, and nothing when none moves', () => {
+    const at = (id: string, name: string, day: number) =>
+      ({ id, name, rule: { type: 'cadence-day', day } }) as unknown as Team['events'][number];
+    const events = [at('a', 'Review', 11), at('b', 'Retro', 11), at('c', 'Planning', 0)];
+    const text = movedText(
+      events,
+      new Map([
+        ['a', 18],
+        ['b', 18],
+      ]),
+      (k, p) =>
+        k === 'team.cadence.moved' ? `End: ${p!.moves}` : `${p!.names}: ${p!.from}→${p!.to}`,
+    );
+    expect(text).toBe('End: Review, Retro: 12→19');
+    expect(movedText(events, new Map(), t)).toBe('');
   });
 });
