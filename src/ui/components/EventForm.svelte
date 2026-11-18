@@ -2,10 +2,14 @@
   import { onMount, tick, untrack } from 'svelte';
   import type { Area, CalEvent, Category, Role, Team } from '../../core/model';
   import { translate as t } from '../../i18n';
-  import { localToday, workspace } from '../state/workspace';
+  import { upsertEvent } from '../../core/edit';
+  import { validate } from '../../core/validate';
+  import { effectScope, whatIfEffect } from '../../core/whatIf';
+  import { index, localToday, workspace } from '../state/workspace';
   import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import ParticipantReach from './ParticipantReach.svelte';
   import RuleFields from './RuleFields.svelte';
+  import WhatIfEffect from './WhatIfEffect.svelte';
 
   let {
     event,
@@ -202,6 +206,21 @@
       };
     return out;
   }
+
+  // The Wirkung box of present mode, live for the draft; nothing is committed here.
+  const scope = $derived(effectScope($workspace, team.id));
+  const rate = $derived($workspace.settings.hourlyRate);
+  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate) : undefined);
+  const after = $derived.by(() => {
+    if (!scope) return undefined;
+    const checked = validate(upsertEvent($workspace, team.id, build())[0]);
+    return checked.ok ? whatIfEffect(checked.value, $index, scope, rate) : undefined;
+  });
+  const scopeName = $derived(
+    $workspace.areas.find((a) => a.id === scope)?.name ??
+      $workspace.teams.find((x) => x.id === scope)?.name ??
+      '',
+  );
 
   async function submit(e: Event) {
     e.preventDefault();
@@ -518,6 +537,18 @@
       >
     </fieldset>
 
+    {#if scope}
+      <div class="live-effect">
+        <WhatIfEffect
+          {before}
+          {after}
+          {scopeName}
+          compact
+          error={after ? undefined : $t('meet.effect.invalid')}
+        />
+      </div>
+    {/if}
+
     <div class="actions">
       <button type="submit" class="primary">{$t('meet.save')}</button>
       <button type="button" onclick={cancel}>{$t('meet.cancel')}</button>
@@ -569,6 +600,9 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+  }
+  .live-effect {
+    margin-top: var(--space);
   }
   .actions {
     display: flex;

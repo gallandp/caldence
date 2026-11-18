@@ -5,6 +5,7 @@
   /**
    * The "Wirkung" box: what a change does to hours, cost, Terminlast and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
+   * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
    */
   let {
     before,
@@ -12,12 +13,14 @@
     scopeName,
     error,
     note,
+    compact = false,
   }: {
     before?: Effect;
     after?: Effect;
     scopeName: string;
     error?: string;
     note?: string;
+    compact?: boolean;
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -25,6 +28,13 @@
   const hours = (n: number) => formatNumber($locale, n, 1);
   const euro = (n: number) => formatEuro($locale, n);
   const pct = (n: number) => formatPercent($locale, n);
+  /** The compact one-line form: hours, cost per week (with a rate) and Terminlast. */
+  const line = (b: Effect, a: Effect) =>
+    $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
+      hours: signed(a.hours - b.hours, hours),
+      cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
+      share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }),
+    });
 </script>
 
 <div class="effect" aria-live="polite">
@@ -32,7 +42,12 @@
   {#if error}
     <p class="error">{error}</p>
   {:else if before && after}
-    <dl>
+    {#if compact}
+      <p class="line" aria-hidden="true">
+        {line(before, after)}
+      </p>
+    {/if}
+    <dl class:compact>
       <div>
         <dt>{$t('whatif.effect.hours')}</dt>
         <dd class:up={after.hours - before.hours > 0.004}>
@@ -110,6 +125,26 @@
   .error {
     margin: 0;
     font-weight: 600;
+  }
+  .line {
+    display: none;
+    margin: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  /* On a phone the one line stands in; the list stays for screen readers. */
+  @media (max-width: 599px) {
+    .line {
+      display: block;
+    }
+    dl.compact {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
   .note {
     margin: 0.5rem 0 0;

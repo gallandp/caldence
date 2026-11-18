@@ -578,3 +578,39 @@ test('participants are aligned rows: role, share and remove, with column heads o
   const results = await new AxeBuilder({ page }).include('#panel-meetings').analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('the form shows the effect of a change before Save; Cancel keeps the file', async ({
+  page,
+}) => {
+  await openMeetings(page);
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  const form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  const effect = form.locator('.effect');
+  // Without an hourly rate: hours and meeting load only.
+  await expect(effect).toContainText('±0.0 h per week');
+  await expect(effect.getByText('Cost', { exact: true })).toHaveCount(0);
+  // Weekly Sync: 15 minutes, Product Owner and Scrum Master. Twice as long: +0.5 h.
+  await form.getByLabel('Duration (minutes)').fill('30');
+  await expect(effect).toContainText('+0.5 h per week');
+  await expect(effect).toContainText(/Meeting load · Team Alpha\s*\d+% → \d+%/);
+  await form.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row(page, 'Weekly Sync')).toContainText('15 min');
+  await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
+
+  // With a rate, the cost per week and in the planning horizon shows as well.
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Hourly rate (optional)').fill('100');
+  await page.getByLabel('Hourly rate (optional)').press('Enter');
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  await form.getByLabel('Duration (minutes)').fill('30');
+  await expect(effect).toContainText(/\+€50 per week · \+€[\d,]+ in the planning horizon/);
+  // On a phone the box collapses to one line.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load \d+% → \d+%$/),
+  ).toBeVisible();
+  await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(row(page, 'Weekly Sync')).toContainText('30 min');
+});
