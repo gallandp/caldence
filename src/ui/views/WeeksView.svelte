@@ -19,7 +19,12 @@
   const teams = $derived(scopeUnits($workspace, $filter));
   const several = $derived(teams.length > 1);
   /** Roles in workspace order that carry hours in at least one row. */
-  const roles = $derived($workspace.roles.filter((r) => rows.some((row) => r.id in row.byRole)));
+  // Roles, then the people invited by name (#285): each has its own column.
+  const roles = $derived(
+    [...$workspace.roles, ...$workspace.people].filter((r) =>
+      rows.some((row) => r.id in row.byRole),
+    ),
+  );
   const currentMonday = mondayOf(localToday());
 
   const teamName = (id: string): string => teams.find((x) => x.id === id)?.name ?? id;

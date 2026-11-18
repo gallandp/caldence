@@ -29,7 +29,13 @@
   import AreaIcon from '../components/AreaIcon.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
   import WeeksView from './WeeksView.svelte';
-  import { units, type CalEvent, type Category, type Team } from '../../core/model';
+  import {
+    participantName,
+    units,
+    type CalEvent,
+    type Category,
+    type Team,
+  } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
   import { filter, index, localToday, workspace } from '../state/workspace';
@@ -167,9 +173,7 @@
         // An area meeting always names its area, so it stands out from the teams' meetings.
         area || severalTeams ? (team?.name ?? o.teamId) : undefined,
       ].filter(Boolean);
-      const roles = (event?.participants ?? []).map(
-        (p) => $workspace.roles.find((r) => r.id === p.roleId)?.name ?? p.roleId,
-      );
+      const roles = (event?.participants ?? []).map((p) => participantName($workspace, p));
       return {
         key: `${o.teamId}/${o.eventId}`,
         teamId: o.teamId,

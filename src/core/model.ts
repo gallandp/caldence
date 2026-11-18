@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 5;
+export const CURRENT_SCHEMA = 6;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -63,10 +63,44 @@ export type Rule =
   | { type: 'once'; date: ISODate };
 
 /**
- * Who attends a meeting: everyone with the role in the unit. In an area, `fromTeams` also invites
- * everyone with the role in every team of the area ("Product Owner from every team").
+ * A role invited to a meeting: everyone with the role in the unit. In an area, `fromTeams` also
+ * invites everyone with the role in every team of the area ("Product Owner from every team").
  */
-export type Participant = CalEvent['participants'][number];
+export interface RoleParticipant {
+  roleId: string;
+  share: number;
+  fromTeams?: boolean;
+  personId?: undefined;
+}
+
+/**
+ * One person invited by name, from any team or area (#285). They count once, with this share,
+ * also when one of their roles is invited to the same meeting.
+ */
+export interface PersonParticipant {
+  personId: string;
+  share: number;
+  roleId?: undefined;
+  fromTeams?: undefined;
+}
+
+/** Who attends a meeting: a role or one person. */
+export type Participant = RoleParticipant | PersonParticipant;
+
+/**
+ * The key a participant's hours are listed under in per-role figures: the role, or the person
+ * invited by name (role and person ids never collide).
+ */
+export function participantKey(p: Participant): string {
+  return p.personId !== undefined ? p.personId : p.roleId;
+}
+
+/** The name a participant is shown with: the role's, or the person's. */
+export function participantName(ws: Workspace, p: Participant): string {
+  const key = participantKey(p);
+  const list: { id: string; name: string }[] = p.personId !== undefined ? ws.people : ws.roles;
+  return list.find((x) => x.id === key)?.name ?? key;
+}
 
 export interface CalEvent {
   id: string;
@@ -76,7 +110,7 @@ export interface CalEvent {
   time: Time;
   duration: number;
   scaling?: { base: number; perUnit: number; assumption: string; grid: number };
-  participants: { roleId: string; share: number; fromTeams?: boolean }[];
+  participants: Participant[];
   preparation: number;
 }
 
@@ -210,11 +244,14 @@ export function units(ws: Workspace): Team[] {
 }
 
 /**
- * The people a participant stands for in a unit, each once: the unit's members with the role
- * and, for "from every team" in an area, the members with the role in each of its teams.
- * Resolved on every call, so it follows the teams as they change.
+ * The people with a role participant's role in a unit, each once: the unit's members with the
+ * role and, for "from every team" in an area, the members with the role in each of its teams.
+ * Resolved on every call, so it follows the teams as they change. A person participant: the
+ * person, if they still exist.
  */
-export function attendees(ws: Workspace, unitId: string, p: Participant): string[] {
+export function holders(ws: Workspace, unitId: string, p: Participant): string[] {
+  if (p.personId !== undefined)
+    return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
   const area = ws.areas.find((a) => a.id === unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
   const lists = [own?.members ?? []];
@@ -222,6 +259,37 @@ export function attendees(ws: Workspace, unitId: string, p: Participant): string
     for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
   const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
   return [...new Set(ids)];
+}
+
+/** People the meeting invites by name. */
+export function namedPeople(event: CalEvent): Set<string> {
+  return new Set(event.participants.flatMap((p) => (p.personId !== undefined ? [p.personId] : [])));
+}
+
+/**
+ * The people a participant of `event` counts in a unit: its holders, without the people the
+ * meeting also invites by name (they count once, on their own row, #285).
+ */
+export function attendees(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  event: CalEvent,
+): string[] {
+  const ids = holders(ws, unitId, p);
+  if (p.personId !== undefined) return ids;
+  const named = namedPeople(event);
+  return named.size === 0 ? ids : ids.filter((id) => !named.has(id));
+}
+
+/** A role participant that nobody holds in the unit: it counts as one person for the cost. */
+export function unfilled(ws: Workspace, unitId: string, p: Participant): boolean {
+  return p.personId === undefined && holders(ws, unitId, p).length === 0;
+}
+
+/** Everyone a meeting counts in a unit, each once. */
+export function eventAttendees(ws: Workspace, unitId: string, event: CalEvent): string[] {
+  return [...new Set(event.participants.flatMap((p) => attendees(ws, unitId, p, event)))];
 }
 
 /** Teams of the area in which nobody holds a role that the meeting invites "from every team". */
@@ -232,7 +300,7 @@ export function missingRoles(
 ): { teamId: string; roleId: string }[] {
   const out: { teamId: string; roleId: string }[] = [];
   for (const p of event.participants) {
-    if (!p.fromTeams) continue;
+    if (p.personId !== undefined || !p.fromTeams) continue;
     for (const t of ws.teams) {
       if (area.teamIds.includes(t.id) && !t.members.some((m) => m.roleId === p.roleId))
         out.push({ teamId: t.id, roleId: p.roleId });
@@ -253,9 +321,7 @@ export function areasInScope(
   return ws.areas
     .filter((a) =>
       personId
-        ? a.events.some((e) =>
-            e.participants.some((p) => attendees(ws, a.id, p).includes(personId)),
-          )
+        ? a.events.some((e) => eventAttendees(ws, a.id, e).includes(personId))
         : teamId === undefined || a.id === teamId,
     )
     .map(areaAsTeam);

@@ -3,6 +3,8 @@ import { fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
   attendees,
+  namedPeople,
+  participantKey,
   unitTeamIds,
   type CalEvent,
   type Settings,
@@ -57,8 +59,14 @@ export function schoolHolidayGap(ws: Workspace, index: HolidayIndex): Region | n
  * otherwise the team filter, otherwise all teams.
  */
 export function scopeTeams(ws: Workspace, filter: Filter): Team[] {
-  if (filter.personId) {
-    return ws.teams.filter((t) => t.members.some((m) => m.personId === filter.personId));
+  const personId = filter.personId;
+  if (personId) {
+    // Their own teams, and the teams whose meetings invite them by name (#285).
+    return ws.teams.filter(
+      (t) =>
+        t.members.some((m) => m.personId === personId) ||
+        t.events.some((e) => namedPeople(e).has(personId)),
+    );
   }
   if (!filter.teamId) return ws.teams;
   const ids = new Set(unitTeamIds(ws, filter.teamId));
@@ -97,7 +105,7 @@ function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter)
   const personId = filter.personId;
   return event.participants.map((p) =>
     personId
-      ? attendees(ws, unitId, p).includes(personId)
+      ? attendees(ws, unitId, p, event).includes(personId)
       : !filter.roleId || p.roleId === filter.roleId,
   );
 }
@@ -136,7 +144,8 @@ function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attribu
       event.participants.forEach((p, i) => {
         if (!counts[i]) return;
         const hours = occ.skippedHoliday ? 0 : occurrenceHours(event, occ.duration, p.share);
-        byRole[p.roleId] = (byRole[p.roleId] ?? 0) + hours;
+        const key = participantKey(p);
+        byRole[key] = (byRole[key] ?? 0) + hours;
       });
       out.push({ occ, byRole });
     }
@@ -232,6 +241,7 @@ export function loadSummary(
   filter: Filter,
 ): {
   byCategory: { categoryId: string; hours: number }[];
+  /** Per role, then per person invited by name: `roleId` is then the person's id. */
   byRole: { roleId: string; hours: number; percent: number; fte: number }[];
   /** Hours per week by category and role (only entries that exist). */
   matrix: Record<string, Record<string, number>>;
@@ -248,7 +258,7 @@ export function loadSummary(
       seenCats.add(event.categoryId);
       const counts = counted(ws, unit.id, event, filter);
       const participants = event.participants.filter((_, i) => counts[i]);
-      for (const p of participants) seenRoles.add(p.roleId);
+      for (const p of participants) seenRoles.add(participantKey(p));
       return { ...event, participants };
     });
     const base = weeklyBaseLoad({ ...unit, events });
@@ -268,7 +278,8 @@ export function loadSummary(
     byCategory: ws.categories
       .filter((c) => seenCats.has(c.id) || c.id in catHours)
       .map((c) => ({ categoryId: c.id, hours: catHours[c.id] ?? 0 })),
-    byRole: ws.roles
+    // Roles first, then the people invited by name (#285), each under its own key.
+    byRole: [...ws.roles, ...ws.people]
       .filter((r) => seenRoles.has(r.id) || r.id in roleHours)
       .map((r) => {
         const hours = roleHours[r.id] ?? 0;

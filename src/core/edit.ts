@@ -1,6 +1,7 @@
 import { mondayOf, type ISODate } from './date';
 import {
   areaAsTeam,
+  participantKey,
   type Cadence,
   type CalEvent,
   type Category,
@@ -138,8 +139,10 @@ function uniqueBy<T>(list: T[], key: (x: T) => string): T[] {
 function mergeParticipants(list: CalEvent['participants']): CalEvent['participants'] {
   const out: CalEvent['participants'] = [];
   for (const p of list) {
-    const hit = out.find((o) => o.roleId === p.roleId);
-    if (hit) {
+    const hit = out.find((o) => participantKey(o) === participantKey(p));
+    // One person invited twice by name attends once, with the larger share.
+    if (hit && p.personId !== undefined) hit.share = Math.max(hit.share, p.share);
+    else if (hit) {
       hit.share = Math.min(1, hit.share + p.share);
       // "From every team" reaches the area's members too, so the merged entry keeps it.
       if (p.fromTeams) hit.fromTeams = true;
@@ -181,6 +184,13 @@ export function removeItem(
       delete t.memberHours[id];
       if (replacementId && hours !== undefined && !wasMember)
         t.memberHours = Object.assign(record<number>(), t.memberHours, { [replacementId]: hours });
+      // Meetings that invite the person by name invite the replacement, or no longer them.
+      for (const e of t.events)
+        e.participants = mergeParticipants(
+          e.participants.flatMap((p) =>
+            p.personId !== id ? [p] : replacementId ? [{ ...p, personId: replacementId }] : [],
+          ),
+        );
     }
     return { ok: true, value: out };
   }

@@ -29,7 +29,10 @@
   const weeks = $derived(loadPerWeek($workspace, $index));
   const hpw = $derived($workspace.settings.hoursPerWeek);
 
-  const roleName = (id: string): string => $workspace.roles.find((r) => r.id === id)?.name ?? id;
+  /** A role's name, or the name of a person invited by name (#285). */
+  const roleName = (id: string): string =>
+    ($workspace.roles.find((r) => r.id === id) ?? $workspace.people.find((p) => p.id === id))
+      ?.name ?? id;
   const categoryName = (id: string): string =>
     $workspace.categories.find((c) => c.id === id)?.name ?? id;
 

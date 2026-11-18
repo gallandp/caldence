@@ -1,6 +1,6 @@
 <script lang="ts">
   import { areaHours } from '../../core/load';
-  import { attendees, missingRoles, type Area, type Workspace } from '../../core/model';
+  import { holders, missingRoles, type Area, type Workspace } from '../../core/model';
   import { translate as t } from '../../i18n';
 
   /**
@@ -12,12 +12,15 @@
     area,
     roleId,
     fromTeams,
+    named = [],
     onSetHours,
   }: {
     ws: Workspace;
     area: Area;
     roleId: string;
     fromTeams: boolean;
+    /** People the meeting invites by name: they count on their own row, not here. */
+    named?: string[];
     onSetHours?: () => void;
   } = $props();
 
@@ -25,7 +28,7 @@
   const MAX = 6;
 
   const participant = $derived({ roleId, share: 1, fromTeams });
-  const people = $derived(attendees(ws, area.id, participant));
+  const people = $derived(holders(ws, area.id, participant).filter((id) => !named.includes(id)));
   const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const roleName = $derived(ws.roles.find((r) => r.id === roleId)?.name ?? roleId);
 
