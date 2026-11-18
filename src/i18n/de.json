@@ -311,6 +311,7 @@
   "area.participants.resolved.other": "{n} Personen: {names}",
   "area.participants.more": "+ {n} weitere",
   "area.participants.nobody": "Noch niemand mit dieser Rolle",
+  "area.participants.allNamed": "Alle mit dieser Rolle sind einzeln eingeladen und zählen dort",
   "area.participants.noHours.one": "{names} hat 0 h {levelInArea}",
   "area.participants.noHours.other": "{names} haben 0 h {levelInArea}",
   "area.participants.setHours": "Stunden setzen",

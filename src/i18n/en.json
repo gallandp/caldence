@@ -311,6 +311,7 @@
   "area.participants.resolved.other": "{n} people: {names}",
   "area.participants.more": "+ {n} more",
   "area.participants.nobody": "Nobody has this role yet",
+  "area.participants.allNamed": "Everyone with this role is invited by name and counts there",
   "area.participants.noHours.one": "{names} has 0 h {levelInArea}",
   "area.participants.noHours.other": "{names} have 0 h {levelInArea}",
   "area.participants.setHours": "Set hours",

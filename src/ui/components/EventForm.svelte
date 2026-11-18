@@ -8,6 +8,7 @@
     type Role,
     type Team,
   } from '../../core/model';
+  import { areaHours } from '../../core/load';
   import { translate as t } from '../../i18n';
   import { localToday, workspace } from '../state/workspace';
   import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
@@ -627,7 +628,9 @@
                     aria-invalid={invalid(`people.${i}.personId`)}
                     aria-describedby={describe(
                       `people.${i}.personId`,
-                      also.length > 0 ? `${uid}-also-${p.key}` : undefined,
+                      [`${uid}-people-hint`, also.length > 0 ? `${uid}-also-${p.key}` : '']
+                        .filter(Boolean)
+                        .join(' '),
                     )}
                   >
                     {#if herePeople.length > 0}
@@ -675,6 +678,17 @@
                 {#if also.length > 0}
                   <p class="also" id="{uid}-also-{p.key}">
                     {$t('meet.people.alsoRole', { role: also.join(', ') })}
+                  </p>
+                {/if}
+                <!-- Area time without hours there counts as over the limit, as for "from every team". -->
+                {#if area && areaHours($workspace, area.id, p.personId) === 0}
+                  <p class="also no-hours" role="note">
+                    {$t('area.participants.noHours.one', { names: personName(p.personId) })}
+                    {#if onSetHours}
+                      <button type="button" class="link" onclick={onSetHours}
+                        >{$t('area.participants.setHours')}</button
+                      >
+                    {/if}
                   </p>
                 {/if}
               </li>
@@ -815,6 +829,25 @@
   .also {
     font-size: 0.8rem;
     color: var(--text-muted);
+  }
+  .no-hours {
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 600;
+  }
+  :global(#app) .no-hours button.link {
+    border: 0;
+    background: none;
+    padding: 0;
+    min-height: 0;
+    min-width: 0;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
   .part-grid > .field-error {
     grid-column: 1 / -1;

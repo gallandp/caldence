@@ -10,7 +10,7 @@
     overMax,
     warnings,
   } from '../../core/load';
-  import { unitLoadIds } from '../../core/model';
+  import { keyName, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -30,9 +30,7 @@
   const hpw = $derived($workspace.settings.hoursPerWeek);
 
   /** A role's name, or the name of a person invited by name (#285). */
-  const roleName = (id: string): string =>
-    ($workspace.roles.find((r) => r.id === id) ?? $workspace.people.find((p) => p.id === id))
-      ?.name ?? id;
+  const roleName = (id: string): string => keyName($workspace, id);
   const categoryName = (id: string): string =>
     $workspace.categories.find((c) => c.id === id)?.name ?? id;
 

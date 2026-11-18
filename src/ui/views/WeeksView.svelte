@@ -2,6 +2,7 @@
   import { onMount, type Snippet } from 'svelte';
   import { mondayOf } from '../../core/date';
   import { loadPerWeek, warnings } from '../../core/load';
+  import { keyName, participantKey } from '../../core/model';
   import { schoolHolidayGap, scopeUnits, warnedWeeks, weekRows } from '../../core/views';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { filter, index, localToday, workspace } from '../state/workspace';
@@ -18,12 +19,18 @@
   /** Teams in scope and, with an area selected, the area: their cadences are marked. */
   const teams = $derived(scopeUnits($workspace, $filter));
   const several = $derived(teams.length > 1);
-  /** Roles in workspace order that carry hours in at least one row. */
-  // Roles, then the people invited by name (#285): each has its own column.
+  /**
+   * Roles in workspace order that carry hours in at least one row, then the people invited by
+   * name (#285): each has its own column, `id` being its participantKey.
+   */
   const roles = $derived(
-    [...$workspace.roles, ...$workspace.people].filter((r) =>
-      rows.some((row) => r.id in row.byRole),
-    ),
+    [
+      ...$workspace.roles.map((r) => ({ id: r.id, name: r.name })),
+      ...$workspace.people.map((x) => {
+        const id = participantKey({ personId: x.id, share: 1 });
+        return { id, name: keyName($workspace, id) };
+      }),
+    ].filter((r) => rows.some((row) => r.id in row.byRole)),
   );
   const currentMonday = mondayOf(localToday());
 

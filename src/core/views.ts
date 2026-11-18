@@ -241,7 +241,7 @@ export function loadSummary(
   filter: Filter,
 ): {
   byCategory: { categoryId: string; hours: number }[];
-  /** Per role, then per person invited by name: `roleId` is then the person's id. */
+  /** Per role, then per person invited by name: `roleId` is then a participantKey. */
   byRole: { roleId: string; hours: number; percent: number; fte: number }[];
   /** Hours per week by category and role (only entries that exist). */
   matrix: Record<string, Record<string, number>>;
@@ -279,12 +279,15 @@ export function loadSummary(
       .filter((c) => seenCats.has(c.id) || c.id in catHours)
       .map((c) => ({ categoryId: c.id, hours: catHours[c.id] ?? 0 })),
     // Roles first, then the people invited by name (#285), each under its own key.
-    byRole: [...ws.roles, ...ws.people]
-      .filter((r) => seenRoles.has(r.id) || r.id in roleHours)
-      .map((r) => {
-        const hours = roleHours[r.id] ?? 0;
+    byRole: [
+      ...ws.roles.map((r) => r.id),
+      ...ws.people.map((x) => participantKey({ personId: x.id, share: 1 })),
+    ]
+      .filter((key) => seenRoles.has(key) || key in roleHours)
+      .map((key) => {
+        const hours = roleHours[key] ?? 0;
         return {
-          roleId: r.id,
+          roleId: key,
           hours,
           percent: hpw > 0 ? (hours / hpw) * 100 : 0,
           fte: fte(hours, hpw),

@@ -28,7 +28,8 @@
   const MAX = 6;
 
   const participant = $derived({ roleId, share: 1, fromTeams });
-  const people = $derived(holders(ws, area.id, participant).filter((id) => !named.includes(id)));
+  const all = $derived(holders(ws, area.id, participant));
+  const people = $derived(all.filter((id) => !named.includes(id)));
   const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const roleName = $derived(ws.roles.find((r) => r.id === roleId)?.name ?? roleId);
 
@@ -72,8 +73,10 @@
 </script>
 
 <div class="reach">
-  {#if people.length === 0}
+  {#if all.length === 0}
     <p class="who">{$t('area.participants.nobody')}</p>
+  {:else if people.length === 0}
+    <p class="who">{$t('area.participants.allNamed')}</p>
   {:else if fromTeams}
     <p class="who">
       <span class="dot" aria-hidden="true"></span>{$t(

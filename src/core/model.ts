@@ -87,19 +87,27 @@ export interface PersonParticipant {
 /** Who attends a meeting: a role or one person. */
 export type Participant = RoleParticipant | PersonParticipant;
 
-/**
- * The key a participant's hours are listed under in per-role figures: the role, or the person
- * invited by name (role and person ids never collide).
- */
+/** Prefix of a person's key in per-role figures: role and person ids may be equal in a file. */
+const PERSON_KEY = 'person:';
+
+/** The key a participant's hours are listed under in per-role figures: the role, or the person. */
 export function participantKey(p: Participant): string {
-  return p.personId !== undefined ? p.personId : p.roleId;
+  return p.personId !== undefined ? PERSON_KEY + p.personId : p.roleId;
+}
+
+/** The name behind a key of participantKey: the role's, or the person's. */
+export function keyName(ws: Workspace, key: string): string {
+  const person = key.startsWith(PERSON_KEY) ? key.slice(PERSON_KEY.length) : undefined;
+  const hit =
+    person !== undefined
+      ? ws.people.find((x) => x.id === person)
+      : ws.roles.find((x) => x.id === key);
+  return hit?.name ?? person ?? key;
 }
 
 /** The name a participant is shown with: the role's, or the person's. */
 export function participantName(ws: Workspace, p: Participant): string {
-  const key = participantKey(p);
-  const list: { id: string; name: string }[] = p.personId !== undefined ? ws.people : ws.roles;
-  return list.find((x) => x.id === key)?.name ?? key;
+  return keyName(ws, participantKey(p));
 }
 
 export interface CalEvent {

@@ -141,9 +141,21 @@ describe('people invited by name (#285)', () => {
     const summary = loadSummary(ws, { teamId: 'alpha' });
     expect(summary.byRole.map((r) => [r.roleId, r.hours])).toEqual([
       ['dev', 1],
-      ['bo', 0.5],
+      ['person:bo', 0.5],
     ]);
     expect(participantName(ws, { personId: 'bo', share: 1 })).toBe('BO');
+  });
+
+  it('keeps a person apart from a role with the same id', () => {
+    const ws = workspace(refinement([{ personId: 'dev', share: 0.5 }]));
+    ws.people.push({ id: 'dev', name: 'Devon' });
+    ws.teams[1]!.members.push({ personId: 'dev', roleId: 'arch' });
+    expect(validate(ws).ok).toBe(true);
+    const summary = loadSummary(ws, { teamId: 'alpha' });
+    expect(summary.byRole.map((r) => [r.roleId, r.hours])).toEqual([
+      ['dev', 1],
+      ['person:dev', 0.5],
+    ]);
   });
 
   it('exports the meeting into the named person’s calendar and names them', () => {
