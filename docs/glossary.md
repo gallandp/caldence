@@ -34,7 +34,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **Anteil in Terminen** | share in meetings | Every share column / bar | — |
 | **über Grenze** | over the limit | A person or week above the one Grenze, judged on all of the person's {levelTeams} and the {levelArea} in every scope | "Überlast" |
 | **Platz bis Grenze (Termine)** | room before limit (meetings) | Hours per week that still fit into meetings before the Grenze (was "Frei bis Grenze") | Free working time |
-| **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
+| **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
 | **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
 | **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |

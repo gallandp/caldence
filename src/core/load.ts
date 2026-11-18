@@ -204,6 +204,27 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
 }
 
 /**
+ * The person is over the limit (thresholds.maxFte) in this week: all their meeting hours against
+ * their hours in all their teams and areas, or an area's meetings against their hours in that
+ * area. One rule for the warnings, the Calendar, the week detail and the area overview, judged
+ * like the people table, so a person is over the limit everywhere or nowhere (#273, #294).
+ */
+export function aboveFte(
+  ws: Workspace,
+  week: WeekLoad,
+  personId: string,
+  hoursPerWeek = capacity(ws, personId),
+): boolean {
+  const { maxFte } = ws.settings.thresholds;
+  return (
+    overMax(week.byPerson[personId] ?? 0, hoursPerWeek, maxFte) ||
+    ws.areas.some((a) =>
+      overMax(week.byTeamPerson[a.id]?.[personId] ?? 0, areaHours(ws, a.id, personId), maxFte),
+    )
+  );
+}
+
+/**
  * Flags weeks above warnFactor x the person's usual load and weeks above maxFte. The usual load
  * of a week is the person's average, or their recurring meetings that week if that is more, so
  * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
@@ -214,8 +235,7 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
  * without an entry) are flagged even when their team hours would cover them.
  */
 export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
-  const { warnFactor, maxFte } = ws.settings.thresholds;
-  const tooMuch = (hours: number, capacity: number) => overMax(hours, capacity, maxFte);
+  const { warnFactor } = ws.settings.thresholds;
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
@@ -227,12 +247,8 @@ export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
       if (average > 0 && hours > warnFactor * usual) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
-      const over =
-        tooMuch(hours, hoursPerWeek) ||
-        ws.areas.some((a) =>
-          tooMuch(week.byTeamPerson[a.id]?.[person.id] ?? 0, areaHours(ws, a.id, person.id)),
-        );
-      if (over) result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
+      if (aboveFte(ws, week, person.id, hoursPerWeek))
+        result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
     }
   }
   return result.sort(

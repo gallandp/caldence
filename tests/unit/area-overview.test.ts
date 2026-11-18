@@ -191,6 +191,33 @@ describe('teamLoad', () => {
     expect(cells[0]!.warn).toBe(true);
   });
 
+  it('judges a person in two teams on all their meetings ÷ all their hours (#294)', () => {
+    // Alex is PO in Alpha and Beta, 16 + 16 h, limit 15 %.
+    const refinement = (hours: number) => ({
+      id: `e${hours}`,
+      name: 'Refinement',
+      categoryId: 'c1',
+      rule: { type: 'weekly' as const, weekday: 2 },
+      time: '10:00',
+      duration: hours * 60,
+      participants: [{ roleId: 'po', share: 1 }],
+      preparation: 0,
+    });
+    const member = { members: [{ personId: 'alex', roleId: 'po' }], memberHours: { alex: 16 } };
+    const judge = (alpha: number, beta: number) => {
+      const a = team('alpha', sprint(2), { ...member, events: [refinement(alpha)] });
+      const b = team('beta', sprint(2), { ...member, events: [refinement(beta)] });
+      const ws = workspace([a, b]);
+      ws.people = [{ id: 'alex', name: 'Alex' }];
+      ws.settings.thresholds.maxFte = 0.15;
+      return teamLoad(ws, a, loadPerWeek(ws, noIndex()))[0]!;
+    };
+    // 3 h of Alpha's 16 h is 19 %, but 4 h of 32 h is 12.5 %: not over the limit.
+    expect(judge(3, 1)).toMatchObject({ share: 3 / 16, warn: false });
+    // 2 h of 16 h is 12.5 % in Alpha, but 5 h of 32 h is 15.6 %: over the limit there too.
+    expect(judge(2, 3)).toMatchObject({ share: 2 / 16, warn: true });
+  });
+
   it('is 0 without members', () => {
     const t = team('alpha', sprint(2));
     const ws = workspace([t]);

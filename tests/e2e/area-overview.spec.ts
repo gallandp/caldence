@@ -96,6 +96,51 @@ test('a load cell opens Load for that team and week', async ({ page }) => {
   await expect(focus).toBeHidden();
 });
 
+test('the strip and the week detail judge a person on all their teams (#294)', async ({ page }) => {
+  // Alex is Product Owner in Alpha and Beta (16 + 16 h), the limit is 15 %. Without area meetings
+  // and area hours only the team meetings count.
+  const overview = await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.15;
+    const payments = ws.areas[0] as {
+      members: { personId: string }[];
+      memberHours: Record<string, number>;
+      events: unknown[];
+    };
+    payments.members = payments.members.filter((m) => m.personId !== 'person-alex');
+    delete payments.memberHours['person-alex'];
+    payments.events = [];
+  });
+  const alpha = overview.locator('tr[data-team="team-alpha"]');
+  // W3: 2.75 h in Alpha is 17 % of 16 h, but 4.1 h of 32 h is 13 %: not over the limit.
+  const w3 = alpha.locator('button[data-week="2027-01-18"]');
+  await expect(w3).toHaveAccessibleName(/^Team Alpha, W3: \d+% in meetings\. Open Meeting load$/);
+  await expect(w3).not.toHaveClass(/warn/);
+  // W2: 8.2 h of 32 h is 26 %: over the limit.
+  const w2 = alpha.locator('button[data-week="2027-01-11"]');
+  await expect(w2).toHaveAccessibleName(/at least one person over the limit \(15%\)/);
+  await expect(w2).toHaveClass(/warn/);
+
+  await w3.click();
+  const focus = page.locator('[data-week-focus="2027-01-18"]');
+  await expect(focus.getByRole('heading')).toHaveText('W3 · Team Alpha');
+  await expect(focus.getByRole('columnheader', { name: 'of which in the team' })).toBeVisible();
+  const alex = focus.locator('tr[data-person="person-alex"]');
+  await expect(alex.getByRole('cell')).toHaveText(['4.1', '13%', '2.8 of 16.0 h · 17%'], {
+    useInnerText: true,
+  });
+  await expect(alex).not.toContainText('over the limit');
+
+  await pickUnit(page, 'Payments');
+  await openMenuIfNarrow(page);
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
+  await w2.click();
+  const focus2 = page.locator('[data-week-focus="2027-01-11"]');
+  await expect(focus2.locator('tr[data-person="person-alex"]')).toContainText(
+    '26%over the limit (15%)',
+  );
+});
+
 test('an area meeting opens in Meetings & cadence', async ({ page }) => {
   const overview = await openOverview(page);
   await overview.getByRole('button', { name: 'Open PO forum in Meetings & cadence' }).click();
