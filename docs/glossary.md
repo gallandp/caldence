@@ -26,6 +26,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **Person** | person | A human, exists once per file | Membership |
 | **Mitglied** | member | Person + role + hours in one {levelTeam} | People in the area only ("Person {levelInArea}") |
 | **Eingeladen** | Invited | Roles (and so their people) invited to a meeting; meetings table column (was "Teilnehmer") | — |
+| **Einzeln eingeladen** | Invited by name | One person invited to a meeting without their role, from any {levelTeam} (#285). Counts once, with its own share | Members of the {levelTeam} |
 | **Termin** | meeting | A meeting series or single meeting | Export counts ("Terminserien und Einzeltermine") |
 | **Takt** | cadence | The rhythm: kind + length + start (Sprint, Flow, PI) | Being in sync |
 | **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { areaAsTeam, attendees, missingRoles, type Area, type Team } from '../../core/model';
+  import { areaAsTeam, eventAttendees, missingRoles, type Area, type Team } from '../../core/model';
   import { areaStructure, type Group, type StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
   import { ruleShort } from '../meetings/rules';
@@ -53,11 +53,7 @@
   });
 
   const meeting = $derived(area.events.find((e) => e.id === meetingId));
-  const invited = $derived(
-    meeting
-      ? new Set(meeting.participants.flatMap((p) => attendees($workspace, area.id, p)))
-      : null,
-  );
+  const invited = $derived(meeting ? new Set(eventAttendees($workspace, area.id, meeting)) : null);
   /** Teams lacking an invited role, each pair once (a meeting may list a role twice). */
   const missing = $derived(
     meeting

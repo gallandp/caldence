@@ -2,6 +2,7 @@ import { occurrenceHours, occurrencesPerWeek } from './load';
 import {
   areasInScope,
   attendees,
+  unfilled,
   type CalEvent,
   type Participant,
   type Team,
@@ -34,10 +35,15 @@ export interface UnfilledRole {
   horizon: boolean;
 }
 
+/** Heads a participant of `event` counts: its attendees, or one person for a role nobody holds. */
+export function headCount(ws: Workspace, unitId: string, p: Participant, event: CalEvent): number {
+  return unfilled(ws, unitId, p) ? 1 : attendees(ws, unitId, p, event).length;
+}
+
 /**
  * Euros of one occurrence lasting `minutes` in a team or area; `heads` says how many people
  * attend per participant. By default everyone the participant stands for, or one person if
- * nobody holds the role yet.
+ * nobody holds the role yet. A person invited by name counts once (#285).
  */
 export function meetingCost(
   ws: Workspace,
@@ -45,10 +51,10 @@ export function meetingCost(
   event: CalEvent,
   minutes: number,
   rate: number,
-  heads = (p: Participant) => Math.max(1, attendees(ws, unit.id, p).length),
+  heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e),
 ): number {
   return event.participants.reduce(
-    (sum, p) => sum + occurrenceHours(event, minutes, p.share) * heads(p) * rate,
+    (sum, p) => sum + occurrenceHours(event, minutes, p.share) * heads(p, event) * rate,
     0,
   );
 }
@@ -74,13 +80,12 @@ function addUnitCosts(
   index: HolidayIndex,
   unit: Team,
   rate: number,
-  heads: (p: Participant) => number,
+  heads: (p: Participant, e: CalEvent) => number,
   sums: Sums,
 ): void {
-  const empty = (p: Participant) => heads(p) > 0 && attendees(ws, unit.id, p).length === 0;
   const note = (event: CalEvent, period: 'week' | 'horizon') => {
     for (const p of event.participants) {
-      if (!empty(p)) continue;
+      if (p.roleId === undefined || !unfilled(ws, unit.id, p) || heads(p, event) === 0) continue;
       const key = `${unit.id}\u0000${p.roleId}`;
       const entry = sums.unfilled.get(key) ?? {
         unitId: unit.id,
@@ -134,10 +139,10 @@ export function costSummary(
 ): CostSummary {
   const sums = emptySums();
   for (const unit of [...scopeTeams(ws, filter), ...areasInScope(ws, filter)]) {
-    const heads = (p: Participant): number => {
-      if (filter.personId) return Number(attendees(ws, unit.id, p).includes(filter.personId));
+    const heads = (p: Participant, e: CalEvent): number => {
+      if (filter.personId) return Number(attendees(ws, unit.id, p, e).includes(filter.personId));
       if (filter.roleId && p.roleId !== filter.roleId) return 0;
-      return Math.max(1, attendees(ws, unit.id, p).length);
+      return headCount(ws, unit.id, p, e);
     };
     addUnitCosts(ws, index, unit, rate, heads, sums);
   }
@@ -152,7 +157,7 @@ export function unitCostSummary(
   rate: number,
 ): CostSummary {
   const sums = emptySums();
-  const heads = (p: Participant) => Math.max(1, attendees(ws, unit.id, p).length);
+  const heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e);
   addUnitCosts(ws, index, unit, rate, heads, sums);
   return summary(ws, sums);
 }

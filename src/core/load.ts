@@ -1,6 +1,7 @@
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import {
   attendees,
+  participantKey,
   units,
   unitTeamIds,
   type CalEvent,
@@ -13,6 +14,7 @@ import { record } from './record';
 import type { HolidayIndex } from './regions';
 
 export interface BaseLoad {
+  /** Hours per week of one attendee, by participant key (role or person invited by name). */
   byRole: Record<string, number>;
   byCategory: Record<string, Record<string, number>>;
 }
@@ -67,9 +69,10 @@ export function weeklyBaseLoad(team: Team): BaseLoad {
     const minutes = effectiveDuration(event, team);
     for (const p of event.participants) {
       const hours = perWeek * occurrenceHours(event, minutes, p.share);
-      byRole[p.roleId] = (byRole[p.roleId] ?? 0) + hours;
+      const key = participantKey(p);
+      byRole[key] = (byRole[key] ?? 0) + hours;
       const cat = (byCategory[event.categoryId] ??= record());
-      cat[p.roleId] = (cat[p.roleId] ?? 0) + hours;
+      cat[key] = (cat[key] ?? 0) + hours;
     }
   }
   return { byRole, byCategory };
@@ -109,8 +112,9 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
       for (const p of event.participants) {
         const hours = occurrenceHours(event, occ.duration, p.share);
         const roles = (week.byTeamRole[team.id] ??= record());
-        roles[p.roleId] = (roles[p.roleId] ?? 0) + hours;
-        for (const personId of attendees(ws, team.id, p)) {
+        const key = participantKey(p);
+        roles[key] = (roles[key] ?? 0) + hours;
+        for (const personId of attendees(ws, team.id, p, event)) {
           week.byPerson[personId] = (week.byPerson[personId] ?? 0) + hours;
           const inUnit = (week.byTeamPerson[team.id] ??= record());
           inUnit[personId] = (inUnit[personId] ?? 0) + hours;
@@ -220,7 +224,7 @@ export function weeklyHoursByPerson(ws: Workspace, unitId: string): Record<strin
     const minutes = effectiveDuration(event, team);
     for (const p of event.participants) {
       const hours = perWeek * occurrenceHours(event, minutes, p.share);
-      for (const id of attendees(ws, team.id, p)) out[id] = (out[id] ?? 0) + hours;
+      for (const id of attendees(ws, team.id, p, event)) out[id] = (out[id] ?? 0) + hours;
     }
   }
   return out;
