@@ -987,49 +987,6 @@
   .share-all .cap {
     display: none;
   }
-  /* Phones: the most expensive meetings become cards like the cost per team (#283):
-     meeting and cost on top, then where and invited, when, and the share on the right. */
-  @media (max-width: 640px) {
-    :global(#app) [data-costly] table.costs {
-      min-width: 0;
-    }
-    :global(#app) [data-costly] thead {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-    }
-    :global(#app) [data-costly] tbody tr {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) fit-content(50%);
-      column-gap: 0.75rem;
-      margin-bottom: 0.6rem;
-      padding: 0.6rem 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--surface-2);
-    }
-    :global(#app) [data-costly] tbody :is(th, td) {
-      padding: 0.15rem 0;
-      border: 0;
-      white-space: normal;
-    }
-    :global(#app) [data-costly] tbody :is(.when, .share-all) {
-      grid-column: 1 / -1;
-    }
-    :global(#app) [data-costly] tbody .cost {
-      grid-row: 1;
-      grid-column: 2;
-    }
-    :global(#app) [data-costly] tbody .invited {
-      grid-row: 2;
-      grid-column: 2;
-    }
-    .share-all .cap {
-      display: inline;
-    }
-  }
   .muted {
     color: var(--text-muted);
     font-weight: 400;
@@ -1479,10 +1436,12 @@
       padding: 1rem;
     }
     /* The cost table becomes cards: team and cost on top, hours and share below (#281). */
-    :global(#app) [data-area-costs] table.costs {
+    :global(#app) [data-area-costs] table.costs,
+    :global(#app) [data-costly] table.costs {
       min-width: 0;
     }
     :global(#app) [data-area-costs] thead,
+    :global(#app) [data-costly] thead,
     :global(#app) .meetings thead {
       position: absolute;
       width: 1px;
@@ -1491,6 +1450,7 @@
       clip-path: inset(50%);
     }
     :global(#app) [data-area-costs] tr,
+    :global(#app) [data-costly] tbody tr,
     :global(#app) .meetings tr {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -1501,6 +1461,7 @@
       background: var(--surface-2);
     }
     :global(#app) [data-area-costs] table.costs :is(th, td),
+    :global(#app) [data-costly] table.costs :is(th, td),
     :global(#app) .meetings td {
       padding: 0.15rem 0;
       border: 0;
@@ -1531,6 +1492,33 @@
     :global(#app) .meetings td.who {
       grid-column: 1 / -1;
       grid-row: 2;
+    }
+    /* The most expensive meetings: meeting and cost on top, then where and invited,
+       when, and the share (#283). */
+    :global(#app) [data-costly] tbody tr {
+      grid-template-columns: minmax(0, 1fr) fit-content(50%);
+      column-gap: 0.75rem;
+    }
+    :global(#app) [data-costly] table.costs td {
+      white-space: normal;
+    }
+    :global(#app) [data-costly] :is(.when, .share-all) {
+      grid-column: 1 / -1;
+    }
+    :global(#app) [data-costly] .cost {
+      grid-row: 1;
+      grid-column: 2;
+    }
+    :global(#app) [data-costly] .invited {
+      grid-row: 2;
+      grid-column: 2;
+    }
+    /* The area's icon must not make its card taller than the others. */
+    [data-costly] .where .area-name {
+      vertical-align: top;
+    }
+    .share-all .cap {
+      display: inline;
     }
   }
 </style>
