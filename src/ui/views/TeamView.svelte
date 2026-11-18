@@ -727,7 +727,7 @@
     align-items: flex-end;
     gap: 0.3rem;
   }
-  /* Phones put the hours on their own line, flush left. */
+  /* On phones, where the hours wrap onto their own line, align them left. */
   @media (max-width: 600px) {
     .hours-cell {
       align-items: flex-start;
@@ -742,8 +742,9 @@
     font-weight: 600;
   }
   .teams-of .over {
-    display: inline-block;
-    margin-left: 0.35rem;
+    display: block;
+    width: fit-content;
+    margin-top: 0.2rem;
   }
   .teams-of {
     font-size: 0.85rem;

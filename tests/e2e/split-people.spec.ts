@@ -161,4 +161,15 @@ test('the Team view flags a member with too many hours until they are lowered (#
   await hours.fill('24');
   await hours.press('Enter');
   await expect(team.getByText(/more than 40 h a week/)).toHaveCount(0);
+
+  // Someone in this team only has no Σ part: the flag follows their only entry.
+  await team.getByLabel('Person', { exact: true }).fill('Noa');
+  await team.getByLabel('Hrs/week in team').fill('44');
+  await team.getByRole('button', { name: 'Add member' }).click();
+  const noa = team
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('textbox', { name: 'Noa' }) });
+  await expect(noa).toContainText('Team Alpha 44 h');
+  await expect(noa).not.toContainText('Σ');
+  await expect(noa.getByText('44 h – more than 40 h a week')).toBeVisible();
 });
