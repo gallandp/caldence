@@ -191,6 +191,7 @@
       labels={{
         another: 'setup.another',
         members: 'team.members',
+        people: 'settings.people',
         hpw: 'settings.hoursPerWeek',
         load: 'view.load',
         structure: 'area.view.structure',
