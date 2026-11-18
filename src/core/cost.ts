@@ -2,6 +2,7 @@ import { occurrenceHours, occurrencesPerWeek } from './load';
 import {
   areasInScope,
   attendees,
+  type Cadence,
   unfilled,
   type CalEvent,
   type Participant,
@@ -38,6 +39,11 @@ export interface UnfilledRole {
 /** Heads a participant of `event` counts: its attendees, or one person for a role nobody holds. */
 export function headCount(ws: Workspace, unitId: string, p: Participant, event: CalEvent): number {
   return unfilled(ws, unitId, p) ? 1 : attendees(ws, unitId, p, event).length;
+}
+
+/** Euros per sprint or PI: the weekly average × its length. Flow has no fixed length (#279). */
+export function costPerCadence(perWeek: number, cadence: Cadence): number | undefined {
+  return cadence.kind === 'flow' ? undefined : perWeek * cadence.lengthWeeks;
 }
 
 /**

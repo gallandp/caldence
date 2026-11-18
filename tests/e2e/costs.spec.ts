@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample } from './helpers';
+import { openExample, pickUnit, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -42,6 +42,39 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await tab(page, 'Meetings & cadence');
   await expect(page.getByRole('columnheader', { name: 'Cost' })).toHaveCount(0);
   await expect(page.locator('[data-costs]')).toHaveCount(0);
+});
+
+test('costs show per sprint and the preparation share; flow teams per week only', async ({
+  page,
+}) => {
+  await openExample(page);
+  await setRate(page, '100');
+  await tab(page, 'Meetings & cadence');
+  // Team Alpha: two-week sprints. Weekly Sync: €50 a week, no preparation.
+  const sync = page.getByRole('row', { name: /Weekly Sync/ });
+  await expect(sync.locator('[data-cost-cadence]')).toHaveText('Ø €100 / sprint');
+  await expect(sync.locator('[data-cost-prep]')).toHaveCount(0);
+  const planning = page.getByRole('row', { name: /Sprint Planning/ });
+  await expect(planning.locator('[data-cost-prep]')).toHaveText('incl. 25% preparation');
+  const card = page.locator('[data-costs]');
+  // Twice the unrounded weekly cost, rounded once at the end.
+  await expect(card.locator('[data-cost-week]')).toContainText('€561');
+  await expect(card.locator('[data-cost-cadence]')).toHaveText('€1,123 / sprint');
+
+  await pickUnit(page, 'Team Beta');
+  await expect(page.locator('[data-cost-cadence]')).toHaveCount(0);
+  await expect(page.locator('[data-costs] [data-cost-week]')).toBeVisible();
+
+  // The Commerce area plans in 10-week PIs. PO Forum: weekly, 60 min + 10 %, one PO at €100.
+  await pickUnit(page, 'Commerce');
+  const forum = page.getByRole('row', { name: /PO Forum/ });
+  await expect(forum.locator('[data-cost-cadence]')).toHaveText(/^Ø €[\d,]+ \/ PI$/);
+  await expect(page.locator('[data-costs] [data-cost-cadence]')).toContainText('/ PI');
+
+  await pickUnit(page, 'Team Alpha');
+  await setLanguage(page, 'de');
+  await expect(sync.locator('[data-cost-cadence]')).toHaveText('Ø 100 € / Sprint');
+  await expect(planning.locator('[data-cost-prep]')).toHaveText('inkl. 25 % Vorbereitung');
 });
 
 test('an hourly rate of 0 shows an error and is not committed', async ({ page }) => {

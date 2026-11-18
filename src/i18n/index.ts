@@ -73,12 +73,12 @@ export function formatEuro(locale: Locale, n: number): string {
   }).format(n);
 }
 
-/** Percent of a fraction (0.5 -> 50%) without decimals, in the locale's notation. */
-export function formatPercent(locale: Locale, fraction: number): string {
+/** Percent of a fraction (0.5 -> 50%), by default without decimals, in the locale's notation. */
+export function formatPercent(locale: Locale, fraction: number, maxDigits = 0): string {
   return new Intl.NumberFormat(locale, {
     style: 'percent',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: maxDigits,
   }).format(fraction);
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costSummary, meetingCost } from '../../src/core/cost';
+import { costPerCadence, costSummary, meetingCost } from '../../src/core/cost';
 import { emptyWorkspace, type CalEvent, type Team, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 
@@ -87,5 +87,18 @@ describe('costSummary', () => {
     expect(costSummary(ws, noIndex(), { roleId: 'po' }, 100).perWeek).toBe(50);
     // A person pays only their own time.
     expect(costSummary(ws, noIndex(), { personId: 'a' }, 100).perWeek).toBe(100);
+  });
+});
+
+describe('costPerCadence', () => {
+  it('multiplies the weekly cost by the length of a sprint or PI', () => {
+    expect(costPerCadence(405, { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' })).toBe(810);
+    expect(costPerCadence(100, { kind: 'pi', lengthWeeks: 10, start: '2027-01-04' })).toBe(1000);
+  });
+
+  it('gives nothing for flow, which has no fixed length', () => {
+    expect(
+      costPerCadence(405, { kind: 'flow', lengthWeeks: 1, start: '2027-01-04' }),
+    ).toBeUndefined();
   });
 });

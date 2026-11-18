@@ -82,6 +82,8 @@ describe('formatting', () => {
     expect(formatNumber('en', 12.06, 2)).toBe('12.06');
     expect(formatPercent('en', 0.5)).toBe('50%');
     expect(formatPercent('de', 0.5)).toBe('50\u00a0%');
+    expect(formatPercent('de', 0.125, 2)).toBe('12,5\u00a0%');
+    expect(formatPercent('en', 0.1, 2)).toBe('10%');
     expect(formatPercent('en', 0.1109)).toBe('11%');
   });
 });

@@ -1,14 +1,21 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { meetingCost, unitCostSummary } from '../../core/cost';
+  import { costPerCadence, meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import { areaAsTeam, participantName, type CalEvent } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
   import { occurrencesPerWeek } from '../../core/load';
-  import { formatDisplayDate, formatEuro, formatNumber, locale, translate as t } from '../../i18n';
+  import {
+    formatDisplayDate,
+    formatEuro,
+    formatNumber,
+    formatPercent,
+    locale,
+    translate as t,
+  } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import ColourField, { PALETTE } from '../components/ColourField.svelte';
   import AreaIcon from '../components/AreaIcon.svelte';
@@ -161,6 +168,8 @@
   // Only this page's meetings: for an area its own, not those of its teams.
   const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
   const euro = (n: number) => formatEuro($locale, n);
+  /** The Takt's short name for "Ø … / Sprint" (#279). */
+  const kind = $derived(team ? $t(`meet.kind.${team.cadence.kind}`) : '');
 
   let query = $state('');
   const summaries = $derived(
@@ -380,7 +389,7 @@
     {/if}
     <CadenceCard {team} {area} />
     {#if costs && rate}
-      <CostCard summary={costs} {rate} />
+      <CostCard summary={costs} {rate} cadence={team?.cadence} />
     {:else if !rate && team.events.length > 0}
       <RateInvite />
     {/if}
@@ -630,13 +639,27 @@
                       <td class="num cost c-cost" data-cost={event.id}>
                         {euro(cost)}
                         {#if perWeek > 0}
+                          {@const perCadence = costPerCadence(perWeek * cost, team.cadence)}
                           <span class="sub"
                             >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
                           >
+                          {#if perCadence !== undefined}
+                            <span class="sub" data-cost-cadence
+                              >{$t('meet.cost.cadence', { amount: euro(perCadence), kind })}</span
+                            >
+                          {/if}
                         {:else if event.rule.type === 'once'}
                           <span class="sub">{$t('meet.cost.once')}</span>
                         {:else if event.rule.type === 'cycle-milestone'}
                           <span class="sub">{$t('meet.cost.milestone')}</span>
+                        {/if}
+                        {#if event.preparation > 0}
+                          <span class="sub" data-cost-prep
+                            >{$t('meet.cost.prep', {
+                              // Up to two decimals, as the form takes them (12.5 %).
+                              percent: formatPercent($locale, event.preparation, 2),
+                            })}</span
+                          >
                         {/if}
                       </td>
                     {/if}
@@ -1264,11 +1287,12 @@
     }
     :global(#app) table tr.row {
       display: grid;
-      grid-template-columns: 1fr auto;
+      /* The name spans the cost column too, so a long cost line does not squeeze it. */
+      grid-template-columns: 1fr auto auto;
       grid-template-areas:
-        'name actions'
-        'when cost'
-        'next people';
+        'name name actions'
+        'when cost cost'
+        'next people people';
       column-gap: 0.75rem;
       row-gap: 0.4rem;
       padding: 0.85rem 0;
@@ -1293,6 +1317,10 @@
     }
     .c-when {
       grid-area: when;
+    }
+    /* Time and duration may wrap, so they fit beside the cost lines. */
+    .c-when .sub {
+      white-space: normal;
     }
     .c-cost {
       grid-area: cost;
