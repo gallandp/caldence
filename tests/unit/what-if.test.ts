@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
-import { updateTeam, upsertEvent } from '../../src/core/edit';
+import { setCadenceLength, updateTeam, upsertEvent } from '../../src/core/edit';
 import type { Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import {
@@ -75,6 +75,27 @@ describe('countChanges', () => {
         withoutNames(next, (n) => `P${n}`),
       ),
     ).toBe(2);
+  });
+
+  it('counts a new cadence length once, with the meetings it moves', () => {
+    const base = ws();
+    const team = base.teams.find((t) => t.events.some((e) => e.rule.type === 'cadence-day'))!;
+    const r = setCadenceLength(base, team.id, team.cadence.lengthWeeks + 1);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(countChanges(base, r.value)).toBe(1);
+  });
+
+  it('counts a meeting what-if and a length what-if as 2', () => {
+    const base = ws();
+    const team = base.teams.find((t) => t.events.some((e) => e.rule.type === 'cadence-day'))!;
+    const review = team.events.filter((e) => e.rule.type === 'cadence-day').at(-1)!;
+    const weekly = upsertEvent(base, team.id, {
+      ...review,
+      rule: { type: 'weekly', weekday: 5 },
+    })[0];
+    const r = setCadenceLength(weekly, team.id, team.cadence.lengthWeeks + 1);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(countChanges(base, r.value)).toBe(2);
   });
 });
 
