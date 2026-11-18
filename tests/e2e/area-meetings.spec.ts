@@ -83,7 +83,7 @@ test('the area is a calendar of its own, also in the ZIP of the area', async ({ 
   download = page.waitForEvent('download');
   // The example has a second area, so the ZIP holds this area and its teams.
   await panel
-    .getByRole('button', { name: 'One file each for Platform and its teams (ZIP)…' })
+    .getByRole('button', { name: 'One file for Platform and one per team (ZIP)…' })
     .click();
   file = await download;
   expect(readFileSync((await file.path())!).toString('latin1')).toContain('caldence-platform.ics');

@@ -48,7 +48,7 @@ test('an area in a file with two areas zips its own calendar and its teams only'
 }) => {
   const panel = await openExchange(page, 'Payments');
   const button = panel.getByRole('button', {
-    name: 'One file each for Payments and its teams (ZIP)…',
+    name: 'One file for Payments and one per team (ZIP)…',
   });
   expect(await saveZip(page, button)).toEqual({
     zip: 'caldence-payments.zip',

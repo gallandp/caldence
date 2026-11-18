@@ -193,6 +193,7 @@
   const filterFor = (id: string): Filter =>
     kind === 'team' ? { teamId: id } : kind === 'role' ? { roleId: id } : { personId: id };
 
+  const chosenIsArea = $derived(kind === 'team' && ws.areas.some((a) => a.id === chosen?.id));
   // In a file with several areas, a selected area's ZIP holds only its own calendar and its teams'.
   const zipArea = $derived(
     kind === 'team' && ws.areas.length > 1 ? ws.areas.find((a) => a.id === chosen?.id) : undefined,
@@ -218,17 +219,15 @@
 
   /**
    * One file per team, role or person in the archive, skipping those without meetings. An area's
-   * own ZIP may hold a single file: its only team with meetings.
+   * ZIP may hold a single file: its only team with meetings.
    */
   const canShareAll = $derived(
     !rangeInvalid &&
       zoneKnown &&
-      zipChoices.filter((c) => hasContent(filterFor(c.id))).length > (zipArea ? 0 : 1),
+      zipChoices.filter((c) => hasContent(filterFor(c.id))).length > (chosenIsArea ? 0 : 1),
   );
   // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
-  const areaEmpty = $derived(
-    noMeetings && kind === 'team' && canShareAll && ws.areas.some((a) => a.id === chosen?.id),
-  );
+  const areaEmpty = $derived(noMeetings && chosenIsArea && canShareAll);
 
   async function shareAll() {
     if (!canShareAll) return;
@@ -557,7 +556,7 @@
       <div class="row">
         <button
           type="submit"
-          class:primary={!(areaEmpty && canShareAll)}
+          class:primary={!areaEmpty}
           disabled={!canExport}
           aria-describedby={!zoneKnown
             ? `${uid}-zone-hint`
@@ -565,11 +564,8 @@
               ? `${uid}-empty-hint`
               : undefined}>{$t('exchange.export.button')}</button
         >
-        <button
-          type="button"
-          class:primary={areaEmpty && canShareAll}
-          disabled={!canShareAll}
-          onclick={shareAll}>{zipLabel}</button
+        <button type="button" class:primary={areaEmpty} disabled={!canShareAll} onclick={shareAll}
+          >{zipLabel}</button
         >
       </div>
       {#if noMeetings}
