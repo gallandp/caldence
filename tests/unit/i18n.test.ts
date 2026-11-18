@@ -88,15 +88,15 @@ describe('formatting', () => {
 
 describe('formatHorizon', () => {
   it('names a full calendar year by its year, with the weeks', () => {
-    expect(formatHorizon('de', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52 Wo.');
-    expect(formatHorizon('en', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52 wks');
+    expect(formatHorizon('de', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52\u00a0Wo.');
+    expect(formatHorizon('en', { from: '2027-01-01', to: '2027-12-31' })).toBe('2027, 52\u00a0wks');
   });
   it('names any other horizon by its dates', () => {
     expect(formatHorizon('de', { from: '2027-03-01', to: '2027-05-30' })).toBe(
-      '01.03.2027–30.05.2027, 13 Wo.',
+      '01.03.2027–30.05.2027, 13\u00a0Wo.',
     );
     expect(formatHorizon('en', { from: '2027-03-01', to: '2027-03-07' })).toBe(
-      '03/01/2027–03/07/2027, 1 wk',
+      '03/01/2027–03/07/2027, 1\u00a0wk',
     );
   });
 });

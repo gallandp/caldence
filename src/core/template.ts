@@ -9,6 +9,7 @@ import {
   type CalEvent,
   type Category,
   type Cycle,
+  type Participant,
   type Role,
   type Rule,
   type Team,
@@ -152,9 +153,11 @@ const norm = (s: string): string => s.trim().toLowerCase();
 /** Template roles of the area alone: roles no team meeting uses (e.g. Release Train Engineer). */
 export function areaRoleIds(template: Template): Set<string> {
   if (!template.area) return new Set();
-  const inTeam = new Set(template.team.events.flatMap((e) => e.participants.map((p) => p.roleId)));
+  const roles = (ps: Participant[]) =>
+    ps.flatMap((p) => (p.roleId !== undefined ? [p.roleId] : []));
+  const inTeam = new Set(template.team.events.flatMap((e) => roles(e.participants)));
   const own = template.area.events.flatMap((e) =>
-    e.participants.filter((p) => !(p as { fromTeams?: boolean }).fromTeams).map((p) => p.roleId),
+    roles(e.participants.filter((p) => !p.fromTeams)),
   );
   return new Set(own.filter((id) => !inTeam.has(id)));
 }
@@ -255,10 +258,9 @@ export function applyTemplate(
       ...e,
       categoryId: catMap.get(e.categoryId) ?? e.categoryId,
       rule: shiftRule(e.rule, shift),
-      participants: e.participants.map((p) => ({
-        ...p,
-        roleId: roleMap.get(p.roleId) ?? p.roleId,
-      })),
+      participants: e.participants.map((p) =>
+        p.roleId === undefined ? p : { ...p, roleId: roleMap.get(p.roleId) ?? p.roleId },
+      ),
     }));
 
   const teamId = newId('t', unitIds(out));
@@ -310,13 +312,21 @@ export function teamToTemplate(
   const team = ws.teams.find((t) => t.id === teamId);
   if (!team) throw new Error(`unknown team ${teamId}`);
   const area = ws.areas.find((a) => a.teamIds.includes(teamId));
+  // A template has no people: meetings keep only their roles (#285).
+  const roleOnly = (list: CalEvent[]): CalEvent[] =>
+    list.map((e) => ({ ...e, participants: e.participants.filter((p) => p.roleId !== undefined) }));
   const events = [...team.events, ...(area?.events ?? [])];
   const roleIds = new Set([
-    ...events.flatMap((e) => e.participants.map((p) => p.roleId)),
+    ...events.flatMap((e) =>
+      e.participants.flatMap((p) => (p.roleId !== undefined ? [p.roleId] : [])),
+    ),
     ...team.members.map((m) => m.roleId),
   ]);
   const catIds = new Set(events.map((e) => e.categoryId));
-  const rest = structuredClone(team) as unknown as Record<string, unknown>;
+  const rest = structuredClone({ ...team, events: roleOnly(team.events) }) as unknown as Record<
+    string,
+    unknown
+  >;
   delete rest.id;
   delete rest.members;
   delete rest.memberHours;
@@ -337,7 +347,7 @@ export function teamToTemplate(
       // A template area needs a cadence; an area without its own takes the team's.
       cadence: structuredClone(area.cadence ?? team.cadence),
       cycles: structuredClone(area.cycles),
-      events: structuredClone(area.events),
+      events: structuredClone(roleOnly(area.events)),
       ...(ws.settings.levelNames ? { levelNames: structuredClone(ws.settings.levelNames) } : {}),
     };
   }

@@ -478,5 +478,5 @@ test('the legend names exactly the categories of the meetings shown in the month
   const expected = example.categories.filter((c) => colours.includes(c.colour)).map((c) => c.name);
   expect(expected.length).toBeGreaterThan(0);
   await expect(legend.getByRole('listitem')).toHaveText(expected);
-  await expect(panel(page)).toContainText('= meeting hours of the day');
+  await expect(panel(page)).toContainText('= meeting hours of the day (all people)');
 });

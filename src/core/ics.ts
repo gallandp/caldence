@@ -3,7 +3,7 @@ import { addDays, diffDays, toMinutes, weekday, type ISODate, type Time } from '
 import {
   areaAsTeam,
   areasInScope,
-  attendees,
+  eventAttendees,
   type CalEvent,
   type Rule,
   type Team,
@@ -192,9 +192,7 @@ function utcStamp(d: Date): string {
 function eventsInScope(ws: Workspace, team: Team, scope: Filter): CalEvent[] {
   if (scope.personId) {
     const personId = scope.personId;
-    return team.events.filter((e) =>
-      e.participants.some((p) => attendees(ws, team.id, p).includes(personId)),
-    );
+    return team.events.filter((e) => eventAttendees(ws, team.id, e).includes(personId));
   }
   if (scope.roleId) {
     return team.events.filter((e) => e.participants.some((p) => p.roleId === scope.roleId));
@@ -279,6 +277,7 @@ export function exportIcsWithCounts(
   // Every VEVENT of this export carries the same version, so a re-export updates all of them.
   const version = [`SEQUENCE:${sequenceOf(opts.now)}`, `LAST-MODIFIED:${utcStamp(opts.now)}`];
   const settings = { ...ws.settings, horizon: { from: opts.from, to: opts.to } };
+  const personNames = new Map(ws.people.map((p) => [p.id, p.name]));
   const roleNames = new Map(ws.roles.map((r) => [r.id, r.name]));
   const categoryNames = new Map(ws.categories.map((c) => [c.id, c.name]));
   const fromYear = Number(opts.from.slice(0, 4));
@@ -319,8 +318,11 @@ export function exportIcsWithCounts(
       if (!occs || !first) continue;
       const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
       const key = `${event.id}.${team.id}`;
+      // Roles, then the people invited by name (#285).
       const roles = event.participants
-        .map((p) => roleNames.get(p.roleId))
+        .map((p) =>
+          p.personId !== undefined ? personNames.get(p.personId) : roleNames.get(p.roleId),
+        )
         .filter((n): n is string => n !== undefined);
       const category = categoryNames.get(event.categoryId);
       const common = [

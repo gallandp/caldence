@@ -26,6 +26,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **Person** | person | A human, exists once per file | Membership |
 | **Mitglied** | member | Person + role + hours in one {levelTeam} | People in the area only ("Person {levelInArea}") |
 | **Eingeladen** | Invited | Roles (and so their people) invited to a meeting; meetings table column (was "Teilnehmer") | — |
+| **Einzeln eingeladen** | Invited by name | One person invited to a meeting without their role, from any {levelTeam} (#285). Counts once, with its own share | Members of the {levelTeam} |
 | **Termin** | meeting | A meeting series or single meeting | Export counts ("Terminserien und Einzeltermine") |
 | **Takt** | cadence | The rhythm: kind + length + start (Sprint, Flow, PI) | Being in sync |
 | **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |
@@ -44,6 +45,13 @@ Same label for two values is not allowed:
 - **Termine der Personen (alle {levelTeams})** – average over the people in scope, counting all their {levelTeams} and the {levelArea}.
 
 Where both appear near each other, add a one-line hint saying which scope is counted.
+
+The same holds for the two weekly hour figures in Terminlast:
+
+- **übliche Woche** / typical week – the recurring meetings of one regular week (tiles, Grundlast table, cost per week). Every person in a role counts; a role without members counts as one person, as for cost.
+- **Ø im Planungszeitraum** / Ø in the planning horizon – the average of the real weeks (chart line, people table): one-off meetings count, skipped holidays do not.
+
+A role tile's percentage is **Ø pro Person** / Ø per person: the role's hours ÷ the weekly hours of its people (with a person chosen: that person's weekly hours). FTE stays the capacity number.
 
 ## Tabs and page names
 

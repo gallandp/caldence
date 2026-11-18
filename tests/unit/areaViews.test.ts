@@ -102,12 +102,27 @@ describe('area scope in Calendar and Load', () => {
     // One-off meetings have no weekly base load; make them weekly.
     for (const unit of [...ws.teams, ...ws.areas])
       for (const e of unit.events) e.rule = { type: 'weekly', weekday: 3 };
-    // a + b + forum (developers); the forum counts per role, like any meeting.
-    expect(role({ teamId: 'a1' }, 'r1')).toBe(3);
+    // a + b + forum for both developers: every person counts, as for cost (#272).
+    expect(role({ teamId: 'a1' }, 'r1')).toBe(4);
     expect(role({ teamId: 'a1' }, 'r2')).toBe(1);
     expect(role({ teamId: 't1' }, 'r1')).toBe(1);
     expect(role({ personId: 'p1' }, 'r1')).toBe(2);
     expect(role({ personId: 'p1' }, 'r2')).toBe(0);
+  });
+
+  it('counts the people of a role the same whatever the meeting order (#272)', () => {
+    const ws = areaWorkspace();
+    const area = ws.areas[0]!;
+    // The area's own developer meeting: nobody holds the role in the area itself.
+    area.events.push(ev('own', '11:00', [{ roleId: 'r1', share: 1 }]));
+    for (const e of area.events) e.rule = { type: 'weekly', weekday: 3 };
+    const dev = () => loadSummary(ws, { teamId: 'a1' }).byRole.find((r) => r.roleId === 'r1')!;
+    const first = dev();
+    area.events.reverse();
+    expect(dev()).toEqual(first);
+    // Alex and Bo, plus the unfilled role in the area as one person.
+    expect(first.people).toBe(3);
+    expect(loadSummary(ws, { teamId: 'a1' }).unfilled).toBe(1);
   });
 
   it('marks the area cadence in the horizon table', () => {

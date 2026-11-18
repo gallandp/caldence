@@ -3,7 +3,7 @@
   import { removeFromArea, setAreaHours, setAreaRole } from '../../core/areaEdit';
   import { roleByName, updateTeam } from '../../core/edit';
   import { LIMITS } from '../../core/limits';
-  import { attendees, type Area } from '../../core/model';
+  import { attendees, eventAttendees, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
@@ -49,9 +49,7 @@
   const num = (n: number) => new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const meetings = $derived(
     personId
-      ? area.events.filter((e) =>
-          e.participants.some((x) => attendees($workspace, area.id, x).includes(personId)),
-        )
+      ? area.events.filter((e) => eventAttendees($workspace, area.id, e).includes(personId))
       : [],
   );
   /** The "from every team" invitation that brought them into the area without hours. */
@@ -61,7 +59,7 @@
     const hit = area.events
       .flatMap((e) => e.participants)
       .find((x) => x.fromTeams && roleIds.has(x.roleId));
-    return hit ? $t('area.fromTeams', { role: roleName(hit.roleId) }) : '';
+    return hit?.roleId !== undefined ? $t('area.fromTeams', { role: roleName(hit.roleId) }) : '';
   });
 
   // The person is gone from the structure: close, and let the view move the focus.
@@ -116,11 +114,13 @@
   function meetingLine(e: (typeof area.events)[number]): string {
     if (!personId) return e.name;
     const own = new Set(area.members.filter((m) => m.personId === personId).map((m) => m.roleId));
-    const direct = e.participants.some((x) => own.has(x.roleId));
-    const via = e.participants.find(
-      (x) => x.fromTeams && attendees($workspace, area.id, x).includes(personId),
+    const direct = e.participants.some(
+      (x) => (x.roleId !== undefined && own.has(x.roleId)) || x.personId === personId,
     );
-    return direct || !via
+    const via = e.participants.find(
+      (x) => x.fromTeams && attendees($workspace, area.id, x, e).includes(personId),
+    );
+    return direct || via?.roleId === undefined
       ? e.name
       : $t('area.card.via', {
           meeting: e.name,

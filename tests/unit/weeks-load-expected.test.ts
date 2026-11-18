@@ -21,7 +21,9 @@ describe('constants of the weeks and load e2e tests', () => {
     const s = loadSummary(ws, ALPHA);
     expect(s.byRole.map((r) => r.roleId)).toEqual(ROLE_HOURS.map((r) => r.roleId));
     for (const r of ROLE_HOURS) {
-      expect(s.byRole.find((x) => x.roleId === r.roleId)!.hours).toBeCloseTo(r.hours, 9);
+      const role = s.byRole.find((x) => x.roleId === r.roleId)!;
+      expect(role.hours).toBeCloseTo(r.hours, 9);
+      expect(role).toMatchObject({ people: 1, weekly: r.weekly });
       expect(ws.roles.find((x) => x.id === r.roleId)!.name).toBe(r.name);
     }
     expect(s.byCategory.map((c) => c.categoryId)).toEqual(CATEGORY_HOURS.map((c) => c[0]));

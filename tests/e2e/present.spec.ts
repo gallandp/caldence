@@ -143,7 +143,7 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   await sheet.getByRole('button', { name: 'Apply' }).click();
   // Twice the time for the Product Owner and the Scrum Master: +€50 a week, every week of 2027.
   await expect(whatIfBar(page)).toContainText(
-    /Cost \+€50 per week · \+€[\d,]+ in the planning horizon \(2027, 52 wks\)/,
+    /Cost \+€50 per week · \+€[\d,]+ in the planning horizon \(2027, 52\u00a0wks\)/,
   );
 
   await page.evaluate(() => {
@@ -160,7 +160,7 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   const meta = page.locator('[data-print-meta]');
   await expect(meta).toBeVisible();
   expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(
-    /^"plan\.caldence\.json · printed on \d\d\/\d\d\/\d{4} · €100 per hour and person · planning horizon 2027, 52 wks"$/,
+    /^"plan\.caldence\.json · printed on \d\d\/\d\d\/\d{4} · €100 per hour and person · planning horizon 2027, 52\u00a0wks"$/,
   );
 });
 

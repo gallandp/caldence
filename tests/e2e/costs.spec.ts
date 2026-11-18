@@ -35,7 +35,7 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await tab(page, 'Meeting load');
   await expect(page.locator('[data-costs] [data-cost-week]')).toContainText('/ week');
   await expect(page.locator('[data-costs] [data-cost-horizon]')).toContainText(
-    'in the planning horizon (2027, 52 wks)',
+    'in the planning horizon (2027, 52\u00a0wks)',
   );
 
   await setRate(page, '');
