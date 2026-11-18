@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+## 1.45.0 – 2026-11-18
+
+### Added
+
+- The cost card and the area's cost table name unfilled roles, which count as one person for the cost but add no hours (#264) (#267)
+- After an export, Import / Export says how to update your calendar and links to the import steps in the Help (#280) (#287)
+- Meetings can invite individual people by name next to roles, also from another team. A named person counts once, with their own share, in meeting load, costs, the calendar export and their own filter (#285) (#290)
+- While you edit a meeting, the form shows its effect on hours, meeting load and (with an hourly rate) cost per week and in the planning horizon, before you save. On phones the effect is one line. (#276) (#295)
+- Adding a person who is already in another team, in the setup wizard or the Team view, asks for their hours there and fills in the hours they have left instead of the full weekly hours (#274) (#296)
+- Meeting load and the area Structure card flag a person whose hours in all teams add up to more than the weekly hours, for example "52 h – mehr als 40 h pro Woche" (#274) (#296)
+- While presenting, the Print button stays available, and printing keeps the what-if note (#278) (#297)
+- Printouts start with one line naming the file, the print date, the hourly rate and the planning horizon (#278) (#297)
+- The what-if bar shows the change of cost in the planning horizon next to the change per week (#278) (#297)
+- Meetings & cadence shows what each meeting and the whole team cost per sprint or PI (for example "Ø €810 / sprint"), next to the cost per week. Teams in flow keep per week only. (#279) (#300)
+- Each meeting's cost names its preparation share, for example "incl. 25% preparation", so the figure can be checked. (#279) (#300)
+
+### Changed
+
+- A file now opens where it was saved: on the same team or area, view and area page. The autosave does the same after a reload. (#270)
+- Import / Export opens on what this browser exported last; after "Ich bin selbst dabei" in the wizard it opens on your own person. After a team export it opens on the team or area selected in the sidebar. Nothing of this is stored in the file (#280) (#287)
+- With an area selected that has no meetings of its own, "Eine Datei pro Team (ZIP)" is the main action, and the picker is labelled "Team oder Bereich auswählen" (#280) (#287)
+- Meeting load: the tiles say "typical week" and the chart line says "Ø in the planning horizon", with a hint line that explains the difference. The people table column is now "Ø hours/week". The Total tile names roles without people that it counts as one person each (#272) (#288)
+- A person's drill-in in Meeting load says "0 h – keine Termine für diese Rolle" for a team without meetings for their role (#274) (#296)
+- Costs in the planning horizon name their period, for example "in the planning horizon (2027, 52 wks)", in the area overview, the cost card and the what-if sheet; in German the cost card now says "im Planungszeitraum" instead of "im Zeitraum" (#278) (#297)
+- Meeting load: the people table judges each person on all their teams and areas in every scope, so a person in two teams has the same share, room and "over the limit" tag in each team. In a team or area, a new column "of which in the team/area" shows their part there. For a person in several teams, the share and room in a team change (example file: Alex in Team Alpha now shows 14 % instead of 19 %). The warnings and the Calendar's warning weeks follow the same rule (#273) (#298)
+- Meeting load: "Free up to the limit" is now "Room before limit (meetings)", a line under the title says that only meeting time counts, and the tiles show no FTE when a person is chosen (#273) (#298)
+- Clicking a meeting on the area Overview shows it highlighted in Meetings & cadence instead of opening it for editing (#277) (#299)
+- After a click from the area Overview, a "← {area} overview" button leads back in one click (#277) (#299)
+- The area Overview gives its answers on the first screen: the cost explanation folds into "How is this counted?", and the list of teams for assigning people moved to Structure (#277) (#299)
+- While presenting, picking an area opens its Overview instead of an empty meeting list (#277) (#299)
+
+### Fixed
+
+- Area overview: the heat map and the cost table use one rule for a team's share of time in meetings, and the legend explains the weekly average (#262) (#269)
+- Changing the sprint length, also as a what-if while presenting, keeps Review, Retro and other meetings in the second half of the sprint at its end (day 12 of 14 becomes day 19 of 21); a line names the moved meetings and Undo takes the change back. Meeting hours and costs of a sprint-length what-if change accordingly (#275) (#286)
+- Meeting load: the Total tile, the weekly chart, its average and the peak week count every person in a role, as the cost does. Totals for teams with several people in a role are higher than before, and Total × hourly rate now equals the cost per week (#272) (#288)
+- Meeting load: a role tile shows the average share per person, measured against the weekly hours of the people in that role. With a person chosen, it uses that person's weekly hours, so tiles and the people table agree (#272) (#288)
+- Calendar: the Horizon table (role columns, weekly total) and the hours of a day count every person in a role (#272) (#288)
+- On phones the area Overview no longer scrolls sideways, and time and cost per team show as one card per team with the cost in view (#281) (#289)
+
 ## 1.44.0 – 2026-11-17
 
 ### Added
