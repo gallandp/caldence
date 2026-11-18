@@ -50,27 +50,31 @@
         : $workspace.people,
   );
 
+  /**
+   * Each person is judged on all their meetings ÷ their hours in all their teams and areas, in
+   * every scope (#273); with a team or area filter `here` keeps their part in it.
+   */
   const perPerson = $derived(
     people.map((person) => {
-      const of = (w: (typeof weeks)[number]): number =>
-        teamIds ? hoursIn(w, teamIds, person.id) : (w.byPerson[person.id] ?? 0);
-      const total = weeks.reduce((sum, w) => sum + of(w), 0);
+      const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
       const average = weeks.length > 0 ? total / weeks.length : 0;
       let peak: { monday: string; hours: number } | undefined;
       for (const w of weeks) {
-        const h = of(w);
+        const h = w.byPerson[person.id] ?? 0;
         if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
-      const cap = capacity($workspace, person.id, teamId);
-      const all = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
-      const allAverage = weeks.length > 0 ? all / weeks.length : 0;
+      const cap = capacity($workspace, person.id);
+      const hereHours =
+        teamIds && weeks.length > 0
+          ? weeks.reduce((sum, w) => sum + hoursIn(w, teamIds, person.id), 0) / weeks.length
+          : 0;
+      const hereCap = capacity($workspace, person.id, teamId);
       return {
         person,
         average,
         cap,
         fte: fte(average, cap),
-        /** All meetings over all weekly hours, shown next to a team's or area's share. */
-        allShare: fte(allAverage, capacity($workspace, person.id)),
+        here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
         /** Hours per week that still fit into meetings before the limit (none without hours). */
         free: Math.max(0, maxFte * cap - average),
         units: unitsOf(person.id),
@@ -135,7 +139,7 @@
   const barWidth = (share: number) =>
     maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
 
-  const allWarnings = $derived(warnings(weeks, $workspace, $filter));
+  const allWarnings = $derived(warnings(weeks, $workspace));
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -165,13 +169,7 @@
         .map((kind) => {
           const mondays = g.kinds[kind]!;
           const named = label(mondays);
-          const hoursThen = (m: string): number => {
-            const w = byMonday.get(m);
-            if (!w) return 0;
-            return kind === 'above-fte' && teamIds
-              ? hoursIn(w, teamIds, g.personId)
-              : (w.byPerson[g.personId] ?? 0);
-          };
+          const hoursThen = (m: string): number => byMonday.get(m)?.byPerson[g.personId] ?? 0;
           const most = Math.max(...mondays.map(hoursThen));
           return $t(`load.warn.${kind}`, {
             factor: formatNumber($locale, warnFactor, 1),
@@ -231,6 +229,7 @@
 </script>
 
 <div class="load stack">
+  <p class="note only" data-meeting-only>{$t('load.meetingOnly')}</p>
   <WeekFocus />
   {#if summary.byCategory.length === 0 && summary.byRole.length === 0}
     <p class="hint card">{$t('load.empty')}</p>
@@ -291,7 +290,7 @@
           >
         </th>
         {#if teamId}
-          <th scope="col" class="num">{$t('load.col.all')}</th>
+          <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
         {/if}
         <th scope="col" class="num" aria-sort={sortBy === 'free' ? 'descending' : undefined}>
           <button type="button" class="sort" onclick={() => (sortBy = 'free')}
@@ -342,7 +341,16 @@
             </span>
           </td>
           {#if teamId}
-            <td class="num">{formatPercent($locale, p.allShare)}</td>
+            <td class="num nowrap"
+              >{$t('load.here', {
+                hours: hours(p.here.hours),
+                of: hours(p.here.cap),
+                percent:
+                  p.here.cap > 0 || p.here.hours === 0
+                    ? formatPercent($locale, p.here.share)
+                    : $t('load.noHours'),
+              })}</td
+            >
           {/if}
           <td class="num nowrap">{$t('load.freeHours', { hours: hours(p.free) })}</td>
           <td class="num nowrap">
@@ -392,7 +400,9 @@
       <span class="label">{$t('load.kpi.total')}</span>
       <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit')}</small></span>
       <span class="sub"
-        >{$t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
+        >{$filter.personId
+          ? $t('load.kpi.week.person')
+          : $t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
         {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
             >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
               n: formatNumber($locale, summary.unfilled, 0),
@@ -410,12 +420,19 @@
           ><span style:width="{Math.min(100, r.percent)}%"></span></span
         >
         <span class="sub"
-          >{$t(r.people > 1 ? 'load.kpi.share.many' : 'load.kpi.share', {
-            percent: formatPercent($locale, r.percent / 100),
-            hours: formatNumber($locale, r.weekly, 0),
-            people: formatNumber($locale, r.people, 0),
-            fte: formatNumber($locale, r.fte, 2),
-          })}</span
+          >{$t(
+            $filter.personId
+              ? 'load.kpi.share.person'
+              : r.people > 1
+                ? 'load.kpi.share.many'
+                : 'load.kpi.share',
+            {
+              percent: formatPercent($locale, r.percent / 100),
+              hours: formatNumber($locale, r.weekly, 0),
+              people: formatNumber($locale, r.people, 0),
+              fte: formatNumber($locale, r.fte, 2),
+            },
+          )}</span
         >
       </li>
     {/each}
@@ -627,6 +644,10 @@
   }
   .note.below {
     margin: 0.75rem 0 0;
+  }
+  /* Says what the page counts, right under its title. */
+  .note.only {
+    margin: 0;
   }
   .note {
     margin: 0 0 1rem;

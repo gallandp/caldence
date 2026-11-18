@@ -2,7 +2,6 @@ import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import {
   attendees,
   units,
-  unitLoadIds,
   unitTeamIds,
   type CalEvent,
   type Rule,
@@ -12,7 +11,6 @@ import {
 import { effectiveDuration, occurrences } from './recurrence';
 import { record } from './record';
 import type { HolidayIndex } from './regions';
-import type { Filter } from './views';
 
 export interface BaseLoad {
   byRole: Record<string, number>;
@@ -178,34 +176,29 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
  * Flags weeks above warnFactor x the person's usual load and weeks above maxFte. The usual load
  * of a week is the person's average, or their recurring meetings that week if that is more, so
  * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
- * and cycle milestones on top of them are. The FTE check follows the filter: with a team or area
- * filter (and no person) it compares a member's hours there with their hours there, otherwise
- * all hours with the hours summed over their teams and areas. Area meetings are also checked on
- * their own against the person's area hours, so meetings in an area where someone has no hours
- * (0 h without an entry) are flagged even when their team hours would cover them.
+ * and cycle milestones on top of them are. The FTE check compares all of a person's meeting
+ * hours with their hours summed over their teams and areas, whatever the scope, so a person is
+ * over the limit everywhere or nowhere (#273). Area meetings are also checked on their own
+ * against the person's area hours, so meetings in an area where someone has no hours (0 h
+ * without an entry) are flagged even when their team hours would cover them.
  */
-export function warnings(weeks: WeekLoad[], ws: Workspace, filter: Filter = {}): LoadWarning[] {
-  const teamId = filter.personId ? undefined : filter.teamId;
+export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
   const { warnFactor, maxFte } = ws.settings.thresholds;
-  const scope = teamId === undefined ? [] : unitLoadIds(ws, teamId);
-  // Areas whose own meetings are checked: all of them, the selected one, none for one team.
-  const areas = ws.areas.filter((a) => teamId === undefined || a.id === teamId);
   const tooMuch = (hours: number, capacity: number) => overMax(hours, capacity, maxFte);
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
     const average = weeks.length > 0 ? total / weeks.length : 0;
-    const hoursPerWeek = capacity(ws, person.id, teamId);
+    const hoursPerWeek = capacity(ws, person.id);
     for (const week of weeks) {
       const hours = week.byPerson[person.id] ?? 0;
       const usual = Math.max(average, week.regularByPerson[person.id] ?? 0);
       if (average > 0 && hours > warnFactor * usual) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
-      const fteHours = teamId ? hoursIn(week, scope, person.id) : hours;
       const over =
-        tooMuch(fteHours, hoursPerWeek) ||
-        areas.some((a) =>
+        tooMuch(hours, hoursPerWeek) ||
+        ws.areas.some((a) =>
           tooMuch(week.byTeamPerson[a.id]?.[person.id] ?? 0, areaHours(ws, a.id, person.id)),
         );
       if (over) result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });

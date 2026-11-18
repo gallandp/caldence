@@ -20,6 +20,7 @@
     hpw: 'settings.hoursPerWeek',
     hours: 'team.members.hours',
     fte: 'load.col.fte',
+    room: 'load.col.free',
     warnings: 'load.warnings',
     warnFactor: 'settings.warnFactor',
     maxFte: 'settings.maxFte',

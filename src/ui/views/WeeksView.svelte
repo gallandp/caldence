@@ -28,8 +28,8 @@
     several ? $t('cal.withTeam', { label, team: teamName(id) }) : label;
   const hours = (n: number): string => formatNumber($locale, n, 1);
 
-  /** The FTE check follows the team or person filter. */
-  const allWarnings = $derived(warnings(loadPerWeek($workspace, $index), $workspace, $filter));
+  /** A person is judged on all their teams and areas, whatever the filter (#273). */
+  const allWarnings = $derived(warnings(loadPerWeek($workspace, $index), $workspace));
   /** People in scope with a high load, by Monday. */
   const warned = $derived(warnedWeeks($workspace, allWarnings, $filter));
   const names = $derived(new Map($workspace.people.map((p) => [p.id, p.name])));

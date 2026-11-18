@@ -349,6 +349,49 @@ test('the person filter limits the person table and the warnings to that person'
   await expect(tiles.locator('[data-role="role-po"] .hours')).toHaveText(fmt('en', ALEX.roleHours));
 });
 
+test('a person in two teams has the same share, room and tag in every scope (#273)', async ({
+  page,
+}) => {
+  const panel = await openView(page, 'load');
+  await expect(panel.locator('[data-meeting-only]')).toHaveText(
+    'Meeting time only. Other work does not count here.',
+  );
+  // Alex is Product Owner in Alpha and Beta (16 + 16 h): judged on 32 h in every scope.
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Limit: share of weekly hours in meetings').fill('15');
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  const people = panel.getByRole('table', { name: 'People' });
+  const alex = people.locator('tr[data-person="person-alex"]');
+  const judged = [
+    `${fmt('en', ALEX.average)} of ${fmt('en', 32)} h`,
+    pct('en', ALEX.fte),
+    // The part in this team: Alex's meetings in it of the 16 h there.
+    /^\d+\.\d of 16\.0 h · \d+%$/,
+    `${fmt('en', 0.15 * 32 - ALEX.average)} h`,
+  ];
+  for (const team of ['Team Alpha', 'Team Beta']) {
+    if (team !== 'Team Alpha') await pickUnit(page, team);
+    await expect(people.getByRole('columnheader', { name: 'of which in the team' })).toBeVisible();
+    await expect(
+      people.getByRole('columnheader', { name: /Room before limit \(meetings\)/ }),
+    ).toBeVisible();
+    await expect(alex.getByRole('cell').nth(1)).toHaveText(judged[0]!);
+    await expect(alex.getByRole('cell').nth(2)).toHaveText(judged[1]!);
+    await expect(alex.getByRole('cell').nth(3)).toHaveText(judged[2]!);
+    await expect(alex.getByRole('cell').nth(4)).toHaveText(judged[3]!);
+    await expect(alex.getByRole('rowheader')).not.toContainText('over the limit');
+  }
+  // The person filter gives the same answer, without the team column and without FTE on the tiles.
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Alex' });
+  await expect(people.getByRole('columnheader', { name: 'of which in the team' })).toHaveCount(0);
+  await expect(alex.getByRole('cell').nth(1)).toHaveText(judged[0]!);
+  await expect(alex.getByRole('cell').nth(2)).toHaveText(judged[1]!);
+  await expect(alex.getByRole('cell').nth(3)).toHaveText(judged[3]!);
+  const tiles = panel.getByRole('list', { name: 'Summary' });
+  await expect(tiles).not.toContainText('FTE');
+  await expect(tiles.locator('[data-total] .sub')).toHaveText('typical week');
+});
+
 test('the chart summarises the hours per week and marks weeks with a warning', async ({ page }) => {
   const panel = await openView(page, 'load');
   const chart = panel.getByRole('img', { name: /^Bar chart of the hours per week/ });
@@ -527,7 +570,7 @@ test('the people list sorts by share or free hours and explains a person on clic
   const panel = await openView(page, 'load');
   const people = panel.getByRole('table', { name: 'People' });
   const share = people.getByRole('columnheader', { name: /Share in meetings/ });
-  const free = people.getByRole('columnheader', { name: /Free up to the limit/ });
+  const free = people.getByRole('columnheader', { name: /Room before limit/ });
   // Highest share first by default.
   await expect(share).toHaveAttribute('aria-sort', 'descending');
   await expect(free).not.toHaveAttribute('aria-sort');
@@ -537,7 +580,7 @@ test('the people list sorts by share or free hours and explains a person on clic
   // The free column found by its header, so a column more or less cannot fool the check.
   const column = await people
     .locator('thead th')
-    .evaluateAll((ths) => ths.findIndex((th) => th.textContent!.includes('Free up to the limit')));
+    .evaluateAll((ths) => ths.findIndex((th) => th.textContent!.includes('Room before limit')));
   const freeHours = await people
     .locator('tr[data-person]')
     .evaluateAll(
