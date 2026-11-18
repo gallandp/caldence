@@ -21,6 +21,7 @@
   import { workspaceIndex, type Filter } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
+  import { unitLoadIds } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
   import {
@@ -173,11 +174,6 @@
   const noMeetings = $derived(
     !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
   );
-  // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
-  const areaEmpty = $derived(
-    noMeetings && kind === 'team' && ws.areas.some((a) => a.id === chosen?.id),
-  );
-
   function build(filter: Filter) {
     // A year around the range, so school holidays that cross its edges keep their real start,
     // also the long periods of an imported region.
@@ -197,17 +193,48 @@
   const filterFor = (id: string): Filter =>
     kind === 'team' ? { teamId: id } : kind === 'role' ? { roleId: id } : { personId: id };
 
-  /** One file per team, role or person in the archive, skipping those without meetings. */
-  const canShareAll = $derived(
-    !rangeInvalid && zoneKnown && choices.filter((c) => hasContent(filterFor(c.id))).length > 1,
+  const chosenIsArea = $derived(kind === 'team' && ws.areas.some((a) => a.id === chosen?.id));
+  // In a file with several areas, a selected area's ZIP holds only its own calendar and its teams'.
+  const zipArea = $derived(
+    kind === 'team' && ws.areas.length > 1 ? ws.areas.find((a) => a.id === chosen?.id) : undefined,
   );
+  const zipChoices = $derived.by(() => {
+    if (!zipArea) return choices;
+    const ids = unitLoadIds(ws, zipArea.id);
+    return choices.filter((c) => ids.includes(c.id));
+  });
+  // Names the area only when its own calendar is in the ZIP.
+  const zipLabel = $derived(
+    !zipArea
+      ? $t('exchange.zip.button.' + kind)
+      : $t(
+          hasContent(filterFor(zipArea.id))
+            ? 'exchange.zip.button.area'
+            : 'exchange.zip.button.areaTeams',
+          {
+            name: zipArea.name,
+          },
+        ),
+  );
+
+  /**
+   * One file per team, role or person in the archive, skipping those without meetings. An area's
+   * ZIP may hold a single file: its only team with meetings.
+   */
+  const canShareAll = $derived(
+    !rangeInvalid &&
+      zoneKnown &&
+      zipChoices.filter((c) => hasContent(filterFor(c.id))).length > (chosenIsArea ? 0 : 1),
+  );
+  // An area without own meetings: its teams' meetings are in their own files, so the ZIP leads.
+  const areaEmpty = $derived(noMeetings && chosenIsArea && canShareAll);
 
   async function shareAll() {
     if (!canShareAll) return;
     const used: string[] = [];
     const files = [];
     const remembered: { filter: Filter; built: IcsExport }[] = [];
-    for (const c of choices) {
+    for (const c of zipChoices) {
       if (!hasContent(filterFor(c.id))) continue;
       const built = build(filterFor(c.id));
       if (built.series + built.single + built.cancelled === 0) continue;
@@ -226,7 +253,7 @@
     try {
       const saved = await exportTextFile(
         env,
-        `caldence-${$t('exchange.zip.' + kind)}.zip`,
+        `caldence-${zipArea ? slug(zipArea.name) : $t('exchange.zip.' + kind)}.zip`,
         zip(files, new Date()),
         [{ description: $t('exchange.zip.type'), accept: { 'application/zip': ['.zip'] } }],
       );
@@ -387,7 +414,10 @@
         {$t('exchange.exported.cancelled', { n: exported.cancelled })}
       {/if}
     {:else if sharedAll}
-      {$t('exchange.zip.done', { name: sharedAll.name, n: sharedAll.files })}
+      {$t(sharedAll.files === 1 ? 'exchange.zip.done.one' : 'exchange.zip.done', {
+        name: sharedAll.name,
+        n: sharedAll.files,
+      })}
     {/if}
     {#if exported || sharedAll}
       <span>{$t('exchange.exported.next')}</span>
@@ -526,7 +556,7 @@
       <div class="row">
         <button
           type="submit"
-          class:primary={!(areaEmpty && canShareAll)}
+          class:primary={!areaEmpty}
           disabled={!canExport}
           aria-describedby={!zoneKnown
             ? `${uid}-zone-hint`
@@ -534,18 +564,15 @@
               ? `${uid}-empty-hint`
               : undefined}>{$t('exchange.export.button')}</button
         >
-        <button
-          type="button"
-          class:primary={areaEmpty && canShareAll}
-          disabled={!canShareAll}
-          onclick={shareAll}>{$t('exchange.zip.button.' + kind)}</button
+        <button type="button" class:primary={areaEmpty} disabled={!canShareAll} onclick={shareAll}
+          >{zipLabel}</button
         >
       </div>
       {#if noMeetings}
         <p class="empty" id="{uid}-empty-hint">
           {$t(areaEmpty ? 'exchange.export.areaEmpty' : 'exchange.export.empty', {
             name: chosen?.name ?? '',
-            zip: $t('exchange.zip.button.team'),
+            zip: zipLabel,
           })}
         </p>
       {/if}
