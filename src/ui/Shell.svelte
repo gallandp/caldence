@@ -650,6 +650,10 @@
             {:else if id === 'exchange'}
               {#if active === 'exchange'}<ExchangeView
                   onOpenMeetings={() => select('meetings', true)}
+                  onOpenHelp={() => {
+                    select('help');
+                    void tick().then(() => document.getElementById('manual-ics')?.focus());
+                  }}
                 />{/if}
             {:else if id === 'help'}
               {#if active === 'help'}<HelpView />{/if}

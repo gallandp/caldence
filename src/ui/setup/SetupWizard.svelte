@@ -7,6 +7,7 @@
   import { formatDisplayDate, locale, translate as t } from '../../i18n';
   import { resolveRegion } from '../../core/regions';
   import { regionIds } from '../../data/regions';
+  import { saveExportChoice } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
   import { browserZone, FALLBACK_ZONES, supportedZones } from '../state/zones';
 
@@ -158,6 +159,11 @@
       return;
     }
     if (result.id) activeTeamId.set(result.id);
+    // "I am part of it": this browser's exports start with this person (not stored in the file).
+    const self = myName.trim().toLowerCase();
+    const mine =
+      me && self !== '' && result.value.people.find((p) => p.name.trim().toLowerCase() === self);
+    if (mine) saveExportChoice(result.value.id, { kind: 'person', id: mine.id });
     close();
     oncreated?.(trimmed);
   }
