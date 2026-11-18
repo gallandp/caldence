@@ -360,8 +360,9 @@
           {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
         </h3>
         <p class="note">
-          {$t('overview.cost.hint')}{#if rate}
-            {$t('overview.cost.hint.person')}{/if}
+          {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
+              >{' ' + $t('overview.cost.hint.person')}</span
+            >{/if}
         </p>
       </div>
       {#if rate}
@@ -1414,6 +1415,7 @@
     }
     :global(#app) [data-area-costs] .extra,
     [data-area-costs] .bar,
+    [data-area-costs] .person-hint,
     [data-area-costs] .note.below {
       display: none;
     }

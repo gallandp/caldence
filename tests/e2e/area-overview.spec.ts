@@ -146,6 +146,15 @@ for (const scheme of ['light', 'dark'] as const) {
     const result = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
     expect(result.violations).toEqual([]);
   });
+
+  test(`axe finds no violations in the area overview on a phone (${scheme})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await openOverview(page, 100);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('[data-cost-row="team-gamma"]')).toHaveCSS('display', 'grid');
+    const result = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
+    expect(result.violations).toEqual([]);
+  });
 }
 
 test('without a rate the overview shows time per team and invites a rate', async ({ page }) => {
