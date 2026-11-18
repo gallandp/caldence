@@ -1,6 +1,14 @@
 <script lang="ts">
   import { onMount, tick, untrack } from 'svelte';
-  import type { Area, CalEvent, Category, Role, Team } from '../../core/model';
+  import {
+    holders,
+    type Area,
+    type CalEvent,
+    type Category,
+    type Role,
+    type Team,
+  } from '../../core/model';
+  import { areaHours } from '../../core/load';
   import { translate as t } from '../../i18n';
   import { localToday, workspace } from '../state/workspace';
   import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
@@ -47,6 +55,8 @@
     grid: number | null;
     /** `key` only tells the rows apart while editing; it is not saved. */
     participants: { key: number; roleId: string; share: number | null; fromTeams: boolean }[];
+    /** People invited by name (#285), saved after the roles. */
+    people: { key: number; personId: string; share: number | null }[];
     /** Percent, 0 to 100. */
     preparation: number | null;
   }
@@ -54,6 +64,8 @@
   let nextKey = 0;
   let addButton: HTMLButtonElement | undefined = $state();
   let partsList: HTMLUListElement | undefined = $state();
+  let addPersonButton: HTMLButtonElement | undefined = $state();
+  let peopleList: HTMLUListElement | undefined = $state();
 
   function init(e: CalEvent): Draft {
     const s = e.scaling;
@@ -68,7 +80,14 @@
       perUnit: s?.perUnit ?? 5,
       assumption: s?.assumption ?? Object.keys(team.assumptions)[0] ?? '',
       grid: s?.grid ?? 5,
-      participants: e.participants.map((p) => ({ key: nextKey++, ...p, fromTeams: !!p.fromTeams })),
+      participants: e.participants.flatMap((p) =>
+        p.roleId !== undefined
+          ? [{ key: nextKey++, roleId: p.roleId, share: p.share, fromTeams: !!p.fromTeams }]
+          : [],
+      ),
+      people: e.participants.flatMap((p) =>
+        p.personId !== undefined ? [{ key: nextKey++, personId: p.personId, share: p.share }] : [],
+      ),
       preparation: Math.round(e.preparation * 10000) / 100,
     };
   }
@@ -98,6 +117,30 @@
     draft.assumption !== '' && !assumptionKeys.includes(draft.assumption),
   );
   const roleName = (roleId: string) => roles.find((r) => r.id === roleId)?.name ?? roleId;
+  const personName = (personId: string) =>
+    $workspace.people.find((x) => x.id === personId)?.name ?? personId;
+
+  /** People of this team or area (an area's teams included) first, then everyone else. */
+  const ownPeople = $derived.by(() => {
+    const teams = area ? $workspace.teams.filter((x) => area.teamIds.includes(x.id)) : [];
+    return new Set([team, ...teams].flatMap((x) => x.members.map((m) => m.personId)));
+  });
+  const herePeople = $derived($workspace.people.filter((x) => ownPeople.has(x.id)));
+  const otherPeople = $derived($workspace.people.filter((x) => !ownPeople.has(x.id)));
+  const namedIds = $derived(draft.people.map((x) => x.personId));
+
+  /** The invited roles that also reach this person, for the "counts once" note under the row. */
+  function alsoAs(personId: string): string[] {
+    return draft.participants
+      .filter((p) =>
+        holders($workspace, team.id, {
+          roleId: p.roleId,
+          share: 1,
+          fromTeams: p.fromTeams,
+        }).includes(personId),
+      )
+      .map((p) => roleName(p.roleId));
+  }
 
   const invalid = (field: string) => (errors[field] ? 'true' : undefined);
   const describe = (field: string, extra?: string) =>
@@ -113,20 +156,26 @@
     }
   }
 
-  /** Every row whose role is listed more than once. */
+  /** Every row whose role or person is listed more than once. */
   function dupErrors(): Record<string, string> {
     const out: Record<string, string> = {};
     draft.participants.forEach((p, i) => {
       if (draft.participants.some((o, j) => j !== i && o.roleId === p.roleId))
         out[`participants.${i}.roleId`] = 'meet.participants.duplicate';
     });
+    draft.people.forEach((p, i) => {
+      if (draft.people.some((o, j) => j !== i && o.personId === p.personId))
+        out[`people.${i}.personId`] = 'meet.people.duplicate';
+    });
     return out;
   }
+
+  const rowError = (k: string) => k.startsWith('participants.') || k.startsWith('people.');
 
   /** Rows were added or removed: indices shifted, so drop the row errors and re-mark duplicates. */
   function clearParticipantErrors() {
     errors = {
-      ...Object.fromEntries(Object.entries(errors).filter(([k]) => !k.startsWith('participants.'))),
+      ...Object.fromEntries(Object.entries(errors).filter(([k]) => !rowError(k))),
       ...dupErrors(),
     };
   }
@@ -155,10 +204,27 @@
     addButton?.focus();
   }
 
+  /** The new row offers the first person not listed yet, this team's people first. */
+  async function addPerson() {
+    const free = [...herePeople, ...otherPeople].find((x) => !namedIds.includes(x.id));
+    if (!free) return;
+    draft.people.push({ key: nextKey++, personId: free.id, share: 1 });
+    clearParticipantErrors();
+    await tick();
+    peopleList?.querySelector<HTMLElement>('li:last-child select')?.focus();
+  }
+
+  async function removePerson(i: number) {
+    draft.people.splice(i, 1);
+    clearParticipantErrors();
+    await tick();
+    addPersonButton?.focus();
+  }
+
   function onChange(e: Event) {
     onEdit(e);
-    const m = /^participants\.(\d+)\.roleId$/.exec((e.target as HTMLElement).dataset.field ?? '');
-    if (m) onRole();
+    const field = (e.target as HTMLElement).dataset.field ?? '';
+    if (/^(participants\.\d+\.roleId|people\.\d+\.personId)$/.test(field)) onRole();
   }
 
   /** A role changed: duplicate marks on every row are recomputed (both rows clear together). */
@@ -166,7 +232,11 @@
     errors = {
       ...Object.fromEntries(
         Object.entries(errors).filter(
-          ([k, v]) => !(k.startsWith('participants.') && v === 'meet.participants.duplicate'),
+          ([k, v]) =>
+            !(
+              rowError(k) &&
+              (v === 'meet.participants.duplicate' || v === 'meet.people.duplicate')
+            ),
         ),
       ),
       ...dupErrors(),
@@ -184,11 +254,14 @@
       rule: toRule(d.rule),
       time: d.time.trim(),
       duration: n(d.duration),
-      participants: d.participants.map((p) =>
-        area && p.fromTeams
-          ? { roleId: p.roleId, share: n(p.share), fromTeams: true }
-          : { roleId: p.roleId, share: n(p.share) },
-      ),
+      participants: [
+        ...d.participants.map((p) =>
+          area && p.fromTeams
+            ? { roleId: p.roleId, share: n(p.share), fromTeams: true }
+            : { roleId: p.roleId, share: n(p.share) },
+        ),
+        ...d.people.map((p) => ({ personId: p.personId, share: n(p.share) })),
+      ],
       preparation: Number.isNaN(n(d.preparation))
         ? Number.NaN
         : Number((n(d.preparation) / 100).toFixed(4)),
@@ -210,13 +283,25 @@
     // A refused field is never committed, but the other fields are still checked.
     const result = save(build(), Object.keys(found).length === 0);
     if (result === null && Object.keys(found).length === 0) return;
-    errors = { ...result, ...found };
+    errors = { ...rowPaths(result ?? {}), ...found };
     await tick();
     // A weekday group has no aria-invalid (it is a fieldset), so its first checkbox takes the focus.
     const first = form?.querySelector<HTMLElement>(
       '[aria-invalid="true"], fieldset[aria-describedby] input',
     );
     (first ?? form?.querySelector<HTMLElement>('[role="alert"]'))?.focus();
+  }
+
+  /** Saved rows list the roles, then the people: a person's error moves to its own row. */
+  function rowPaths(result: Record<string, string>): Record<string, string> {
+    const roleRows = draft.participants.length;
+    return Object.fromEntries(
+      Object.entries(result).map(([k, v]) => {
+        const m = /^participants\.(\d+)\.(.*)$/.exec(k);
+        const i = m ? Number(m[1]) : -1;
+        return m && i >= roleRows ? [`people.${i - roleRows}.${m[2]}`, v] : [k, v];
+      }),
+    );
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -498,6 +583,7 @@
                     {area}
                     roleId={p.roleId}
                     fromTeams={p.fromTeams}
+                    named={namedIds}
                     {onSetHours}
                   />
                 {/if}
@@ -515,6 +601,112 @@
         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
           'meet.participants.add',
         )}</button
+      >
+    </fieldset>
+
+    <fieldset class="people">
+      <legend>{$t('meet.people')}</legend>
+      <p class="hint" id="{uid}-people-hint">{$t('meet.people.hint')}</p>
+      {#if $workspace.people.length === 0}
+        <p class="hint">{$t('meet.people.none')}</p>
+      {/if}
+      {#if draft.people.length > 0}
+        <div class="parts-wrap">
+          <div class="part-grid part-heads" aria-hidden="true">
+            <span>{$t('meet.people.person')}</span><span>{$t('meet.participants.share')}</span>
+          </div>
+          <ul class="parts" bind:this={peopleList}>
+            {#each draft.people as p, i (p.key)}
+              {@const also = alsoAs(p.personId)}
+              <li class="part-grid">
+                <div class="field role">
+                  <select
+                    id={id(`people.${i}.personId`)}
+                    data-field="people.{i}.personId"
+                    bind:value={p.personId}
+                    aria-label={$t('meet.people.person')}
+                    aria-invalid={invalid(`people.${i}.personId`)}
+                    aria-describedby={describe(
+                      `people.${i}.personId`,
+                      [`${uid}-people-hint`, also.length > 0 ? `${uid}-also-${p.key}` : '']
+                        .filter(Boolean)
+                        .join(' '),
+                    )}
+                  >
+                    {#if herePeople.length > 0}
+                      <optgroup label={$t('meet.people.here', { unit: team.name })}>
+                        {#each herePeople as x (x.id)}
+                          <option value={x.id}>{x.name}</option>
+                        {/each}
+                      </optgroup>
+                    {/if}
+                    {#if otherPeople.length > 0}
+                      <optgroup label={$t('meet.people.others')}>
+                        {#each otherPeople as x (x.id)}
+                          <option value={x.id}>{x.name}</option>
+                        {/each}
+                      </optgroup>
+                    {/if}
+                  </select>
+                </div>
+                <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
+                <div class="field share">
+                  <input
+                    id={id(`people.${i}.share`)}
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    data-field="people.{i}.share"
+                    bind:value={p.share}
+                    aria-label={$t('meet.participants.shareOf', { role: personName(p.personId) })}
+                    aria-invalid={invalid(`people.${i}.share`)}
+                    aria-describedby={describe(`people.${i}.share`, `${uid}-share-hint`)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="icon-button remove"
+                  aria-label={$t('meet.people.remove', { name: personName(p.personId) })}
+                  onclick={() => removePerson(i)}
+                  ><svg viewBox="0 0 24 24" aria-hidden="true"
+                    ><path d="M6 6l12 12M18 6L6 18" /></svg
+                  ></button
+                >
+                {@render err(`people.${i}.personId`, personName(p.personId))}
+                {@render err(`people.${i}.share`, personName(p.personId))}
+                {#if also.length > 0}
+                  <p class="also" id="{uid}-also-{p.key}">
+                    {$t('meet.people.alsoRole', { role: also.join(', ') })}
+                  </p>
+                {/if}
+                <!-- Area time without hours there counts as over the limit, as for "from every team". -->
+                {#if area && areaHours($workspace, area.id, p.personId) === 0}
+                  <p class="also no-hours" role="note">
+                    {$t('area.participants.noHours.one', { names: personName(p.personId) })}
+                    {#if onSetHours}
+                      <button type="button" class="link" onclick={onSetHours}
+                        >{$t('area.participants.setHours')}</button
+                      >
+                    {/if}
+                  </p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
+      <button
+        type="button"
+        class="secondary add"
+        bind:this={addPersonButton}
+        disabled={draft.people.length >= $workspace.people.length}
+        onclick={addPerson}
+        ><svg viewBox="0 0 24 24" aria-hidden="true"
+          ><circle cx="10" cy="8" r="3.5" /><path
+            d="M3.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"
+          /></svg
+        >{$t('meet.people.add')}</button
       >
     </fieldset>
 
@@ -628,6 +820,34 @@
     background-color: var(--area-soft);
     color: var(--area);
     font-weight: 600;
+  }
+  .part-grid > .field-error,
+  .part-grid > .also {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .also {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .no-hours {
+    width: fit-content;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 600;
+  }
+  :global(#app) .no-hours button.link {
+    border: 0;
+    background: none;
+    padding: 0;
+    min-height: 0;
+    min-width: 0;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
   }
   .part-grid > .field-error {
     grid-column: 1 / -1;

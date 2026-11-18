@@ -53,7 +53,7 @@ export function areaStructure(ws: Workspace, area: Area): Structure {
   const teams = area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id));
   const invited = new Set(
     area.events.flatMap((e) =>
-      e.participants.filter((p) => p.fromTeams).flatMap((p) => attendees(ws, area.id, p)),
+      e.participants.filter((p) => p.fromTeams).flatMap((p) => attendees(ws, area.id, p, e)),
     ),
   );
   const areaMembers = personIds(area.members);

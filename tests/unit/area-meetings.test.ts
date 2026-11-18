@@ -11,7 +11,7 @@ import {
 } from '../../src/core/load';
 import {
   areaAsTeam,
-  attendees,
+  holders,
   emptyWorkspace,
   missingRoles,
   unitLoadIds,
@@ -97,28 +97,28 @@ function workspace(events: CalEvent[] = [forum()]): Workspace {
   return ws;
 }
 
-describe('attendees', () => {
+describe('holders', () => {
   it('resolves "from every team" to everyone with the role in the teams, each once', () => {
     const ws = workspace();
     const [po, head] = ws.areas[0]!.events[0]!.participants;
-    expect(attendees(ws, 'area', po!)).toEqual(['alex', 'bo']);
-    expect(attendees(ws, 'area', head!)).toEqual(['hana']);
+    expect(holders(ws, 'area', po!)).toEqual(['alex', 'bo']);
+    expect(holders(ws, 'area', head!)).toEqual(['hana']);
   });
 
   it('without fromTeams only counts the area members with the role', () => {
     const ws = workspace();
-    expect(attendees(ws, 'area', { roleId: 'po', share: 1 })).toEqual([]);
+    expect(holders(ws, 'area', { roleId: 'po', share: 1 })).toEqual([]);
   });
 
   it('follows the teams as they change', () => {
     const ws = workspace();
     ws.areas[0]!.teamIds = ['gamma'];
-    expect(attendees(ws, 'area', { roleId: 'po', share: 1, fromTeams: true })).toEqual(['bo']);
+    expect(holders(ws, 'area', { roleId: 'po', share: 1, fromTeams: true })).toEqual(['bo']);
   });
 
   it('in a team means the team members with the role', () => {
     const ws = workspace();
-    expect(attendees(ws, 'alpha', { roleId: 'dev', share: 1 })).toEqual(['dev']);
+    expect(holders(ws, 'alpha', { roleId: 'dev', share: 1 })).toEqual(['dev']);
   });
 });
 
