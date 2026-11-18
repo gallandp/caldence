@@ -611,7 +611,7 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   // On a phone the box collapses to one line.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load Team Alpha: \d+% → \d+%$/),
+    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load Team Alpha: \d+%\s→\s\d+%$/),
   ).toBeVisible();
   await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
   await form.getByRole('button', { name: 'Save' }).click();

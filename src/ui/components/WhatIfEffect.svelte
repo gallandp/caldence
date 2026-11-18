@@ -37,7 +37,8 @@
       hours: signed(a.hours - b.hours, hours),
       cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
       name: scopeName,
-      share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }),
+      // "16 % → 14 %" wraps as a whole.
+      share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }).replace(/\s/g, ' '),
     });
 </script>
 
