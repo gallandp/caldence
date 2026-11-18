@@ -388,6 +388,33 @@ test('the first screen holds the answers: KPI tiles at 1280×720 presenting, cos
   }
 });
 
+test('the key figure tiles and the cards keep the same gap at 1440, 1280 presenting and 390 (#293)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  // The gaps between the overview's blocks: key figures, cost card, costly meetings, ...
+  const gaps = () =>
+    overview.evaluate((el) => {
+      const boxes = [...el.querySelectorAll(':scope > .kpis, :scope > .card')].map((c) =>
+        c.getBoundingClientRect(),
+      );
+      return boxes.slice(1).map((b, i) => Math.round(b.top - boxes[i]!.bottom));
+    });
+  const sameGap = async () => {
+    const [kpiToCost, ...others] = await gaps();
+    expect(kpiToCost).toBeGreaterThanOrEqual(16);
+    for (const gap of others) expect(gap).toBe(kpiToCost);
+  };
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await sameGap();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await sameGap();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/presenting/);
+  await sameGap();
+});
+
 test('printing shows the "How is this counted?" text without the summary', async ({ page }) => {
   const overview = await openOverview(page, 100);
   await page.emulateMedia({ media: 'print' });

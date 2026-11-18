@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openTeamView, pickUnit, teamAction, useFileFallback } from './helpers';
+import {
+  openExample,
+  openPeoplePool,
+  openTeamView,
+  pickUnit,
+  teamAction,
+  useFileFallback,
+} from './helpers';
 
 // People in several teams (#274): the app asks for their hours and warns above the weekly hours.
 test.use({ locale: 'en-US' });
@@ -126,4 +133,43 @@ test('adding a person from another team fills in the hours left and flags too ma
   await expect(
     page.getByRole('dialog', { name: 'Alex' }).getByText('52 h – more than 40 h a week'),
   ).toBeVisible();
+});
+
+test('the Team view flags a member with too many hours until they are lowered (#291)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  await openPeoplePool(page);
+  const member = team.locator('.members li').filter({ hasText: 'Alex' });
+  const pooled = team
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('textbox', { name: 'Alex' }) });
+  const hours = team.getByLabel('Weekly hours of Alex in Team Alpha');
+  await expect(team.getByText(/more than 40 h a week/)).toHaveCount(0);
+
+  // 30 h here and 16 h in Team Beta: 46 h, more than the 40 h of Settings.
+  await hours.fill('30');
+  await hours.press('Enter');
+  await expect(member.getByText('46 h – more than 40 h a week')).toBeVisible();
+  await expect(hours).toHaveAccessibleDescription('46 h – more than 40 h a week');
+  await expect(pooled).toContainText('Team Alpha 30 h · Team Beta 16 h · Σ 46 h');
+  await expect(pooled.getByText('46 h – more than 40 h a week')).toBeVisible();
+
+  // Back to 24 h: 40 h is not more than 40 h, so the flag goes at once.
+  await hours.fill('24');
+  await hours.press('Enter');
+  await expect(team.getByText(/more than 40 h a week/)).toHaveCount(0);
+
+  // Someone in this team only has no Σ part: the flag follows their only entry.
+  await team.getByLabel('Person', { exact: true }).fill('Noa');
+  await team.getByLabel('Hrs/week in team').fill('44');
+  await team.getByRole('button', { name: 'Add member' }).click();
+  const noa = team
+    .getByRole('listitem')
+    .filter({ has: page.getByRole('textbox', { name: 'Noa' }) });
+  await expect(noa).toContainText('Team Alpha 44 h');
+  await expect(noa).not.toContainText('Σ');
+  await expect(noa.getByText('44 h – more than 40 h a week')).toBeVisible();
 });

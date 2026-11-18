@@ -64,7 +64,7 @@ test('the area gets a cadence of its own and can drop it again', async ({ page }
   await expect(panel.getByText(/^No cadence of its own/)).toBeVisible();
 });
 
-test('the area is a calendar of its own, also in the ZIP of all teams', async ({ page }) => {
+test('the area is a calendar of its own, also in the ZIP of the area', async ({ page }) => {
   await openAreaMeetings(page);
   const form = await addScrumOfScrums(page);
   await form.getByRole('button', { name: 'Save' }).click();
@@ -81,7 +81,10 @@ test('the area is a calendar of its own, also in the ZIP of all teams', async ({
   expect(text).not.toContain('SUMMARY:Daily');
 
   download = page.waitForEvent('download');
-  await panel.getByRole('button', { name: 'One file per team (ZIP)…' }).click();
+  // The example has a second area, so the ZIP holds this area and its teams.
+  await panel
+    .getByRole('button', { name: 'One file for Platform and one per team (ZIP)…' })
+    .click();
   file = await download;
   expect(readFileSync((await file.path())!).toString('latin1')).toContain('caldence-platform.ics');
 });
@@ -92,18 +95,22 @@ test('an area without own meetings leads with one file per team', async ({ page 
   const panel = page.getByRole('tabpanel', { name: 'Import / Export' });
   await expect(panel.getByLabel('Selected team or area')).toHaveValue(/.+/);
   await expect(panel.getByRole('button', { name: 'Export .ics…' })).toBeDisabled();
-  const zip = panel.getByRole('button', { name: 'One file per team (ZIP)…' });
+  const zip = panel.getByRole('button', {
+    name: 'One file per team of Platform (ZIP)…',
+  });
   await expect(zip).toBeEnabled();
   await expect(zip).toHaveClass(/primary/);
   await expect(
     panel.getByText(
-      'Platform has no meetings of its own. One file per team (ZIP)… creates a file for each team.',
+      'Platform has no meetings of its own. One file per team of Platform (ZIP)… creates a file for each team.',
     ),
   ).toBeVisible();
   // A team with meetings leads with its own file again.
   await panel.getByLabel('Selected team or area').selectOption({ label: 'Team Alpha' });
   await expect(panel.getByRole('button', { name: 'Export .ics…' })).toHaveClass(/primary/);
-  await expect(zip).not.toHaveClass(/primary/);
+  await expect(panel.getByRole('button', { name: 'One file per team (ZIP)…' })).not.toHaveClass(
+    /primary/,
+  );
 });
 
 for (const scheme of ['light', 'dark'] as const) {
