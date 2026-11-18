@@ -4,6 +4,7 @@
   import { translate as t } from '../../i18n';
   import AreaReady from '../components/AreaReady.svelte';
   import AreaStructure from '../components/AreaStructure.svelte';
+  import AreaTeams from '../components/AreaTeams.svelte';
   import RoleList from '../components/RoleList.svelte';
   import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
@@ -70,6 +71,10 @@
     {/each}
   </div>
   {#if page === 'structure'}
+    <!-- Where people build: the way into a team to assign people and roles (#277). -->
+    {#if area.teamIds.length > 0}
+      <div data-no-present><AreaTeams {area} view="team" /></div>
+    {/if}
     <AreaStructure bind:this={structure} {area} />
     <!-- Roles are shared by all units; listed here too, so area roles need no detour via a team. -->
     <details class="roles" data-no-present>

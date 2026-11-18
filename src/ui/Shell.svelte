@@ -156,6 +156,8 @@
 
   /** A meeting the Meetings view opens for editing once it is shown (Edit in the calendar). */
   let editRequest = $state<string | undefined>();
+  /** A meeting the Meetings view scrolls to and highlights (a drill-in from the area overview). */
+  let showRequest = $state<string | undefined>();
 
   function editMeeting(teamId: string, eventId: string) {
     activeTeamId.set(teamId);
@@ -163,14 +165,47 @@
     select('meetings');
   }
 
+  /**
+   * A drill-in from the area overview remembers the area: its target view offers one click back
+   * while it still shows that unit (#277). No history, just the last drill-in.
+   */
+  let back = $state<{ areaId: string; unit: string; view: ViewId } | null>(null);
+  const backArea = $derived(
+    back && back.unit === $activeTeamId && back.view === active
+      ? $workspace.areas.find((a) => a.id === back?.areaId)
+      : undefined,
+  );
+  function drillIn(unit: string, view: ViewId) {
+    if (activeArea) back = { areaId: activeArea.id, unit, view };
+    activeTeamId.set(unit);
+    select(view, true);
+  }
+  function backToArea(areaId: string) {
+    back = null;
+    activeTeamId.set(areaId);
+    areaPage.set('overview');
+    select('team', true);
+  }
+
   /** A load cell in the area overview: Load for that team, showing that week. */
   function openLoad(teamId: string, monday: string) {
-    activeTeamId.set(teamId);
     // A person filter would hide the team's week.
     filter.set({ teamId });
     loadWeek.set({ teamId, monday });
-    select('load', true);
+    drillIn(teamId, 'load');
   }
+
+  // Presenting: picking an area after a team opens its overview, not an empty view of the area.
+  let lastUnit = untrack(() => $activeTeamId);
+  $effect(() => {
+    const unit = $activeTeamId;
+    if (unit === lastUnit) return;
+    lastUnit = unit;
+    if (untrack(() => $presenting) && $workspace.areas.some((a) => a.id === unit)) {
+      areaPage.set('overview');
+      select('team');
+    }
+  });
 
   /** The tab bar's buttons (phones). */
   let barTabs: Partial<Record<ViewId, HTMLButtonElement>> = {};
@@ -536,6 +571,17 @@
           tabindex="0"
           hidden={active !== id}
         >
+          {#if backArea && active === id}
+            <button
+              type="button"
+              class="back link"
+              data-no-print
+              onclick={() => backToArea(backArea.id)}
+              ><span aria-hidden="true">← </span>{$t('overview.back', {
+                name: backArea.name,
+              })}</button
+            >
+          {/if}
           {#if scopeName !== undefined && SCOPED.includes(id)}
             <p class="eyebrow" title={scope}>
               {#if activeArea}
@@ -582,15 +628,17 @@
               {#if active === id}
                 <AreaView area={activeArea} onMeetings={() => select('meetings', true)}>
                   {#snippet overview()}
-                    <AreaTeams area={activeArea} view="team" />
+                    {#if activeArea.teamIds.length === 0}
+                      <AreaTeams area={activeArea} view="team" />
+                    {/if}
                     <AreaOverview
                       area={activeArea}
                       onOpenLoad={openLoad}
-                      onOpenMeeting={editMeeting}
-                      onOpenUnit={(unitId) => {
-                        activeTeamId.set(unitId);
-                        select('meetings', true);
+                      onOpenMeeting={(unitId, eventId) => {
+                        showRequest = eventId;
+                        drillIn(unitId, 'meetings');
                       }}
+                      onOpenUnit={(unitId) => drillIn(unitId, 'meetings')}
                     />
                   {/snippet}
                 </AreaView>
@@ -625,6 +673,8 @@
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}
                   onEditOpened={() => (editRequest = undefined)}
+                  show={showRequest}
+                  onShown={() => (showRequest = undefined)}
                   onSetHours={activeArea ? () => select('team', true) : undefined}
                   onExport={() => select('exchange', true)}
                 />{/if}
@@ -1013,6 +1063,24 @@
   }
   .eyebrow + h2 {
     margin-top: 0;
+  }
+  /* Back to the area overview after a drill-in (#277): a link-like button, 44 px tall. */
+  :global(#app) button.back {
+    min-height: 2.75rem;
+    margin: -0.5rem 0 0;
+    padding: 0 0.25rem 0 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+  :global(#app) button.back:hover {
+    background: none;
+    color: var(--accent-hover);
   }
   /* Narrow: the filters sit above, not beside the headline; give the line room below them. */
   @container (max-width: 55.99rem) {

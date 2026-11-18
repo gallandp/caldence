@@ -41,12 +41,18 @@
     edit?: string;
     /** Called once that meeting is open, so that it is not opened again. */
     onEditOpened?: () => void;
+    /** Id of a meeting to scroll to and highlight, without opening it (drill-in, #277). */
+    show?: string;
+    /** Called once that meeting is shown. */
+    onShown?: () => void;
     /** Opens where a person's hours in an area are set. */
     onSetHours?: () => void;
     /** Opens Import / Export with this team (or the person exported last) preselected. */
     onExport?: () => void;
   }
-  let { edit, onEditOpened, onSetHours, onExport }: Props = $props();
+  let { edit, onEditOpened, show, onShown, onSetHours, onExport }: Props = $props();
+  /** The meeting a drill-in pointed at; highlighted until the unit changes. */
+  let shown = $state<string | undefined>();
 
   const { canUndo } = workspace;
 
@@ -81,6 +87,7 @@
       }),
       activeTeamId.subscribe(() => {
         editing = null;
+        shown = undefined;
         query = '';
       }),
     ];
@@ -88,6 +95,15 @@
       const event = team?.events.find((e) => e.id === edit);
       if (event) open(event, event.id);
       onEditOpened?.();
+    }
+    if (show !== undefined) {
+      shown = show;
+      onShown?.();
+      void tick().then(() => {
+        const pencil = root?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(show)}"]`);
+        pencil?.closest('tr')?.scrollIntoView({ block: 'center' });
+        pencil?.focus({ preventScroll: true });
+      });
     }
     // "Next" moves on as meetings end, also while the view stays open.
     const clock = setInterval(() => (now = new Date()), 60_000);
@@ -569,7 +585,7 @@
                   {@const minutes = formatNumber($locale, effectiveDuration(event, team), 0)}
                   {@const cost = costOf(event)}
                   {@const when = next?.get(event.id)}
-                  <tr class="row">
+                  <tr class="row" data-shown={shown === event.id || undefined}>
                     <th scope="row" class="c-name">
                       <span class="name">
                         <span class="bar" style:background={category?.colour} aria-hidden="true"
@@ -1035,6 +1051,19 @@
   }
   th .sort.active svg {
     opacity: 1;
+  }
+  /* The meeting a drill-in from the area overview points at (#277). */
+  :global(#app) tr.row[data-shown],
+  :global(#app) tr.row[data-shown] > * {
+    background: var(--accent-soft);
+  }
+  :global(#app) tr.row[data-shown] > th {
+    box-shadow: inset 0.25rem 0 0 var(--accent);
+  }
+  @media (forced-colors: active) {
+    :global(#app) tr.row[data-shown] {
+      outline: 2px solid Highlight;
+    }
   }
   /* ---------- groups ---------- */
   :global(#app) tr.group > * {
