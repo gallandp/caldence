@@ -141,7 +141,8 @@
   width: 1rem;
   height: 1rem;
   margin-right: 0.45rem;
-  vertical-align: -0.15rem;
+  /* Lower than the button icons: the file glyph is taller, so its centre meets the text's (#312). */
+  vertical-align: -0.2rem;
   background: var(--text-muted);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 3v5h5'/%3E%3C/svg%3E")
     center / contain no-repeat;
@@ -330,15 +331,20 @@
    The bar's height matches the title's margin and line box, so both are centred on one line. */
 #app .content {
   container-type: inline-size;
+  /* Room between the file bar and the page header (#312); <main> and the filters both move by it. */
+  --head-gap: 0.5rem;
 }
 @container (min-width: 56rem) {
+  #app .content {
+    --head-gap: 1rem;
+  }
   #app .content > .bar.context {
     position: relative;
     z-index: 1;
     box-sizing: content-box;
     height: 2.625rem;
-    padding: 1.25rem 2rem 0;
-    margin-bottom: -3.875rem;
+    padding: calc(1.25rem + var(--head-gap)) 2rem 0;
+    margin-bottom: calc(-3.875rem - var(--head-gap));
     flex-wrap: nowrap;
     /* The bar spans the title's row; only its controls take clicks. */
     pointer-events: none;

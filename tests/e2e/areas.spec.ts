@@ -119,6 +119,13 @@ test('the headline names the selected area or team, except in workspace-wide vie
   await expect(page.locator('#panel-load h2')).toHaveText('Meeting load');
   await pickUnit(page, 'Team Alpha');
   await expect(scope).toHaveText('Team Alpha · Team');
+  // The Team / area page is about the unit itself: name as headline, level above, each once (#312).
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  await expect(page.locator('#panel-team .eyebrow-text')).toHaveText('Team');
+  await expect(page.locator('#panel-team > h2')).toHaveText('Team Alpha');
+  await pickUnit(page, 'Platform');
+  await expect(page.locator('#panel-team .eyebrow-text')).toHaveText('Area');
+  await expect(page.locator('#panel-team > h2')).toHaveText('Platform');
   for (const [tab, panel] of [
     ['Settings', 'settings'],
     ['Templates', 'templates'],

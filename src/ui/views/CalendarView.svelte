@@ -426,9 +426,11 @@
     const top = body.getBoundingClientRect().top + window.scrollY;
     const fit = Math.floor((innerHeight - top - below - r) / weeks.length);
     // Never taller than the default (large screens stay as they are), never too short for a day
-    // number and one entry: then the page scrolls as before.
+    // number and one entry, nor for a day's tags, which always show (see fitChips): then the page
+    // scrolls as before.
     const max = 8.4 * r + 1;
-    rowPx = fit >= max ? null : Math.max(fit, 4.75 * r);
+    const tags = Math.max(0, ...weeks.flat().map((d) => tagCount(cell(d))));
+    rowPx = fit >= max ? null : Math.max(fit, 4.75 * r, (2.75 + 1.45 * tags) * r + 1);
   });
   /** Width in px of a day cell's content box and the chip font, for the name wrap below. */
   let dayWidth = $state(0);
@@ -464,11 +466,14 @@
    * them). When not even "+n more" fits, the hours next to the day number still show that there
    * are meetings.
    */
+  /** Holidays, cadence and milestones: a day shows them all, before any meeting. */
+  const tagCount = (c: ReturnType<typeof cell>) =>
+    (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
   function fitChips(c: ReturnType<typeof cell>): { shown: number; more: boolean } {
     const all = c.chips.length;
     // The compact grid shows a dot for every meeting.
     if (!floating) return { shown: all, more: false };
-    const tags = (c.holiday ? 1 : 0) + (c.school ? 1 : 0) + c.cadence.length + c.milestones.length;
+    const tags = tagCount(c);
     // A roomy row has the default height (see td in the styles).
     const room = (rowPx ?? 8.4 * r + 1) - 1 - (2.75 + 1.45 * tags) * r;
     const heights = c.chips.slice(0, 3).map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
