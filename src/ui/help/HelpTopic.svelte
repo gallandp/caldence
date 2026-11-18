@@ -43,6 +43,7 @@
     team: ['help.views.team', 'help.views.split', 'help.templates.people'],
     settings: [
       'help.views.settings',
+      'help.region.title',
       'help.region.intro',
       'help.region.import',
       'help.region.remove',
@@ -53,6 +54,7 @@
       'help.views.areas',
       'help.views.phone',
       'help.views.filters',
+      'view.calendar',
       'help.views.calendar',
       'help.views.calendar.legend',
       'help.views.day',

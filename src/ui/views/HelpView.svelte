@@ -27,6 +27,7 @@
 
   /** Links between topics are `#help-<id>`: open the topic instead of jumping. */
   function onclick(event: MouseEvent) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
     const link = (event.target as Element).closest?.('a[href^="#help-"]');
     if (!link) return;
     const id = link.getAttribute('href')!.slice('#help-'.length) as TopicId;

@@ -19,7 +19,9 @@
       <span class="op">×</span>
       <span class="term"><b>1</b><small>{$t('help.formula.share')}</small></span>
       <span class="op">×</span>
-      <span class="term"><b>+50 %</b><small>{$t('help.formula.prep')}</small></span>
+      <span class="term"
+        ><b>{formatNumber($locale, 1.5, 1)}</b><small>{$t('help.formula.prep')}</small></span
+      >
       <span class="op">=</span>
       <span class="term result"
         ><b>{$t('cal.hours', { hours: formatNumber($locale, 1.5, 1) })}</b><small

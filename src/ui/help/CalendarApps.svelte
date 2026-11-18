@@ -29,11 +29,7 @@
 </section>
 
 <style>
-  .apps {
-    margin-top: 1.5rem;
-  }
   h4 {
-    margin: 0 0 0.6rem;
     font-size: 1.05rem;
   }
   .segmented {

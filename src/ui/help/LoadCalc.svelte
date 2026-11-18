@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { translate as t } from '../../i18n';
   import Rich from './Rich.svelte';
   import { topicLink } from './topics';
 
@@ -56,4 +55,3 @@
     <li><Rich key={'help.calc.' + part} {labels} /></li>
   {/each}
 </ul>
-<p>{$t('help.calc.example')}</p>
