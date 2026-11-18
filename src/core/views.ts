@@ -259,6 +259,8 @@ export function loadSummary(
   }[];
   /** Hours per week by category and role (only entries that exist). */
   matrix: Record<string, Record<string, number>>;
+  /** Roles invited where nobody holds them (per unit), each counted as one person. */
+  unfilled: number;
 } {
   const roleHours = record<number>();
   const catHours = record<number>();
@@ -280,14 +282,15 @@ export function loadSummary(
       for (const p of participants) seenRoles.add(p.roleId);
       return { ...event, participants };
     });
-    for (const p of new Map(
-      events.flatMap((e) => e.participants).map((p) => [p.roleId, p]),
-    ).values()) {
+    // Every invitation line counts; a role nobody holds on some line is unfilled once per unit.
+    const empty = new Set<string>();
+    for (const p of events.flatMap((e) => e.participants)) {
       const ids = filter.personId ? [filter.personId] : attendees(ws, unit.id, p);
       const set = (holders[p.roleId] ??= new Set());
       for (const id of ids) set.add(id);
-      if (ids.length === 0) unfilled[p.roleId] = (unfilled[p.roleId] ?? 0) + 1;
+      if (ids.length === 0) empty.add(p.roleId);
     }
+    for (const roleId of empty) unfilled[roleId] = (unfilled[roleId] ?? 0) + 1;
     const base = weeklyBaseLoad({ ...unit, events });
     for (const [roleId, h] of Object.entries(base.byRole)) {
       roleHours[roleId] = (roleHours[roleId] ?? 0) + h;
@@ -303,6 +306,7 @@ export function loadSummary(
   const scope = filter.personId ? undefined : filter.teamId;
   return {
     matrix,
+    unfilled: Object.values(unfilled).reduce((a, b) => a + b, 0),
     byCategory: ws.categories
       .filter((c) => seenCats.has(c.id) || c.id in catHours)
       .map((c) => ({ categoryId: c.id, hours: catHours[c.id] ?? 0 })),

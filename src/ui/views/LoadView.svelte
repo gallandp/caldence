@@ -392,7 +392,12 @@
       <span class="label">{$t('load.kpi.total')}</span>
       <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit')}</small></span>
       <span class="sub"
-        >{$t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}</span
+        >{$t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
+        {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
+            >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
+              n: formatNumber($locale, summary.unfilled, 0),
+            })}</span
+          >{/if}</span
       >
     </li>
     {#each summary.byRole as r (r.roleId)}
@@ -565,6 +570,10 @@
     grid-row: 4;
     font-size: 0.85rem;
     color: var(--text-muted);
+  }
+  .sub .unfilled {
+    display: block;
+    margin-top: 0.15rem;
   }
   .meter {
     grid-row: 3;

@@ -261,6 +261,7 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
   await expect(tiles.locator('[data-total] .sub')).toHaveText(
     `typical week · ${fmt('en', total / 40, 2)} FTE`,
   );
+  await expect(tiles.locator('[data-unfilled]')).toHaveCount(0);
   // Switching the language reformats the numbers.
   await setLanguage(page, 'de');
   const roleDe = page
@@ -293,6 +294,21 @@ test('in an area every person counts: total × rate is the weekly cost (#272)', 
   expect(Math.abs(total * 100 - cost)).toBeLessThanOrEqual(5);
   await expect(panel.locator('[data-basis]')).toContainText('typical week');
   await expect(panel.locator('.chart .avg')).toContainText('in the planning horizon');
+});
+
+test('the Total names a role without people, counted as one person (#272)', async ({ page }) => {
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  // Team Alpha has no developer, yet its planning now invites one.
+  ws.teams[0].events[0].participants.push({ roleId: 'role-dev', share: 1 });
+  await page.clock.setFixedTime(new Date('2027-03-10T12:00:00'));
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await setLanguage(page, 'en');
+  await showView(page, 'Meeting load');
+  const total = page.getByRole('tabpanel', { name: 'Meeting load' }).locator('[data-total]');
+  await expect(total.locator('[data-unfilled]')).toHaveText(
+    'incl. 1 role without people, counted as one person',
+  );
 });
 
 test('the person filter limits the person table and the warnings to that person', async ({

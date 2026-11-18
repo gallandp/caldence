@@ -373,6 +373,15 @@ describe('several people in one role (#272)', () => {
     expect(s.matrix).toEqual({ c1: { r1: 2, r2: 1 } });
     expect(s.byCategory).toEqual([{ categoryId: 'c1', hours: 3 }]);
   });
+  it('names how many roles without people count as one person', () => {
+    expect(loadSummary(team(), { teamId: 't1' }).unfilled).toBe(1);
+    expect(loadSummary(team(), { personId: 'p1' }).unfilled).toBe(0);
+  });
+  it('counts every person in the hours of a calendar day', () => {
+    const ws = team();
+    expect(dayLoad(ws, workspaceIndex(ws), { teamId: 't1' }).get('2026-11-09')).toBe(3);
+    expect(dayLoad(ws, workspaceIndex(ws), { personId: 'p1' }).get('2026-11-09')).toBe(1);
+  });
   it('measures a selected person against their own weekly hours', () => {
     const s = loadSummary(team(), { personId: 'p1' });
     expect(s.byRole).toEqual([
