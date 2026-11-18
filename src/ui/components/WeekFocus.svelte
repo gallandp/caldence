@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { isoWeek } from '../../core/date';
-  import { capacity, fte, hoursIn, loadPerWeek } from '../../core/load';
-  import { unitTeamIds } from '../../core/model';
+  import { capacity, fte, hoursIn, loadPerWeek, overMax } from '../../core/load';
+  import { unitLoadIds } from '../../core/model';
   import { scopePeople } from '../../core/views';
   import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
   import { loadWeek } from '../state/focus';
   import { filter, index, workspace } from '../state/workspace';
 
-  /** One week of Load in detail: each person's meeting hours in the selected team that week. */
+  /**
+   * One week of Load in detail. Each person is judged on all their meetings that week ÷ their
+   * hours in all their teams and areas, like the people table (#294); `here` keeps their part in
+   * the selected team.
+   */
   const uid = $props.id();
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
   const week = $derived(
@@ -17,19 +21,29 @@
       : undefined,
   );
   const maxFte = $derived($workspace.settings.thresholds.maxFte);
+  const area = $derived($workspace.areas.some((a) => a.id === teamId));
   const rows = $derived.by(() => {
     if (!week || !teamId) return [];
-    const ids = unitTeamIds($workspace, teamId);
+    const ids = unitLoadIds($workspace, teamId);
     const inScope = scopePeople($workspace, { teamId });
     return $workspace.people
       .filter((p) => inScope.has(p.id))
       .map((person) => {
-        const hours = hoursIn(week, ids, person.id);
-        const cap = capacity($workspace, person.id, teamId);
-        const share = cap > 0 ? fte(hours, cap) : hours > 0 ? 1 : 0;
-        return { person, hours, share, over: hours > 0 && (cap > 0 ? share > maxFte : true) };
+        const hours = week.byPerson[person.id] ?? 0;
+        const cap = capacity($workspace, person.id);
+        const hereHours = hoursIn(week, ids, person.id);
+        const hereCap = capacity($workspace, person.id, teamId);
+        return {
+          person,
+          hours,
+          share: cap > 0 ? fte(hours, cap) : hours > 0 ? 1 : 0,
+          cap,
+          over: overMax(hours, cap, maxFte),
+          here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
+        };
       });
   });
+  const hours = (n: number): string => formatNumber($locale, n, 1);
   const unitName = $derived(
     [...$workspace.teams, ...$workspace.areas].find((u) => u.id === teamId)?.name ?? '',
   );
@@ -75,17 +89,35 @@
           <th scope="col">{$t('load.col.person')}</th>
           <th scope="col" class="num">{$t('load.week.hours')}</th>
           <th scope="col" class="num">{$t('load.week.share')}</th>
+          <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
         </tr>
       </thead>
       <tbody>
         {#each rows as r (r.person.id)}
+          {@const herePercent =
+            r.here.cap > 0 || r.here.hours === 0
+              ? formatPercent($locale, r.here.share)
+              : $t('load.noHours')}
           <tr data-person={r.person.id} class:over={r.over}>
             <th scope="row">{r.person.name}</th>
-            <td class="num">{formatNumber($locale, r.hours, 1)}</td>
+            <td class="num"
+              ><span class="long"
+                >{$t('load.hoursOf', { hours: hours(r.hours), of: hours(r.cap) })}</span
+              ><span class="short" aria-hidden="true">{hours(r.hours)}</span></td
+            >
             <td class="num"
               >{formatPercent($locale, r.share)}{#if r.over}<span class="flag"
                   >{$t('load.week.over', { max: formatPercent($locale, maxFte) })}</span
                 >{/if}</td
+            >
+            <td class="num"
+              ><span class="long"
+                >{$t('load.here', {
+                  hours: hours(r.here.hours),
+                  of: hours(r.here.cap),
+                  percent: herePercent,
+                })}</span
+              ><span class="short" aria-hidden="true">{herePercent}</span></td
             >
           </tr>
         {/each}
@@ -120,6 +152,23 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
+  .short {
+    display: none;
+  }
+  /* Phones: hours and the part in the team in short; the full text stays for screen readers. */
+  @media (max-width: 600px) {
+    .short {
+      display: inline;
+    }
+    .long {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
   .flag {
     margin-left: 0.5rem;
     padding: 0.05rem 0.5rem;
@@ -127,5 +176,13 @@
     background: var(--warn-soft);
     color: var(--warn);
     font-size: 0.78rem;
+  }
+  @media (max-width: 600px) {
+    .flag {
+      display: block;
+      width: fit-content;
+      margin: 0.25rem 0 0 auto;
+      border-radius: 0.5rem;
+    }
   }
 </style>

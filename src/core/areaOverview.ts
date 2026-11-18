@@ -1,5 +1,5 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
-import { capacity, fte, occurrenceHours, overMax, occurrencesPerWeek, type WeekLoad } from './load';
+import { capacity, fte, occurrenceHours, occurrencesPerWeek, overMax, type WeekLoad } from './load';
 import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
 import { effectiveDuration } from './recurrence';
 
@@ -152,28 +152,27 @@ export interface LoadCell {
    * one-off meetings included (#262).
    */
   share: number;
-  /** At least one member is above the maximum share (thresholds.maxFte). */
+  /**
+   * At least one member is over the limit (thresholds.maxFte), judged like the people table on
+   * all their meetings that week ÷ their hours in all their teams and areas (#294), not on this
+   * team alone. Missing hours in an area are not counted here; Load warns about them.
+   */
   warn: boolean;
 }
 
 /**
  * A team's load in each week, pooled like the cost table: the members' meeting hours in the team
  * ÷ their weekly hours there. Meetings without any weekly hours to measure them against count as
- * full. `warn` is per person, like the warnings in Load.
+ * full. `warn` is per person, on all their teams and areas (#294).
  */
 export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell[] {
   const people = [...new Set(team.members.map((m) => m.personId))];
-  const hours = new Map(people.map((p) => [p, capacity(ws, p, team.id)]));
-  const capTotal = [...hours.values()].reduce((a, b) => a + b, 0);
+  const capTotal = people.reduce((sum, p) => sum + capacity(ws, p, team.id), 0);
+  const allHours = new Map(people.map((p) => [p, capacity(ws, p)]));
   const { maxFte } = ws.settings.thresholds;
   return weeks.map((week) => {
-    let total = 0;
-    let warn = false;
-    for (const p of people) {
-      const h = week.byTeamPerson[team.id]?.[p] ?? 0;
-      total += h;
-      if (overMax(h, hours.get(p) ?? 0, maxFte)) warn = true;
-    }
+    const total = people.reduce((sum, p) => sum + (week.byTeamPerson[team.id]?.[p] ?? 0), 0);
+    const warn = people.some((p) => overMax(week.byPerson[p] ?? 0, allHours.get(p) ?? 0, maxFte));
     const share = capTotal > 0 ? fte(total, capTotal) : total > 0 ? 1 : 0;
     return { monday: week.monday, share, warn };
   });
