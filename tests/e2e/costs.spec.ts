@@ -139,6 +139,11 @@ test('an on-site meeting adds its travel time to cost and load (#309)', async ({
   await expect(form.getByLabel('Travel (minutes)')).toHaveCount(0);
   await place.getByRole('button', { name: 'On site' }).click();
   await expect(form.getByLabel('Travel (minutes)')).toHaveValue('30');
+  // A day and more is refused at the field, which takes the focus.
+  await form.getByLabel('Travel (minutes)').fill('2000');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form.getByLabel('Travel (minutes)')).toHaveAttribute('aria-invalid', 'true');
+  await expect(form.getByLabel('Travel (minutes)')).toBeFocused();
   await form.getByLabel('Travel (minutes)').fill('15');
   expect(await new AxeBuilder({ page }).include('form').analyze()).toHaveProperty('violations', []);
   await form.getByRole('button', { name: 'Save' }).click();

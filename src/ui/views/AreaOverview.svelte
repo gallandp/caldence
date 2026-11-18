@@ -16,7 +16,7 @@
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
   import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
-  import { areaAsTeam, type Area, type Cadence } from '../../core/model';
+  import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
   import {
     formatDisplayDate,
     formatEuro,
@@ -121,6 +121,15 @@
     id === area.id ? area.name : (ws.teams.find((x) => x.id === id)?.name ?? id);
   const unitOf = (id: string) =>
     id === area.id ? unit : (ws.teams.find((x) => x.id === id) ?? unit);
+  /** Rule and minutes of a costly meeting; its cost includes travel, so that is named (#309). */
+  function costlyWhen(event: CalEvent, unitId: string): string {
+    const when = $t('overview.costly.when', {
+      rule: ruleShort(event.rule, unitOf(unitId), $t, $locale),
+      minutes: formatNumber($locale, event.duration, 0),
+    });
+    const travel = event.onSite?.travel;
+    return travel ? $t('overview.costly.travel', { when, n: travel }) : when;
+  }
   const cadenceShort = (c: Cadence | undefined) =>
     c
       ? $t('overview.cost.cadence', {
@@ -555,12 +564,7 @@
                     {#if m.unitId === area.id}<span class="area-name"><AreaIcon /> {area.name}</span
                       >{:else}{unitName(m.unitId)}{/if}
                   </td>
-                  <td class="muted when">
-                    {$t('overview.costly.when', {
-                      rule: ruleShort(m.event.rule, unitOf(m.unitId), $t, $locale),
-                      minutes: formatNumber($locale, m.event.duration, 0),
-                    })}
-                  </td>
+                  <td class="muted when">{costlyWhen(m.event, m.unitId)}</td>
                   <td class="num invited"
                     >{$t('overview.costly.people', {
                       n: formatNumber($locale, m.invited, 0),
