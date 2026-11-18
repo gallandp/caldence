@@ -1,4 +1,4 @@
-import type { ManualControl } from './steps';
+import type { ManualControl } from './topics';
 
 /** The paragraphs of the manual's chapter on areas, in order (i18n keys `help.areas.<part>`). */
 export const AREA_PARTS = [

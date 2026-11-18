@@ -34,6 +34,8 @@
   import { rail, setRail } from './state/sidebar';
   import { areaPage, currentView } from './state/view';
   import { presenting, stopPresenting } from './state/present';
+  import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
+  import { openTopic } from './help/topics';
   import WhatIfBar from './components/WhatIfBar.svelte';
 
   const { dirty } = workspace;
@@ -56,23 +58,7 @@
       itself stays one tablist for the arrow keys. */
   const groupBefore: ReadonlySet<ViewId> = new Set(['meetings', 'settings', 'help']);
 
-  /** Simple line icons (24×24, stroke = currentColor). */
-  const icons: Record<ViewId, string> = {
-    calendar:
-      'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4',
-    load: 'M5 20V11M10 20V5M15 20v-7M20 20V8',
-    meetings: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
-    team: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7.5M22 21v-1a6 6 0 0 0-4-5.6',
-    settings: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
-    templates: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 16.5h7M16.5 13v7',
-    exchange: 'M7 7h13l-4-4M17 17H4l4 4',
-    help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
-  };
-  /** The area's page has the area marker (layers), not the people of a team. */
-  const AREA_ICON = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
-  /** The organisation's page has its marker, a building (#313). */
-  const ORG_ICON =
-    'M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M3 21h18M8 8h3M8 12h3M8 16h3';
+  const icons: Record<ViewId, string> = VIEW_ICONS;
   const iconOf = (id: ViewId) =>
     id === 'team' && activeOrg ? ORG_ICON : id === 'team' && activeArea ? AREA_ICON : icons[id];
 
@@ -647,7 +633,10 @@
               <StartView
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
-                onManual={() => select('help', true)}
+                onManual={() => {
+                  openTopic.set('start');
+                  select('help', true);
+                }}
                 onCreated={() => {
                   setupDone = true;
                   void tick().then(() => select('calendar', true));
@@ -750,12 +739,13 @@
               {#if active === 'exchange'}<ExchangeView
                   onOpenMeetings={() => select('meetings', true)}
                   onOpenHelp={() => {
+                    openTopic.set('calendar');
                     select('help');
-                    void tick().then(() => document.getElementById('manual-ics')?.focus());
+                    void tick().then(() => document.getElementById('help-apps-title')?.focus());
                   }}
                 />{/if}
             {:else if id === 'help'}
-              {#if active === 'help'}<HelpView />{/if}
+              {#if active === 'help'}<HelpView onOpenView={(view) => select(view, true)} />{/if}
             {:else}
               <p>{$t('view.soon')}</p>
             {/if}
