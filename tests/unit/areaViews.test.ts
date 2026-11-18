@@ -102,8 +102,8 @@ describe('area scope in Calendar and Load', () => {
     // One-off meetings have no weekly base load; make them weekly.
     for (const unit of [...ws.teams, ...ws.areas])
       for (const e of unit.events) e.rule = { type: 'weekly', weekday: 3 };
-    // a + b + forum (developers); the forum counts per role, like any meeting.
-    expect(role({ teamId: 'a1' }, 'r1')).toBe(3);
+    // a + b + forum for both developers: every person counts, as for cost (#272).
+    expect(role({ teamId: 'a1' }, 'r1')).toBe(4);
     expect(role({ teamId: 'a1' }, 'r2')).toBe(1);
     expect(role({ teamId: 't1' }, 'r1')).toBe(1);
     expect(role({ personId: 'p1' }, 'r1')).toBe(2);

@@ -45,6 +45,13 @@ Same label for two values is not allowed:
 
 Where both appear near each other, add a one-line hint saying which scope is counted.
 
+The same holds for the two weekly hour figures in Terminlast:
+
+- **übliche Woche** / typical week – the recurring meetings of one regular week (tiles, Grundlast table, cost per week). Every person in a role counts; a role without members counts as one person, as for cost.
+- **Ø im Planungszeitraum** / Ø in the planning horizon – the average of the real weeks (chart line, people table): one-off meetings count, skipped holidays do not.
+
+A role tile's percentage is **Ø pro Person** / Ø per person: the role's hours ÷ the weekly hours of its people (with a person chosen: that person's weekly hours). FTE stays the capacity number.
+
 ## Tabs and page names
 
 - Area tabs: **Struktur | Überblick** (was "Takt & Auslastung"; name by role, not contents).
