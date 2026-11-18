@@ -13,7 +13,7 @@
 </script>
 
 <section aria-labelledby="manual-ics">
-  <h3 id="manual-ics">{$t('help.ics.title')}</h3>
+  <h3 id="manual-ics" tabindex="-1">{$t('help.ics.title')}</h3>
   <p>
     <Rich
       key="help.ics.intro"
@@ -27,6 +27,17 @@
         scope: 'exchange.export.scope',
         team: 'exchange.scope.team',
         zip: 'exchange.zip.button.team',
+      }}
+    />
+  </p>
+  <p>
+    <Rich
+      key="help.ics.remember"
+      labels={{
+        exchange: 'view.exchange',
+        me: 'setup.me',
+        toCalendar: 'meet.toCalendar',
+        meetings: 'view.meetings',
       }}
     />
   </p>

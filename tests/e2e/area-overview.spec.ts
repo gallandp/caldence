@@ -114,10 +114,44 @@ test('phones show the area meetings as cards', async ({ page }) => {
   await expect(overview.locator('.meetings thead')).toHaveCSS('position', 'absolute');
 });
 
+test('on phones the overview fits the screen and shows each team with its cost (#281)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Nothing scrolls sideways, and no key figure is cut off.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  for (const kpi of await overview.locator('.kpi').all())
+    expect(await kpi.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  // The cost table becomes cards: team and cost stay, cadence and per person give way.
+  const table = overview.locator('[data-area-costs] table');
+  const gamma = table.locator('[data-cost-row="team-gamma"]');
+  await expect(gamma).toHaveCSS('display', 'grid');
+  await expect(table.locator('td.extra').first()).toBeHidden();
+  await gamma.scrollIntoViewIfNeeded();
+  await expect(gamma.locator('th')).toBeInViewport({ ratio: 1 });
+  await expect(gamma.locator('td.cost')).toBeInViewport({ ratio: 1 });
+  await expect(gamma.locator('td.cost')).toHaveText(/€/);
+  // The tab bar stays fixed at the bottom.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const bar = (await page.getByRole('navigation', { name: 'Views' }).boundingBox())!;
+  expect(bar.x).toBe(0);
+  expect(Math.round(bar.y + bar.height)).toBe(844);
+});
+
 for (const scheme of ['light', 'dark'] as const) {
   test(`axe finds no violations in the area overview (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
     await openOverview(page);
+    const result = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
+    expect(result.violations).toEqual([]);
+  });
+
+  test(`axe finds no violations in the area overview on a phone (${scheme})`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await openOverview(page, 100);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('[data-cost-row="team-gamma"]')).toHaveCSS('display', 'grid');
     const result = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
     expect(result.violations).toEqual([]);
   });

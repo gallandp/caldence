@@ -22,7 +22,10 @@ import {
   renameArea,
   renameAssumption,
   roleByName,
+  setAreaCadence,
+  setCadenceLength,
   setAreaTeams,
+  shiftedDays,
   updateItem,
   updateSettings,
   updateTeam,
@@ -642,5 +645,67 @@ describe('areas in edits', () => {
     expect(setAreaTeams(ws, 'a9', []).ok).toBe(false);
     expect(setAreaTeams(ws, 'a1', ['t9']).ok).toBe(false);
     expect(renameArea(ws, 'a9', 'X').ok).toBe(false);
+  });
+});
+
+describe('cadence length', () => {
+  /** A 2-week team with Planning on day 1, a mid-sprint meeting on day 7, Review and Retro on day 12. */
+  function sprint(weeks = 2, days = [0, 6, 11, 11]): Workspace {
+    const ws = base();
+    const team = ws.teams[0]!;
+    team.cadence.lengthWeeks = weeks;
+    const names = ['Planning', 'Mid', 'Review', 'Retro'];
+    team.events = days.map((day, i) => ({
+      ...structuredClone(fixture.teams[0]!.events[0]!),
+      id: `d${i}`,
+      name: names[i]!,
+      rule: { type: 'cadence-day', day },
+    })) as CalEvent[];
+    return ws;
+  }
+  const days = (ws: Workspace) =>
+    ws.teams[0]!.events.map((e) => (e.rule.type === 'cadence-day' ? e.rule.day : -1));
+
+  it('keeps meetings of the second half at their distance to the end (2 → 3 weeks)', () => {
+    const ws = sprint();
+    expect([...shiftedDays(ws.teams[0]!.events, 2, 3)]).toEqual([
+      ['d2', 18],
+      ['d3', 18],
+    ]);
+    const next = ok(setCadenceLength(ws, 't1', 3));
+    expect(next.teams[0]!.cadence.lengthWeeks).toBe(3);
+    expect(days(next)).toEqual([0, 6, 18, 18]);
+    expect(days(ws)).toEqual([0, 6, 11, 11]);
+  });
+
+  it('moves them back when the sprint gets shorter (3 → 2 weeks)', () => {
+    const next = ok(setCadenceLength(sprint(3, [0, 9, 18, 20]), 't1', 2));
+    expect(days(next)).toEqual([0, 9, 11, 13]);
+  });
+
+  it('leaves a meeting that would fall before the start where it is, so it does not fit', () => {
+    const ws = sprint(4, [0, 6, 14, 27]);
+    expect([...shiftedDays(ws.teams[0]!.events, 4, 1)]).toEqual([['d3', 6]]);
+    expect(setCadenceLength(ws, 't1', 1)).toEqual({
+      ok: false,
+      errors: [
+        {
+          path: 'cadence.lengthWeeks',
+          key: 'team.cadence.dayBeyond',
+          params: { name: 'Review', day: 15, weeks: 1 },
+        },
+      ],
+    });
+  });
+
+  it('does the same for an area cadence and refuses an unknown unit', () => {
+    const [withArea, areaId] = ok(addArea(sprint(), 'A', []));
+    const ws = ok(
+      setAreaCadence(withArea, areaId, { kind: 'pi', lengthWeeks: 10, start: '2026-11-09' }),
+    );
+    ws.areas[0]!.events = [{ ...ws.teams[0]!.events[2]!, rule: { type: 'cadence-day', day: 66 } }];
+    const next = ok(setCadenceLength(ws, areaId, 12));
+    expect(next.areas[0]!.events[0]!.rule).toEqual({ type: 'cadence-day', day: 80 });
+    expect(setCadenceLength(ws, 'nope', 3).ok).toBe(false);
   });
 });

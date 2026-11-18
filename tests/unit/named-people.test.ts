@@ -118,6 +118,10 @@ describe('people invited by name (#285)', () => {
     expect(eventAttendees(ws, 'alpha', event)).toEqual(['dana', 'eli']);
     expect(weeklyHoursByPerson(ws, 'alpha')).toEqual({ dana: 1, eli: 0.5 });
     expect(unitCostSummary(ws, noIndex(), ws.teams[0]!, 100).perWeek).toBe(150);
+    expect(loadSummary(ws, { teamId: 'alpha' }).byRole.map((r) => [r.roleId, r.hours])).toEqual([
+      ['dev', 1],
+      ['person:eli', 0.5],
+    ]);
   });
 
   it('keeps a role whose holders are all named filled: no extra head for the cost', () => {
@@ -140,7 +144,7 @@ describe('people invited by name (#285)', () => {
     ]);
     const summary = loadSummary(ws, { teamId: 'alpha' });
     expect(summary.byRole.map((r) => [r.roleId, r.hours])).toEqual([
-      ['dev', 1],
+      ['dev', 2],
       ['person:bo', 0.5],
     ]);
     expect(participantName(ws, { personId: 'bo', share: 1 })).toBe('BO');
@@ -153,7 +157,7 @@ describe('people invited by name (#285)', () => {
     expect(validate(ws).ok).toBe(true);
     const summary = loadSummary(ws, { teamId: 'alpha' });
     expect(summary.byRole.map((r) => [r.roleId, r.hours])).toEqual([
-      ['dev', 1],
+      ['dev', 2],
       ['person:dev', 0.5],
     ]);
   });

@@ -393,7 +393,12 @@
       <span class="label">{$t('load.kpi.total')}</span>
       <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit')}</small></span>
       <span class="sub"
-        >{$t('load.kpi.fte', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}</span
+        >{$t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
+        {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
+            >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
+              n: formatNumber($locale, summary.unfilled, 0),
+            })}</span
+          >{/if}</span
       >
     </li>
     {#each summary.byRole as r (r.roleId)}
@@ -406,9 +411,10 @@
           ><span style:width="{Math.min(100, r.percent)}%"></span></span
         >
         <span class="sub"
-          >{$t('load.kpi.share', {
+          >{$t(r.people > 1 ? 'load.kpi.share.many' : 'load.kpi.share', {
             percent: formatPercent($locale, r.percent / 100),
-            hours: formatNumber($locale, hpw, 0),
+            hours: formatNumber($locale, r.weekly, 0),
+            people: formatNumber($locale, r.people, 0),
             fte: formatNumber($locale, r.fte, 2),
           })}</span
         >
@@ -425,6 +431,10 @@
       {/if}
     </li>
   </ul>
+
+  {#if summary.byRole.length > 0}
+    <p class="note basis" data-basis>{$t('load.kpi.basis')}</p>
+  {/if}
 
   {#if peak}
     <section class="card" aria-labelledby="{uid}-chart">
@@ -562,6 +572,10 @@
     font-size: 0.85rem;
     color: var(--text-muted);
   }
+  .sub .unfilled {
+    display: block;
+    margin-top: 0.15rem;
+  }
   .meter {
     grid-row: 3;
     align-self: center;
@@ -607,6 +621,10 @@
     color: var(--warn);
     font-size: 0.8rem;
     font-weight: 700;
+  }
+  /* The line belongs to the tiles above it: it sits closer to them than the stack's gap. */
+  .note.basis {
+    margin: -0.5rem 0 0;
   }
   .note.below {
     margin: 0.75rem 0 0;
