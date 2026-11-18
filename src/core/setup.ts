@@ -16,6 +16,8 @@ export interface SetupInput {
   /** The cadence starts on this date, or on the next day with the template's start weekday. */
   start: ISODate;
   members: SetupMember[];
+  /** Weekly hours in the new team by name (trimmed, lower case), for people already in the file. */
+  hours?: Record<string, number>;
   /** Workspace settings confirmed in the wizard, such as time zone, region and horizon. */
   settings?: Partial<Settings>;
 }
@@ -72,6 +74,13 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
   for (const id of toArea)
     if (area && !team.members.some((m) => m.personId === id))
       area.memberHours[id] ??= out.settings.hoursPerWeek;
+  // People already in another team get the hours asked for here, not the default once more.
+  for (const person of out.people) {
+    const key = norm(person.name);
+    if (!input.hours || !Object.hasOwn(input.hours, key)) continue;
+    if (team.members.some((m) => m.personId === person.id))
+      team.memberHours[person.id] = input.hours[key]!;
+  }
 
   const checked = validate(out);
   if (!checked.ok) return checked;

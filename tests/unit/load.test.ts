@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { capacity, fte, loadPerWeek, warnings, weeklyBaseLoad } from '../../src/core/load';
+import {
+  capacity,
+  fte,
+  hoursLeft,
+  loadPerWeek,
+  overbooked,
+  warnings,
+  weeklyBaseLoad,
+} from '../../src/core/load';
 import {
   emptyWorkspace,
   type CalEvent,
@@ -268,6 +276,19 @@ describe('hours per team', () => {
     expect(capacity(ws, 'p2')).toBe(ws.settings.hoursPerWeek);
     ws.teams[1]!.memberHours = {};
     expect(capacity(ws, 'p1')).toBe(20 + ws.settings.hoursPerWeek);
+  });
+
+  it('hours left are the weekly hours minus all teams and areas, at least 0 (#274)', () => {
+    const ws = twoTeams();
+    // 40 - (20 + 18)
+    expect(hoursLeft(ws, 'p1')).toBe(2);
+    expect(overbooked(ws, 'p1')).toBe(false);
+    // Someone in no team has all weekly hours left and is never over them.
+    expect(hoursLeft(ws, 'p2')).toBe(40);
+    expect(overbooked(ws, 'p2')).toBe(false);
+    ws.teams[1]!.memberHours = {};
+    expect(hoursLeft(ws, 'p1')).toBe(0);
+    expect(overbooked(ws, 'p1')).toBe(true);
   });
 
   it('counts hours per team and checks FTE over all teams (#273)', () => {

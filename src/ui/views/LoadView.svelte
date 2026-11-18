@@ -7,6 +7,7 @@
     fte,
     hoursIn,
     loadPerWeek,
+    overbooked,
     overMax,
     warnings,
   } from '../../core/load';
@@ -35,6 +36,9 @@
     $workspace.categories.find((c) => c.id === id)?.name ?? id;
 
   const hours = (n: number): string => formatNumber($locale, n, 1);
+  /** Weekly hours as people say them: 52 h, 37.5 h. */
+  const weekly = (n: number): string =>
+    new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const weekLabel = (monday: string): string =>
     $t('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
 
@@ -317,6 +321,16 @@
               >{p.person.name}</button
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
+            {#if overbooked($workspace, p.person.id)}
+              {@const total = weekly(p.cap)}
+              <span class="overbooked" data-overbooked
+                ><span class="long"
+                  >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
+                ><span class="short" aria-hidden="true"
+                  >{$t('team.people.overShort', { hours: total, max: weekly(hpw) })}</span
+                ></span
+              >
+            {/if}
           </th>
           <td class="units"
             >{p.units.length === 0
@@ -383,7 +397,9 @@
                         )}</span
                       >
                       <span class="num"
-                        >{$t('load.detail.meetings', { hours: hours(u.meetings) })}</span
+                        >{u.meetings > 0
+                          ? $t('load.detail.meetings', { hours: hours(u.meetings) })
+                          : $t('load.detail.noMeetings')}</span
                       >
                     </li>
                   {/each}
@@ -795,6 +811,31 @@
     font-size: 0.75rem;
     font-weight: 650;
     white-space: nowrap;
+  }
+  .overbooked {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--warn);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .overbooked .short {
+    display: none;
+  }
+  /* Phones: the short form fits the narrow name column; the sentence stays for screen readers. */
+  @media (max-width: 600px) {
+    .overbooked .short {
+      display: inline;
+      white-space: nowrap;
+    }
+    .overbooked .long {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
   .units {
     color: var(--text-muted);
