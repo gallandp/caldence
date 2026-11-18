@@ -21,7 +21,8 @@
 
 <section class="area-teams" data-no-print>
   {#if teams.length === 0}
-    <AreaNoTeams {area} focusAfter=".area-teams button" />
+    <!-- Only the overview shows this empty state; once teams are chosen, focus goes to the first one. -->
+    <AreaNoTeams {area} focusAfter="[data-area-costs] tbody button" />
   {:else}
     <p>{$t(`area.view.${view}`, { name: area.name })}</p>
     <ul>
