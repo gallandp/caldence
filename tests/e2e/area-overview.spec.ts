@@ -267,6 +267,30 @@ test('on phones the overview fits the screen and shows each team with its cost (
   expect(Math.round(bar.y + bar.height)).toBe(844);
 });
 
+test('on phones the most expensive meetings are cards with the cost in view (#283)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const costly = overview.locator('[data-costly]');
+  const first = costly.locator('tbody tr').first();
+  await expect(first).toHaveCSS('display', 'grid');
+  await expect(costly.locator('thead')).toHaveCSS('position', 'absolute');
+  // Nothing scrolls sideways: not the page, not the table region.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  const region = costly.getByRole('region');
+  expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await first.scrollIntoViewIfNeeded();
+  await expect(first.locator('td.cost')).toHaveText(/€/);
+  await expect(first.locator('td.cost')).toBeInViewport({ ratio: 1 });
+  await expect(first.locator('th')).toBeInViewport({ ratio: 1 });
+  // The card still opens its meeting.
+  const name = (await first.locator('th').textContent())!.trim();
+  await first.getByRole('button').click();
+  await expect(page.locator('#panel-meetings')).toBeVisible();
+  await expect(page.locator('#panel-meetings [data-shown] .title')).toHaveText(name);
+});
+
 for (const scheme of ['light', 'dark'] as const) {
   test(`axe finds no violations in the area overview (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
@@ -280,6 +304,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await openOverview(page, 100);
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.locator('[data-cost-row="team-gamma"]')).toHaveCSS('display', 'grid');
+    await expect(page.locator('[data-costly] tbody tr').first()).toHaveCSS('display', 'grid');
     const result = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
     expect(result.violations).toEqual([]);
   });
