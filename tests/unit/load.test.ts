@@ -291,28 +291,25 @@ describe('hours per team', () => {
     expect(overbooked(ws, 'p1')).toBe(true);
   });
 
-  it('counts hours per team and checks FTE against the filter', () => {
+  it('counts hours per team and checks FTE over all teams (#273)', () => {
     const ws = twoTeams();
     const weeks = loadPerWeek(ws, noIndex());
     expect(at(weeks, 0).byTeamPerson['alpha']?.['p1']).toBe(12);
     expect(at(weeks, 0).byTeamPerson['beta']).toBeUndefined();
-    // 12 / 20 = 0.6 in Alpha is above 0.5; 12 / 38 over both teams is not.
-    expect(warnings(weeks, ws, { teamId: 'alpha' })).toEqual([
-      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
-    ]);
-    expect(warnings(weeks, ws, { personId: 'p1' })).toEqual([]);
-    expect(warnings(weeks, ws, { teamId: 'beta' })).toEqual([]);
+    // 12 / 20 = 0.6 in Alpha alone would be above 0.5; 12 / 38 over both teams is not.
+    expect(warnings(weeks, ws)).toEqual([]);
   });
 
-  it('flags meetings in a team where the person has 0 hours', () => {
+  it('flags meetings above the limit of the hours over all teams', () => {
     const ws = twoTeams();
     ws.teams[0]!.memberHours = { p1: 0 };
-    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'alpha' })).toEqual([
+    // 12 / 18 = 0.67 is above 0.5.
+    expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([
       { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
     ]);
   });
 
-  it('an area stands for its teams: capacity and FTE sum over them', () => {
+  it('an area stands for its teams: capacity sums over them', () => {
     const ws = twoTeams();
     ws.areas = [
       {
@@ -326,10 +323,8 @@ describe('hours per team', () => {
       },
     ];
     expect(capacity(ws, 'p1', 'area')).toBe(38);
-    // 12 / 38 over the area's teams is below 0.5.
-    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'area' })).toEqual([]);
     ws.areas[0]!.teamIds = ['alpha'];
-    expect(warnings(loadPerWeek(ws, noIndex()), ws, { teamId: 'area' })).toHaveLength(1);
+    expect(capacity(ws, 'p1', 'area')).toBe(20);
   });
 });
 
