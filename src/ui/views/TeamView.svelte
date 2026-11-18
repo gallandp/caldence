@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
-  import { areaHours, capacity, hoursLeft, placesOf } from '../../core/load';
+  import { areaHours, capacity, hoursLeft, overbooked, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
@@ -166,6 +166,14 @@
   }
   const hours = (n: number): string =>
     new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
+  /** "52 h – more than 40 h a week" when all the person's hours top the weekly hours (#274). */
+  const overText = (personId: string): string | null =>
+    overbooked($workspace, personId)
+      ? $t('team.people.over', {
+          hours: hours(capacity($workspace, personId)),
+          max: hours(defaultHours),
+        })
+      : null;
 
   function confirmPerson(person: { id: string; name: string }) {
     const count = $workspace.teams.filter((x) =>
@@ -297,6 +305,7 @@
               {#each grouped as member (member.personId)}
                 {@const colour = roleColour(member.roleIds[0]!)}
                 {@const name = personName(member.personId)}
+                {@const over = overText(member.personId)}
                 <li>
                   <span
                     class="avatar"
@@ -324,26 +333,38 @@
                       {/each}
                     </span>
                   </span>
-                  {#if $presenting}
-                    <span class="hours"
-                      >{formatNumber($locale, hoursOf(member.personId), 1)}
-                      {$t('settings.people.unit')}</span
-                    >
-                  {:else}
-                    <label class="hours">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={hoursOf(member.personId)}
-                        aria-label={$t('team.members.hoursOf', { name, team: team.name })}
-                        aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
-                        aria-describedby={describe(`hours-${member.personId}`)}
-                        onchange={(e) => setHours(member.personId, e)}
-                      />
-                      <span aria-hidden="true">{$t('settings.people.unit')}</span>
-                    </label>
-                  {/if}
+                  <span class="hours-cell">
+                    {#if $presenting}
+                      <span class="hours"
+                        >{formatNumber($locale, hoursOf(member.personId), 1)}
+                        {$t('settings.people.unit')}</span
+                      >
+                    {:else}
+                      <label class="hours">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={hoursOf(member.personId)}
+                          aria-label={$t('team.members.hoursOf', { name, team: team.name })}
+                          aria-invalid={errors[`hours-${member.personId}`] ? 'true' : undefined}
+                          aria-describedby={[
+                            describe(`hours-${member.personId}`),
+                            over ? `${uid}-over-${member.personId}` : undefined,
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || undefined}
+                          onchange={(e) => setHours(member.personId, e)}
+                        />
+                        <span aria-hidden="true">{$t('settings.people.unit')}</span>
+                      </label>
+                    {/if}
+                    {#if over}
+                      <span class="over" id="{uid}-over-{member.personId}" data-overbooked
+                        >{over}</span
+                      >
+                    {/if}
+                  </span>
                   {@render err(`hours-${member.personId}`)}
                 </li>
               {/each}
@@ -537,7 +558,11 @@
             confirmRemove={confirmPerson}
           >
             {#snippet extra(person)}
-              <span class="teams-of">{teamsOf(person.id)}</span>
+              {@const over = overText(person.id)}
+              <span class="teams-of"
+                >{teamsOf(person.id)}{#if over}
+                  <span class="over" data-overbooked>{over}</span>{/if}</span
+              >
             {/snippet}
           </ListEditor>
         </div>
@@ -694,6 +719,32 @@
   }
   .hours-field {
     width: 9.5rem;
+  }
+  /* The hours with the over-hours flag right under them (#291). */
+  .hours-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+  /* On phones, where the hours wrap onto their own line, align them left. */
+  @media (max-width: 600px) {
+    .hours-cell {
+      align-items: flex-start;
+    }
+  }
+  .over {
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .teams-of .over {
+    display: block;
+    width: fit-content;
+    margin-top: 0.2rem;
   }
   .teams-of {
     font-size: 0.85rem;
