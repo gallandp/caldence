@@ -134,6 +134,30 @@
       }));
     return [...teams, ...areas];
   }
+  /**
+   * Teams and areas whose meetings a person attends without working there: an area meeting that
+   * invites a role from the teams (#265) or a meeting that invites them by name (#285). Their lines
+   * in the drill-in keep the meetings adding up to the person's Ø hours per week.
+   */
+  function invitedOf(personId: string, known: { id: string }[]) {
+    const ws = $workspace;
+    const areaIds = new Set(ws.areas.map((a) => a.id));
+    return allUnits(ws)
+      .filter((u) => !known.some((k) => k.id === u.id))
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        area: areaIds.has(u.id),
+        roles: [] as string[],
+        hours: 0,
+        meetings:
+          weeks.length > 0
+            ? weeks.reduce((sum, w) => sum + (w.byTeamPerson[u.id]?.[personId] ?? 0), 0) /
+              weeks.length
+            : 0,
+      }))
+      .filter((u) => u.meetings > 0);
+  }
   let sortBy = $state<'share' | 'free'>('share');
   const sorted = $derived(
     [...perPerson].sort((a, b) =>
@@ -242,7 +266,8 @@
                     first: link(mondays[0]!, named[0]!),
                     last: link(mondays[mondays.length - 1]!, named[named.length - 1]!),
                   })
-                : list.format(named.map((n, i) => link(mondays[i]!, n))),
+                : // `label` keeps the order of `mondays`: named[i] is the label of mondays[i].
+                  list.format(named.map((n, i) => link(mondays[i]!, n))),
             hours: hours(most),
           });
         });
@@ -480,11 +505,12 @@
                     {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
                   </p>
                 {/if}
-                {#if p.units.length === 0}
+                {@const lines = [...p.units, ...invitedOf(p.person.id, p.units)]}
+                {#if lines.length === 0}
                   <p class="note">{$t('load.detail.none')}</p>
                 {:else}
                   <ul class="split">
-                    {#each p.units as u (u.id)}
+                    {#each lines as u (u.id)}
                       {@const list = openMeetings[u.id]}
                       <li>
                         {#if list}
@@ -500,13 +526,23 @@
                                         >{$t('load.detail.oneOff')}</span
                                       >{/if}</span
                                   >
-                                  <span class="num nowrap"
-                                    >{m.oneOff
-                                      ? $t('load.detail.oneOffHours', { hours: hours(m.hours) })
-                                      : $t('load.detail.perWeek', {
-                                          hours: hours(m.hoursPerWeek),
+                                  {#if m.oneOff}
+                                    <span class="num nowrap"
+                                      >{$t('load.detail.oneOffHours', { hours: hours(m.hours) })}
+                                      <span class="spread"
+                                        >{$t('load.detail.oneOffAvg', {
+                                          // Two digits: a one-off over the horizon is often below 0.1 h a week.
+                                          hours: formatNumber($locale, m.hoursPerWeek, 2),
                                         })}</span
-                                  >
+                                      ></span
+                                    >
+                                  {:else}
+                                    <span class="num nowrap"
+                                      >{$t('load.detail.perWeek', {
+                                        hours: hours(m.hoursPerWeek),
+                                      })}</span
+                                    >
+                                  {/if}
                                 </li>
                               {/each}
                             </ul>
@@ -1132,6 +1168,9 @@
     .meetings li > .num {
       grid-column: 3;
       grid-row: 1;
+    }
+    .meetings .spread {
+      display: block;
     }
   }
   .unit-name {

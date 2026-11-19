@@ -32,8 +32,8 @@
 
   // A person chosen from another view, such as a week link in Meeting load (#343).
   $effect(() => {
-    const chosen = $filter.personId;
-    if (chosen && chosen !== untrack(() => personId)) personId = chosen;
+    const chosen = $filter.personId ?? '';
+    if (chosen !== untrack(() => personId)) personId = chosen;
   });
 
   // The person view spans all teams; otherwise the filter follows the active team.

@@ -402,4 +402,28 @@ describe('personMeetings (#343)', () => {
     expect(list.t1!.reduce((s, m) => s + m.hoursPerWeek, 0)).toBeCloseTo(avg);
     expect(personMeetings(ws, noIndex(), 'p2')).toEqual({});
   });
+
+  it('lists an area meeting that invites a role from the teams, without area membership', () => {
+    const ws = workspace([team([])]);
+    ws.areas = [
+      {
+        id: 'area',
+        name: 'Area',
+        teamIds: ['t1'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' },
+        events: [
+          event(
+            { type: 'weekly', weekday: 3 },
+            { id: 'forum', participants: [{ roleId: 'r1', share: 1, fromTeams: true }] },
+          ),
+        ],
+      } as Workspace['areas'][number],
+    ];
+    expect(personMeetings(ws, noIndex(), 'p1')).toEqual({
+      area: [{ eventId: 'forum', hoursPerWeek: 1, hours: 3, oneOff: false }],
+    });
+  });
 });

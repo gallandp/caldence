@@ -737,6 +737,7 @@
   "load.detail.perWeek": "{hours} h/week",
   "load.detail.oneOff": "one-off",
   "load.detail.oneOffHours": "{hours} h",
+  "load.detail.oneOffAvg": "(Ø {hours} h/week)",
   "load.openWeek": "Show {week} for {person} in the Calendar",
   "load.table.person.free": "Room before limit (meetings): hours per week that still fit into meetings before {max} of the weekly hours is reached. This is not free working time, because other work does not count here. Click a name to see where the time comes from.",
   "load.week.title": "{week} · {team}",

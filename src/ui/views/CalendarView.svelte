@@ -366,14 +366,14 @@
       ?.focus({ preventScroll: next === 'range' });
   }
 
-  // A week Meeting load links to (#343): shown on the week level.
+  // A week another view links to (#343, #339): shown on the week level.
   $effect(() => {
-    const monday = $calendarWeek;
-    if (monday === null || !shown) return;
+    const date = $calendarWeek;
+    if (date === null || !shown) return;
     calendarWeek.set(null);
     const { from } = horizon;
     // A week that starts before the horizon is shown from the horizon's first day.
-    const day = monday < from && addDays(monday, 6) >= from ? from : monday;
+    const day = date < from && addDays(mondayOf(date), 6) >= from ? from : date;
     if (!inHorizon(day)) return;
     mode = lastMode = 'week';
     selected = null;

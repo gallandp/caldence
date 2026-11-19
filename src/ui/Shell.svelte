@@ -6,6 +6,7 @@
   import AreaIcon from './components/AreaIcon.svelte';
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
+  import type { ISODate } from '../core/date';
   import { hasOrgLevel, ORG_UNIT } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
@@ -220,10 +221,10 @@
     drillIn(teamId, 'load');
   }
 
-  /** A week in Meeting load (#343): the Calendar shows it with the Person filter on that person. */
-  function openWeek(personId: string, monday: string) {
+  /** The Calendar's week with `date`, with the Person filter on that person (#343). */
+  function openCalendarWeek(personId: string, date: ISODate) {
     filter.set({ personId });
-    calendarWeek.set(monday);
+    calendarWeek.set(date);
     select('calendar', true);
   }
 
@@ -711,7 +712,7 @@
                 />
               {/key}
             {:else if id === 'load'}
-              {#if active === 'load'}<LoadView onOpenWeek={openWeek} />{/if}
+              {#if active === 'load'}<LoadView onOpenWeek={openCalendarWeek} />{/if}
             {:else if id === 'meetings'}
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}

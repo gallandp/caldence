@@ -7,5 +7,9 @@ import type { ISODate } from '../../core/date';
  */
 export const loadWeek = writable<{ teamId: string; monday: ISODate } | null>(null);
 
-/** A week to open in the Calendar's week level, set from a link in Meeting load (#343). */
+/**
+ * A day whose week the Calendar opens on its week level, set from a link in another view: a week
+ * of a person in Meeting load (#343) and a clash in Meeting load or the area Overview (#339). The
+ * Calendar clears it once shown.
+ */
 export const calendarWeek = writable<ISODate | null>(null);
