@@ -10,9 +10,9 @@ import {
   setContextOverride,
   teamCount,
 } from '../../src/core/contextSwitch';
-import { removeItem, updateTeam, updateSettings } from '../../src/core/edit';
+import { duplicateTeam, removeItem, updateTeam, updateSettings } from '../../src/core/edit';
 import { emptyWorkspace, type Team, type Workspace } from '../../src/core/model';
-import { teamToTemplate } from '../../src/core/template';
+import { teamToTemplate, validateTemplate } from '../../src/core/template';
 import { validate } from '../../src/core/validate';
 import { createWorkspaceStore } from '../../src/ui/state/workspace';
 
@@ -143,7 +143,7 @@ describe('override on the membership (#321)', () => {
     const w = setContextOverride(ws(), 'c', 'ben', '');
     const r = removeItem(w, 'people', 'ben');
     if (!r.ok) throw new Error('remove failed');
-    expect(r.value.teams[2]!.contextOverrides).toEqual({});
+    expect(r.value.teams[2]!.contextOverrides).toBeUndefined();
     expect(validate(r.value).ok).toBe(true);
   });
 
@@ -179,5 +179,50 @@ describe('validation (#321)', () => {
     expect(validate(w).ok).toBe(false);
     w.teams[2]!.contextOverrides = { ben: { teams: 1 } };
     expect(validate(w).ok).toBe(false);
+  });
+});
+
+describe('override edge cases (#321)', () => {
+  it('ends in source and copy when a team is duplicated', () => {
+    const [dup] = duplicateTeam(setContextOverride(ws(), 'c', 'ben', ''), 'c', 'Copy');
+    const pruned = pruneContextOverrides(dup);
+    expect(pruned.teams.every((t) => t.contextOverrides === undefined)).toBe(true);
+  });
+
+  it('ends for the replacement when a person is merged into another', () => {
+    const w = setContextOverride(ws(), 'c', 'ben', '');
+    const r = removeItem(w, 'people', 'ben', 'mia');
+    if (!r.ok) throw new Error('merge failed');
+    expect(r.value.teams[2]!.contextOverrides).toBeUndefined();
+    expect(contextHint(r.value, 'mia')).toEqual({ personId: 'mia', teams: 3, loss: 0.4 });
+  });
+
+  it('ends in one team when the person joins another, and undo brings it back', () => {
+    const store = createWorkspaceStore(setContextOverride(ws(), 'c', 'ben', 'Planned'));
+    store.apply((w) => ({ ...w, teams: [...w.teams, team('d', ['ben'])] }));
+    expect(get(store).teams[2]!.contextOverrides).toBeUndefined();
+    store.undo();
+    expect(get(store).teams[2]!.contextOverrides).toEqual({
+      ben: { teams: 3, reason: 'Planned' },
+    });
+  });
+
+  it('refuses unknown or prototype keys from a file', () => {
+    for (const key of ['__proto__', 'constructor', 'nobody']) {
+      const w = ws();
+      w.teams[2]!.contextOverrides = JSON.parse(`{"${key}": {"teams": 3}}`);
+      expect(validate(w).ok).toBe(false);
+    }
+  });
+
+  it('refuses a template that carries overrides', () => {
+    const w = ws();
+    const tpl = JSON.parse(
+      JSON.stringify(teamToTemplate(w, 'c', { id: 'tpl', name: 'T', description: '' })),
+    );
+    tpl.team.contextOverrides = {};
+    const r = validateTemplate(tpl);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors[0]!.key).toBe('template.error.personal');
   });
 });

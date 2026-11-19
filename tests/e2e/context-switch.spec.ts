@@ -108,3 +108,23 @@ test('axe finds no violations in the hint, its override and the load detail', as
   const note = await new AxeBuilder({ page }).include('[data-context-hint]').analyze();
   expect(note.violations).toEqual([]);
 });
+
+test('another name in the add form starts without the override and its reason', async ({
+  page,
+}) => {
+  await openExample(page);
+  await openTeamView(page);
+  await pickUnit(page, 'Team Gamma');
+  const team = panel(page, 'Team');
+  const name = team.getByLabel('Person', { exact: true });
+  await name.fill('Alex');
+  const callout = team.locator('[data-context-add]');
+  await callout.getByLabel('Override this hint on purpose').check();
+  await callout.getByLabel('Reason (optional)').fill('Only for Alex');
+  // Sam is in Team Alpha and Team Beta too.
+  await name.fill('Sam');
+  await expect(callout).toContainText('Sam would be in 3 teams');
+  await expect(callout.getByLabel('Override this hint on purpose')).not.toBeChecked();
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await expect(team.locator('[data-context-hint]').last()).not.toContainText('overridden');
+});

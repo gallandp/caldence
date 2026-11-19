@@ -40,15 +40,31 @@
     root?.querySelector<HTMLButtonElement>('[data-context-undo]')?.focus();
   }
 
-  async function undo() {
-    workspace.apply((ws) => setContextOverride(ws, teamId, personId, null));
+  /** Back to the override button, or to the note when another team's override hides it. */
+  async function focusBack() {
     await tick();
-    root?.querySelector<HTMLButtonElement>('[data-context-override]')?.focus();
+    (root?.querySelector<HTMLElement>('[data-context-override]') ?? root)?.focus();
+  }
+
+  function undo() {
+    workspace.apply((ws) => setContextOverride(ws, teamId, personId, null));
+    void focusBack();
+  }
+
+  function cancel() {
+    open = false;
+    void focusBack();
   }
 </script>
 
 {#if hint && team}
-  <div class="ctx-note" class:muted={hint.overriddenIn} data-context-hint bind:this={root}>
+  <div
+    class="ctx-note"
+    class:muted={hint.overriddenIn}
+    data-context-hint
+    tabindex="-1"
+    bind:this={root}
+  >
     <p class="text">
       <span class="mark" aria-hidden="true">!</span>
       <span
@@ -92,9 +108,7 @@
         <p class="help" id="{uid}-reason-hint">{$t('context.reason.hint')}</p>
         <div class="actions">
           <button type="submit" class="secondary">{$t('context.save')}</button>
-          <button type="button" class="link" onclick={() => (open = false)}
-            >{$t('context.cancel')}</button
-          >
+          <button type="button" class="link" onclick={cancel}>{$t('context.cancel')}</button>
         </div>
       </form>
     {/if}

@@ -73,7 +73,12 @@
     const input = event.currentTarget as HTMLInputElement;
     const n = Number(input.value);
     const path = 'thresholds.contextSwitch';
-    if (input.value.trim() === '' || !Number.isInteger(n) || n < MIN_CONTEXT_SWITCH)
+    if (
+      input.value.trim() === '' ||
+      !Number.isInteger(n) ||
+      n < MIN_CONTEXT_SWITCH ||
+      n > LIMITS.teams
+    )
       return fail(path);
     commit([path], { thresholds: { ...settings.thresholds, contextSwitch: n } });
   }
@@ -511,21 +516,23 @@
     <fieldset>
       <legend>{$t('settings.context')}</legend>
       <div class="field">
-        <label for="set-context">{$t('settings.contextSwitch')}</label>
+        <label for="set-context" id="set-context-label">{$t('settings.contextSwitch')}</label>
         <span class="rate-row">
           <input
             id="set-context"
             type="number"
             min={MIN_CONTEXT_SWITCH}
+            max={LIMITS.teams}
             step="1"
             value={settings.thresholds.contextSwitch ?? DEFAULT_CONTEXT_SWITCH}
+            aria-labelledby="set-context-label set-context-unit"
             aria-invalid={errors['thresholds.contextSwitch'] ? 'true' : undefined}
             aria-describedby={['set-context-hint', describe('thresholds.contextSwitch')]
               .filter(Boolean)
               .join(' ')}
             onchange={onContextSwitch}
           />
-          <span>{$t('settings.contextSwitch.unit')}</span>
+          <span id="set-context-unit">{$t('settings.contextSwitch.unit')}</span>
         </span>
         {@render err('thresholds.contextSwitch', $t('settings.contextSwitch'))}
         <p class="help" id="set-context-hint">{$t('settings.contextSwitch.hint')}</p>

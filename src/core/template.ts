@@ -26,7 +26,7 @@ export interface Template {
   description: string;
   roles: Role[];
   categories: Category[];
-  team: Omit<Team, 'id' | 'members' | 'memberHours' | 'templateId'>;
+  team: Omit<Team, 'id' | 'members' | 'memberHours' | 'contextOverrides' | 'templateId'>;
   /**
    * Optional area above the team, e.g. a Release Train with its PI events. Applying the template
    * creates it once; a second team from the same template joins it. Its roles are the template
@@ -51,7 +51,7 @@ export function validateTemplate(input: unknown): Result<Template> {
   }
   const team = input.team;
   if ('people' in input) return fail([{ path: 'people', key: 'template.error.personal' }]);
-  if (isObj(team) && ('members' in team || 'memberHours' in team))
+  if (isObj(team) && ('members' in team || 'memberHours' in team || 'contextOverrides' in team))
     return fail([{ path: 'team.members', key: 'template.error.personal' }]);
   // Regions belong to a workspace, never to a template.
   if ('customRegions' in input)
