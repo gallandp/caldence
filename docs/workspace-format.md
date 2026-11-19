@@ -11,7 +11,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 | `schemaVersion` | integer | Schema version of the file (`7`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
-| `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
+| `roles` | list of `{ id, name, colour, owner? }` | Roles such as Product Owner. `colour` is `#rrggbb`. Optional `owner` (`business` or `technical`) marks the role as one half of an owner tandem: whoever holds it in a team is that team's business or technical owner (for example Product Owner), in an area the area's (for example platform owner). |
 | `people` | list of `{ id, name }` | People. A person can be a member of several teams. |
 | `categories` | list of `{ id, name, colour }` | Event categories. |
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
@@ -49,6 +49,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `assumptions` | object of numbers | Named values (for example `Number of developers`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
+| `ownerMode` | string, optional | Which owners the team wants: `both` (a tandem of business and technical owner, the default when missing), `business` or `technical`. Only a missing wanted owner counts as a gap; an owner of the other half stays a member. |
 
 ### Area
 
@@ -63,6 +64,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `memberHours` | object | Weekly hours of a person in the area, by person id, from 0 to 168. Unlike in a team, a person without an entry has **0 hours** in the area: area time comes on top of team time and is set on purpose. |
 | `cycles` | list of `{ id, name, milestones }` | As in a team. |
 | `events` | list of events | The area's own meetings. |
+| `ownerMode` | string, optional | As in a team: which owners the area wants (`both`, `business` or `technical`). |
 
 ### Event
 

@@ -424,6 +424,16 @@ function checkTeam(
   }
 
   checkCyclesAndEvents(c, t, p, roleIds, personIds, categoryIds, cadenceDays);
+  checkOwnerMode(c, t, p);
+}
+
+/** The owner set-up of a team or area (#331): optional, one of three words. */
+function checkOwnerMode(c: Checker, u: Obj, p: string): void {
+  if (
+    u.ownerMode !== undefined &&
+    !['both', 'business', 'technical'].includes(u.ownerMode as string)
+  )
+    c.err(`${p}.ownerMode`, 'error.type');
 }
 
 /**
@@ -466,6 +476,7 @@ function checkArea(
     a.cadence === undefined ? 0 : cadenceDays,
     true,
   );
+  checkOwnerMode(c, a, p);
 }
 
 /** Checks imported regions: valid shape, no built-in id, no duplicate id. */
@@ -529,6 +540,8 @@ export function validate(input: unknown): Result<Workspace> {
   c.each(roles, 'roles', (r, p) => {
     c.str(r, 'name', p);
     c.colour(r, 'colour', p);
+    if (r.owner !== undefined && r.owner !== 'business' && r.owner !== 'technical')
+      c.err(`${p}.owner`, 'error.type');
   });
 
   const people = c.arr(w.people, 'people', LIMITS.people) ?? [];
