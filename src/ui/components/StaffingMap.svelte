@@ -36,10 +36,8 @@
     single?: boolean;
     /** Opens a product's page. */
     onOpen: (teamId: string) => void;
-    /** The organisation or the area shown: the matrix for it opens from the header (#397). */
-    scope?: { selection: string; name: string };
   }
-  let { teams, single = false, onOpen, scope }: Props = $props();
+  let { teams, single = false, onOpen }: Props = $props();
   /** Cross links into the line (#397), while the file has a line. */
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const fromLine = (teamId: string) =>
@@ -179,15 +177,6 @@
   <header class="head">
     <h3 id="{uid}-title">{$t('map.title')}</h3>
     <p class="note">{$t('map.note')}</p>
-    {#if hasLine && scope}
-      <button
-        type="button"
-        class="secondary matrix-link"
-        data-no-print
-        onclick={() => openPlace(scope.selection, 'matrix')}
-        >{$t('cross.matrix', { name: scope.name })}</button
-      >
-    {/if}
   </header>
 
   <div class="tiles">
@@ -343,9 +332,6 @@
     font-size: 0.8rem;
     color: var(--text-muted);
     overflow-wrap: anywhere;
-  }
-  :global(#app) .staffing-map .matrix-link {
-    margin-top: 0.5rem;
   }
   :global(#app) .staffing-map button.matrix-row {
     min-height: 1.75rem;

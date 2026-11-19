@@ -451,7 +451,11 @@ test('cross links lead between the worlds and back (#397)', async ({ page }) => 
   await expect(map.locator('[data-product="team-delta"] [data-from-line]')).toHaveText(
     'From the line: Orvalis Geld',
   );
-  await map.getByRole('button', { name: 'Open the matrix for Velmora Holding' }).click();
+  // The organisation page lists each platform's line units and leads to the matrix.
+  const supply = page.locator('#panel-team [data-from-line="area-payments"]');
+  await expect(supply.getByRole('button', { name: 'Open Orvalis Ware in the line' })).toBeVisible();
+  await expect(supply.getByRole('button', { name: 'Open Orvalis Geld in the line' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open the matrix for Velmora Holding' }).click();
   await expect(page.getByRole('tab', { name: 'Matrix', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',

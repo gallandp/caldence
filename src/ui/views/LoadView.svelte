@@ -87,8 +87,6 @@
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
   const lineUnitById = $derived(new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u])));
-  const productsOf = (personId: string) =>
-    $workspace.teams.filter((x) => x.members.some((m) => m.personId === personId));
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
@@ -555,22 +553,6 @@
               onclick={() => (openPerson = openPerson === p.person.id ? null : p.person.id)}
               >{p.person.name}</button
             >
-            {#if hasLine}
-              <span class="cross">
-                {#if inLineWorld}
-                  {#each productsOf(p.person.id) as product (product.id)}
-                    <UnitChip selection={product.id} name={product.name} />
-                  {/each}
-                {:else}
-                  {@const unit = lineUnitById.get(p.person.lineUnitId ?? '')}
-                  {#if unit}<UnitChip
-                      selection={lineSelection(unit.id)}
-                      name={unit.name}
-                      line
-                    />{/if}
-                {/if}
-              </span>
-            {/if}
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if !$presenting}
               {@const ctx = contextHint($workspace, p.person.id)}
@@ -595,16 +577,33 @@
               >
             {/if}
           </th>
-          <td class="units"
-            >{p.units.length === 0
-              ? '–'
-              : p.units.every((u) => u.area)
-                ? $t('load.onlyArea')
-                : p.units
-                    .filter((u) => !u.area)
-                    .map((u) => u.name)
-                    .join(', ')}</td
-          >
+          <td class="units">
+            <!-- Cross links (#397): the products in the line, the line unit in the products. -->
+            {#if hasLine && inLineWorld && p.units.some((u) => !u.area)}
+              <span class="cross">
+                {#each p.units.filter((u) => !u.area) as u (u.id)}
+                  <UnitChip selection={u.id} name={u.name} />
+                {/each}
+              </span>
+            {:else}
+              {p.units.length === 0
+                ? '–'
+                : p.units.every((u) => u.area)
+                  ? $t('load.onlyArea')
+                  : p.units
+                      .filter((u) => !u.area)
+                      .map((u) => u.name)
+                      .join(', ')}
+            {/if}
+            {#if hasLine && !inLineWorld}
+              {@const unit = lineUnitById.get(p.person.lineUnitId ?? '')}
+              {#if unit}
+                <span class="cross"
+                  ><UnitChip selection={lineSelection(unit.id)} name={unit.name} line /></span
+                >
+              {/if}
+            {/if}
+          </td>
           <td class="num nowrap"
             >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
           >
@@ -1190,14 +1189,10 @@
   }
   /* ---------- people ---------- */
   .cross {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
-    margin-left: 0.4rem;
-    vertical-align: middle;
-  }
-  .cross:empty {
-    display: none;
+    margin-top: 0.15rem;
   }
   :global(#app) .people button.who,
   :global(#app) .people button.sort {

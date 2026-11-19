@@ -22,19 +22,26 @@
     /** Shown after the name, e.g. the FTE. */
     detail?: string;
   } = $props();
+  /** The words around the name in "Open {name} in the line", for screen readers. */
+  const around = $derived.by(() => {
+    const MARK = '\u0001';
+    const text = $t(line ? 'cross.openLine' : 'cross.openProduct', { name: MARK });
+    const [before = '', after = ''] = text.split(MARK);
+    return [before, after] as const;
+  });
 </script>
 
 {#if !(line && $presenting)}
+  <!-- The name says where it leads ("Open … in the line"); only the unit's name shows. -->
   <button
     type="button"
     class="unit-chip"
     class:line
     data-unit-chip
-    aria-label={[$t(line ? 'cross.openLine' : 'cross.openProduct', { name }), detail]
-      .filter(Boolean)
-      .join(', ')}
     onclick={() => openPlace(selection)}
-    ><span class="dot" aria-hidden="true"></span><span class="name">{name}</span>{#if detail}<span
+    ><span class="dot" aria-hidden="true"></span><span class="sr-only">{around[0]}</span><span
+      class="name">{name}</span
+    ><span class="sr-only">{detail ? `${around[1]} ` : around[1]}</span>{#if detail}<span
         class="detail">{detail}</span
       >{/if}</button
   >
@@ -76,6 +83,14 @@
   .name {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: pre;
   }
   .detail {
     color: var(--text-muted);

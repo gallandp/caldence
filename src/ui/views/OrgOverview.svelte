@@ -1,6 +1,10 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
-  import { ORG_UNIT, orgName } from '../../core/model';
+  import { ORG_UNIT, lineSelection, orgName } from '../../core/model';
+  import { supplyingUnits } from '../../core/lineStaff';
+  import UnitChip from '../components/UnitChip.svelte';
+  import { openPlace } from '../state/jump';
+  import { presenting } from '../state/present';
   import { hasDemands } from '../../core/staffingMap';
   import { loadSummary } from '../../core/views';
   import { formatEuro, formatNumber, levels, locale, translate as t } from '../../i18n';
@@ -23,6 +27,21 @@
   const costs = $derived(rate ? costSummary(ws, $index, filter, rate) : undefined);
   const num = (n: number, d: number) => formatNumber($locale, n, d);
   const euro = (n: number) => formatEuro($locale, n);
+  /** Cross links into the line (#397): per platform (and the products in none), its line units. */
+  const hasLine = $derived((ws.lineUnits?.length ?? 0) > 0);
+  const supply = $derived.by(() => {
+    if (!hasLine) return [];
+    const inArea = new Set(ws.areas.flatMap((a) => a.teamIds));
+    const rows = ws.areas.map((a) => ({
+      id: a.id,
+      name: a.name,
+      units: supplyingUnits(ws, [a.id, ...a.teamIds]),
+    }));
+    const loose = ws.teams.filter((x) => !inArea.has(x.id));
+    for (const x of loose) rows.push({ id: x.id, name: x.name, units: supplyingUnits(ws, x.id) });
+    return rows;
+  });
+  const uid = $props.id();
 </script>
 
 <div class="org-overview">
@@ -52,16 +71,87 @@
   {#if !rate && meetings > 0}
     <div data-no-present><RateInvite focusAfter="[data-org-cost]" /></div>
   {/if}
+  {#if hasLine}
+    <!-- Where each platform's people come from, and the matrix behind it (#397). -->
+    <section class="from-line" aria-labelledby="{uid}-from-line">
+      <div class="head">
+        <h3 id="{uid}-from-line">{$t('cross.fromLine')}</h3>
+        <button
+          type="button"
+          class="secondary"
+          data-no-print
+          onclick={() => openPlace(ORG_UNIT, 'matrix')}
+          >{$t('cross.matrix', { name: orgName(ws, $levels.org) })}</button
+        >
+      </div>
+      {#if !$presenting}
+        <ul>
+          {#each supply as row (row.id)}
+            <li data-from-line={row.id}>
+              <span class="unit">{row.name}</span>
+              <span class="chips">
+                {#each row.units as u (u.id)}
+                  <UnitChip selection={lineSelection(u.id)} name={u.name} line />
+                {:else}
+                  <span class="muted">{$t('cross.noLine')}</span>
+                {/each}
+              </span>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
   {#if hasDemands(ws)}
-    <StaffingMap
-      teams={ws.teams}
-      {onOpen}
-      scope={{ selection: ORG_UNIT, name: orgName(ws, $levels.org) }}
-    />
+    <StaffingMap teams={ws.teams} {onOpen} />
   {/if}
 </div>
 
 <style>
+  .from-line .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.6rem;
+  }
+  .from-line h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+  .from-line ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+  .from-line li {
+    display: grid;
+    grid-template-columns: minmax(8rem, 14rem) 1fr;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .from-line .unit {
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+  .from-line .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  .muted {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  @media (max-width: 40rem) {
+    .from-line li {
+      grid-template-columns: 1fr;
+    }
+  }
   .org-overview {
     display: flex;
     flex-direction: column;

@@ -170,12 +170,20 @@
     const from = $activeTeamId;
     if (worldOf(selection) !== worldOf(from)) {
       crossBack = from
-        ? { selection: from, view: active, name: scopeName || level, to: selection, toView: view }
+        ? {
+            selection: from,
+            view: active,
+            page: $areaPage,
+            name: scopeName || level,
+            to: selection,
+            toView: view,
+          }
         : null;
       jumpTo = view;
     }
     activeTeamId.set(selection);
-    select(view);
+    // The clicked link is gone with its page: the view's tab takes the focus.
+    select(view, true);
     toTop();
   }
   /** A page opened by a link starts at its top, not at the scroll position of the last one. */
@@ -186,6 +194,8 @@
   let crossBack = $state<{
     selection: string;
     view: ViewId;
+    /** The page of an area or the organisation it came from. */
+    page: 'structure' | 'overview';
     name: string;
     to: string;
     toView: ViewId;
@@ -197,11 +207,15 @@
   });
   function goBack() {
     if (!crossBack) return;
-    const { selection, view } = crossBack;
+    const { selection, view, page } = crossBack;
     crossBack = null;
+    // The unit may be gone meanwhile (an undo): then there is nothing to go back to.
+    if (!knownUnit($workspace, selection)) return;
     if (worldOf(selection) !== worldOf($activeTeamId)) jumpTo = view;
     activeTeamId.set(selection);
     select(view, true);
+    // After the unit's own effect, which opens an area on its overview.
+    void tick().then(() => areaPage.set(page));
     toTop();
   }
   // Pages ask for a place through the store (#397).
@@ -1019,7 +1033,6 @@
                       <StaffingMap
                         teams={areaTeams}
                         single
-                        scope={{ selection: activeArea.id, name: activeArea.name }}
                         onOpen={(teamId) => drillIn(teamId, 'team')}
                       />
                     {/if}

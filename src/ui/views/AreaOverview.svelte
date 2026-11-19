@@ -27,6 +27,7 @@
   } from '../../core/model';
   import { supplyingUnits } from '../../core/lineStaff';
   import UnitChip from '../components/UnitChip.svelte';
+  import { openPlace } from '../state/jump';
   import { clashes, clashTime } from '../../core/views';
   import {
     formatDisplayDate,
@@ -353,7 +354,8 @@
       minutes: formatNumber($locale, e.duration, 0),
     });
   /** Where each product's people come from (#397): a column while the file has a line. */
-  const fromLine = $derived(($workspace.lineUnits?.length ?? 0) > 0 && !$presenting);
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const fromLine = $derived(hasLine && !$presenting);
 </script>
 
 <div class="overview stack" data-area-overview>
@@ -466,6 +468,16 @@
           </p>
           <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
+        {#if hasLine}
+          <!-- The line behind these products, as line teams × products (#397). -->
+          <button
+            type="button"
+            class="secondary matrix-link"
+            data-no-print
+            onclick={() => openPlace(area.id, 'matrix')}
+            >{$t('cross.matrix', { name: area.name })}</button
+          >
+        {/if}
       </div>
       {#if rate}
         <div class="period" data-no-print role="group" aria-label={$t('overview.cost.period')}>
@@ -933,6 +945,9 @@
 </div>
 
 <style>
+  :global(#app) .matrix-link {
+    margin-top: 0.5rem;
+  }
   .from-line {
     min-width: 9rem;
     max-width: 16rem;

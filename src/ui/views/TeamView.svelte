@@ -42,9 +42,10 @@
   const roleName = $derived((id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id);
   /** Members come from the line (#397): their line unit links there, while the file has a line. */
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
-  const lineUnitOf = $derived((personId: string) => {
-    const unitId = $workspace.people.find((p) => p.id === personId)?.lineUnitId;
-    return unitId ? $workspace.lineUnits?.find((u) => u.id === unitId) : undefined;
+  const lineUnitOf = $derived.by(() => {
+    const units = new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u]));
+    const byPerson = new Map($workspace.people.map((p) => [p.id, p.lineUnitId]));
+    return (personId: string) => units.get(byPerson.get(personId) ?? '');
   });
 
   const problems = new Problems(uid);
