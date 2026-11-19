@@ -484,7 +484,7 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
               : k < 6
                 ? 'vd'
                 : 'va';
-        const fte = pick([1, 1, 1, 1, 1, 0.8, 0.8, 0.5, 0.6]);
+        const fte = pick([1, 1, 1, 1, 1, 1, 1, 0.8, 0.8, 0.5]);
         const id = person(null, {
           lineUnitId: t.id,
           companyId,
@@ -666,7 +666,7 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
         demands: demandSkills.map((skillId, j) => ({
           id: `d${j + 1}`,
           skillId,
-          fte: j === 0 ? pick([1, 2, 2, 3, 3, 4]) : pick([0.3, 0.5, 1, 1, 2]),
+          fte: j === 0 ? pick([2, 3, 3, 4, 4, 5]) : pick([0.5, 1, 1, 2, 2]),
           roleId: 'dev',
         })),
         ...(ownerMode === 'both' ? {} : { ownerMode }),
@@ -803,8 +803,9 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
       for (const p of shuffled(staff.filter((s) => s.skills.includes(d.skillId!)))) {
         if (need < 0.1) break;
         if (p.free < 0.1 || t.members.some((m) => m.personId === p.id)) continue;
-        const fte = round1(Math.min(p.free, need, pick([0.3, 0.5, 0.5, 0.8, 1, 1, 1, 1])));
-        if (fte < 0.1) continue;
+        const fte = round1(Math.min(p.free, need, pick([0.5, 0.8, 1, 1, 1, 1])));
+        // At least half a week: a few hours in a product mostly go to its meetings.
+        if (fte < 0.5) continue;
         staffOn(t, d.id, p.id, fte);
         p.free = round1(p.free - fte);
         need = round1(need - fte);

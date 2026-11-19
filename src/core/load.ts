@@ -311,14 +311,16 @@ export function areaHints(weeks: WeekLoad[], ws: Workspace): AreaHint[] {
   const { maxFte } = ws.settings.thresholds;
   const result: AreaHint[] = [];
   for (const area of ws.areas) {
-    for (const person of ws.people) {
-      const hours = Math.max(0, ...weeks.map((w) => w.byTeamPerson[area.id]?.[person.id] ?? 0));
-      if (hours <= 0) continue;
-      const inArea = areaHours(ws, area.id, person.id);
+    // Each person's peak week in the area's own meetings; only attendees appear in a week.
+    const peak = new Map<string, number>();
+    for (const w of weeks)
+      for (const [personId, h] of Object.entries(w.byTeamPerson[area.id] ?? {}))
+        if (h > (peak.get(personId) ?? 0)) peak.set(personId, h);
+    for (const [personId, hours] of peak) {
+      const inArea = areaHours(ws, area.id, personId);
       const kind =
         inArea <= 0 ? 'no-area-hours' : fte(hours, inArea) > maxFte ? 'area-share' : null;
-      if (kind)
-        result.push({ personId: person.id, areaId: area.id, kind, hours, areaHours: inArea });
+      if (kind) result.push({ personId, areaId: area.id, kind, hours, areaHours: inArea });
     }
   }
   return result.sort(
