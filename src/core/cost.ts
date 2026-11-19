@@ -24,7 +24,7 @@ export interface CostSummary {
   byCategory: { categoryId: string; perWeek: number }[];
   /**
    * Roles that meetings with a cost invite but nobody holds in that team or area: each counts as
-   * one person for the cost, but not for the hours (#264). One entry per unit and role, saying in
+   * one person for the cost and the typical-week hours (#264, #335), but in no person's hours. One entry per unit and role, saying in
    * which period (per week: recurring meetings; horizon: every occurrence) it adds cost.
    */
   unfilled: UnfilledRole[];

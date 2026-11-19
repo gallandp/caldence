@@ -4,6 +4,11 @@ import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
 export const CURRENT_SCHEMA = 8;
+/**
+ * Caldence 2 (branch release/v2, served at /v2/) writes `schemaVersion` 1000 + n (#344). 1.x
+ * never opens such a file and says where it belongs, so its new data is never lost on save.
+ */
+export const FORMAT2_SCHEMA_BASE = 1000;
 
 export interface Settings {
   locale: 'de' | 'en';
