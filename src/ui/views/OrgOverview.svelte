@@ -1,9 +1,9 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
-  import { ORG_UNIT } from '../../core/model';
+  import { ORG_UNIT, orgName } from '../../core/model';
   import { hasDemands } from '../../core/staffingMap';
   import { loadSummary } from '../../core/views';
-  import { formatEuro, formatNumber, locale, translate as t } from '../../i18n';
+  import { formatEuro, formatNumber, levels, locale, translate as t } from '../../i18n';
   import RateInvite from '../components/RateInvite.svelte';
   import StaffingMap from '../components/StaffingMap.svelte';
   import { index, workspace } from '../state/workspace';
@@ -53,7 +53,11 @@
     <div data-no-present><RateInvite focusAfter="[data-org-cost]" /></div>
   {/if}
   {#if hasDemands(ws)}
-    <StaffingMap teams={ws.teams} {onOpen} />
+    <StaffingMap
+      teams={ws.teams}
+      {onOpen}
+      scope={{ selection: ORG_UNIT, name: orgName(ws, $levels.org) }}
+    />
   {/if}
 </div>
 

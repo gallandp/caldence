@@ -18,7 +18,15 @@
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
   import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
-  import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
+  import {
+    areaAsTeam,
+    lineSelection,
+    type Area,
+    type Cadence,
+    type CalEvent,
+  } from '../../core/model';
+  import { supplyingUnits } from '../../core/lineStaff';
+  import UnitChip from '../components/UnitChip.svelte';
   import { clashes, clashTime } from '../../core/views';
   import {
     formatDisplayDate,
@@ -344,6 +352,8 @@
       time: e.time,
       minutes: formatNumber($locale, e.duration, 0),
     });
+  /** Where each product's people come from (#397): a column while the file has a line. */
+  const fromLine = $derived(($workspace.lineUnits?.length ?? 0) > 0 && !$presenting);
 </script>
 
 <div class="overview stack" data-area-overview>
@@ -484,6 +494,7 @@
           <tr>
             <th scope="col">{$t('overview.cost.col.unit')}</th>
             <th scope="col" class="extra">{$t('overview.cost.col.cadence')}</th>
+            {#if fromLine}<th scope="col" class="extra">{$t('cross.fromLine')}</th>{/if}
             <th scope="col" class="num">{$t('overview.cost.col.hours')}</th>
             <th scope="col">{$t('overview.cost.col.share')}</th>
             {#if rate}
@@ -512,6 +523,17 @@
                 {/if}
               </th>
               <td class="extra">{cadenceShort(unitOf(r.unitId).cadence)}</td>
+              {#if fromLine}
+                <td class="extra from-line">
+                  <span class="chips">
+                    {#each supplyingUnits($workspace, r.unitId) as u (u.id)}
+                      <UnitChip selection={lineSelection(u.id)} name={u.name} line />
+                    {:else}
+                      <span class="muted">{$t('cross.noLine')}</span>
+                    {/each}
+                  </span>
+                </td>
+              {/if}
               <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
               <td>
                 <span class="share">
@@ -562,6 +584,7 @@
               {/if}
             </th>
             <td class="extra">{cadenceShort(area.cadence)}</td>
+            {#if fromLine}<td class="extra"></td>{/if}
             <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
             <td></td>
             {#if rate && costs.area.cost}
@@ -578,6 +601,7 @@
           <tr data-cost-total>
             <th scope="row">{$t('overview.cost.total')}</th>
             <td class="extra"></td>
+            {#if fromLine}<td class="extra"></td>{/if}
             <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
             >
             <td
@@ -909,6 +933,16 @@
 </div>
 
 <style>
+  .from-line {
+    min-width: 9rem;
+    max-width: 16rem;
+    white-space: normal;
+  }
+  .from-line .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
   .overview {
     --h0: var(--surface-2);
     --h1: light-dark(#dcd8ff, #2c2760);

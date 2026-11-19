@@ -19,7 +19,14 @@
     type PersonMeeting,
   } from '../../core/load';
   import { contextHint, contextHints, contextThreshold } from '../../core/contextSwitch';
-  import { keyName, selectedLineUnit, units as allUnits, unitLoadIds } from '../../core/model';
+  import {
+    keyName,
+    lineSelection,
+    selectedLineUnit,
+    units as allUnits,
+    unitLoadIds,
+  } from '../../core/model';
+  import UnitChip from '../components/UnitChip.svelte';
   import { record } from '../../core/record';
   import {
     clashes,
@@ -41,7 +48,7 @@
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary, weekdayShort } from '../meetings/rules';
   import { presenting } from '../state/present';
-  import { filter, index, workspace } from '../state/workspace';
+  import { activeTeamId, filter, index, workspace } from '../state/workspace';
 
   interface Props {
     /** Opens a week in the Calendar with the Person filter on that person (#343). */
@@ -73,6 +80,15 @@
    * people's meetings everywhere are its part, the same as the share column.
    */
   const hereId = $derived(selectedLineUnit(teamId) === undefined ? teamId : undefined);
+  /**
+   * Cross links (#397): in the products each person's line unit, in the line the products each
+   * person works in. Only while the file has a line.
+   */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
+  const lineUnitById = $derived(new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u])));
+  const productsOf = (personId: string) =>
+    $workspace.teams.filter((x) => x.members.some((m) => m.personId === personId));
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
@@ -539,6 +555,22 @@
               onclick={() => (openPerson = openPerson === p.person.id ? null : p.person.id)}
               >{p.person.name}</button
             >
+            {#if hasLine}
+              <span class="cross">
+                {#if inLineWorld}
+                  {#each productsOf(p.person.id) as product (product.id)}
+                    <UnitChip selection={product.id} name={product.name} />
+                  {/each}
+                {:else}
+                  {@const unit = lineUnitById.get(p.person.lineUnitId ?? '')}
+                  {#if unit}<UnitChip
+                      selection={lineSelection(unit.id)}
+                      name={unit.name}
+                      line
+                    />{/if}
+                {/if}
+              </span>
+            {/if}
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if !$presenting}
               {@const ctx = contextHint($workspace, p.person.id)}
@@ -1157,6 +1189,16 @@
     border-radius: 50%;
   }
   /* ---------- people ---------- */
+  .cross {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  .cross:empty {
+    display: none;
+  }
   :global(#app) .people button.who,
   :global(#app) .people button.sort {
     min-height: 1.5rem;

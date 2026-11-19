@@ -1,10 +1,11 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { lineWorkspace } from './line-fixture';
+import { lineWorkspace, staffingWorkspace } from './line-fixture';
 import {
   autosaved,
   openExample,
   openWorkspaceFile,
+  pickUnit,
   showView,
   teamAction,
   useFileFallback,
@@ -396,4 +397,69 @@ test('a company is chosen as level and gives its people their company (#399)', a
   await edit.getByLabel('Belongs to').selectOption({ label: 'Nordwerk GmbH' });
   await edit.getByRole('button', { name: 'Apply' }).click();
   await expect(page.locator('.switcher .pick')).toContainText('Specialist group');
+});
+
+test('cross links lead between the worlds and back (#397)', async ({ page }) => {
+  const ws = staffingWorkspace();
+  ws.organisation = { name: 'Velmora Holding' };
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
+  const label = page.locator('.switcher .pick .label');
+  const back = page.getByRole('button', { name: /^‹?\s*Back to / });
+
+  // A product's members carry their line unit; the chip opens it in the line, with a way back.
+  await pickUnit(page, 'Team Alpha');
+  await page.locator('#tab-team').click();
+  const members = page.getByRole('list', { name: /Members of Team Alpha/ });
+  await members.getByRole('button', { name: 'Open Orvalis Ware in the line' }).first().click();
+  await expect(label).toHaveText('Orvalis Ware');
+  await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await back.click();
+  await expect(label).toHaveText('Team Alpha');
+  await expect(
+    page.getByRole('radiogroup', { name: 'World' }).getByRole('radio', { name: 'Products' }),
+  ).toHaveAttribute('aria-checked', 'true');
+  await expect(back).toHaveCount(0);
+
+  // The line's staff link their commitments into the products; any other step drops the way back.
+  await pickLine(page, 'Orvalis Ware');
+  await showView(page, 'Staff');
+  await panel(page, 'Staff')
+    .getByRole('row', { name: /Sam/ })
+    .getByRole('button', { name: /^Open Team Gamma/ })
+    .click();
+  await expect(label).toHaveText('Team Gamma');
+  await expect(back).toHaveText(/Back to Orvalis Ware/);
+  await showView(page, 'Calendar');
+  await expect(back).toHaveCount(0);
+
+  // Meeting load names each person's line unit in the products, their products in the line.
+  await showView(page, 'Meeting load');
+  const people = panel(page, 'Meeting load');
+  await expect(
+    people.getByRole('row', { name: /Kim/ }).getByRole('button', { name: /in the line$/ }),
+  ).toHaveCount(1);
+
+  // The organisation's staffing map: where each product's people come from, and the matrix.
+  await pickUnit(page, 'Velmora Holding');
+  await page.locator('#tab-team').click();
+  const map = page.locator('[data-staffing-map]');
+  const platform = map.locator('button.toggle', { hasText: 'Payments' });
+  if ((await platform.getAttribute('aria-expanded')) === 'false') await platform.click();
+  await expect(map.locator('[data-product="team-delta"] [data-from-line]')).toHaveText(
+    'From the line: Orvalis Geld',
+  );
+  await map.getByRole('button', { name: 'Open the matrix for Velmora Holding' }).click();
+  await expect(page.getByRole('tab', { name: 'Matrix', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  // Presenting keeps line names out: no line chips on a product's members.
+  await pickUnit(page, 'Team Alpha');
+  await page.locator('#tab-team').click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(page.locator('#panel-team [data-unit-chip]')).toHaveCount(0);
 });

@@ -9,6 +9,7 @@
   import LinePersonAdd from './LinePersonAdd.svelte';
   import LinePersonDetail from './LinePersonDetail.svelte';
   import SkillsDialog from './SkillsDialog.svelte';
+  import UnitChip from './UnitChip.svelte';
 
   /**
    * The people of a line unit (#316): search by name or skill, sort, filter by company, and per
@@ -204,11 +205,14 @@
                   ></span>
                 {/each}
               </span>
-              <span class="bar-label"
-                >{r.commitments.length === 0
-                  ? $t('line.none')
-                  : r.commitments.map((c) => `${c.name} ${fte(c.fte)}`).join(' · ')}</span
-              >
+              <!-- Each commitment links into the products (#397). -->
+              <span class="bar-label">
+                {#if r.commitments.length === 0}{$t('line.none')}{:else}
+                  {#each r.commitments as c (c.unitId)}
+                    <UnitChip selection={c.unitId} name={c.name} detail={fte(c.fte)} />
+                  {/each}
+                {/if}
+              </span>
             </td>
             <td class="num free" class:bad={r.free < 0}
               ><span class="m-label">{$t('line.col.free')}</span>{r.free < 0
@@ -429,8 +433,10 @@
     height: 100%;
   }
   .bar-label {
-    display: block;
-    margin-top: 0.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.3rem;
     font-size: 0.8rem;
     color: var(--text-muted);
   }

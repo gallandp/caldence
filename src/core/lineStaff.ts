@@ -220,3 +220,16 @@ export function parentChoices(
     (u) => u.kind !== 'team' && !own.has(u.id) && depthOf(u.id) + needs <= maxLevels,
   );
 }
+
+/**
+ * The line units that supply a product or area (#397): the line units of its members, in the
+ * order of the line, each once.
+ */
+export function supplyingUnits(ws: Workspace, unitId: string): LineUnit[] {
+  const unit = [...ws.teams, ...ws.areas].find((u) => u.id === unitId);
+  if (!unit) return [];
+  const ids = new Set(
+    unit.members.map((m) => ws.people.find((p) => p.id === m.personId)?.lineUnitId),
+  );
+  return (ws.lineUnits ?? []).filter((u) => ids.has(u.id));
+}

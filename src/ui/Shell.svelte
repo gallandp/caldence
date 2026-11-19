@@ -36,6 +36,7 @@
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
   import { AREA_PAGES, areaPage, currentView, knownUnit, openingPlace } from './state/view';
+  import { placeRequest } from './state/jump';
   import { formatRoute, parseRoute } from './state/route';
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, LINE_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
@@ -161,12 +162,60 @@
   let jumpTo: ViewId | undefined;
   const worldOf = (selection: string | null | undefined) =>
     selectedLineUnit(selection ?? null) !== undefined ? 'line' : 'product';
-  function openUnit(selection: string) {
-    const across = worldOf(selection) !== worldOf($activeTeamId);
+  /**
+   * Opens a unit on a page (its own unless named). Across worlds the page header offers one click
+   * back to where it came from (#397), until anything else is opened.
+   */
+  function openUnit(selection: string, view: ViewId = 'team') {
+    const from = $activeTeamId;
+    if (worldOf(selection) !== worldOf(from)) {
+      crossBack = from
+        ? { selection: from, view: active, name: scopeName || level, to: selection, toView: view }
+        : null;
+      jumpTo = view;
+    }
     activeTeamId.set(selection);
-    if (across) jumpTo = 'team';
-    else select('team');
+    select(view);
+    toTop();
   }
+  /** A page opened by a link starts at its top, not at the scroll position of the last one. */
+  function toTop() {
+    void tick().then(() => window.scrollTo({ top: 0 }));
+  }
+  /** The way back of a jump across the worlds (#397). */
+  let crossBack = $state<{
+    selection: string;
+    view: ViewId;
+    name: string;
+    to: string;
+    toView: ViewId;
+  } | null>(null);
+  // Anything else opened ends it: coming back later shows no link.
+  $effect(() => {
+    if (crossBack && (crossBack.to !== $activeTeamId || crossBack.toView !== active))
+      crossBack = null;
+  });
+  function goBack() {
+    if (!crossBack) return;
+    const { selection, view } = crossBack;
+    crossBack = null;
+    if (worldOf(selection) !== worldOf($activeTeamId)) jumpTo = view;
+    activeTeamId.set(selection);
+    select(view, true);
+    toTop();
+  }
+  // Pages ask for a place through the store (#397).
+  $effect(() => {
+    const place = $placeRequest;
+    if (!place) return;
+    placeRequest.set(null);
+    untrack(() =>
+      openUnit(
+        place.selection,
+        (views as readonly string[]).includes(place.view ?? '') ? (place.view as ViewId) : 'team',
+      ),
+    );
+  });
   $effect(() => {
     const world = inLine ? 'line' : 'product';
     const back = jumpTo ?? lastPage[world];
@@ -852,6 +901,13 @@
               ></button
             >
           {/if}
+          {#if crossBack && active === id}
+            <button type="button" class="back link" data-no-print onclick={goBack}
+              ><span aria-hidden="true">‹</span><span class="back-label"
+                >{$t('world.back', { name: crossBack.name })}</span
+              ></button
+            >
+          {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
               {#if hasLine}
@@ -963,6 +1019,7 @@
                       <StaffingMap
                         teams={areaTeams}
                         single
+                        scope={{ selection: activeArea.id, name: activeArea.name }}
                         onOpen={(teamId) => drillIn(teamId, 'team')}
                       />
                     {/if}

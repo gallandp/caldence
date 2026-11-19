@@ -16,6 +16,7 @@
   import { workspace } from '../state/workspace';
   import AssignDialog from './AssignDialog.svelte';
   import OwnerAvatars from './OwnerAvatars.svelte';
+  import { openPlace } from '../state/jump';
 
   /**
    * The staffing tab of a line team (#319): its people on the left, the open demands of its skill
@@ -434,7 +435,13 @@
                   data-demand={rowKey(row)}
                 >
                   <div class="product">
-                    <span class="product-name">{row.team.name}</span>
+                    <!-- The demand's product opens in the products (#397). -->
+                    <button
+                      type="button"
+                      class="product-name"
+                      aria-label={$t('cross.openProduct', { name: row.team.name })}
+                      onclick={() => openPlace(row.team.id)}>{row.team.name}</button
+                    >
                     <span class="product-meta">
                       <OwnerAvatars unit={row.team} />
                       <span class="muted small"
@@ -861,9 +868,23 @@
     gap: 0.2rem;
     min-width: 0;
   }
-  .product-name {
+  :global(#app) .board button.product-name {
+    min-height: 1.5rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
     font-weight: 650;
+    text-align: start;
     overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-color: var(--border);
+    text-underline-offset: 0.2em;
+  }
+  :global(#app) .board button.product-name:hover {
+    text-decoration-color: currentColor;
   }
   .product-meta {
     display: flex;
