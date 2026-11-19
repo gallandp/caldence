@@ -228,7 +228,7 @@ describe('unfilled roles (#264)', () => {
   };
   const roles = (list: { roleId: string }[]) => list.map((u) => u.roleId);
 
-  it('names the roles that add cost but no hours, per team and in the cost table', () => {
+  it('names the unfilled roles, per team and in the cost table', () => {
     const w = ws();
     const gamma = devMeeting(w, 'team-gamma');
     const summary = unitCostSummary(w, noIndex(), gamma, 100);
@@ -282,6 +282,10 @@ describe('unfilled roles (#264)', () => {
     const w = ws();
     const area = w.areas[0]!;
     const gamma = devMeeting(w, 'team-gamma');
+    // Preparation and on-site travel are in the hours as in the cost, so hours × rate = cost.
+    const dev = gamma.events.find((e) => e.id === 'ev-dev-team-gamma')!;
+    dev.preparation = 0.25;
+    dev.onSite = { travel: 30 };
     const c = areaCosts(w, noIndex(), area, 100);
     const row = c.teams.find((r) => r.unitId === gamma.id)!;
     const tiles = (teamId: string) =>
