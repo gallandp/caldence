@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 7;
+export const CURRENT_SCHEMA = 8;
 /**
  * Caldence 2 (branch release/v2, served at /v2/) writes `schemaVersion` 1000 + n (#344). 1.x
  * never opens such a file and says where it belongs, so its new data is never lost on save.
@@ -164,6 +164,18 @@ export interface Area {
   memberHours: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /**
+   * Area roles a team calls by another name, e.g. a Scrum team's "Developers" for SAFe's "Agile
+   * Team" (#338). Meetings that invite a role "from every team" also invite these team roles.
+   */
+  roleLinks?: RoleLink[];
+}
+
+/** In team `teamId`, the people with `teamRoleId` attend where the area invites `roleId`. */
+export interface RoleLink {
+  teamId: string;
+  roleId: string;
+  teamRoleId: string;
 }
 
 export interface Workspace {
@@ -299,11 +311,20 @@ export function holders(ws: Workspace, unitId: string, p: Participant): string[]
     return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
   const area = ws.areas.find((a) => a.id === unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
-  const lists = [own?.members ?? []];
+  const ids = (own?.members ?? []).flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
   if (area && p.fromTeams)
-    for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
-  const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
+    for (const t of ws.teams) {
+      if (!area.teamIds.includes(t.id)) continue;
+      const roles = teamRolesFor(area, t.id, p.roleId);
+      for (const m of t.members) if (roles.includes(m.roleId)) ids.push(m.personId);
+    }
   return [...new Set(ids)];
+}
+
+/** The team roles that stand for an area role in one of its teams: the role and its link. */
+export function teamRolesFor(area: Area, teamId: string, roleId: string): string[] {
+  const link = area.roleLinks?.find((l) => l.teamId === teamId && l.roleId === roleId);
+  return link ? [roleId, link.teamRoleId] : [roleId];
 }
 
 /** People the meeting invites by name. */
@@ -327,6 +348,64 @@ export function attendees(
   return named.size === 0 ? ids : ids.filter((id) => !named.has(id));
 }
 
+/**
+ * Whether a participant counts for a role filter: it invites the role, or, "from every team" in
+ * an area, a role that a team has linked to `roleId` (#338).
+ */
+export function invitesRole(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  roleId: string,
+): boolean {
+  if (p.roleId === roleId) return true;
+  if (p.personId !== undefined || !p.fromTeams) return false;
+  const area = ws.areas.find((a) => a.id === unitId);
+  return !!area?.roleLinks?.some((l) => l.roleId === p.roleId && l.teamRoleId === roleId);
+}
+
+/**
+ * The attendees of a participant who come with `roleId` (#338): with the participant's own role,
+ * or "from every team" with a team role linked to it. A linked team role's people are listed under
+ * their own role, never under the area's.
+ */
+export function roleAttendees(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  event: CalEvent,
+  roleId: string,
+): string[] {
+  if (p.personId !== undefined || !invitesRole(ws, unitId, p, roleId)) return [];
+  const area = ws.areas.find((a) => a.id === unitId);
+  const own = area ?? ws.teams.find((t) => t.id === unitId);
+  const ids = new Set(
+    p.roleId === roleId
+      ? (own?.members ?? []).flatMap((m) => (m.roleId === roleId ? [m.personId] : []))
+      : [],
+  );
+  if (area && p.fromTeams)
+    for (const t of ws.teams) {
+      if (!area.teamIds.includes(t.id) || !teamRolesFor(area, t.id, p.roleId).includes(roleId))
+        continue;
+      for (const m of t.members) if (m.roleId === roleId) ids.add(m.personId);
+    }
+  const named = namedPeople(event);
+  return [...ids].filter((id) => !named.has(id));
+}
+
+/** Heads a participant counts for a role filter; the role itself unfilled counts one person. */
+export function roleHeads(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  event: CalEvent,
+  roleId: string,
+): number {
+  if (p.roleId === roleId && unfilled(ws, unitId, p)) return 1;
+  return roleAttendees(ws, unitId, p, event, roleId).length;
+}
+
 /** A role participant that nobody holds in the unit: it counts as one person for the cost. */
 export function unfilled(ws: Workspace, unitId: string, p: Participant): boolean {
   return p.personId === undefined && holders(ws, unitId, p).length === 0;
@@ -347,7 +426,9 @@ export function missingRoles(
   for (const p of event.participants) {
     if (p.personId !== undefined || !p.fromTeams) continue;
     for (const t of ws.teams) {
-      if (area.teamIds.includes(t.id) && !t.members.some((m) => m.roleId === p.roleId))
+      if (!area.teamIds.includes(t.id)) continue;
+      const roles = teamRolesFor(area, t.id, p.roleId);
+      if (!t.members.some((m) => roles.includes(m.roleId)))
         out.push({ teamId: t.id, roleId: p.roleId });
     }
   }

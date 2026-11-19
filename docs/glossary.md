@@ -28,6 +28,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **Mitglied** | member | Person + role + hours in one {levelTeam} | People in the area only ("Person {levelInArea}") |
 | **Eingeladen** | Invited | Roles (and so their people) invited to a meeting; meetings table column (was "Teilnehmer") | — |
 | **Einzeln eingeladen** | Invited by name | One person invited to a meeting without their role, from any {levelTeam} (#285). Counts once, with its own share | Members of the {levelTeam} |
+| **Rollen für die Termine {levelInArea}** | roles for the meetings in the area | When a {levelTeam} joins a {levelArea} (Choose teams …): which of its roles attends where the {levelArea}'s meetings invite a role "from every team" that the {levelTeam} calls differently, e.g. "Agile Team" → "Entwickler:innen" (#338). One select per role; "Niemand" / "Nobody" leaves it missing | Renaming or merging roles |
 | **Termin** | meeting | A meeting series or single meeting | Export counts ("Terminserien und Einzeltermine") |
 | **Takt** | cadence | The rhythm: kind + length + start (Sprint, Flow, PI) | Being in sync |
 | **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |

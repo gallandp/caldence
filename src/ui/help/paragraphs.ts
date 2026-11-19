@@ -52,6 +52,8 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     role: 'filter.role',
     person: 'filter.person',
     all: 'filter.all',
+    week: 'cal.mode.week',
+    month: 'cal.mode.month',
   },
   'help.views.calendar': {
     month: 'cal.mode.month',

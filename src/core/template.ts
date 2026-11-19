@@ -37,7 +37,7 @@ export interface Template {
 
 export interface TemplateArea extends Pick<Area, 'name' | 'cycles' | 'events'> {
   cadence: NonNullable<Area['cadence']>;
-  /** Level names the workspace takes when this is its first area and it has none yet. */
+  /** Level names the workspace takes when this is its first team and it has none yet (#338). */
   levelNames?: LevelNames;
 }
 
@@ -280,7 +280,9 @@ export function applyTemplate(
   if (joined) joined.teamIds.push(teamId);
   else if (tpl.area) {
     const { levelNames, ...area } = tpl.area;
-    if (levelNames && out.areas.length === 0 && !out.settings.levelNames)
+    // The template's level words only for a file without other teams: a mixed area keeps the
+    // file's words (#338).
+    if (levelNames && ws.teams.length === 0 && !out.settings.levelNames)
       out.settings.levelNames = levelNames;
     out.areas.push({
       ...area,
