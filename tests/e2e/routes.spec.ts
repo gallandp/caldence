@@ -62,6 +62,17 @@ test('a deep link opens its place, also after a reload, and a wrong one is corre
   await expect(currentUnit(page)).toHaveText('Team Beta');
   await expect(activeTab(page)).toHaveAttribute('id', 'tab-meetings');
 
+  // Without a unit the address keeps the saved one.
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Help');
+  await autosaved(page, '"page":"help"');
+  await page.goto('/#/calendar/nope');
+  await page.reload();
+  await expect(currentUnit(page)).toHaveText('Team Alpha');
+  await expect(activeTab(page)).toHaveAttribute('id', 'tab-calendar');
+  await expect(page).toHaveURL(/#\/calendar\/team-alpha$/);
+  await pickUnit(page, 'Team Beta');
+
   // An unknown unit keeps the unit and corrects the address in place.
   const entries = await page.evaluate(() => history.length);
   await page.goto('/#/load/nope');
