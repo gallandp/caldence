@@ -58,12 +58,16 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   ).toBeFocused();
   await dialog.getByRole('button', { name: 'Create' }).click();
   await expect(dialog).toBeHidden();
+  // The line world opens on the staff of the new line teams (#398).
+  const worlds = page.getByRole('radiogroup', { name: 'World' });
+  await expect(worlds.getByRole('radio', { name: 'Line' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('tabpanel', { name: 'Staff' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Overview', exact: true }).click();
   const team = page.getByRole('tabpanel', { name: 'Overview' });
   await expect(team.getByRole('heading', { level: 2, name: 'Engineering' })).toBeVisible();
   for (const name of ['Backend', 'Frontend', 'Data'])
     await expect(team.getByText(name).first()).toBeVisible();
   // No product yet: the product world's calendar offers the way in instead of the start screen.
-  const worlds = page.getByRole('radiogroup', { name: 'World' });
   await worlds.getByRole('radio', { name: 'Products' }).click();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(calendar(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
@@ -136,6 +140,34 @@ test('an agile coach sets up the product organisation with several areas', async
   await showAreaPage(page, 'Structure');
   for (const name of ['Payments', 'Travel', 'Kestrel', 'Wren', 'Heron'])
     await expect(panel.getByText(name, { exact: true }).first()).toBeVisible();
+});
+
+test('the organisation opens on the matrix once the file has a line (#398)', async ({ page }) => {
+  await calendar(page).getByRole('button', { name: 'Line management' }).click();
+  const line = page.getByRole('dialog', { name: 'Set up line teams' });
+  await line.getByLabel('Line teams').fill('Backend\nData');
+  await line.getByRole('button', { name: 'Next' }).click();
+  await line.getByRole('button', { name: 'Create' }).click();
+  await expect(line).toBeHidden();
+  const worlds = page.getByRole('radiogroup', { name: 'World' });
+  await worlds.getByRole('radio', { name: 'Products' }).click();
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Set up the product organisation' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Set up the product organisation' });
+  await dialog.getByRole('radio', { name: 'No template' }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Organisation name').fill('Nordlicht');
+  const first = dialog.getByRole('group', { name: 'Area 1' });
+  await first.getByLabel('Area name').fill('Payments');
+  await first.getByLabel('Teams').fill('Kestrel');
+  // The frame came with the line teams: no step for it.
+  await dialog.getByRole('button', { name: 'Create' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(worlds.getByRole('radio', { name: 'Products' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(page.getByRole('tabpanel', { name: 'Matrix' })).toBeVisible();
 });
 
 test('a product owner takes part in their own team as Product Owner', async ({ page }) => {

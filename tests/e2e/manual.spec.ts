@@ -292,6 +292,62 @@ test.describe('staffing help (#324)', () => {
     ).toBeVisible();
   });
 
+  test('help opens on the current world and explains the two worlds (#398)', async ({ page }) => {
+    const c = catalogue('en');
+    await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
+    const help = panel(page, c['view.help']!);
+    const world = (name: string) =>
+      page.getByRole('radiogroup', { name: c['world.label'] }).getByRole('radio', { name });
+
+    // Products: the first guide leads, the map lists the product pages.
+    await showView(page, c['view.help']!);
+    await expect(help.locator('[data-help-world="product"]')).toBeVisible();
+    await expect(help.locator('.guides .featured [data-topic]')).toHaveAttribute(
+      'data-topic',
+      'start',
+    );
+    for (const key of ['view.meetings', 'view.matrix'])
+      await expect(help.locator('.map').getByText(c[key]!, { exact: true })).toBeVisible();
+
+    // Line: its note, staffing first, and its own pages on the map.
+    await world(c['world.line']!).click();
+    await showView(page, c['view.help']!);
+    await expect(help.locator('[data-help-world="line"]')).toHaveText(
+      new RegExp('^' + c['help.home.world.line']!),
+    );
+    await expect(help.locator('.guides .featured [data-topic]')).toHaveAttribute(
+      'data-topic',
+      'staffing',
+    );
+    const map = help.locator('.map');
+    for (const key of ['view.lineOverview', 'view.people', 'view.staffing', 'view.matrix'])
+      await expect(map.getByText(c[key]!, { exact: true })).toBeVisible();
+    await expect(map.getByText(c['view.meetings']!, { exact: true })).toHaveCount(0);
+    await map
+      .getByRole('button')
+      .filter({ has: page.getByText(c['view.people']!, { exact: true }) })
+      .click();
+    await expect(panel(page, c['view.people']!)).toBeVisible();
+
+    // The chapter: the matrix idea and where each question is answered.
+    await showView(page, c['view.help']!);
+    await help.locator('[data-world-link]').click();
+    await expect(
+      help.getByRole('heading', { level: 3, name: c['help.topic.worlds.title'] }),
+    ).toBeFocused();
+    for (const key of [
+      'help.worlds.product.title',
+      'help.worlds.line.title',
+      'help.worlds.matrix.title',
+    ])
+      await expect(help.getByRole('heading', { level: 4, name: c[key] })).toBeVisible();
+    await expect(help.getByText(/^Caldence shows one organisation in two worlds/)).toBeVisible();
+    expect((await new AxeBuilder({ page }).include('#app').analyze()).violations).toEqual([]);
+    // Back returns to the link that opened the chapter.
+    await help.getByRole('button', { name: c['help.back'], exact: true }).click();
+    await expect(help.locator('[data-world-link]')).toBeFocused();
+  });
+
   test('the privacy page names the law; the guide and the staff import lead to it', async ({
     page,
   }) => {

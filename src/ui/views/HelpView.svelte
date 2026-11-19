@@ -3,16 +3,33 @@
   import HelpHome from '../help/HelpHome.svelte';
   import HelpTopic from '../help/HelpTopic.svelte';
   import { openTopic, topic, TOPICS, type Topic, type TopicId } from '../help/topics';
+  import type { ViewId } from '../viewIcons';
 
   /** Help: a home page of topics, and one topic at a time. */
-  let { onOpenView }: { onOpenView?: (view: NonNullable<Topic['view']>) => void } = $props();
+  let {
+    onOpenView,
+    world = 'product',
+    views,
+  }: {
+    onOpenView?: (view: NonNullable<Topic['view']>) => void;
+    /** The world Help was opened from (#398): its home page leads with that world. */
+    world?: 'product' | 'line';
+    views?: readonly ViewId[];
+  } = $props();
 
   const current = $derived($openTopic ? topic($openTopic) : null);
 
   // Leaving Help and coming back starts on the home page.
   onDestroy(() => openTopic.set(null));
 
+  /**
+   * Back returns to the control that opened the topic. The home page is rebuilt meanwhile, so it is
+   * found again by selector; the world note's link also opens "worlds" (#398).
+   */
+  let opener = '';
+
   async function open(id: TopicId) {
+    opener = document.activeElement?.closest('[data-world-link]') ? '[data-world-link]' : '';
     openTopic.set(id);
     await tick();
     document.getElementById('help-topic-title')?.focus();
@@ -22,7 +39,9 @@
     const from = $openTopic;
     openTopic.set(null);
     await tick();
-    document.querySelector<HTMLElement>(`.help [data-topic="${from}"]`)?.focus();
+    const selector = opener || `[data-topic="${from}"]`;
+    opener = '';
+    document.querySelector<HTMLElement>(`.help ${selector}`)?.focus();
   }
 
   /** Links between topics are `#help-<id>`: open the topic instead of jumping. */
@@ -42,7 +61,7 @@
   {#if current}
     <HelpTopic topic={current} onBack={back} {onOpenView} />
   {:else}
-    <HelpHome onOpen={open} {onOpenView} />
+    <HelpHome onOpen={open} {onOpenView} {world} {views} />
   {/if}
 </div>
 
