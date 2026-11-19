@@ -62,7 +62,7 @@ test('a deep link opens its place, also after a reload, and a wrong one is corre
   await expect(currentUnit(page)).toHaveText('Team Beta');
   await expect(activeTab(page)).toHaveAttribute('id', 'tab-meetings');
 
-  // Without a unit the address keeps the saved one.
+  // A unit this file does not know gives way to the saved one.
   await pickUnit(page, 'Team Alpha');
   await showView(page, 'Help');
   await autosaved(page, '"page":"help"');

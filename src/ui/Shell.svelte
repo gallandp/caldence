@@ -270,8 +270,7 @@
   let routeQueued = false;
   function routeNow(): string {
     const unit = $activeTeamId ?? undefined;
-    const paged =
-      active === 'team' && (unit === ORG_UNIT || $workspace.areas.some((a) => a.id === unit));
+    const paged = active === 'team' && $workspace.areas.some((a) => a.id === unit);
     return formatRoute({ view: active, unit, page: paged ? $areaPage : undefined });
   }
   $effect(() => {
@@ -290,7 +289,7 @@
       // Presenting redirects some views: the entry stays as it was for after presenting.
       if (replace && $presenting) return;
       // Each entry knows its file: back into another file's entries keeps this file's unit.
-      const state = { file: $version };
+      const state = { file: $workspace.id };
       if (replace) history.replaceState(state, '', hash);
       else history.pushState(state, '', hash);
     });
@@ -298,7 +297,7 @@
 
   /**
    * Goes to the place in `hash`; false when it names no view. An unknown unit becomes `fallback`
-   * (else the unit stays); a page counts only with the organisation or an area it belongs to.
+   * (else the unit stays); a page counts only with the area it belongs to.
    */
   function applyRoute(hash: string, fallback?: string, sameFile = true): boolean {
     const route = parseRoute(hash, views);
@@ -308,8 +307,7 @@
     if (unit) activeTeamId.set(unit);
     select(route.view as ViewId);
     const page = route.page;
-    const paged =
-      sameFile && unit === route.unit && (unit === ORG_UNIT || ws.areas.some((a) => a.id === unit));
+    const paged = sameFile && unit === route.unit && ws.areas.some((a) => a.id === unit);
     // After the unit's own effect, which opens another area on its overview.
     if (paged && page && AREA_PAGES.includes(page))
       void tick().then(() => areaPage.set(page as 'structure' | 'overview'));
@@ -319,8 +317,8 @@
   function onPopState() {
     // What the app makes of the entry (an unknown unit, say) corrects it without a new one.
     replaceRoute = true;
-    const file = (history.state as { file?: number } | null)?.file;
-    applyRoute(location.hash, undefined, file === undefined || file === $version);
+    const file = (history.state as { file?: string } | null)?.file;
+    applyRoute(location.hash, undefined, file === undefined || file === $workspace.id);
     queueRoute();
   }
 

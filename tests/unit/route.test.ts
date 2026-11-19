@@ -9,7 +9,7 @@ describe('routes (#401)', () => {
     expect(formatRoute({ view: 'team', unit: 'a2', page: 'structure' })).toBe(
       '#/team/a2/structure',
     );
-    expect(formatRoute({ view: 'load', unit: '@line:l3' })).toBe('#/load/@line:l3');
+    expect(formatRoute({ view: 'load', unit: '@a:b' })).toBe('#/load/@a:b');
     expect(formatRoute({ view: 'team', page: 'overview' })).toBe('#/team');
   });
 
