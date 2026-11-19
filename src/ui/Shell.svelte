@@ -7,6 +7,7 @@
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
   import type { ISODate } from '../core/date';
+  import type { SetupMode } from '../core/setup';
   import { LINE_ROOT, ORG_UNIT, orgName, selectedLineUnit } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
@@ -326,6 +327,23 @@
     id === 'team' || scopeName === '' ? level : `${scopeName} · ${level}`;
   /** Shown once in the calendar right after the wizard created the first team. */
   let setupDone = $state(false);
+  /**
+   * Where a role's setup lands (#398): line teams on their people, a platform on its page, one
+   * team on its calendar with the next steps, the organisation on the matrix once the file has a
+   * line (otherwise on its page).
+   */
+  function landAfterSetup(mode: SetupMode) {
+    setupDone = mode === 'team';
+    const view: ViewId =
+      mode === 'team'
+        ? 'calendar'
+        : mode === 'line'
+          ? 'people'
+          : mode === 'org' && hasLine
+            ? 'matrix'
+            : 'team';
+    void tick().then(() => select(view, true));
+  }
 
   // The operator's imprint and privacy page, if they are on the server next to the app.
   let legal = $state<LegalPage[]>([]);
@@ -870,13 +888,7 @@
         >
       {/snippet}
     </WorkspaceBar>
-    <SetupWizard
-      bind:this={planWizard}
-      oncreated={(_, mode) => {
-        setupDone = mode === 'team';
-        void tick().then(() => select(mode === 'team' ? 'calendar' : 'team', true));
-      }}
-    />
+    <SetupWizard bind:this={planWizard} oncreated={(_, mode) => landAfterSetup(mode)} />
 
     <AreaDialog
       bind:this={hintDialog}
@@ -958,11 +970,7 @@
                   openTopic.set('start');
                   select('help', true);
                 }}
-                onCreated={(mode) => {
-                  // One team: its calendar with the next steps; anything larger opens on its page.
-                  setupDone = mode === 'team';
-                  void tick().then(() => select(mode === 'team' ? 'calendar' : 'team', true));
-                }}
+                onCreated={landAfterSetup}
               />
             {:else if noTeams && (id === 'calendar' || id === 'load' || id === 'meetings' || (id === 'team' && !activeLine))}
               <!-- The same way in as the start screen, from every view that needs a team. -->
@@ -1108,7 +1116,11 @@
                   onOpenPrivacy={openPrivacyHelp}
                 />{/if}
             {:else if id === 'help'}
-              {#if active === 'help'}<HelpView onOpenView={(view) => select(view, true)} />{/if}
+              {#if active === 'help'}<HelpView
+                  onOpenView={(view) => select(view, true)}
+                  world={inLine ? 'line' : 'product'}
+                  views={navViews}
+                />{/if}
             {:else}
               <p>{$t('view.soon')}</p>
             {/if}

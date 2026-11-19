@@ -1884,5 +1884,21 @@
   "cross.matrix": "Matrix für {name} öffnen",
   "world.label": "Welt",
   "world.product": "Produkte",
-  "world.line": "Linie"
+  "world.line": "Linie",
+  "help.topic.worlds.title": "Zwei Welten: Produkte und Linie",
+  "help.topic.worlds.summary": "Die fachliche und die disziplinarische Seite einer Organisation und die Matrix dazwischen.",
+  "help.home.world.product": "Sie sind in der Welt Produkte: {levelAreas}, {levelTeams} und ihre Termine.",
+  "help.home.world.line": "Sie sind in der Welt Linie: Linieneinheiten, ihr Personal und die Besetzung.",
+  "help.map.line.team": "Die Einheiten der Linie, wer sie führt und wer frei ist.",
+  "help.map.people": "Die Personen der Linie mit Vertrag, Skills und Zusagen.",
+  "help.map.staffing": "Offene Bedarfe der {levelTeams} und wen Sie zusagen.",
+  "help.map.matrix": "Linienteams gegen {levelTeams}: wer wo zugesagt ist.",
+  "help.worlds.idea": "Caldence zeigt eine Organisation in zwei Welten. {product} ist die fachliche Seite: {levelAreas} und {levelTeams}, ihre Termine und ihr Takt. {line} ist die disziplinarische Seite: wer wen führt, Verträge und Skills. Jede Person gehört zu einem Linienteam und arbeitet in einem oder mehreren {levelTeamsDat}; beides zusammen ergibt eine Matrix. Der Umschalter oben in der Seitenleiste wechselt zwischen {product} und {line}, und jede Welt merkt sich ihre letzte Seite.",
+  "help.worlds.product.title": "Was die Welt Produkte beantwortet",
+  "help.worlds.product": "Wann trifft sich ein {levelTeam}, in welchem Takt? Siehe {calendar} und {meetings}. Wer verbringt zu viel Zeit in Terminen? Siehe {load}. Wer arbeitet in einem {levelTeam}, und was braucht es aus der Linie? Siehe {team}.",
+  "help.worlds.line.title": "Was die Welt Linie beantwortet",
+  "help.worlds.line": "Wie ist die Linie aufgebaut, und wer führt welche Einheit? Siehe {overview}. Wer gehört zu einem Linienteam, mit welchem Vertrag und welchen Skills? Siehe {staff}. Wen kann eine Führungskraft welchem offenen Bedarf zusagen, und wie viel Zeit bleibt nach den Terminen? Siehe {staffing}. {load} zeigt die Terminlast der Personen der Linie ebenso.",
+  "help.worlds.matrix.title": "Die Matrix",
+  "help.worlds.matrix": "{matrix} stellt die Linienteams den {levelTeamsDat} gegenüber: Jede Zelle zeigt die Zusagen zwischen ihnen. Sie steht in beiden Welten, sobald die Datei eine Linie hat. Namen mit farbigem Punkt führen in die andere Welt, zum Beispiel das Linienteam neben einem Mitglied; der Link oben auf der Seite führt dann zurück.",
+  "help.worlds.none": "Eine Datei ohne Linie hat nur die Welt Produkte, und nichts davon erscheint."
 }

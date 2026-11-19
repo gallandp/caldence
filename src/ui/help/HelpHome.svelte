@@ -1,24 +1,57 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
-  import { VIEW_ICONS } from '../viewIcons';
+  import { VIEW_ICONS, type ViewId } from '../viewIcons';
   import Icon from './Icon.svelte';
-  import { GUIDES, MAP_VIEWS, REFERENCES, type TopicId } from './topics';
+  import {
+    guidesFor,
+    LINE_MAP_VIEWS,
+    MAP_VIEWS,
+    REFERENCES,
+    type MapView,
+    type TopicId,
+  } from './topics';
 
-  /** The help's home page: tasks first, then the views at a glance, then reference topics. */
+  /**
+   * The help's home page: tasks first, then the views at a glance, then reference topics. It opens
+   * on the current world (#398): its note, its leading guide and its views.
+   */
   let {
     onOpen,
     onOpenView,
+    world = 'product',
+    views,
   }: {
     onOpen: (id: TopicId) => void;
-    onOpenView?: (view: (typeof MAP_VIEWS)[number]) => void;
+    onOpenView?: (view: MapView) => void;
+    world?: 'product' | 'line';
+    /** The views the sidebar shows now; the map leaves out the others. */
+    views?: readonly ViewId[];
   } = $props();
+
+  const guides = $derived(guidesFor(world));
+  const map = $derived(
+    (world === 'line' ? LINE_MAP_VIEWS : MAP_VIEWS).filter(
+      (v: MapView) => !views || views.includes(v),
+    ),
+  );
+  /** The line world's own page names its overview "Overview", not the product level. */
+  const viewName = (view: MapView) =>
+    world === 'line' && view === 'team' ? 'view.lineOverview' : 'view.' + view;
+  const viewText = (view: MapView) =>
+    world === 'line' && view === 'team' ? 'help.map.line.team' : 'help.map.' + view;
 </script>
 
 <section class="block" aria-labelledby="help-home-title">
   <h3 id="help-home-title" class="hero">{$t('help.home.title')}</h3>
   <p class="lead">{$t('help.home.lead')}</p>
+  <p class="world" data-help-world={world}>
+    <span>{$t(`help.home.world.${world}`)}</span>
+    <button type="button" class="world-link" data-world-link onclick={() => onOpen('worlds')}
+      >{$t('help.topic.worlds.title')} <span aria-hidden="true">›</span></button
+    >
+  </p>
   <ul class="guides">
-    {#each GUIDES as g, i (g.id)}
+    {#each guides as g, i (g.id)}
       <li class:featured={i === 0}>
         <button type="button" class="card" data-topic={g.id} onclick={() => onOpen(g.id)}>
           <Icon path={g.icon} tint={g.tint} size={i === 0 ? 'lg' : 'md'} />
@@ -36,7 +69,7 @@
 <section class="block" aria-labelledby="help-map-title">
   <h3 id="help-map-title">{$t('help.map.title')}</h3>
   <ul class="map">
-    {#each MAP_VIEWS as view (view)}
+    {#each map as view (view)}
       <li>
         <button type="button" class="view" onclick={() => onOpenView?.(view)}>
           <span class="view-icon" aria-hidden="true"
@@ -50,8 +83,8 @@
             ></span
           >
           <span class="text">
-            <span class="title">{$t('view.' + view)}</span>
-            <span class="summary">{$t('help.map.' + view)}</span>
+            <span class="title">{$t(viewName(view))}</span>
+            <span class="summary">{$t(viewText(view))}</span>
           </span>
         </button>
       </li>
@@ -89,8 +122,28 @@
     letter-spacing: -0.02em;
   }
   .lead {
-    margin: 0 0 1.25rem;
+    margin: 0 0 0.75rem;
     color: var(--text-muted);
+  }
+  .world {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+    margin: 0 0 1.25rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  :global(#app) .world-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
   }
   ul {
     list-style: none;

@@ -6,6 +6,20 @@ import { topicLink } from './topics';
  * (placeholder -> i18n key, or a link to another topic).
  */
 export const PARAGRAPHS: Record<string, Record<string, Label>> = {
+  'help.worlds.idea': { product: 'world.product', line: 'world.line' },
+  'help.worlds.product': {
+    calendar: 'view.calendar',
+    meetings: 'view.meetings',
+    load: 'view.load',
+    team: 'view.team',
+  },
+  'help.worlds.line': {
+    overview: 'view.lineOverview',
+    staff: 'view.people',
+    staffing: 'view.staffing',
+    load: 'view.load',
+  },
+  'help.worlds.matrix': { matrix: 'view.matrix' },
   'help.first.other': { example: 'start.example', file: 'start.file' },
   'help.first.areas': { areas: topicLink('areas') },
   'help.views.intro': {
