@@ -90,20 +90,16 @@ describe('owner tandems (#331)', () => {
       owner: 'business',
     });
     expect(validate(withArea).ok).toBe(true);
-    // An unused marked role is taken at either level.
-    const [, tech] = ownerRole(withArea, 'technical', 'team', 'Technical PO', '#123456');
-    const [again, tech2] = ownerRole(
-      {
-        ...withArea,
-        roles: [...withArea.roles, { id: 'r-t', name: 'T', colour: '#000000', owner: 'technical' }],
-      },
+    // An unused role named for the other level is not taken; one with this name is.
+    const [withTeam, tech] = ownerRole(withArea, 'technical', 'team', 'Technical PO', '#123456');
+    const [, areaTech] = ownerRole(
+      withTeam,
       'technical',
       'area',
-      'y',
+      'Technical area owner',
       '#000000',
     );
-    expect(tech).toMatch(/^r/);
-    expect(tech2).toBe('r-t');
-    expect(again.roles).toHaveLength(withArea.roles.length + 1);
+    expect(areaTech).not.toBe(tech);
+    expect(ownerRole(withTeam, 'technical', 'area', 'Technical PO', '#000000')[1]).toBe(tech);
   });
 });

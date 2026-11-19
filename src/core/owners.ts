@@ -67,8 +67,8 @@ export function setOwnerMode(ws: Workspace, unitId: string, mode: OwnerMode): Re
 
 /**
  * The role a new owner of this half gets in a team or area: a marked role already used at that
- * level, else a marked role not used at the other level, else a new one named `name` (e.g.
- * "Technischer Product Owner"), so product and platform owners keep their own roles.
+ * level, else a marked role with this name, else a new one named `name` (e.g. "Technischer
+ * Product Owner"), so product and platform owners keep their own roles.
  */
 export function ownerRole(
   ws: Workspace,
@@ -78,11 +78,10 @@ export function ownerRole(
   colour: string,
 ): [Workspace, string] {
   const marked = ws.roles.filter((r) => r.owner === half);
-  const usedIn = (units: Unit[], roleId: string) =>
-    units.some((u) => u.members.some((m) => m.roleId === roleId));
-  const here: Unit[] = level === 'team' ? ws.teams : ws.areas;
-  const there: Unit[] = level === 'team' ? ws.areas : ws.teams;
-  const found = marked.find((r) => usedIn(here, r.id)) ?? marked.find((r) => !usedIn(there, r.id));
+  const units: Unit[] = level === 'team' ? ws.teams : ws.areas;
+  const found =
+    marked.find((r) => units.some((u) => u.members.some((m) => m.roleId === r.id))) ??
+    marked.find((r) => r.name === name);
   if (found) return [ws, found.id];
   const id = newId(
     'r',

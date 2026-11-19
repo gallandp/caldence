@@ -24,7 +24,7 @@
           names: s.personIds.map(personName).join(', ') || $t('owner.missing'),
         }),
       )
-      .join('; '),
+      .join('; ') + (mode === 'both' ? '' : ` ${$t(`owner.only.${mode}`)}`),
   );
   const shown = $derived(
     slots

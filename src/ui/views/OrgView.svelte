@@ -86,6 +86,7 @@
       <ul class="columns">
         {#each ws.areas as area (area.id)}
           {@const teams = teamsOf(area.teamIds)}
+          {@const gaps = gapsIn(area, teams)}
           <li class="column">
             <button type="button" class="node area" onclick={() => onOpen(area.id)}>
               <span class="badge" aria-hidden="true"><AreaIcon /></span>
@@ -94,11 +95,9 @@
                 <span class="meta">{areaMeta(area, teams)}</span>
                 {#if hasOwnerRoles(ws)}<span class="owners-row">
                     <OwnerAvatars unit={area} names />
-                    {#if gapsIn(area, teams) > 0}
+                    {#if gaps > 0}
                       <span class="gaps"
-                        >{$t(gapsIn(area, teams) === 1 ? 'owner.gaps.one' : 'owner.gaps.other', {
-                          n: gapsIn(area, teams),
-                        })}</span
+                        >{$t(gaps === 1 ? 'owner.gaps.one' : 'owner.gaps.other', { n: gaps })}</span
                       >
                     {/if}
                   </span>{/if}
