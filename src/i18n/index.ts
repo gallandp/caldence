@@ -3,6 +3,7 @@ import { diffDays, type ISODate } from '../core/date';
 import type { Settings } from '../core/model';
 import de from './de.json';
 import en from './en.json';
+import { ORG_UNIT } from '../core/model';
 import { levelParams, levelWords, type LevelWords } from './levels';
 
 export type Locale = 'de' | 'en';
@@ -96,3 +97,17 @@ export const translate = derived([locale, levels, horizonLabel], ([$locale, $lev
   const defaults = { ...levelParams($levels), planningHorizon: $horizon };
   return (key: string, params?: Params) => t($locale, key, params, defaults);
 });
+
+export type Translate = (key: string, params?: Params) => string;
+
+/**
+ * The texts of an area's people and meetings, worded for the organisation when `areaId` is it
+ * (#328): "{levelArea}" names the organisation's level and "{levelInArea}" reads "in the
+ * organisation", so the area dialogs and hints serve the organisation unchanged. Texts made for
+ * the organisation name its areas in the plural ("{levelAreasLc}"), which stays as it is.
+ */
+export function areaText(tr: Translate, w: LevelWords, areaId: string): Translate {
+  if (areaId !== ORG_UNIT) return tr;
+  const org = { levelArea: w.org, levelAreaLc: w.orgLc, levelInArea: w.inOrg };
+  return (key, params) => tr(key, { ...org, ...params });
+}

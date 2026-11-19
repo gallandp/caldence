@@ -6,7 +6,7 @@
   import { setupTeam, type SetupMember } from '../../core/setup';
   import { areaRoleIds, templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
-  import { formatDisplayDate, locale, translate as t } from '../../i18n';
+  import { formatDisplayDate, levels, locale, translate as t } from '../../i18n';
   import { resolveRegion } from '../../core/regions';
   import { regionIds } from '../../data/regions';
   import { saveExportChoice } from '../state/exportScope';
@@ -88,7 +88,7 @@
       if (key === '' || seen.includes(key)) continue;
       seen.push(key);
       const person = ws.people.find((p) => p.name.trim().toLowerCase() === key);
-      const places = person ? placesOf(ws, person.id) : [];
+      const places = person ? placesOf(ws, person.id, $levels.org) : [];
       if (!person || places.length === 0) continue;
       out.push({
         key,

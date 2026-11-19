@@ -14,7 +14,15 @@
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
+  import { areaUnits, unitName } from '../../core/model';
+  import {
+    areaText,
+    formatNumber,
+    formatPercent,
+    levels,
+    locale,
+    translate as t,
+  } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, index, workspace } from '../state/workspace';
@@ -76,7 +84,7 @@
   /** The typed person already works in another team or area: their hours left fill the field. */
   const elsewhere = $derived.by(() => {
     const person = typed;
-    const places = person ? placesOf($workspace, person.id) : [];
+    const places = person ? placesOf($workspace, person.id, $levels.org) : [];
     if (!person || places.length === 0) return null;
     return {
       id: person.id,
@@ -185,13 +193,22 @@
           text: (h: string) => $t('team.people.inTeam', { team: x.name, hours: h }),
           h: capacity(ws, personId, x.id),
         })),
-      ...ws.areas
+      // The organisation's own people are listed like an area's (#328).
+      ...areaUnits(ws)
         .filter(
           (a) =>
             a.members.some((m) => m.personId === personId) || areaHours(ws, a.id, personId) > 0,
         )
         .map((a) => ({
-          text: (h: string) => $t('team.people.inArea', { area: a.name, hours: h }),
+          text: (h: string) =>
+            areaText(
+              $t,
+              $levels,
+              a.id,
+            )('team.people.inArea', {
+              area: unitName(ws, a.id, $levels.org),
+              hours: h,
+            }),
           h: areaHours(ws, a.id, personId),
         })),
     ];

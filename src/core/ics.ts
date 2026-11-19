@@ -3,6 +3,7 @@ import { addDays, diffDays, toMinutes, weekday, type ISODate, type Time } from '
 import {
   areaAsTeam,
   areasInScope,
+  findArea,
   eventAttendees,
   type CalEvent,
   type Rule,
@@ -223,7 +224,8 @@ export function scopeHasEvents(ws: Workspace, scope: Filter): boolean {
  * only: its teams have calendars of their own, so a ZIP of all calendars holds nothing twice.
  */
 function exportUnits(ws: Workspace, scope: Filter): Team[] {
-  const area = ws.areas.find((a) => a.id === scope.teamId);
+  // The organisation's calendar, like an area's, holds its own meetings (#328).
+  const area = findArea(ws, scope.teamId);
   if (area) return [areaAsTeam(area)];
   return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
 }

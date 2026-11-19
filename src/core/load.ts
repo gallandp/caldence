@@ -1,6 +1,8 @@
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import {
+  areaUnits,
   attendees,
+  findArea,
   participantKey,
   units,
   unitTeamIds,
@@ -141,9 +143,12 @@ export function overMax(hours: number, capacity: number, maxFte: number): boolea
   return hours > 0 && (capacity > 0 ? fte(hours, capacity) > maxFte : true);
 }
 
-/** A person's weekly hours in an area: their entry there, or 0 (area time is set on purpose). */
+/**
+ * A person's weekly hours in an area or the organisation: their entry there, or 0 (that time is
+ * set on purpose).
+ */
 export function areaHours(ws: Workspace, areaId: string, personId: string): number {
-  const area = ws.areas.find((a) => a.id === areaId);
+  const area = findArea(ws, areaId);
   return area && Object.hasOwn(area.memberHours, personId) ? area.memberHours[personId]! : 0;
 }
 
@@ -162,8 +167,9 @@ export function capacity(ws: Workspace, personId: string, unitId?: string): numb
     (t) =>
       (scope === undefined || scope.has(t.id)) && t.members.some((m) => m.personId === personId),
   );
-  // An area counts only its own hours: its people have 0 there without an entry (#265).
-  const areas = ws.areas.filter(
+  // An area counts only its own hours: its people have 0 there without an entry (#265). The
+  // organisation's hours count like an area's (#328), only for the organisation as a whole.
+  const areas = areaUnits(ws).filter(
     (a) =>
       (teamId === undefined || a.id === teamId) &&
       (Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId)),
@@ -178,15 +184,18 @@ export function capacity(ws: Workspace, personId: string, unitId?: string): numb
   return areas.reduce((sum, a) => sum + areaHours(ws, a.id, personId), inTeams);
 }
 
-/** Names of the teams and areas a person works in: as a member, or with hours in an area. */
-export function placesOf(ws: Workspace, personId: string): string[] {
+/**
+ * Names of the teams and areas (and the organisation, #328) a person works in: as a member, or
+ * with hours in an area. An unnamed organisation is named `org`, its level's word.
+ */
+export function placesOf(ws: Workspace, personId: string, org = ''): string[] {
   return [
     ...ws.teams.filter((t) => t.members.some((m) => m.personId === personId)),
-    ...ws.areas.filter(
+    ...areaUnits(ws).filter(
       (a) =>
         Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId),
     ),
-  ].map((u) => u.name);
+  ].map((u) => u.name || org);
 }
 
 const placed = (ws: Workspace, personId: string): boolean => placesOf(ws, personId).length > 0;
@@ -288,7 +297,7 @@ export interface AreaHint {
 export function areaHints(weeks: WeekLoad[], ws: Workspace): AreaHint[] {
   const { maxFte } = ws.settings.thresholds;
   const result: AreaHint[] = [];
-  for (const area of ws.areas) {
+  for (const area of areaUnits(ws)) {
     for (const person of ws.people) {
       const hours = Math.max(0, ...weeks.map((w) => w.byTeamPerson[area.id]?.[person.id] ?? 0));
       if (hours <= 0) continue;

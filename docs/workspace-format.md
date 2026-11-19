@@ -8,7 +8,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | integer | Schema version of the file (`8`). |
+| `schemaVersion` | integer | Schema version of the file (`9`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
 | `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
@@ -17,7 +17,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
 | `teams` | list of teams | See below. |
 | `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
-| `organisation` | object, optional | The organisation the file maps, the top of the tree organisation → areas → teams: `{ "name": "Nordwind GmbH" }` (a string of at most 200 characters). One file is one organisation; without this entry the app shows the level's name ("Organisation"). Older app versions ignore it. |
+| `organisation` | object, optional | The organisation the file maps, the top of the tree organisation → areas → teams, for example `{ "name": "Nordwind GmbH" }`. One file is one organisation; without this entry the app shows the level's name ("Organisation"). Every field is optional; see [Organisation](#organisation). |
 | `view` | object, optional | Where the app was looking when the file was saved: `unit` (id of the selected team or area, or `@organisation` for the organisation), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored (a malformed `view` does not keep the file from opening). Opening a file does not go back there: it lands on the first area's overview, or on the Calendar without an area. A reload of the autosave in the same browser comes back to `unit` and `page`; an area page opens on its overview. Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
 
 All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
@@ -65,6 +65,17 @@ An area groups several teams into one unit, for example a department or a releas
 | `events` | list of events | The area's own meetings. |
 | `roleLinks` | list of `{ teamId, roleId, teamRoleId }`, optional | Area roles a team calls by another name, for example SAFe's "Agile Team" held by a Scrum team's "Developers". A meeting that invites `roleId` from every team then also invites the people with `teamRoleId` in that team. `teamId` is a team of the area; one link per team and `roleId`; `teamRoleId` differs from `roleId`. A link goes when its team leaves the area. |
 
+### Organisation
+
+The organisation's own people and meetings (#328), shaped like an area's without teams, cadence or cycles. Every field is optional; a missing list is empty. The app leaves out empty lists and removes the entry when nothing is left.
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `name` | string, optional | The organisation's name, at most 200 characters; without it the level's name is shown. |
+| `members` | list of `{ personId, roleId }`, optional | People with a role at organisation level, for example the management. Each pair once. |
+| `memberHours` | object, optional | Weekly hours of a person in the organisation, by person id, from 0 to 168. As in an area, a person without an entry has **0 hours** there: organisation time comes on top of team and area time and is set on purpose. |
+| `events` | list of events, optional | The organisation's own meetings. Its role participants may set `fromAreas: true` (the role from every area) or `fromTeams: true` (the role from every team, also teams without an area; a team's role links in its area apply). Without a cadence, `cadence-day` rules are not allowed; there are no cycles to refer to. They count towards the limit of meetings together with those of teams and areas. |
+
 ### Event
 
 | Field | Type | Meaning |
@@ -75,7 +86,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `time` | `HH:MM` | Start time. |
 | `duration` | integer | Minutes, above 0. |
 | `scaling` | `{ base, perUnit, assumption, grid }`, optional | Duration grows with a team assumption: `base` plus `perUnit` per unit of `assumption`, rounded to `grid` minutes. |
-| `participants` | list of `{ roleId, share, fromTeams? }` or `{ personId, share }` | Roles and people taking part; `share` is above 0 and at most 1. Only in an area's meetings, `fromTeams: true` invites the role from every team of the area ("Product Owner from every team") instead of the area's own members with that role. In a team's meeting `fromTeams` is an error. `{ personId, share }` invites one person by name, from any team or area; each person at most once per meeting, never together with `roleId`. A person invited by name counts once, with that share, also when one of their roles is invited too. |
+| `participants` | list of `{ roleId, share, fromTeams?, fromAreas? }` or `{ personId, share }` | Roles and people taking part; `share` is above 0 and at most 1. Only in an area's meetings, `fromTeams: true` invites the role from every team of the area ("Product Owner from every team") instead of the area's own members with that role. In a team's meeting `fromTeams` is an error. In the organisation's meetings `fromTeams` invites the role from every team, and `fromAreas: true` (only there) from the members of every area. `{ personId, share }` invites one person by name, from any team or area; each person at most once per meeting, never together with `roleId`. A person invited by name counts once, with that share, also when one of their roles is invited too. |
 | `preparation` | number, 0 to 1 | Preparation time as a fraction of the duration. |
 | `onSite` | `{ travel }`, optional | The meeting takes place on site; without it, it is remote. `travel` is an integer of minutes, 0 to 1440: the travel time there and back of everyone attending, per occurrence. It counts in load and costs like the meeting itself, weighted by `share`, but preparation does not grow it. |
 
@@ -95,7 +106,7 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
-Older files (schema 1 to 7) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). Schema 7 lets meetings take place on site with a travel time (`onSite`; older files change only their version). Schema 8 lets an area link its roles to a team's own role names (`roleLinks`; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer. Schema 7 files need Caldence 1.47 or newer. Schema 8 files need Caldence 1.48 or newer.
+Older files (schema 1 to 8) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). Schema 7 lets meetings take place on site with a travel time (`onSite`; older files change only their version). Schema 8 lets an area link its roles to a team's own role names (`roleLinks`; older files change only their version). The optional `organisation` entry with only a `name` came without a new schema version; schema 9 lets it hold people, hours and meetings of its own (`members`, `memberHours`, `events`, `fromAreas`; older files change only their version). The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer. Schema 7 files need Caldence 1.47 or newer. Schema 8 files need Caldence 1.48 or newer. Schema 9 files need Caldence 1.49 or newer.
 
 ## Limits
 
@@ -130,7 +141,7 @@ A workspace file contains names of people, their working hours and your meeting 
 
 ```json
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "id": "6f1c1d52-4b0e-4f0a-9a43-0c2f6a1d8e11",
   "settings": {
     "locale": "en",

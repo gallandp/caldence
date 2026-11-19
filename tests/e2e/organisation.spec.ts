@@ -18,8 +18,8 @@ test('the organisation sits above the areas and shows the whole tree', async ({ 
   await openExample(page);
   await pickOrg(page);
   await expect(currentUnit(page)).toHaveText('Organisation');
-  // No meetings of its own yet: Meetings & cadence steps aside, the page takes its place.
-  await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveCount(0);
+  // The organisation plans meetings of its own (#328).
+  await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveCount(1);
   await showView(page, 'Organisation');
   const tree = page.getByRole('list', { name: 'Structure of Organisation' });
   await expect(tree.locator('.node.root')).toContainText('1 area · 4 teams · 6 people');

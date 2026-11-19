@@ -53,6 +53,9 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   // 7 -> 8: an area can map its roles to a team's own role names (#338); existing areas have no
   // such links, so only the version changes, which keeps older apps from leaving people out.
   7: (w) => w,
+  // 8 -> 9: the organisation can hold people and meetings of its own (#328); existing files have
+  // none, so only the version changes, which keeps older apps from dropping or ignoring them.
+  8: (w) => w,
 };
 
 export type MigrateResult =

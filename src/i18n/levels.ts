@@ -20,6 +20,13 @@ export interface LevelWords {
   inArea: string;
   /** "Im Team" at the start of a phrase. */
   inTeamCap: string;
+  /** "in der Organisation", "in the organisation"; an own name: "auf Ebene Konzern" (#328). */
+  inOrg: string;
+  /**
+   * The unnamed organisation inside a sentence, after "to", "in", "from": "the organisation",
+   * "der Organisation"; an own name as typed (#328).
+   */
+  orgThe: string;
 }
 
 /**
@@ -47,6 +54,10 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
       inTeam,
       inArea,
       inTeamCap,
+      inOrg: names.organisation
+        ? t(locale, 'level.custom.inArea', { name: names.organisation })
+        : t(locale, 'level.inOrg'),
+      orgThe: names.organisation || t(locale, 'level.orgThe'),
     };
   }
   const word = (k: string) => t(locale, `level.${names?.preset ?? 'area'}.${k}`);
@@ -64,6 +75,8 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
     inTeam: word('inTeam'),
     inArea: word('inArea'),
     inTeamCap: word('inTeamCap'),
+    inOrg: t(locale, 'level.inOrg'),
+    orgThe: t(locale, 'level.orgThe'),
   };
 }
 
@@ -83,5 +96,6 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelInTeam: w.inTeam,
     levelInArea: w.inArea,
     levelInTeamCap: w.inTeamCap,
+    levelInOrg: w.inOrg,
   };
 }

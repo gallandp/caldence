@@ -2,9 +2,16 @@
   import { onDestroy, tick } from 'svelte';
   import { isoWeek } from '../../core/date';
   import { capacity, fte, hoursIn, loadBase, loadPerWeek, overMax } from '../../core/load';
-  import { unitLoadIds } from '../../core/model';
+  import { ORG_UNIT, unitLoadIds, unitName as nameOf } from '../../core/model';
   import { scopePeople } from '../../core/views';
-  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
+  import {
+    areaText,
+    formatNumber,
+    formatPercent,
+    levels,
+    locale,
+    translate as t,
+  } from '../../i18n';
   import { loadWeek } from '../state/focus';
   import { filter, index, workspace } from '../state/workspace';
 
@@ -21,7 +28,7 @@
       : undefined,
   );
   const maxFte = $derived($workspace.settings.thresholds.maxFte);
-  const area = $derived($workspace.areas.some((a) => a.id === teamId));
+  const area = $derived(teamId === ORG_UNIT || $workspace.areas.some((a) => a.id === teamId));
   const rows = $derived.by(() => {
     if (!week || !teamId) return [];
     const ids = unitLoadIds($workspace, teamId);
@@ -44,9 +51,7 @@
       });
   });
   const hours = (n: number): string => formatNumber($locale, n, 1);
-  const unitName = $derived(
-    [...$workspace.teams, ...$workspace.areas].find((u) => u.id === teamId)?.name ?? '',
-  );
+  const unitName = $derived(nameOf($workspace, teamId, $levels.org));
 
   const title = $derived(
     week
@@ -89,7 +94,9 @@
           <th scope="col">{$t('load.col.person')}</th>
           <th scope="col" class="num">{$t('load.week.hours')}</th>
           <th scope="col" class="num">{$t('load.week.share')}</th>
-          <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
+          <th scope="col" class="num"
+            >{areaText($t, $levels, teamId ?? '')(area ? 'load.col.hereArea' : 'load.col.here')}</th
+          >
         </tr>
       </thead>
       <tbody>

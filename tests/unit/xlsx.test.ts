@@ -220,6 +220,41 @@ describe('structure sheets', () => {
     expect(meetings!.name).toBe('Termine');
   });
 
+  it('lists the organisation first with its own people and meetings (#328)', () => {
+    const ws = plan();
+    ws.roles.push({ id: 'md', name: 'Director', colour: '#000000' });
+    ws.organisation = {
+      members: [{ personId: 'cem', roleId: 'md' }],
+      memberHours: { cem: 6 },
+      events: [
+        {
+          id: 'e3',
+          name: 'Portfolio',
+          categoryId: 'c1',
+          rule: { type: 'weekly', weekday: 2 },
+          time: '10:00',
+          duration: 30,
+          participants: [{ roleId: 'head', share: 1, fromAreas: true }],
+          preparation: 0,
+        },
+      ],
+    };
+    const [structure, units, meetings] = sheetsOf(ws);
+    expect(structure!.rows[0]).toEqual(['Organisation', null, 'Cem', 'Director', 6]);
+    expect(units!.rows[0]).toEqual([null, 'Organisation', 'Organisation', null, null, null, 1, 1]);
+    expect(meetings!.rows[0]).toEqual([
+      'Organisation',
+      null,
+      'Portfolio',
+      'Scrum',
+      'weekly',
+      '10:00',
+      30,
+      0,
+      'Head · all areas',
+    ]);
+  });
+
   it('opens an empty file without rows', () => {
     const sheets = sheetsOf(emptyWorkspace('2026-11-02'));
     expect(sheets.map((s) => s.rows.length)).toEqual([0, 0, 0]);

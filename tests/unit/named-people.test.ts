@@ -201,6 +201,6 @@ describe('people invited by name (#285)', () => {
   it('opens a schema 5 file unchanged but for the version', () => {
     const old = { ...workspace(refinement()), schemaVersion: 5 };
     const r = migrate(old);
-    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 8 });
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 9 });
   });
 });

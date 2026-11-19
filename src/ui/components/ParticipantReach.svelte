@@ -1,7 +1,7 @@
 <script lang="ts">
   import { areaHours } from '../../core/load';
   import { holders, missingRoles, teamRolesFor, type Area, type Workspace } from '../../core/model';
-  import { translate as t } from '../../i18n';
+  import { areaText, levels, translate } from '../../i18n';
 
   /**
    * Under a participant row of an area meeting: who the row reaches, the teams where nobody has
@@ -12,6 +12,7 @@
     area,
     roleId,
     fromTeams,
+    fromAreas = false,
     named = [],
     onSetHours,
   }: {
@@ -19,15 +20,19 @@
     area: Area;
     roleId: string;
     fromTeams: boolean;
+    /** In the organisation: the role from every area (#328). */
+    fromAreas?: boolean;
     /** People the meeting invites by name: they count on their own row, not here. */
     named?: string[];
     onSetHours?: (personId?: string) => void;
   } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area.id));
 
   /** Names shown before "+ n more". */
   const MAX = 6;
 
-  const participant = $derived({ roleId, share: 1, fromTeams });
+  const participant = $derived({ roleId, share: 1, fromTeams, fromAreas });
   const all = $derived(holders(ws, area.id, participant));
   const people = $derived(all.filter((id) => !named.includes(id)));
   const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
@@ -38,6 +43,11 @@
     const where = [
       ...(area.members.some((m) => m.personId === personId && m.roleId === roleId)
         ? [area.name]
+        : []),
+      ...(fromAreas
+        ? ws.areas
+            .filter((a) => a.members.some((m) => m.personId === personId && m.roleId === roleId))
+            .map((a) => a.name)
         : []),
       ...ws.teams
         .filter(
@@ -56,11 +66,11 @@
 
   const listed = $derived.by(() => {
     const names = people.slice(0, MAX).map(label);
-    if (people.length > MAX) names.push($t('area.participants.more', { n: people.length - MAX }));
+    if (people.length > MAX) names.push(tt('area.participants.more', { n: people.length - MAX }));
     return names.join(', ');
   });
   const missing = $derived(
-    fromTeams
+    fromTeams || fromAreas
       ? missingRoles(ws, area, {
           id: '',
           name: '',
@@ -70,7 +80,7 @@
           duration: 1,
           participants: [participant],
           preparation: 0,
-        }).map((m) => ws.teams.find((x) => x.id === m.teamId)?.name ?? m.teamId)
+        }).map((m) => [...ws.teams, ...ws.areas].find((x) => x.id === m.teamId)?.name ?? m.teamId)
       : [],
   );
   const noHoursIds = $derived(people.filter((id) => areaHours(ws, area.id, id) === 0));
@@ -79,12 +89,12 @@
 
 <div class="reach">
   {#if all.length === 0}
-    <p class="who">{$t('area.participants.nobody')}</p>
+    <p class="who">{tt('area.participants.nobody')}</p>
   {:else if people.length === 0}
-    <p class="who">{$t('area.participants.allNamed')}</p>
-  {:else if fromTeams}
+    <p class="who">{tt('area.participants.allNamed')}</p>
+  {:else if fromTeams || fromAreas}
     <p class="who">
-      <span class="dot" aria-hidden="true"></span>{$t(
+      <span class="dot" aria-hidden="true"></span>{tt(
         people.length === 1 ? 'area.participants.resolved.one' : 'area.participants.resolved.other',
         { n: people.length, names: listed },
       )}
@@ -97,14 +107,14 @@
   {#each missing as team (team)}
     <p class="warn" role="note">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
-      >{$t('area.missingRole', { team, role: roleName })}
+      >{tt('area.missingRole', { team, role: roleName })}
     </p>
   {/each}
   {#if noHours.length > 0}
     <p class="warn" role="note">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
       ><span class="grow"
-        >{$t(
+        >{tt(
           noHours.length === 1
             ? 'area.participants.noHours.one'
             : 'area.participants.noHours.other',
@@ -116,7 +126,7 @@
           type="button"
           class="link"
           onclick={() => onSetHours(noHoursIds.length === 1 ? noHoursIds[0] : undefined)}
-          >{$t('area.participants.setHours')}</button
+          >{tt('area.participants.setHours')}</button
         >
       {/if}
     </p>

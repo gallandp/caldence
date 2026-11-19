@@ -81,14 +81,8 @@
 
   /** While presenting only the views that show the plan stay; the rest is workspace editing. */
   const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
-  /** The organisation has no meetings of its own yet, so it has no Meetings view. */
-  const navViews = $derived(
-    views.filter((id) => (!$presenting || PRESENTED.has(id)) && !(id === 'meetings' && activeOrg)),
-  );
-  const barViews = $derived(primary.filter((id) => !(id === 'meetings' && activeOrg)));
-  $effect(() => {
-    if (activeOrg && active === 'meetings') select('team');
-  });
+  /** The organisation plans its own meetings like an area (#328). */
+  const navViews = $derived(views.filter((id) => !$presenting || PRESENTED.has(id)));
   $effect(() => {
     if ($presenting && !PRESENTED.has(active)) select('calendar');
   });
@@ -246,14 +240,15 @@
   }
 
   /**
-   * An area's Structure page (#361); with `personId`, their card opens at their hours there.
+   * An area's Structure page (#361), or the organisation's page (#328); with `personId`, their
+   * card opens at their hours there.
    */
   function openStructure(areaId: string, personId?: string) {
     activeTeamId.set(areaId);
     select('team', true);
     // After the unit's own effect, which opens another area on its overview.
     void tick().then(() => {
-      areaPage.set('structure');
+      if (areaId !== ORG_UNIT) areaPage.set('structure');
       if (personId) structurePerson.set({ areaId, personId });
     });
   }
@@ -824,8 +819,8 @@
                   onEditOpened={() => (editRequest = undefined)}
                   show={showRequest}
                   onShown={() => (showRequest = undefined)}
-                  onSetHours={activeArea
-                    ? (personId) => openStructure(activeArea.id, personId)
+                  onSetHours={activeArea || activeOrg
+                    ? (personId) => openStructure(activeArea?.id ?? ORG_UNIT, personId)
                     : undefined}
                   onExport={() => select('exchange', true)}
                   onOpenDay={openDay}
@@ -880,7 +875,7 @@
 
 <!-- Phones: the main views are one tap away at the bottom, in reach of the thumb (HIG tab bars). -->
 <nav class="tabbar" aria-label={$t('nav.views')}>
-  {#each barViews as id (id)}
+  {#each primary as id (id)}
     <button
       type="button"
       aria-current={active === id ? 'page' : undefined}

@@ -8,11 +8,11 @@
 
 <script lang="ts">
   import { setCadenceLength, shiftedDays, upsertEvent } from '../../core/edit';
-  import { areaAsTeam, type Workspace } from '../../core/model';
+  import { areaAsTeam, findArea, unitName, type Workspace } from '../../core/model';
   import { validate } from '../../core/validate';
   import { workspaceIndex } from '../../core/views';
   import { effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
-  import { translate as t } from '../../i18n';
+  import { levels, translate as t } from '../../i18n';
   import { movedText, RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import { applyOwn } from '../state/problems.svelte';
   import { index, localToday, workspace } from '../state/workspace';
@@ -24,7 +24,7 @@
   const uid = $props.id();
   let dialog: HTMLDialogElement | undefined = $state();
 
-  const area = $derived($workspace.areas.find((a) => a.id === target.unitId));
+  const area = $derived(findArea($workspace, target.unitId));
   const unit = $derived(
     $workspace.teams.find((x) => x.id === target.unitId) ?? (area ? areaAsTeam(area) : undefined),
   );
@@ -32,7 +32,7 @@
   // The draft starts from the meeting or cadence as it is when the sheet opens.
   function initial() {
     const ws = $workspace;
-    const a = ws.areas.find((x) => x.id === target.unitId);
+    const a = findArea(ws, target.unitId);
     const u = ws.teams.find((x) => x.id === target.unitId) ?? (a ? areaAsTeam(a) : undefined);
     const event = target.kind === 'meeting' ? target.event : undefined;
     return {
@@ -102,11 +102,7 @@
     const a = whatIfEffect(candidate.ws, candidateIndex, id);
     return b && a ? { name: unit?.name ?? '', before: b, after: a } : undefined;
   });
-  const scopeName = $derived(
-    $workspace.areas.find((a) => a.id === scope)?.name ??
-      $workspace.teams.find((x) => x.id === scope)?.name ??
-      '',
-  );
+  const scopeName = $derived(unitName($workspace, scope, $levels.org));
 
   const title = $derived(
     target.kind === 'meeting'

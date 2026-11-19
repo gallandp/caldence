@@ -2,7 +2,7 @@ import { areaCosts, unitRow } from './areaCosts';
 import { shiftedDays } from './edit';
 import { compareCadences } from './areaOverview';
 import { capacity } from './load';
-import { areaAsTeam, areaOf, type Workspace } from './model';
+import { areaOf, findArea, ORG_UNIT, units, type Workspace } from './model';
 import type { HolidayIndex } from './regions';
 
 /**
@@ -20,9 +20,12 @@ export interface Effect {
   inStep?: { n: number; of: number };
 }
 
-/** The scope a what-if is measured in: the unit's area, or the team without one. */
+/**
+ * The scope a what-if is measured in: the unit's area, or the team without one. The organisation
+ * is measured as a whole: all teams and areas and its own meetings (#328).
+ */
 export function effectScope(ws: Workspace, unitId: string): string | undefined {
-  if (ws.areas.some((a) => a.id === unitId)) return unitId;
+  if (unitId === ORG_UNIT || ws.areas.some((a) => a.id === unitId)) return unitId;
   const team = ws.teams.find((t) => t.id === unitId);
   if (!team) return undefined;
   return areaOf(ws, team.id)?.id ?? team.id;
@@ -34,11 +37,13 @@ export function whatIfEffect(
   scopeId: string,
   rate?: number,
 ): Effect | undefined {
-  const area = ws.areas.find((a) => a.id === scopeId);
+  const area = findArea(ws, scopeId);
   if (area) {
-    const { total } = areaCosts(ws, index, area, rate);
+    const { total } = areaCosts(ws, index, area, rate, false);
     const out: Effect = { hours: total.hours, share: total.share };
     if (total.cost) out.cost = total.cost;
+    // The organisation has no reference cadence; its teams follow their areas.
+    if (area.id === ORG_UNIT) return out;
     const cmp = compareCadences(ws, area, ws.settings.horizon.from, 1);
     if (cmp.reference && cmp.rows.length > 0)
       out.inStep = { n: cmp.rows.filter((r) => r.inStep).length, of: cmp.rows.length };
@@ -59,11 +64,9 @@ export function whatIfEffect(
  * rhythm changed, and each team or area whose cadence changed (with the meetings it moved).
  */
 export function countChanges(base: Workspace, ws: Workspace): number {
-  const before = new Map(
-    [...base.teams, ...base.areas.map(areaAsTeam)].map((u) => [u.id, u] as const),
-  );
+  const before = new Map(units(base).map((u) => [u.id, u] as const));
   let n = 0;
-  for (const unit of [...ws.teams, ...ws.areas.map(areaAsTeam)]) {
+  for (const unit of units(ws)) {
     const old = before.get(unit.id);
     if (!old) continue;
     if (JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence)) n++;
