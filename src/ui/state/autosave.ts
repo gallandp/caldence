@@ -186,7 +186,8 @@ export function createAutosave(kv: KV, debounceMs = 500, legacy?: KV) {
       // A plan taken over from 1.x is saved under a name of its own (see v2FileName in files.ts).
       fileName:
         typeof s.fileName === 'string' ? (fromLegacy ? v2FileName(s.fileName) : s.fileName) : null,
-      dirty: s.dirty === true,
+      // Taken over from 1.x, the plan is not saved as a Caldence 2 file yet.
+      dirty: fromLegacy || s.dirty === true,
     };
   }
 

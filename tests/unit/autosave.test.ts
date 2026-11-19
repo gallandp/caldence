@@ -224,7 +224,7 @@ describe('autosave of Caldence 2 next to 1.x (#344)', () => {
   it('copies the 1.x autosave once, read only, when its own store is empty', async () => {
     const own = memory();
     const legacy = memory();
-    legacy.data.set('current', { ws, fileName: 'plan.json', dirty: true });
+    legacy.data.set('current', { ws, fileName: 'plan.json', dirty: false });
     const before = structuredClone(legacy.data.get('current'));
     const a = createAutosave(own, 0, legacy);
     expect(await a.restore()).toEqual({ ws, fileName: 'plan-v2.json', dirty: true });

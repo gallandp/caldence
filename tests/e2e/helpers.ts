@@ -31,7 +31,7 @@ export async function openFixture(page: Page) {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(ws)),
   });
-  await expect(page.getByText('fixture.caldence.json')).toBeVisible();
+  await expect(page.getByText('fixture-v2.caldence.json')).toBeVisible();
 }
 
 export async function openTeamView(page: Page) {
@@ -57,7 +57,15 @@ export async function openWorkspaceFile(page: Page, ws: unknown, name = 'test.ca
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(ws)),
   });
-  await expect(page.getByText(name)).toBeVisible();
+  await expect(page.getByText(shownName(ws, name))).toBeVisible();
+}
+
+/** The name Caldence 2 shows for an opened file: a 1.x file (format 1) gets "-v2" (#344). */
+export function shownName(ws: unknown, name: string): string {
+  const v = (ws as { schemaVersion?: unknown }).schemaVersion;
+  return typeof v === 'number' && v < 1000
+    ? name.replace(/((\.caldence)?\.json)$/i, '-v2$1')
+    : name;
 }
 
 /** The name of the selected team or area in the sidebar switcher. */

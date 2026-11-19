@@ -73,8 +73,8 @@ describe('file service with pickers', () => {
       pickFile: async () => null,
     });
     const opened = await svc.open();
-    expect(opened?.ok && opened.value.name).toBe('plan.caldence.json');
-    await svc.save(ws, 'plan.caldence.json');
+    expect(opened?.ok && opened.value.name).toBe('plan-v2.caldence.json');
+    await svc.save(ws, 'plan-v2.caldence.json');
     expect(old.writes).toEqual([]);
     expect(showSaveFilePicker).toHaveBeenCalledWith(
       expect.objectContaining({ suggestedName: 'plan-v2.caldence.json' }),

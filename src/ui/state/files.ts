@@ -177,7 +177,6 @@ export async function exportTextFile(
 
 export function createFileService(env: FileEnv) {
   let handle: FileHandleLike | null = null;
-  let fromFormat1 = false;
 
   async function open(): Promise<Result<{ ws: Workspace; name: string }> | null> {
     let text: string;
@@ -204,10 +203,11 @@ export function createFileService(env: FileEnv) {
     const loaded = loadWorkspace(text);
     if (!loaded.ok) return loaded;
     // A 1.x file (format 1) is never overwritten with format 2, which 1.x cannot open (#344):
-    // the first save asks for a place and suggests a name of its own.
-    fromFormat1 = !isFormat2(text);
-    handle = fromFormat1 ? null : picked; // replaces any earlier handle (null in the fallback path)
-    return { ok: true, value: { ws: loaded.value, name } };
+    // no handle, so the first save asks for a place, and the plan gets a name of its own, which
+    // the autosave keeps across a reload.
+    const format1 = !isFormat2(text);
+    handle = format1 ? null : picked; // replaces any earlier handle (null in the fallback path)
+    return { ok: true, value: { ws: loaded.value, name: format1 ? v2FileName(name) : name } };
   }
 
   async function write(target: FileHandleLike, ws: Workspace): Promise<string> {
@@ -218,13 +218,12 @@ export function createFileService(env: FileEnv) {
   }
 
   async function saveAs(ws: Workspace, name: string | null): Promise<string | null> {
-    const suggested = fromFormat1 && name ? v2FileName(name) : (name ?? DEFAULT_FILE_NAME);
+    const suggested = name ?? DEFAULT_FILE_NAME;
     if (env.showSaveFilePicker) {
       try {
         const target = await env.showSaveFilePicker({ suggestedName: suggested, types: jsonTypes });
         const saved = await write(target, ws);
         handle = target;
-        fromFormat1 = false;
         return saved;
       } catch (error) {
         if (isAbort(error)) return null;
@@ -232,7 +231,6 @@ export function createFileService(env: FileEnv) {
       }
     }
     env.download(suggested, serialize(ws));
-    fromFormat1 = false;
     return suggested;
   }
 
@@ -244,7 +242,6 @@ export function createFileService(env: FileEnv) {
   /** Drops the remembered handle, e.g. when the workspace was replaced by another one. */
   function forget(): void {
     handle = null;
-    fromFormat1 = false;
   }
 
   return { open, save, saveAs, forget };
