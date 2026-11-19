@@ -60,14 +60,19 @@ export function migrate(input: unknown): MigrateResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return { ok: false, key: 'error.schema.unknown' };
   }
-  const version = (input as Record<string, unknown>).schemaVersion;
-  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+  const raw = (input as Record<string, unknown>).schemaVersion;
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 1) {
     return { ok: false, key: 'error.schema.unknown' };
   }
-  if (version >= FORMAT2_SCHEMA_BASE) return { ok: false, key: 'error.schema.v2' };
+  // Caldence 2 (#344): a format 2 file stores 1000 + schema; a format 1 file (1.x) the schema
+  // itself. Both migrate the same way; in memory the workspace always holds the plain schema,
+  // and only saving to a file adds the 1000 again (see toFile).
+  const version = raw >= FORMAT2_SCHEMA_BASE ? raw - FORMAT2_SCHEMA_BASE : raw;
+  if (version < 1) return { ok: false, key: 'error.schema.unknown' };
   if (version > CURRENT_SCHEMA) return { ok: false, key: 'error.schema.newer' };
 
   let value: unknown = structuredClone(input);
+  (value as Record<string, unknown>).schemaVersion = version;
   for (let v = version; v < CURRENT_SCHEMA; v++) {
     const step = MIGRATIONS[v];
     if (!step) return { ok: false, key: 'error.schema.unknown' };
@@ -100,4 +105,9 @@ function unshadowRegions(value: unknown): unknown {
     return { ...(r as object), id: next };
   });
   return value;
+}
+
+/** The workspace as Caldence 2 writes it to a file: format 2, `schemaVersion` 1000 + schema. */
+export function toFile<T extends { schemaVersion: number }>(ws: T): T {
+  return { ...ws, schemaVersion: FORMAT2_SCHEMA_BASE + ws.schemaVersion };
 }

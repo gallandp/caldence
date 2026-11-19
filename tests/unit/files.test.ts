@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { addTeam } from '../../src/core/edit';
-import { emptyWorkspace } from '../../src/core/model';
+import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import { conflicts } from '../../src/core/views';
 import { validate, loadWorkspace } from '../../src/core/validate';
 import { workspaceIndex } from '../../src/core/views';
@@ -36,7 +36,8 @@ describe('serialize', () => {
   it('uses 2-space indent and a trailing newline, and round-trips', () => {
     const text = serialize(ws);
     expect(text.endsWith('}\n')).toBe(true);
-    expect(text).toContain('\n  "schemaVersion": 7');
+    // Caldence 2 writes format 2 (#344).
+    expect(text).toContain(`\n  "schemaVersion": ${1000 + CURRENT_SCHEMA}`);
     const back = loadWorkspace(text);
     expect(back.ok && back.value).toEqual(ws);
   });

@@ -1,5 +1,6 @@
 import type { Workspace } from '../../core/model';
 import { loadWorkspace, type Result } from '../../core/validate';
+import { toFile } from '../../core/migrate';
 
 export const DEFAULT_FILE_NAME = 'workspace.caldence.json';
 
@@ -34,7 +35,7 @@ export interface FileEnv {
 }
 
 export function serialize(ws: Workspace): string {
-  return JSON.stringify(ws, null, 2) + '\n';
+  return JSON.stringify(toFile(ws), null, 2) + '\n';
 }
 
 const jsonTypes = [{ accept: { 'application/json': ['.json'] } }];
