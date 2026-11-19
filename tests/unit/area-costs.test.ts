@@ -132,6 +132,34 @@ describe('areaShare (#336)', () => {
     expect(gamma.horizon).toBeGreaterThan(before.gamma.horizon);
   });
 
+  it('splits evenly when the person has 0 h in each of their teams', () => {
+    const { w, before } = withOla();
+    w.teams.find((t) => t.id === 'team-gamma')!.memberHours['person-ola'] = 0;
+    w.teams.find((t) => t.id === 'team-delta')!.memberHours['person-ola'] = 0;
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    const delta = areaShare(w, noIndex(), 'team-delta', 100)!;
+    expect(gamma.perWeek - before.gamma.perWeek).toBeCloseTo(50);
+    expect(delta.perWeek - before.delta.perWeek).toBeCloseTo(50);
+  });
+
+  it('splits only over the teams of that area for a person in teams of two areas', () => {
+    const { w, area, before } = withOla();
+    // Delta moves to another area: Ola's Payments meeting now belongs to Gamma alone.
+    area.teamIds = area.teamIds.filter((id) => id !== 'team-delta');
+    w.areas.push({
+      ...structuredClone(area),
+      id: 'area-other',
+      name: 'Other',
+      teamIds: ['team-delta'],
+      members: [],
+      memberHours: {},
+      events: [],
+    });
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    expect(gamma.perWeek - before.gamma.perWeek).toBeCloseTo(100);
+    expect(areaShare(w, noIndex(), 'team-delta', 100)!.perWeek).toBe(0);
+  });
+
   it('adds up to the area row without the people in no team and the unfilled roles', () => {
     const { w, area } = withOla();
     const c = areaCosts(w, noIndex(), area, 100);

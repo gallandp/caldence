@@ -33,12 +33,13 @@ column and bar uses it and shows its value ("über 60 %").
 | **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |
 | **Terminlast** | meeting load | Hours in meetings and their share of weekly hours. Sidebar view, page title, KPI (was "Auslastung") | Total workload |
 | **Anteil in Terminen** | share in meetings | Every share column / bar | — |
-| **über Grenze** | over the limit | A person or week above the one Grenze, judged on all of the person's {levelTeams} and the {levelArea} in every scope | "Überlast" |
+| **über Grenze** | over the limit | A person or week above the one Grenze, judged on all of the person's {levelTeams} and the {levelArea} in every scope: all meetings ÷ all weekly hours, the same in Warnings, the Calendar, the people table, the {levelArea} Overview and the week detail (#307, #334) | "Überlast" |
+| **Stunden {levelInArea}** (Hinweis) | hours in the area (hint) | One line per person and {levelArea} under Warnungen: invited to meetings {levelInArea} without hours set there, or those meetings take more than the Grenze of the hours there. Never a weekly warning | "über Grenze", "Warnung" |
 | **Platz bis Grenze (Termine)** | room before limit (meetings) | Hours per week that still fit into meetings before the Grenze (was "Frei bis Grenze") | Free working time |
 | **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
 | **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
 | **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
-| **+ … in Terminen {levelInArea}** | + … in {levelArea} meetings | Under a {levelTeam}'s cost: what its people also spend in the meetings of its {levelArea}; a person in several {levelTeams} is split by their weekly hours there (#336). Informative, never added to a total | Part of the {levelTeam}'s cost |
+| **+ … in Terminen {levelInArea}** | + … in meetings {levelInArea} | Under a {levelTeam}'s cost: what its people also spend in the meetings of its {levelArea}; a person in several {levelTeams} is split by their weekly hours there (#336). Informative, never added to a total | Part of the {levelTeam}'s cost |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |
 
 ## Two meeting-share numbers (H2)

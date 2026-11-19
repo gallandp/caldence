@@ -8,6 +8,8 @@
   import type { UnfilledRole } from '../../core/cost';
   import {
     areaMeetingHours,
+    areaOnlyLoad,
+    areaOnlyPeople,
     compareCadences,
     teamLoad,
     type LoadCell,
@@ -77,6 +79,10 @@
     return start < 0 ? [] : all.slice(start, start + weekCount);
   });
   const load = $derived(new Map(teams.map((team) => [team.id, teamLoad(ws, team, weeks)])));
+  /** People only in the area get their own row, so the tile counts them too (#334). */
+  const areaOnly = $derived(
+    areaOnlyPeople(ws, area).length > 0 ? areaOnlyLoad(ws, area, weeks) : [],
+  );
   const meetings = $derived(areaMeetingHours(ws, area));
 
   // ---------- key figures ----------
@@ -85,7 +91,7 @@
   const offTeams = $derived(
     comparison.rows.filter((r) => !r.inStep).map((r) => teamName(r.teamId)),
   );
-  const cells = $derived([...load.values()].flat());
+  const cells = $derived([...load.values(), areaOnly].flat());
   const warnedMondays = $derived(
     mondays.filter((m) => cells.some((c) => c.monday === m && c.warn)),
   );
@@ -246,7 +252,7 @@
   }
   function cellLabel(teamId: string, cell: LoadCell): string {
     return $t(cell.warn ? 'overview.cell.warn' : 'overview.cell', {
-      team: teamName(teamId),
+      team: teamId === area.id ? $t('area.group.areaOnly') : teamName(teamId),
       week: weekLabel(cell.monday),
       share: percent(cell.share),
       max: percent(maxFte),
@@ -447,7 +453,7 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
-                  >{euro(costOf(r.cost))}{#if r.areaShare}<small data-area-share
+                  >{euro(costOf(r.cost))}{#if r.areaShare}{' '}<small data-area-share
                       >{$t('overview.cost.areaShare.' + period, {
                         amount: euro(costOf(r.areaShare)),
                       })}</small
@@ -683,10 +689,9 @@
             </tr>
           </thead>
           <tbody>
-            {#each teams as team (team.id)}
-              {@const row = load.get(team.id) ?? []}
-              <tr data-team={team.id}>
-                <th scope="row" class="name">{team.name}</th>
+            {#snippet heatRow(unitId: string, name: string, row: LoadCell[])}
+              <tr data-team={unitId}>
+                <th scope="row" class="name">{name}</th>
                 {#each row as cell (cell.monday)}
                   <td>
                     <button
@@ -694,15 +699,21 @@
                       class="cell l{level(cell)}"
                       class:warn={cell.warn}
                       data-week={cell.monday}
-                      aria-label={cellLabel(team.id, cell)}
-                      onclick={() => onOpenLoad?.(team.id, cell.monday)}
+                      aria-label={cellLabel(unitId, cell)}
+                      onclick={() => onOpenLoad?.(unitId, cell.monday)}
                       >{formatNumber($locale, Math.round(cell.share * 100), 0)}</button
                     >
                   </td>
                 {/each}
                 <td class="avg">{percent(average(row))}</td>
               </tr>
+            {/snippet}
+            {#each teams as team (team.id)}
+              {@render heatRow(team.id, team.name, load.get(team.id) ?? [])}
             {/each}
+            {#if areaOnly.length > 0}
+              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly)}
+            {/if}
           </tbody>
         </table>
       </div>
@@ -1412,6 +1423,7 @@
     padding: 0;
     border: 0;
     background: none;
+    box-shadow: none;
     color: var(--accent-text);
     font: inherit;
     font-weight: 600;
