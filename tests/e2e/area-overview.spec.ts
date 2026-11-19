@@ -194,11 +194,28 @@ test('area meetings without area hours do not outline every week (#294, #307)', 
   const hints = warnings.locator('[data-area-hints] li');
   await expect(hints.filter({ hasText: /^Sam: / })).toHaveCount(1);
   await expect(hints.filter({ hasText: /^Sam: / })).toHaveText(
-    /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there$/,
+    /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there\s+·\s+Set hours$/,
   );
   await expect(
     warnings.getByText(/^These lines are not the limit, which always counts all meetings/),
   ).toBeVisible();
+});
+
+test('a hint about hours in the area opens the Structure page at that person (#361)', async ({
+  page,
+}) => {
+  await openOverview(page);
+  await showView(page, 'Meeting load');
+  const warnings = page.getByRole('region', { name: 'Warnings', exact: true });
+  await warnings
+    .locator('[data-area-hints] li', { hasText: /^Sam: / })
+    .getByRole('button', { name: 'Set hours for Sam in Payments' })
+    .click();
+  await expect(
+    page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Structure' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  const card = page.getByRole('dialog', { name: 'Sam' });
+  await expect(card.getByRole('spinbutton', { name: 'Hours in the area' })).toBeFocused();
 });
 
 test('people only in the area count on the Overview, like in Meeting load (#334)', async ({

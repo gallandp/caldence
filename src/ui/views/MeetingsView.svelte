@@ -56,7 +56,7 @@
     /** Called once that meeting is shown. */
     onShown?: () => void;
     /** Opens where a person's hours in an area are set. */
-    onSetHours?: () => void;
+    onSetHours?: (personId?: string) => void;
     /** Opens Import / Export with this team (or the person exported last) preselected. */
     onExport?: () => void;
     /** Opens a day in the Calendar (a date a holiday leaves out, #341). */

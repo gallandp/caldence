@@ -21,7 +21,7 @@
     fromTeams: boolean;
     /** People the meeting invites by name: they count on their own row, not here. */
     named?: string[];
-    onSetHours?: () => void;
+    onSetHours?: (personId?: string) => void;
   } = $props();
 
   /** Names shown before "+ n more". */
@@ -73,7 +73,8 @@
         }).map((m) => ws.teams.find((x) => x.id === m.teamId)?.name ?? m.teamId)
       : [],
   );
-  const noHours = $derived(people.filter((id) => areaHours(ws, area.id, id) === 0).map(nameOf));
+  const noHoursIds = $derived(people.filter((id) => areaHours(ws, area.id, id) === 0));
+  const noHours = $derived(noHoursIds.map(nameOf));
 </script>
 
 <div class="reach">
@@ -111,7 +112,10 @@
         )}</span
       >
       {#if onSetHours}
-        <button type="button" class="link" onclick={onSetHours}
+        <button
+          type="button"
+          class="link"
+          onclick={() => onSetHours(noHoursIds.length === 1 ? noHoursIds[0] : undefined)}
           >{$t('area.participants.setHours')}</button
         >
       {/if}
