@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  import { hasLine } from '../../core/model';
   import { SvelteMap } from 'svelte/reactivity';
 
   /** Platforms the person opened or closed, kept while the app is open. */
@@ -40,7 +39,8 @@
   }
   let { teams, single = false, onOpen }: Props = $props();
   /** Cross links into the line (#397), while the file has a line. */
-  const withLine = $derived(hasLine($workspace));
+  // Cross links into the line need line units (#420: root people alone have none).
+  const withLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const fromLine = (teamId: string) =>
     supplyingUnits(ws, teamId)
       .map((u) => u.name)

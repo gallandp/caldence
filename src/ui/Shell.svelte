@@ -271,7 +271,7 @@
    * An empty file: the Calendar shows the start screen and the team bar steps aside. A file with
    * line teams but no products yet (#387) is not empty: its line pages work, the rest waits.
    */
-  const blank = $derived(noTeams && !$workspace.lineUnits?.length);
+  const blank = $derived(noTeams && !withLine);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   /** The area's products, for its staffing map (#322). */

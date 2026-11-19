@@ -4,7 +4,7 @@
   import { capacity, hoursLeft, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import { LEVEL_PRESETS, type LevelPreset } from '../../core/levels';
-  import { lineSelection } from '../../core/model';
+  import { hasLine, lineSelection } from '../../core/model';
   import {
     setupLine,
     setupStructure,
@@ -189,7 +189,7 @@
     myRole = '';
     const settings = get(workspace).settings;
     // Line teams set the frame already (#387).
-    withFrame = get(workspace).teams.length === 0 && !get(workspace).lineUnits?.length;
+    withFrame = get(workspace).teams.length === 0 && !hasLine(get(workspace));
     timezone = browserZone() ?? settings.timezone;
     region = settings.region;
     from = settings.horizon.from;

@@ -266,9 +266,13 @@ test('a person is added directly at the line root, e.g. the managing director', 
 test('people at the line root stay when the last line unit is deleted (#420)', async ({ page }) => {
   const ws = lineWorkspace();
   ws.lineName = 'Velmora GmbH';
-  ws.lineUnits = ws.lineUnits!.filter((u) => u.id === 'lu1');
-  for (const p of ws.people) if (p.lineUnitId !== undefined) p.lineUnitId = 'lu1';
-  ws.people.push({ id: 'person-hanne', name: 'Hanne Brix', lineUnitId: '@organisation' });
+  ws.lineUnits = [{ id: 'lu1', name: 'Orvalis' }];
+  ws.people = ws.people.map((p) => ({ ...p, lineUnitId: 'lu1' }));
+  (ws.people as unknown[]).push({
+    id: 'person-hanne',
+    name: 'Hanne Brix',
+    lineUnitId: '@organisation',
+  });
   await openWorkspaceFile(page, ws, 'line.caldence.json');
   await pickLine(page, 'Orvalis');
   await teamAction(page, 'Delete from the line');

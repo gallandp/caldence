@@ -181,7 +181,8 @@ export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | n
     const fallback =
       line !== undefined && lineLeft
         ? LINE_ROOT
-        : ($ws.teams[0]?.id ?? (firstLine ? lineSelection(firstLine) : null));
+        : ($ws.teams[0]?.id ??
+          (firstLine ? lineSelection(firstLine) : lineLeft ? LINE_ROOT : null));
     if (fallback !== current) active.set(fallback);
   });
   return active;
