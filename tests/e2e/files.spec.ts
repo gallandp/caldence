@@ -212,7 +212,8 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
   await expect(
     page.getByRole('button', { name: /Beispiel öffnen|Open the example/ }),
   ).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
+  // The parameter is gone; the address only carries the view (#401).
+  await expect(page).toHaveURL(/\/(#\/[^?]*)?$/);
   const backupTeams = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
