@@ -53,7 +53,8 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
 };
 
 export type MigrateResult =
-  { ok: true; value: unknown } | { ok: false; key: 'error.schema.newer' | 'error.schema.unknown' | 'error.schema.v2' };
+  | { ok: true; value: unknown }
+  | { ok: false; key: 'error.schema.newer' | 'error.schema.unknown' | 'error.schema.v2' };
 
 export function migrate(input: unknown): MigrateResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
