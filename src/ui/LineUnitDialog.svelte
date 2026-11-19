@@ -105,7 +105,7 @@
         {/each}
       </select>
       <p class="hint" id="{uid}-parent-hint">
-        {$t('line.unit.parent.hint', { group: $levels.lineGroup, team: $levels.lineTeam })}
+        {$t('line.unit.parent.hint', { group: $levels.lineGroupLc, team: $levels.lineTeamLc })}
       </p>
     </div>
     <div class="field">

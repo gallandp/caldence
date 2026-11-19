@@ -1336,7 +1336,7 @@
   "settings.lineLevels.group": "Name of the line level with sub-units",
   "settings.lineLevels.team": "Name of the lowest line level",
   "line.switcher.group": "Line",
-  "line.unit.add": "Add {levelLineTeam}",
+  "line.unit.add": "Add {levelLineTeamLc}",
   "line.unit.addBelow": "Add {team} below",
   "line.unit.create": "Add",
   "line.unit.edit": "Edit {name}",

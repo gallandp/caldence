@@ -143,7 +143,7 @@
 
   {#if empty}
     <section class="empty" aria-labelledby="line-empty-title">
-      <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeam })}</h3>
+      <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
       <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
       {#if !$presenting}
         <div class="empty-actions">
@@ -152,7 +152,7 @@
             class="secondary"
             bind:this={addButton}
             onclick={() => dialog?.show(undefined, unit.id)}
-            >{$t('line.unit.addBelow', { team: $levels.lineTeam })}</button
+            >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
           >
         </div>
         <p class="note">{$t('line.empty.people')}</p>
@@ -225,6 +225,17 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
     gap: 0.75rem;
+  }
+  @media (max-width: 40rem) {
+    .tiles {
+      grid-template-columns: 1fr 1fr;
+    }
+    .tile.id {
+      grid-column: 1 / -1;
+    }
+    .tile .value:not(.name) {
+      font-size: 1.3rem;
+    }
   }
   .tile {
     display: flex;

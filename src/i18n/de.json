@@ -1336,7 +1336,7 @@
   "settings.lineLevels.group": "Name der Linienebene mit Untereinheiten",
   "settings.lineLevels.team": "Name der untersten Linienebene",
   "line.switcher.group": "Linie",
-  "line.unit.add": "{levelLineTeam} anlegen",
+  "line.unit.add": "{levelLineTeamLc} anlegen",
   "line.unit.addBelow": "{team} darunter anlegen",
   "line.unit.create": "Anlegen",
   "line.unit.edit": "{name} bearbeiten",

@@ -123,10 +123,12 @@
       </div>
     {/if}
     <p class="count" role="status">
-      {$t('line.count', {
-        n: filtered.length,
-        m: rows.length,
-      })}{#if shown.length < sorted.length}{' '}{$t('line.count.first', { n: shown.length })}{/if}
+      {[
+        $t('line.count', { n: filtered.length, m: rows.length }),
+        shown.length < sorted.length ? $t('line.count.first', { n: shown.length }) : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     </p>
     <div class="actions">
       <button type="button" bind:this={addButton} onclick={() => adder?.show()}
@@ -187,7 +189,9 @@
                 >
               </span>
             </td>
-            <td class="num">{fte(r.contract)}</td>
+            <td class="num contract"
+              ><span class="m-label">{$t('line.col.contract')}</span>{fte(r.contract)}</td
+            >
             <td class="committed">
               <span class="bar" aria-hidden="true">
                 {#each r.commitments as c (c.unitId)}
@@ -202,9 +206,11 @@
               >
             </td>
             <td class="num free" class:bad={r.free < 0}
-              >{r.free < 0 ? $t('line.overbooked.short', { fte: fte(-r.free) }) : fte(r.free)}</td
+              ><span class="m-label">{$t('line.col.free')}</span>{r.free < 0
+                ? $t('line.overbooked.short', { fte: fte(-r.free) })
+                : fte(r.free)}</td
             >
-            <td class="hints">
+            <td class="hints" class:quiet={!r.overLimit && !r.context}>
               {#if r.overLimit}<span class="tag bad">{$t('line.hint.overLimit')}</span>{/if}
               {#if r.context}<span class="tag warn"
                   >{$t('line.hint.context', { n: r.context.teams })}</span
@@ -480,13 +486,98 @@
   .show-all {
     align-self: flex-start;
   }
-  /* Phones: the table keeps its columns and scrolls sideways inside its box. */
+  .m-label {
+    display: none;
+  }
+  /* Phones: each person is a card; the column names stand next to the numbers. */
   @media (max-width: 40rem) {
     .actions {
       margin-left: 0;
     }
+    .field.inline {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .field.inline select {
+      flex: 1;
+      min-width: 0;
+    }
     .scroll {
-      max-height: 75vh;
+      max-height: none;
+      overflow: visible;
+    }
+    table,
+    tbody {
+      display: block;
+    }
+    thead {
+      display: none;
+    }
+    tbody tr:not(.detail) {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      grid-template-areas:
+        'person person more'
+        'unit unit unit'
+        'skills skills skills'
+        'committed committed committed'
+        'contract free free'
+        'hints hints hints';
+      gap: 0.35rem 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr:not(.detail) > th,
+    tbody tr:not(.detail) > td {
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+    tr > th {
+      grid-area: person;
+    }
+    td.unit {
+      grid-area: unit;
+    }
+    td.skills {
+      grid-area: skills;
+    }
+    td.committed {
+      grid-area: committed;
+      min-width: 0;
+    }
+    td.contract {
+      grid-area: contract;
+      text-align: start;
+    }
+    td.free {
+      grid-area: free;
+      text-align: start;
+    }
+    td.hints {
+      grid-area: hints;
+    }
+    td.hints.quiet {
+      display: none;
+    }
+    td.more {
+      grid-area: more;
+    }
+    .m-label {
+      display: inline;
+      margin-right: 0.35rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    tr.opened {
+      background: var(--surface-2);
+    }
+    tr.detail,
+    tr.detail > td {
+      display: block;
+    }
+    td.empty {
+      display: block;
     }
   }
 </style>

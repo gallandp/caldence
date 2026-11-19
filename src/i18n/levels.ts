@@ -25,6 +25,8 @@ export interface LevelWords {
   /** The line levels (#316): a unit with sub-units and one without, from Settings or defaults. */
   lineGroup: string;
   lineTeam: string;
+  lineGroupLc: string;
+  lineTeamLc: string;
 }
 
 /**
@@ -36,9 +38,16 @@ export function levelWords(
   locale: Locale,
   line?: { group: string; team: string },
 ): LevelWords {
+  const lineGroup = line?.group.trim() || t(locale, 'line.level.group');
+  const lineTeam = line?.team.trim() || t(locale, 'line.level.team');
+  // Own names stay as typed; the default English words are lower case inside a sentence.
+  const lineLc = (own: string | undefined, word: string) =>
+    own?.trim() || locale !== 'en' ? word : word.toLowerCase();
   const lineWords = {
-    lineGroup: line?.group.trim() || t(locale, 'line.level.group'),
-    lineTeam: line?.team.trim() || t(locale, 'line.level.team'),
+    lineGroup,
+    lineTeam,
+    lineGroupLc: lineLc(line?.group, lineGroup),
+    lineTeamLc: lineLc(line?.team, lineTeam),
   };
   const lc = (s: string) => (locale === 'en' ? s.toLowerCase() : s);
   if (names && !('preset' in names)) {
@@ -103,5 +112,7 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelInTeamCap: w.inTeamCap,
     levelLineGroup: w.lineGroup,
     levelLineTeam: w.lineTeam,
+    levelLineGroupLc: w.lineGroupLc,
+    levelLineTeamLc: w.lineTeamLc,
   };
 }
