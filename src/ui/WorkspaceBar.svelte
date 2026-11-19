@@ -252,10 +252,7 @@
 
   /** The large invented line organisation example (#323). */
   export function openLineExample(): Promise<void> {
-    return exclusive(
-      () => replaceWith(() => lineExample(get(workspace).settings.locale)),
-      undefined,
-    );
+    return exclusive(() => replaceWith(() => lineExample(get(locale))), undefined);
   }
 </script>
 

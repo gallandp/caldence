@@ -277,6 +277,8 @@
     const unit = $activeTeamId;
     if (unit === lastUnit) return;
     lastUnit = unit;
+    // The organisation, like another area, opens on its overview (#337).
+    if (unit === ORG_UNIT) areaPage.set('overview');
     const area = $workspace.areas.find((a) => a.id === unit);
     if (!area) return;
     // Another area opens on its overview (#337); a new one stays on its structure for the card.
