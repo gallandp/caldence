@@ -23,7 +23,7 @@ test('every role card says what it sets up', async ({ page }) => {
     /^e\.g\. line manager, .* Set up line teams$/,
   );
   await expect(roles.getByRole('button', { name: 'Agile coaching' })).toHaveAccessibleDescription(
-    /scrum master, .* Set up the product organisation$/,
+    /Scrum Master, .* Set up the product organisation$/,
   );
 });
 
