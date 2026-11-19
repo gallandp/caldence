@@ -1418,7 +1418,6 @@
   "owner.roleHalf.none": "kein Owner",
   "owner.roleHalf.business": "fachl. Owner",
   "owner.roleHalf.technical": "techn. Owner",
-  "view.lineGroup": "{levelLineGroup}",
   "view.lineTeam": "{levelLineTeam}",
   "line.level.group": "Fachgruppe",
   "line.level.team": "Linienteam",
@@ -1559,7 +1558,7 @@
   "line.detail.noUnit": "Keine",
   "line.detail.skills": "Skills",
   "line.products.title": "{teams} der Leute",
-  "line.products.hint": "Termine gehören zu {teams}. Hier stehen die, in denen diese Leute mitarbeiten; ein Klick führt zu ihren Terminen.",
+  "line.products.hint": "Hier arbeiten diese Leute mit. Ein Klick wechselt zu den Produkten und öffnet die Seite dazu.",
   "line.products.none": "Diese Leute sind noch in keinen {teams}.",
   "line.products.mine.one": "1 Person von hier",
   "line.products.mine.other": "{n} Personen von hier",
@@ -1839,8 +1838,13 @@
   "error.line.teamParent": "Die Einheit bei {path} hängt unter einem Linienteam; dort stehen keine Einheiten",
   "line.level.company": "Gesellschaft",
   "settings.lineLevels.company": "Name der Linienebene für Gesellschaften",
-  "view.lineCompany": "{levelLineCompany}",
   "line.unit.kind": "Ebene",
   "line.unit.company.hint": "Personen darunter bekommen „{name}“ als Gesellschaft, außer bei ihnen ist eine andere eingetragen.",
-  "line.company.inherited": "Aus der Linie: {name}"
+  "line.company.inherited": "Aus der Linie: {name}",
+  "view.people": "Personal",
+  "view.staffing": "Besetzung",
+  "view.lineOverview": "Überblick",
+  "world.label": "Welt",
+  "world.product": "Produkte",
+  "world.line": "Linie"
 }

@@ -7,7 +7,7 @@
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
   import type { ISODate } from '../core/date';
-  import { ORG_UNIT, selectedLineUnit } from '../core/model';
+  import { LINE_ROOT, ORG_UNIT, orgName, selectedLineUnit } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -39,7 +39,7 @@
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, LINE_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import LineView from './views/LineView.svelte';
-  import LineProducts from './components/LineProducts.svelte';
+  import WorldSwitch from './components/WorldSwitch.svelte';
   import { lineKind } from '../core/lineStaff';
   import { lineLevelWord } from '../i18n/levels';
   import { openTopic } from './help/topics';
@@ -53,20 +53,58 @@
     'load',
     'meetings',
     'team',
+    'people',
+    'staffing',
     'templates',
     'settings',
     'exchange',
     'help',
   ] as const;
   type ViewId = (typeof views)[number];
+  /**
+   * A line unit is selected (#316): the Team entry is its page, the views show its people. The
+   * organisation is the root of the line too (#395).
+   */
+  const activeLine = $derived(
+    $activeTeamId === LINE_ROOT
+      ? { id: ORG_UNIT, name: orgName($workspace, $levels.org) }
+      : $workspace.lineUnits?.find((u) => u.id === selectedLineUnit($activeTeamId)),
+  );
+  /** The line world is shown (#393): a line unit or the line's root is selected. */
+  const inLine = $derived(activeLine !== undefined);
+  /**
+   * Two worlds (#393, #394): the product organisation with its meetings and cadence, and the line
+   * with its people. Each has its own views; Settings, Import / Export and Help are shared.
+   */
+  const PRODUCT_VIEWS: readonly ViewId[] = [
+    'calendar',
+    'load',
+    'meetings',
+    'team',
+    'templates',
+    'settings',
+    'exchange',
+    'help',
+  ];
+  const LINE_VIEWS: readonly ViewId[] = [
+    'team',
+    'people',
+    'staffing',
+    'load',
+    'settings',
+    'exchange',
+    'help',
+  ];
   /** Phones: these four are tabs at the bottom, the others sit in the file bar's menu. */
-  const primary: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
+  const primary = $derived<readonly ViewId[]>(
+    inLine ? ['team', 'people', 'staffing', 'load'] : ['calendar', 'load', 'meetings', 'team'],
+  );
   /** A thin divider starts a new group above these views (planning, workspace, help); the list
       itself stays one tablist for the arrow keys. */
   const groupBefore: ReadonlySet<ViewId> = new Set(['meetings', 'settings', 'help']);
 
   const icons: Record<ViewId, string> = VIEW_ICONS;
-  const iconOf = (id: ViewId) =>
+  const iconOf = (id: ViewId): string =>
     id === 'team' && activeLine
       ? LINE_ICON
       : id === 'team' && activeOrg
@@ -83,13 +121,38 @@
     pickOpen = false;
   });
 
-  /** While presenting only the views that show the plan stay; the rest is workspace editing. */
+  /**
+   * While presenting only the views that show the plan stay; the rest is workspace editing. The
+   * line's staff and staffing pages show names, so they stay out too.
+   */
   const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
   /** The organisation has no meetings of its own yet, so it has no Meetings view. */
   const navViews = $derived(
-    views.filter((id) => (!$presenting || PRESENTED.has(id)) && !(id === 'meetings' && activeOrg)),
+    (inLine ? LINE_VIEWS : PRODUCT_VIEWS).filter(
+      (id) => (!$presenting || PRESENTED.has(id)) && !(id === 'meetings' && activeOrg),
+    ),
   );
-  const barViews = $derived(primary.filter((id) => !(id === 'meetings' && activeOrg)));
+  const barViews = $derived(
+    primary.filter((id) => navViews.includes(id) && !(id === 'meetings' && activeOrg)),
+  );
+  /** The file has a line: the world switch shows (#393). */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  /** Each world comes back on the page it was left on (#393). */
+  const lastPage: Record<'product' | 'line', ViewId | undefined> = {
+    product: undefined,
+    line: undefined,
+  };
+  $effect(() => {
+    const world = inLine ? 'line' : 'product';
+    if (navViews.includes(active)) {
+      lastPage[world] = active;
+      return;
+    }
+    // A view of the other world (after switching, a jump, an undo or an opened file) gives way
+    // to this world's last page, else its first.
+    const back = lastPage[world];
+    untrack(() => select(back && navViews.includes(back) ? back : (navViews[0] ?? 'team')));
+  });
   $effect(() => {
     if (activeOrg && active === 'meetings') select('team');
   });
@@ -119,19 +182,13 @@
   );
   /** The organisation is selected (#313): Calendar and Load show everything. */
   const activeOrg = $derived($activeTeamId === ORG_UNIT);
-  /** A line unit is selected (#316): the Team entry is its page, the views show its people. */
-  const activeLine = $derived(
-    $workspace.lineUnits?.find((u) => u.id === selectedLineUnit($activeTeamId)),
-  );
   const lineLevel = $derived(activeLine ? lineKind($workspace, activeLine.id) : 'team');
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
   const viewKey = (id: ViewId) =>
     id === 'team' && activeLine
-      ? lineLevel === 'company'
-        ? 'view.lineCompany'
-        : lineLevel === 'group'
-          ? 'view.lineGroup'
-          : 'view.lineTeam'
+      ? lineLevel === 'team'
+        ? 'view.lineTeam'
+        : 'view.lineOverview'
       : id === 'team' && activeOrg
         ? 'view.org'
         : id === 'team' && activeArea
@@ -531,6 +588,9 @@
       </button>
     </header>
 
+    {#if hasLine && !(active === 'calendar' && blank)}
+      <div class="world-switch"><WorldSwitch /></div>
+    {/if}
     {#if !(active === 'calendar' && blank)}
       <!-- In the rail the switcher is only its badge: a click unfolds the sidebar first, so the
            list of teams opens at full width. -->
@@ -678,6 +738,11 @@
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
+              {#if hasLine}
+                <span class="world {inLine ? 'line' : 'product'}"
+                  >{$t(inLine ? 'world.line' : 'world.product')}</span
+                >
+              {/if}
               {#if activeLine}
                 <span class="mark line"
                   ><svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg></span
@@ -738,21 +803,15 @@
                   {/if}
                 </div>
               </section>
-            {:else if id === 'team' && activeLine}
+            {:else if (id === 'team' || id === 'people' || id === 'staffing') && activeLine}
               {#if active === id}
                 {#key activeLine.id}
-                  <LineView unit={activeLine} onOpen={(unit) => activeTeamId.set(unit)} />
+                  <LineView
+                    unit={activeLine}
+                    page={id === 'team' ? 'overview' : id}
+                    onOpen={(unit) => activeTeamId.set(unit)}
+                  />
                 {/key}
-              {/if}
-            {:else if id === 'meetings' && activeLine}
-              {#if active === id}
-                <LineProducts
-                  unit={activeLine}
-                  onOpen={(teamId) => {
-                    activeTeamId.set(teamId);
-                    select('meetings', true);
-                  }}
-                />
               {/if}
             {:else if id === 'team' && activeOrg}
               {#if active === id}
@@ -887,6 +946,27 @@
 </nav>
 
 <style>
+  .eyebrow .world {
+    flex: none;
+    padding: 0.05rem 0.45rem;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .eyebrow .world.line {
+    background: var(--line-soft);
+    color: var(--line);
+  }
+  .world-switch {
+    padding: 0 0.75rem 0.5rem;
+  }
+  .rail .world-switch {
+    display: none;
+  }
   .skip {
     position: absolute;
     left: var(--space);

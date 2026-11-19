@@ -12,6 +12,7 @@
   import {
     areaOf,
     hasOrgLevel,
+    LINE_ROOT,
     linePeople,
     lineSelection,
     ORG_UNIT,
@@ -50,7 +51,15 @@
   const lineLevel = (u: LineUnit) => lineLevelWord($levels, lineKind($workspace, u.id));
   const peopleText = (n: number) => $t(n === 1 ? 'org.people.one' : 'org.people.other', { n });
   let lineDialog: LineUnitDialog | undefined = $state();
-  const current = $derived(activeLine ?? (activeOrg ? org : (activeArea ?? active)));
+  /**
+   * Two worlds (#393): with a line unit or the line's root selected, the list shows the line under
+   * the organisation (#395); otherwise the product organisation only.
+   */
+  const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
+  const lineRoot = $derived($activeTeamId === LINE_ROOT);
+  const current = $derived(
+    activeLine ?? (lineRoot || activeOrg ? org : (activeArea ?? active)),
+  );
   const orgCount = $derived(
     areas.length > 0
       ? $t(areas.length === 1 ? 'org.count.areas.one' : 'org.count.areas.other', {
@@ -83,7 +92,9 @@
   const pickTitle = $derived(
     activeLine
       ? `${activeLine.name}\n${lineLevel(activeLine)} · ${peopleText(linePeople($workspace, activeLine.id).size)}`
-      : activeOrg
+      : lineRoot
+        ? `${org.name}\n${$levels.org} · ${peopleText(linePeople($workspace, ORG_UNIT).size)}`
+        : activeOrg
         ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
         : activeArea
           ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
@@ -360,7 +371,7 @@
     >
       {#if activeLine}
         <span class="avatar line" aria-hidden="true">{@render lineIcon()}</span>
-      {:else if activeOrg}
+      {:else if activeOrg || lineRoot}
         <span class="avatar org" aria-hidden="true">{@render orgIcon()}</span>
       {:else if activeArea}
         <span class="avatar area" aria-hidden="true">{@render areaIcon()}</span>
@@ -378,6 +389,8 @@
         <span class="meta">
           {#if activeLine}
             {lineLevel(activeLine)} · {peopleText(linePeople($workspace, activeLine.id).size)}
+          {:else if lineRoot}
+            {$levels.org} · {peopleText(linePeople($workspace, ORG_UNIT).size)}
           {:else if activeOrg}
             {$t('org.meta', { count: orgCount })}
           {:else if activeArea}
@@ -416,6 +429,22 @@
       onkeydown={onListKeydown}
       onfocusout={onListFocusout}
     >
+      {#if inLineWorld}
+        <!-- The line under the organisation, its root (#395). -->
+        <button
+          type="button"
+          class="opt org"
+          aria-current={lineRoot ? 'true' : undefined}
+          onclick={() => choose(LINE_ROOT)}
+        >
+          <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
+          <span class="opt-name-org">{org.name}</span>
+          <span class="count org-count">{peopleText(linePeople($workspace, ORG_UNIT).size)}</span>
+        </button>
+        <ul class="line-group" aria-label={$t('line.switcher.group')}>
+          {#each childUnits($workspace) as u (u.id)}{@render lineOption(u)}{/each}
+        </ul>
+      {:else}
       {#if showOrg}
         <button
           type="button"
@@ -468,11 +497,6 @@
           {#each teams as team (team.id)}{@render teamOption(team.id)}{/each}
         </ul>
       {/if}
-      {#if lineUnits.length > 0}
-        <p class="group line-group" id="{uid}-line">{$t('line.switcher.group')}</p>
-        <ul aria-labelledby="{uid}-line">
-          {#each childUnits($workspace) as u (u.id)}{@render lineOption(u)}{/each}
-        </ul>
       {/if}
     </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -485,14 +509,25 @@
       onkeydown={onMenuKeydown}
       onfocusout={onMenuFocusout}
     >
-      <button type="button" onclick={() => run(() => onPlan?.())}>{$t('setup.another')}</button>
-      <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
-        >{$t('team.add')}</button
-      >
-      <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button>
-      <button type="button" onclick={() => run(() => lineDialog?.show(undefined, activeLine?.id))}
-        >{$t('line.unit.add')}</button
-      >
+      {#if inLineWorld}
+        <button type="button" onclick={() => run(() => lineDialog?.show(undefined, activeLine?.id))}
+          >{$t('line.unit.add')}</button
+        >
+      {:else}
+        <button type="button" onclick={() => run(() => onPlan?.())}>{$t('setup.another')}</button>
+        <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
+          >{$t('team.add')}</button
+        >
+        <button type="button" onclick={() => run(() => areaDialog?.show())}
+          >{$t('area.add')}</button
+        >
+        <!-- The first line unit starts the line world (#393); later ones are added there. -->
+        {#if lineUnits.length === 0}
+          <button type="button" onclick={() => run(() => lineDialog?.show())}
+            >{$t('line.unit.add')}</button
+          >
+        {/if}
+      {/if}
       <hr />
       {#if activeLine}
         {@const unit = activeLine}
@@ -503,7 +538,7 @@
         <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
           >{$t('line.unit.delete')}</button
         >
-      {:else if activeOrg}
+      {:else if activeOrg || lineRoot}
         <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
           >{$t('org.rename')}</button
         >

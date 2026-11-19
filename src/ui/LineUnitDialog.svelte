@@ -39,7 +39,7 @@
     // A unit on the lowest level offers no place below it: then the new one starts at the top.
     const offered = parentChoices($workspace, of?.id).some((u) => u.id === under);
     parentId = of?.parentId ?? (offered ? under! : '');
-    kind = of ? lineKind($workspace, of.id) : 'team';
+    kind = of ? (lineKind($workspace, of.id) as LineKind) : 'team';
     managerId = of?.managerPersonId ?? '';
     familyId =
       of?.skillFamilyId ??

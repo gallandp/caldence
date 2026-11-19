@@ -125,6 +125,12 @@ export function levelParams(w: LevelWords): Record<string, string> {
   };
 }
 
-/** The word for a line unit's level (#399). */
-export const lineLevelWord = (w: LevelWords, kind: 'company' | 'group' | 'team'): string =>
-  kind === 'company' ? w.lineCompany : kind === 'group' ? w.lineGroup : w.lineTeam;
+/** The word for a line unit's level (#399); the organisation is the root of the line (#395). */
+export const lineLevelWord = (w: LevelWords, kind: 'org' | 'company' | 'group' | 'team'): string =>
+  kind === 'org'
+    ? w.org
+    : kind === 'company'
+      ? w.lineCompany
+      : kind === 'group'
+        ? w.lineGroup
+        : w.lineTeam;

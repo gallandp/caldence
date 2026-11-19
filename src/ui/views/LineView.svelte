@@ -9,30 +9,41 @@
     staffRows,
     unitStats,
   } from '../../core/lineStaff';
-  import { lineSelection, linePeople, type LineUnit } from '../../core/model';
+  import { ORG_UNIT, lineSelection, linePeople, type LineUnit } from '../../core/model';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { lineLevelWord } from '../../i18n/levels';
   import LineUnitDialog from '../LineUnitDialog.svelte';
   import LineStaff from '../components/LineStaff.svelte';
   import StaffingBoard from '../components/StaffingBoard.svelte';
+  import LineProducts from '../components/LineProducts.svelte';
   import { presenting } from '../state/present';
   import { index, workspace } from '../state/workspace';
   import { LINE_ICON } from '../viewIcons';
 
   /**
-   * A line unit's page (#316). A line team has the tabs Personal (its people with skills,
-   * contract, commitments, free FTE and hints) and Besetzung (#319: staffing open demands); a
-   * specialist group lists its line teams first and then all its people. While presenting there
-   * are no tabs and no people list: only figures.
+   * A page of the line world (#316, #394) for a line unit or the whole line (the organisation,
+   * #395). Overview: figures, the units below and, for a line team, the products its people work
+   * in. Staff: its people with skills, contract, commitments, free FTE and hints. Staffing (#319):
+   * its people next to open demands. While presenting there are no staff and staffing pages.
    */
-  let { unit, onOpen }: { unit: LineUnit; onOpen: (selection: string) => void } = $props();
+  let {
+    unit,
+    page = 'overview',
+    onOpen,
+  }: {
+    unit: LineUnit;
+    /** The line world's pages (#394): the unit's overview, its staff, its staffing. */
+    page?: 'overview' | 'people' | 'staffing';
+    onOpen: (selection: string) => void;
+  } = $props();
 
   const ws = $derived($workspace);
   const weeks = $derived(loadPerWeek(ws, $index));
   const over = $derived(overLimitPeople(weeks, ws));
   const rows = $derived(staffRows(ws, unit.id, weeks, over));
   const stats = $derived(unitStats(rows));
-  const group = $derived(isLineGroup(ws, unit.id));
+  // The organisation, the root of the line (#395), is a group of all top units.
+  const group = $derived(unit.id === ORG_UNIT || isLineGroup(ws, unit.id));
   const family = $derived(ws.skillFamilies?.find((f) => f.id === unit.skillFamilyId));
   const manager = $derived(ws.people.find((p) => p.id === unit.managerPersonId));
   const kids = $derived(childUnits(ws, unit.id));
@@ -59,13 +70,6 @@
     }),
   );
 
-  const TABS = ['staff', 'board'] as const;
-  let tab = $state<'staff' | 'board'>('staff');
-  function tabKey(e: KeyboardEvent) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    tab = tab === 'staff' ? 'board' : 'staff';
-    document.getElementById(`line-tab-${tab}`)?.focus();
-  }
   const showStaff = $derived(!$presenting);
   let dialog: LineUnitDialog | undefined = $state();
   let addButton: HTMLButtonElement | undefined = $state();
@@ -76,6 +80,7 @@
 </script>
 
 <div class="line-view">
+  {#if page === 'overview'}
   <section class="tiles" aria-label={$t('line.tiles', { name: unit.name })}>
     <div class="tile id">
       <span class="label"
@@ -87,7 +92,7 @@
           .join(' · ')}</span
       >
       <span class="value name">{unit.name}</span>
-      {#if !$presenting}
+      {#if !$presenting && unit.id !== ORG_UNIT}
         <span class="sub"
           >{manager
             ? $t('line.tile.manager', { name: manager.name })
@@ -169,34 +174,16 @@
     </section>
   {/if}
 
-  {#if !group && showStaff}
-    <div class="tabs" role="tablist" aria-label={$t('line.tabs', { name: unit.name })}>
-      {#each TABS as id (id)}
-        <button
-          type="button"
-          role="tab"
-          id="line-tab-{id}"
-          aria-selected={tab === id}
-          aria-controls="line-panel-{id}"
-          tabindex={tab === id ? 0 : -1}
-          onclick={() => (tab = id)}
-          onkeydown={tabKey}>{$t(id === 'staff' ? 'line.tab.staff' : 'line.tab.board')}</button
-        >
-      {/each}
-    </div>
-    {#if tab === 'staff'}
-      <div role="tabpanel" id="line-panel-staff" aria-labelledby="line-tab-staff">
-        <LineStaff {rows} {unit} />
-      </div>
-    {:else}
-      <div role="tabpanel" id="line-panel-board" aria-labelledby="line-tab-board">
-        {#key unit.id}<StaffingBoard {unit} />{/key}
-      </div>
-    {/if}
-  {:else if group && showStaff && rows.length > 0}
-    <section aria-labelledby="line-staff-title">
-      <h3 id="line-staff-title">{$t('line.staff.all')}</h3>
-      <LineStaff {rows} {unit} lineColumn />
+  {/if}
+  {#if page === 'overview' && !group && !empty}
+    <LineProducts {unit} {onOpen} />
+  {:else if page === 'people' && showStaff}
+    <section aria-label={$t('line.tab.staff')}>
+      <LineStaff {rows} {unit} lineColumn={group} />
+    </section>
+  {:else if page === 'staffing' && showStaff}
+    <section aria-label={$t('line.tab.board')}>
+      {#key unit.id}<StaffingBoard {unit} />{/key}
     </section>
   {/if}
 </div>
@@ -346,29 +333,5 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-  }
-  .tabs {
-    display: inline-flex;
-    align-self: flex-start;
-    gap: 0.2rem;
-    padding: 0.2rem;
-    border-radius: 0.7rem;
-    background: var(--surface-2);
-  }
-  :global(#app) .line-view .tabs button[role='tab'] {
-    min-height: 2.25rem;
-    padding: 0.3rem 0.9rem;
-    border: 0;
-    border-radius: 0.55rem;
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  :global(#app) .line-view .tabs button[role='tab'][aria-selected='true'] {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.12));
   }
 </style>
