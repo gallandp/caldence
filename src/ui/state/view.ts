@@ -24,9 +24,9 @@ export const currentView = {
 
 /**
  * The area's page. An area opens on its overview (#337); only a new area starts on the structure.
- * The matrix (#396) is a third page while the file has a line.
+ * The matrix (#396) is a view of its own in both worlds.
  */
-export const areaPage = writable<'structure' | 'overview' | 'matrix'>('overview');
+export const areaPage = writable<'structure' | 'overview'>('overview');
 
 /**
  * Where a replaced workspace opens (#337). An `opened` file lands on an answer, never on an

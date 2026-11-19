@@ -39,6 +39,7 @@
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, LINE_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import LineView from './views/LineView.svelte';
+  import MatrixView from './views/MatrixView.svelte';
   import WorldSwitch from './components/WorldSwitch.svelte';
   import { lineKind } from '../core/lineStaff';
   import { lineLevelWord } from '../i18n/levels';
@@ -55,6 +56,7 @@
     'team',
     'people',
     'staffing',
+    'matrix',
     'templates',
     'settings',
     'exchange',
@@ -81,6 +83,7 @@
     'load',
     'meetings',
     'team',
+    'matrix',
     'templates',
     'settings',
     'exchange',
@@ -91,6 +94,7 @@
     'people',
     'staffing',
     'load',
+    'matrix',
     'settings',
     'exchange',
     'help',
@@ -125,18 +129,27 @@
    * While presenting only the views that show the plan stay; the rest is workspace editing. The
    * line's staff and staffing pages show names, so they stay out too.
    */
-  const PRESENTED: ReadonlySet<ViewId> = new Set(['calendar', 'load', 'meetings', 'team']);
+  const PRESENTED: ReadonlySet<ViewId> = new Set([
+    'calendar',
+    'load',
+    'meetings',
+    'team',
+    'matrix',
+  ]);
+  /** The file has a line: the world switch and the matrix show (#393, #396). */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   /** The organisation has no meetings of its own yet, so it has no Meetings view. */
   const navViews = $derived(
     (inLine ? LINE_VIEWS : PRODUCT_VIEWS).filter(
-      (id) => (!$presenting || PRESENTED.has(id)) && !(id === 'meetings' && activeOrg),
+      (id) =>
+        (!$presenting || PRESENTED.has(id)) &&
+        !(id === 'meetings' && activeOrg) &&
+        (id !== 'matrix' || hasLine),
     ),
   );
   const barViews = $derived(
     primary.filter((id) => navViews.includes(id) && !(id === 'meetings' && activeOrg)),
   );
-  /** The file has a line: the world switch shows (#393). */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   /** Each world comes back on the page it was left on (#393). */
   const lastPage: Record<'product' | 'line', ViewId | undefined> = {
     product: undefined,
@@ -204,7 +217,15 @@
           ? 'view.area'
           : `view.${id}`;
   /** Views whose numbers depend on the selected team or area name it above the headline. */
-  const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team', 'people', 'staffing'];
+  const SCOPED: readonly ViewId[] = [
+    'calendar',
+    'load',
+    'meetings',
+    'team',
+    'people',
+    'staffing',
+    'matrix',
+  ];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
   const scopeName = $derived(
     noTeams && !activeLine
@@ -812,6 +833,14 @@
                   {/if}
                 </div>
               </section>
+            {:else if id === 'matrix'}
+              {#if active === id}
+                <MatrixView
+                  selection={$activeTeamId ?? ORG_UNIT}
+                  world={inLine ? 'line' : 'product'}
+                  onOpen={(unit) => activeTeamId.set(unit)}
+                />
+              {/if}
             {:else if (id === 'team' || id === 'people' || id === 'staffing') && activeLine}
               {#if active === id}
                 {#key activeLine.id}
@@ -828,11 +857,7 @@
               {/if}
             {:else if id === 'team' && activeArea}
               {#if active === id}
-                <AreaView
-                  area={activeArea}
-                  onMeetings={() => select('meetings', true)}
-                  onOpen={(unit) => activeTeamId.set(unit)}
-                >
+                <AreaView area={activeArea} onMeetings={() => select('meetings', true)}>
                   {#snippet overview()}
                     {#if activeArea.teamIds.length === 0}
                       <AreaTeams area={activeArea} view="team" />

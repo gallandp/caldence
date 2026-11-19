@@ -17,7 +17,9 @@
   type World = 'product' | 'line';
   const WORLDS: readonly World[] = ['product', 'line'];
 
-  const current = $derived<World>(selectedLineUnit($activeTeamId) !== undefined ? 'line' : 'product');
+  const current = $derived<World>(
+    selectedLineUnit($activeTeamId) !== undefined ? 'line' : 'product',
+  );
 
   /** The last selection in each world, while it still exists. */
   const last: Record<World, string | undefined> = { product: undefined, line: undefined };

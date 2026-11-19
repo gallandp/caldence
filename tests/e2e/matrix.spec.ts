@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { staffingWorkspace } from './line-fixture';
-import { currentUnit, openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import { currentUnit, openWorkspaceFile, pickUnit, showView, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -12,8 +12,7 @@ test.beforeEach(async ({ page }) => {
 async function openMatrix(page: Page) {
   await openWorkspaceFile(page, staffingWorkspace(), 'matrix.caldence.json');
   await pickUnit(page, 'Payments');
-  await page.locator('#tab-team').click();
-  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Matrix' }).click();
+  await showView(page, 'Matrix');
   return page.getByRole('table', { name: /Matrix of Payments/ });
 }
 
@@ -65,9 +64,23 @@ test('a cell shows who is behind it and opens the product or the line (#396)', a
   await cell.click();
   await pop.getByRole('button', { name: 'Sam in the line' }).click();
   await expect(currentUnit(page)).toHaveText('Orvalis Ware');
+  // The matrix is a view of both worlds: the line world's filters by the line team.
+  const worlds = page.getByRole('group', { name: 'World' });
+  await expect(worlds.getByRole('button', { name: 'Line' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('tab', { name: 'Matrix', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  const line = page.getByRole('table', { name: /Matrix of Orvalis Ware/ });
+  await expect(line.getByRole('rowheader', { name: /Orvalis Ware/ })).toBeVisible();
+  await expect(line.getByRole('rowheader', { name: /Orvalis Geld/ })).toHaveCount(0);
 
-  await pickUnit(page, 'Payments');
-  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Matrix' }).click();
+  // Back in the product world, Payments and its matrix are where they were.
+  await worlds.getByRole('button', { name: 'Products' }).click();
+  await expect(currentUnit(page)).toHaveText('Payments');
   await page
     .getByRole('table', { name: /Matrix of Payments/ })
     .getByRole('row', { name: /^Sam/ })

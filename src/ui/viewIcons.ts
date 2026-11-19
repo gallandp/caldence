@@ -9,6 +9,8 @@ export const VIEW_ICONS = {
   people: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-1a6 6 0 0 1 12 0v1M16 8h6M16 12h6M18 16h4',
   /** Staffing (#394): a list with a tick. */
   staffing: 'M4 6h11M4 11h7M4 16h9M15 15l3 3 4-6',
+  /** The matrix (#396): line teams × products. */
+  matrix: 'M4 4h16v16H4zM4 9.5h16M4 14.5h16M9.5 4v16M14.5 4v16',
   settings: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
   templates: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 16.5h7M16.5 13v7',
   exchange: 'M7 7h13l-4-4M17 17H4l4 4',

@@ -1876,6 +1876,7 @@
   "line.company.inherited": "From the line: {name}",
   "view.people": "Staff",
   "view.staffing": "Staffing",
+  "view.matrix": "Matrix",
   "view.lineOverview": "Overview",
   "world.label": "World",
   "world.product": "Products",

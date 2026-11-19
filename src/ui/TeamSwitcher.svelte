@@ -57,9 +57,7 @@
    */
   const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
   const lineRoot = $derived($activeTeamId === LINE_ROOT);
-  const current = $derived(
-    activeLine ?? (lineRoot || activeOrg ? org : (activeArea ?? active)),
-  );
+  const current = $derived(activeLine ?? (lineRoot || activeOrg ? org : (activeArea ?? active)));
   const orgCount = $derived(
     areas.length > 0
       ? $t(areas.length === 1 ? 'org.count.areas.one' : 'org.count.areas.other', {
@@ -95,18 +93,18 @@
       : lineRoot
         ? `${org.name}\n${$levels.org} · ${peopleText(linePeople($workspace, ORG_UNIT).size)}`
         : activeOrg
-        ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
-        : activeArea
-          ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
-          : active
-            ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
-                'team.switcher.meta',
-                {
-                  kind: $t('team.cadence.kind.' + active.cadence.kind),
-                  weeks: active.cadence.lengthWeeks,
-                },
-              )}`
-            : '',
+          ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
+          : activeArea
+            ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
+            : active
+              ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
+                  'team.switcher.meta',
+                  {
+                    kind: $t('team.cadence.kind.' + active.cadence.kind),
+                    weeks: active.cadence.lengthWeeks,
+                  },
+                )}`
+              : '',
   );
 
   /** The list of teams and areas is a disclosure too, in the flow like the menu. */
@@ -445,58 +443,58 @@
           {#each childUnits($workspace) as u (u.id)}{@render lineOption(u)}{/each}
         </ul>
       {:else}
-      {#if showOrg}
-        <button
-          type="button"
-          class="opt org"
-          aria-current={activeOrg ? 'true' : undefined}
-          onclick={() => choose(ORG_UNIT)}
-        >
-          <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
-          <!-- Not .opt-name: that class lists the teams and areas. -->
-          <span class="opt-name-org">{org.name}</span>
-          {#if $workspace.organisation}<span class="sr-only">{$t('org.option')}</span>{/if}
-          <span class="count org-count">{orgCount}</span>
-        </button>
-      {/if}
-      {#if areas.length > 0}
-        <ul>
-          {#each areas as area (area.id)}
-            <li>
-              <button
-                type="button"
-                class="opt"
-                aria-current={area.id === $activeTeamId ? 'true' : undefined}
-                onclick={() => choose(area.id)}
-              >
-                <span class="avatar mini area" aria-hidden="true">{@render areaIcon()}</span>
-                <span class="opt-name">{area.name}</span>
-                <span class="sr-only">{$t('area.option')}</span>
-                <span class="count"
-                  ><span aria-hidden="true">{area.teamIds.length}</span><span class="sr-only"
-                    >{teamCount(area)}</span
-                  ></span
+        {#if showOrg}
+          <button
+            type="button"
+            class="opt org"
+            aria-current={activeOrg ? 'true' : undefined}
+            onclick={() => choose(ORG_UNIT)}
+          >
+            <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
+            <!-- Not .opt-name: that class lists the teams and areas. -->
+            <span class="opt-name-org">{org.name}</span>
+            {#if $workspace.organisation}<span class="sr-only">{$t('org.option')}</span>{/if}
+            <span class="count org-count">{orgCount}</span>
+          </button>
+        {/if}
+        {#if areas.length > 0}
+          <ul>
+            {#each areas as area (area.id)}
+              <li>
+                <button
+                  type="button"
+                  class="opt"
+                  aria-current={area.id === $activeTeamId ? 'true' : undefined}
+                  onclick={() => choose(area.id)}
                 >
-              </button>
-              {#if area.teamIds.length > 0}
-                <ul class="kids">
-                  {#each area.teamIds as id (id)}{@render teamOption(id)}{/each}
-                </ul>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-        {#if ungrouped.length > 0}
-          <p class="group" id="{uid}-ungrouped">{$t('area.ungrouped')}</p>
-          <ul aria-labelledby="{uid}-ungrouped">
-            {#each ungrouped as team (team.id)}{@render teamOption(team.id)}{/each}
+                  <span class="avatar mini area" aria-hidden="true">{@render areaIcon()}</span>
+                  <span class="opt-name">{area.name}</span>
+                  <span class="sr-only">{$t('area.option')}</span>
+                  <span class="count"
+                    ><span aria-hidden="true">{area.teamIds.length}</span><span class="sr-only"
+                      >{teamCount(area)}</span
+                    ></span
+                  >
+                </button>
+                {#if area.teamIds.length > 0}
+                  <ul class="kids">
+                    {#each area.teamIds as id (id)}{@render teamOption(id)}{/each}
+                  </ul>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+          {#if ungrouped.length > 0}
+            <p class="group" id="{uid}-ungrouped">{$t('area.ungrouped')}</p>
+            <ul aria-labelledby="{uid}-ungrouped">
+              {#each ungrouped as team (team.id)}{@render teamOption(team.id)}{/each}
+            </ul>
+          {/if}
+        {:else}
+          <ul>
+            {#each teams as team (team.id)}{@render teamOption(team.id)}{/each}
           </ul>
         {/if}
-      {:else}
-        <ul>
-          {#each teams as team (team.id)}{@render teamOption(team.id)}{/each}
-        </ul>
-      {/if}
       {/if}
     </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -518,8 +516,7 @@
         <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
           >{$t('team.add')}</button
         >
-        <button type="button" onclick={() => run(() => areaDialog?.show())}
-          >{$t('area.add')}</button
+        <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button
         >
         <!-- The first line unit starts the line world (#393); later ones are added there. -->
         {#if lineUnits.length === 0}

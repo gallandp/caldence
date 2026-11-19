@@ -10,7 +10,6 @@
   import { areaPage } from '../state/view';
   import PageTabs from '../components/PageTabs.svelte';
   import OrgOverview from './OrgOverview.svelte';
-  import MatrixView from './MatrixView.svelte';
 
   /**
    * The organisation's page (#313): the tree organisation → areas → teams. It only shows; a click
@@ -81,8 +80,6 @@
   <PageTabs />
   {#if $areaPage === 'overview'}
     <OrgOverview {onOpen} />
-  {:else if $areaPage === 'matrix'}
-    <MatrixView selection={ORG_UNIT} world="product" {onOpen} />
   {:else}
     <ul class="tree" aria-label={$t('org.tree.label', { name })}>
       <li class="root-item">
