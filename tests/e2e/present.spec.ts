@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { openExample, openWorkspaceFile, pickUnit, showAreaPage, useFileFallback } from './helpers';
 import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 import { structureWorkspace } from './structure-fixture';
+import { areaWorkspace } from './area-fixture';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -113,6 +114,10 @@ test('a meeting what-if changes duration and rhythm; Reset brings the plan back'
   const row = panel.locator('tr.row').filter({ hasText: 'Weekly Sync' });
   await expect(row).toContainText('30 min');
   await expect(whatIfBar(page)).toContainText('What if · 1 change');
+  // A team without an area: only the team's line, with its hours.
+  await expect(whatIfBar(page).getByText(/^Meeting load /)).toHaveText(
+    /^Meeting load Team Alpha: \d+\.\d\sh → \d+\.\d\sh · \d+% → \d+%$/,
+  );
   // Undo works on what-ifs as well.
   await page.locator('#main').focus();
   await page.keyboard.press('Control+z');
@@ -123,6 +128,38 @@ test('a meeting what-if changes duration and rhythm; Reset brings the plan back'
   await whatIfBar(page).getByRole('button', { name: 'Reset' }).click();
   await expect(row).toContainText('15 min');
   await expect(whatIfBar(page)).toContainText('While presenting, you can change');
+});
+
+test('a what-if in a team of an area shows the team first, then the area (#340)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const ws = areaWorkspace();
+  ws.settings.locale = 'en';
+  await openWorkspaceFile(page, ws);
+  await pickUnit(page, 'Team Alpha');
+  await present(page);
+  await openMeetings(page);
+  await page.getByRole('button', { name: 'What if: Backlog Refinement', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Backlog Refinement' });
+  await sheet.getByLabel('Duration (minutes)').fill('30');
+  // Half the refinement: the area's load rounds to the same 13 %, the team's own does not.
+  const loads = sheet.locator('.effect dl > div').filter({ hasText: /^Meeting load/ });
+  await expect(loads).toHaveText([
+    'Meeting load · Team Alpha 5.6 h → 5.2 h · 16% → 14%',
+    'Meeting load · Payments 25.0 h → 24.5 h · 13% → 13%',
+  ]);
+  // The area's hours follow its line and match its rounded figures.
+  await expect(sheet.locator('.effect dl > div').nth(2)).toHaveText(
+    'Hours in meetings, everyone −0.5 h per week',
+  );
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  // The banner keeps the team's hours, then the area's line.
+  await expect(whatIfBar(page)).toContainText(
+    'Meeting load Team Alpha: 5.6 h → 5.2 h · 16% → 14% Meeting load Payments: 25.0 h → 24.5 h · 13% → 13%',
+  );
 });
 
 test('the what-if bar names the cost in the planning horizon; Print works while presenting', async ({

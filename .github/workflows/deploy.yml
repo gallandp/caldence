@@ -7,6 +7,11 @@ name: Deploy
 # waits for the maintainer's approval before the deploy job starts. This job runs no npm and no
 # third-party action; it uploads the published ZIP after checking its checksum and attestation.
 # See docs/superpowers/specs/2026-11-11-secure-deploy-imprint-design.md.
+#
+# Two channels (#344): `stable` is 1.x from main at the web folder's root; `v2` is a pre-release
+# of Caldence 2, built by release-v2.yml on the branch release/v2, in the subfolder v2/. Each
+# channel has its own file list, so neither deployment ever deletes the other's files. The job
+# itself always runs from main, so the key stays behind the same approval.
 
 on:
   workflow_dispatch:
@@ -15,13 +20,19 @@ on:
         description: Version to deploy, for example 1.2.0
         required: true
         type: string
+      channel:
+        description: stable (1.x at /) or v2 (Caldence 2 pre-release at /v2/)
+        required: false
+        default: stable
+        type: choice
+        options: [stable, v2]
 
 permissions: {}
 
 # One deployment at a time. While one waits for approval, the newest later run queues behind
 # it (GitHub cancels older queued runs), so the latest release is the one that ends up online.
 concurrency:
-  group: deploy
+  group: deploy-${{ inputs.channel || 'stable' }}
   cancel-in-progress: false
 
 jobs:
@@ -31,17 +42,34 @@ jobs:
     timeout-minutes: 15
     environment:
       name: production
-      url: https://caldence.de/
+      url: ${{ steps.channel.outputs.url }}
+    outputs:
+      url: ${{ steps.channel.outputs.url }}
     permissions:
       contents: read
       attestations: read
     steps:
-      - name: Check the version
+      - name: Check the version and pick the channel
+        id: channel
         env:
           VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel || 'stable' }}
         run: |
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Not a version: $VERSION"
+          case "$CHANNEL" in
+            stable)
+              pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+              { echo "workflow=release.yml"; echo "ref=refs/heads/main"
+                echo "folder="; echo "url=https://caldence.de/"; } >> "$GITHUB_OUTPUT" ;;
+            v2)
+              pattern='^2\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$'
+              { echo "workflow=release-v2.yml"; echo "ref=refs/heads/release/v2"
+                echo "folder=v2"; echo "url=https://caldence.de/v2/"; } >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::Unknown channel: $CHANNEL"
+              exit 1 ;;
+          esac
+          if ! [[ "$VERSION" =~ $pattern ]]; then
+            echo "::error::Not a $CHANNEL version: $VERSION"
             exit 1
           fi
       # Only for scripts/deploy-plan.mjs and scripts/site-meta.mjs, at the commit of this run
@@ -58,6 +86,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
           REPO: ${{ github.repository }}
+          SIGNER: ${{ steps.channel.outputs.workflow }}
+          SOURCE_REF: ${{ steps.channel.outputs.ref }}
         working-directory: ${{ runner.temp }}
         run: |
           mkdir release
@@ -65,16 +95,18 @@ jobs:
           gh release download "v$VERSION" --repo "$REPO" \
             --pattern "caldence-$VERSION.zip" --pattern "caldence-$VERSION.zip.sha256"
           sha256sum -c "caldence-$VERSION.zip.sha256"
-          # Only a ZIP that release.yml built on main passes.
+          # Only a ZIP that release.yml built on main (stable) or release-v2.yml built on
+          # release/v2 (v2) passes.
           gh attestation verify "caldence-$VERSION.zip" --repo "$REPO" \
-            --signer-workflow "$REPO/.github/workflows/release.yml" --source-ref refs/heads/main
+            --signer-workflow "$REPO/.github/workflows/$SIGNER" --source-ref "$SOURCE_REF"
           unzip -q "caldence-$VERSION.zip" -d ../site
       # The release names no domain; add canonical, preview image URL and JSON-LD for this site.
       - name: Add the site metadata
         env:
           SITE_META: ${{ github.workspace }}/scripts/site-meta.mjs
+          SITE_URL: ${{ steps.channel.outputs.url }}
         working-directory: ${{ runner.temp }}
-        run: node "$SITE_META" site https://caldence.de/
+        run: node "$SITE_META" site "$SITE_URL"
       - name: Write the key and the pinned host key
         env:
           SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
@@ -99,6 +131,7 @@ jobs:
           SFTP_PATH: ${{ vars.SFTP_PATH }}
           PLAN: ${{ github.workspace }}/scripts/deploy-plan.mjs
           VERSION: ${{ inputs.version }}
+          FOLDER: ${{ steps.channel.outputs.folder }}
         working-directory: ${{ runner.temp }}
         run: |
           for name in SFTP_HOST SFTP_USER SFTP_PATH; do
@@ -113,11 +146,18 @@ jobs:
             -o UserKnownHostsFile="$RUNNER_TEMP/ssh/known_hosts" -o ConnectTimeout=30
             -o LogLevel=ERROR)
           target="$SFTP_USER@$SFTP_HOST"
-          # The list of files the last deployment uploaded; missing on the first one.
-          printf 'cd "%s"\n-get .caldence-deploy-files old-list\n' "$SFTP_PATH" \
-            | sftp -b - "${ssh_opts[@]}" "$target"
+          # stable: the web folder itself; v2: its subfolder v2, created on the first deployment.
+          dir="$SFTP_PATH"
+          [ -z "$FOLDER" ] || dir="${SFTP_PATH%/}/$FOLDER"
+          # The list of files the last deployment of this channel uploaded; missing on the first
+          # one. Only the v2 folder is created when missing ("-mkdir" ignores an existing one); a
+          # missing web folder still fails at "cd", as before.
+          {
+            [ -z "$FOLDER" ] || printf -- '-mkdir "%s"\n' "$dir"
+            printf 'cd "%s"\n-get .caldence-deploy-files old-list\n' "$dir"
+          } | sftp -b - "${ssh_opts[@]}" "$target"
           [ -f old-list ] || echo "No earlier file list on the server: nothing is deleted."
-          { printf 'cd "%s"\n' "$SFTP_PATH"; node "$PLAN" site old-list; } > batch.txt
+          { printf 'cd "%s"\n' "$dir"; node "$PLAN" site old-list; } > batch.txt
           cd site
           sftp -b "$RUNNER_TEMP/batch.txt" "${ssh_opts[@]}" "$target"
           echo "Deployed $VERSION ($(grep -c -v '^#' .caldence-deploy-files) files listed, including those kept from the previous release)."
@@ -152,4 +192,4 @@ jobs:
       - run: npx playwright install chromium
       - run: npx playwright test -c playwright.deploy.config.ts
         env:
-          DEPLOY_URLS: https://caldence.de/
+          DEPLOY_URLS: ${{ needs.deploy.outputs.url }}
