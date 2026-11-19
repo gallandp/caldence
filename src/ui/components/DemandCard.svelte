@@ -4,7 +4,7 @@
     defaultDemandRole,
     demandRows,
     minCommitment,
-    roleMeetings,
+    productMeetings,
     skillChoices,
     updateDemand,
   } from '../../core/demand';
@@ -16,6 +16,9 @@
   import { workspace } from '../state/workspace';
   import ConfirmDialog, { type Choice } from './ConfirmDialog.svelte';
   import FieldError from './FieldError.svelte';
+  import AssignDialog from './AssignDialog.svelte';
+  import ImpactTag from './ImpactTag.svelte';
+  import { presenting } from '../state/present';
 
   /**
    * A product's demand (#318): skills (or roles) with FTE, what the line has committed and who,
@@ -150,11 +153,28 @@
   /** The role in focus: the one the add form would staff. */
   const focusRole = $derived(roleChoice);
   const min = $derived(focusRole ? minCommitment(ws, team, focusRole) : undefined);
-  const meetings = $derived(focusRole ? roleMeetings(team, focusRole) : []);
+  const meetings = $derived(focusRole ? productMeetings(ws, team, focusRole) : []);
+  const unitName = (id: string) =>
+    id === team.id ? '' : (ws.areas.find((a) => a.id === id)?.name ?? '');
   const meetingSum = $derived(meetings.reduce((s, m) => s + m.hours, 0));
   const maxShare = $derived(formatPercent($locale, ws.settings.thresholds.maxFte));
 
   let whyOpen = $state(false);
+
+  // ---------- staffing a person on a demand (#320) ----------
+
+  let staffingId = $state<string | null>(null);
+  /** Read from the team each time: an undo or edit can change or remove the demand meanwhile. */
+  const staffing = $derived(team.demands?.find((d) => d.id === staffingId) ?? null);
+  // Presenting hides the dialog; it does not come back afterwards.
+  $effect(() => {
+    if ($presenting) untrack(() => (staffingId = null));
+  });
+  function closeStaffing() {
+    const id = staffingId;
+    staffingId = null;
+    if (id) void focusSoon(`[data-demand="${CSS.escape(id)}"] [data-assign]`);
+  }
 </script>
 
 {#snippet skillOptions(selected: string)}
@@ -283,12 +303,29 @@
                 {#if row.who.length === 0}
                   <span class="nobody">{$t('demand.nobody')}</span>
                 {:else}
-                  {row.who
-                    .map((w) =>
-                      $t('demand.person', { name: personName(w.personId), n: fte(w.fte) }),
-                    )
-                    .join(', ')}
+                  <ul class="people">
+                    {#each row.who as w (w.personId)}
+                      <li data-who={w.personId}>
+                        {$t('demand.person', { name: personName(w.personId), n: fte(w.fte) })}
+                        <ImpactTag
+                          {ws}
+                          teamId={team.id}
+                          personId={w.personId}
+                          roleId={d.roleId}
+                          short
+                        />
+                      </li>
+                    {/each}
+                  </ul>
                 {/if}
+                <button
+                  type="button"
+                  class="staff"
+                  data-assign
+                  data-no-present
+                  aria-label={$t('assign.startFor', { name })}
+                  onclick={() => (staffingId = d.id)}>{$t('assign.start')}</button
+                >
               </span>
               <span class="tools" data-no-present>
                 <button
@@ -424,9 +461,13 @@
           </tr>
         </thead>
         <tbody>
-          {#each meetings as m (m.event.id)}
+          {#each meetings as m (m.unitId + m.event.id)}
             <tr>
-              <th scope="row">{m.event.name}</th>
+              <th scope="row"
+                >{m.event.name}{#if unitName(m.unitId)}<span class="from">
+                    · {unitName(m.unitId)}</span
+                  >{/if}</th
+              >
               <td class="num">{$t('demand.hoursValue', { n: hours(m.hours) })}</td>
             </tr>
           {/each}
@@ -442,6 +483,10 @@
     {/if}
   {/if}
 </section>
+
+{#if staffing && !$presenting}
+  <AssignDialog {team} demand={staffing} onclose={closeStaffing} />
+{/if}
 
 <ConfirmDialog
   open={deleting !== null}
@@ -481,7 +526,7 @@
     color: var(--text-muted);
   }
   .heads,
-  .rows li {
+  .rows > li {
     display: grid;
     grid-template-columns: minmax(7rem, 1.3fr) 4.5rem 4.5rem minmax(6rem, 2fr) auto;
     gap: 0.75rem;
@@ -504,7 +549,7 @@
     padding: 0;
     list-style: none;
   }
-  .rows li {
+  .rows > li {
     padding: 0.55rem 0;
     border-bottom: 1px solid var(--border);
   }
@@ -552,11 +597,41 @@
   .nobody {
     color: var(--text-muted);
   }
+  .people {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .people li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+  }
+  .from {
+    color: var(--text-muted);
+  }
+  .people li + li {
+    margin-top: 0.3rem;
+  }
+  :global(#app) .demand button.staff {
+    display: block;
+    min-height: 2.75rem;
+    margin-left: -0.15rem;
+    padding: 0 0.15rem;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .tools {
     display: flex;
     gap: 0.25rem;
   }
-  .rows li:has(form) {
+  .rows > li:has(form) {
     display: block;
   }
   /* On a phone a row stacks: the skill on top, the numbers and who below it. */
@@ -564,7 +639,7 @@
     .heads {
       display: none;
     }
-    .rows li {
+    .rows > li {
       grid-template-columns: 1fr auto;
       grid-template-areas:
         'what tools'

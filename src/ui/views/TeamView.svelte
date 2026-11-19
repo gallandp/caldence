@@ -19,6 +19,9 @@
   import { LIMITS } from '../../core/limits';
   import OwnerCard from '../components/OwnerCard.svelte';
   import DemandCard from '../components/DemandCard.svelte';
+  import ImpactCheck from '../components/ImpactCheck.svelte';
+  import ImpactTag from '../components/ImpactTag.svelte';
+  import { productMeetings } from '../../core/demand';
   import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
@@ -133,8 +136,13 @@
       memberHours: h === null ? team.memberHours : withHours(team.memberHours, personId, h),
     });
     if (!next.ok) return null;
+    const inTeam = next.value.teams.find((x) => x.id === team.id)!;
     return {
       name: typed.name,
+      personId,
+      ws: next.value,
+      // The effect check (#320) where the role has meetings in the product.
+      check: productMeetings(next.value, inTeam, roleChoice).length > 0,
       after: personLoad(next.value, loadPerWeek(next.value, $index), personId),
     };
   });
@@ -417,6 +425,16 @@
                   >
                   <span class="who">
                     <span class="name">{name}</span>
+                    {#each member.roleIds as roleId (roleId)}
+                      {#if assignmentOf($workspace, team.id, member.personId, roleId)}
+                        <ImpactTag
+                          ws={$workspace}
+                          teamId={team.id}
+                          personId={member.personId}
+                          {roleId}
+                        />
+                      {/if}
+                    {/each}
                     <span class="chips">
                       {#each member.roleIds as roleId (roleId)}
                         <span class="chip" style:--c={roleColour(roleId)}
@@ -608,6 +626,18 @@
                   : $t('team.members.previewNew', after)}
               </p>
             {/if}
+            {#if preview?.check}
+              <div class="impact-preview" data-no-present>
+                <ImpactCheck
+                  ws={preview.ws}
+                  teamId={team.id}
+                  personId={preview.personId}
+                  roleId={roleChoice}
+                  name={preview.name}
+                  overall={false}
+                />
+              </div>
+            {/if}
             {@render err('member-add')}
           {/if}
         </section>
@@ -752,6 +782,12 @@
 />
 
 <style>
+  .impact-preview {
+    margin-top: 0.75rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
   .pool {
     margin-top: 1.5rem;
     padding-top: 1rem;
