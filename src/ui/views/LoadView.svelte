@@ -381,7 +381,8 @@
   const share = $derived(
     teamId && !$filter.roleId ? areaShare($workspace, $index, teamId, rate) : undefined,
   );
-  const unitLabel = $derived($workspace.teams.find((x) => x.id === teamId)?.name);
+  const scopeTeam = $derived($workspace.teams.find((x) => x.id === teamId));
+  const unitLabel = $derived(scopeTeam?.name);
 
   const uid = $props.id();
 </script>
@@ -813,7 +814,13 @@
     </div>
     <div class="col">
       {#if costs && rate}
-        <CostCard summary={costs} {rate} areaShare={share} unitName={unitLabel} />
+        <CostCard
+          summary={costs}
+          {rate}
+          cadence={scopeTeam?.cadence}
+          areaShare={share}
+          unitName={unitLabel}
+        />
       {:else if !rate && summary.byRole.length > 0}
         <RateInvite />
       {/if}
