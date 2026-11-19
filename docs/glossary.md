@@ -40,6 +40,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
 | **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
 | **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
+| **+ … in Terminen {levelInArea}** | + … in meetings {levelInArea} | Under a {levelTeam}'s cost: what its people also spend in the meetings of its {levelArea}; a person in several {levelTeams} is split by their weekly hours there (#336). Informative, never added to a total | Part of the {levelTeam}'s cost |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |
 
 ## Two meeting-share numbers (H2)

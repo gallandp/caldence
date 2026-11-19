@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { areaShare } from '../../core/areaCosts';
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import {
@@ -253,6 +254,11 @@
 
   const rate = $derived($workspace.settings.hourlyRate);
   const costs = $derived(rate ? costSummary($workspace, $index, $filter, rate) : null);
+  /** A team's people in its area's meetings, on top (#336); not with a role or person filter. */
+  const share = $derived(
+    teamId && !$filter.roleId ? areaShare($workspace, $index, teamId, rate) : undefined,
+  );
+  const unitLabel = $derived($workspace.teams.find((x) => x.id === teamId)?.name);
 
   const uid = $props.id();
 </script>
@@ -574,7 +580,7 @@
     </div>
     <div class="col">
       {#if costs && rate}
-        <CostCard summary={costs} {rate} />
+        <CostCard summary={costs} {rate} areaShare={share} unitName={unitLabel} />
       {:else if !rate && summary.byRole.length > 0}
         <RateInvite />
       {/if}

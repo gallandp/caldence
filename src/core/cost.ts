@@ -156,15 +156,18 @@ export function costSummary(
   return summary(ws, sums);
 }
 
-/** Costs of one team's or area's own meetings (an area without those of its teams). */
+/**
+ * Costs of one team's or area's own meetings (an area without those of its teams); `heads` can
+ * count only some of the people, as for a team's share of its area's meetings (#336).
+ */
 export function unitCostSummary(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
   rate: number,
+  heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e),
 ): CostSummary {
   const sums = emptySums();
-  const heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e);
   addUnitCosts(ws, index, unit, rate, heads, sums);
   return summary(ws, sums);
 }
