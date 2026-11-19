@@ -28,7 +28,15 @@ test('a fresh start shows the welcome heading and the actions in order', async (
   await start(page);
   const panel = calendar(page);
   await expect(panel.getByRole('heading', { level: 3, name: 'Welcome to Caldence' })).toBeVisible();
-  for (const name of ['Plan new', 'Open a file…', 'Open the example', 'Read the manual'])
+  for (const name of [
+    'Line manager',
+    'Platform owner or head of department',
+    'Product Owner',
+    'Agile Coach',
+    'Open a file…',
+    'Open the example',
+    'Read the manual',
+  ])
     await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
   // Nothing to filter or save yet, and the start screen is the only way in.
   await expect(page.getByLabel('Role', { exact: true })).toHaveCount(0);
@@ -44,7 +52,7 @@ test('a fresh start shows the welcome heading and the actions in order', async (
 for (const template of ['Scrum', 'Kanban', 'SAFe']) {
   test(`the wizard creates a ${template} team with its people`, async ({ page }) => {
     await start(page);
-    await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+    await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Plan new' });
     await expect(dialog.getByText('Step 1 of 4')).toBeVisible();
     await dialog.getByRole('radio', { name: template, exact: true }).check();
@@ -71,7 +79,7 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
 
 test('"I take part myself" makes the export start with my own calendar', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -92,7 +100,7 @@ test('"I take part myself" makes the export start with my own calendar', async (
 
 test('the wizard says when Scrum moves a picked date to the next Monday', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('button', { name: 'Next' }).click();
   const field = dialog.getByLabel('Cadence starts on');
@@ -118,7 +126,7 @@ test('the wizard says when Scrum moves a picked date to the next Monday', async 
 
 test('the wizard without a template creates an empty team', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('radio', { name: 'No template' }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -160,7 +168,7 @@ test('Open a file reads a workspace file', async ({ page }) => {
 
 test('the frame step sets time zone and horizon for the workspace', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(
@@ -182,7 +190,7 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
 
 test('after the wizard a card offers the next steps once', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Create team' }).click();
@@ -201,7 +209,7 @@ test('after the wizard a card offers the next steps once', async ({ page }) => {
 
 test('choosing another way of working starts the later steps afresh', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByLabel('Team name')).toHaveValue('Scrum');
@@ -213,7 +221,7 @@ test('choosing another way of working starts the later steps afresh', async ({ p
 
 test('a click anywhere on an option card picks that way of working', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   const kanban = dialog.getByRole('radio', { name: 'Kanban', exact: true });
   await expect(kanban).toHaveAccessibleDescription(/^Flow/);
@@ -287,7 +295,7 @@ for (const locale of ['de', 'en'] as const) {
       expect((await axe()).violations).toEqual([]);
       await page
         .getByRole('tabpanel')
-        .getByRole('button', { name: /Plan new|Neu planen/ })
+        .getByRole('button', { name: 'Product Owner', exact: true })
         .click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
@@ -318,9 +326,9 @@ test('the start screen fits 375 px without horizontal scroll and passes axe', as
 test('the whole tile opens the example, not only its label', async ({ page }) => {
   await start(page);
   // Click where the description is drawn; the button's overlay covers it, as it does for a user.
-  const box = await calendar(page)
-    .getByText('Explore a ready-made example with several teams')
-    .boundingBox();
+  const desc = calendar(page).getByText('Explore a ready-made example with several teams');
+  await desc.scrollIntoViewIfNeeded();
+  const box = await desc.boundingBox();
   if (!box) throw new Error('description not visible');
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(calendar(page).getByRole('grid')).toBeVisible();
@@ -339,7 +347,7 @@ test('deleting the last team in the calendar returns to the start screen with fo
 
 test('the wizard names the template cadence with a proper plural', async ({ page }) => {
   await start(page);
-  await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await expect(dialog.getByText(/week\(s\)/)).toHaveCount(0);
   await expect(dialog.getByText(/\b2 weeks\b/).first()).toBeVisible();

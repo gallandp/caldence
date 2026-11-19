@@ -3,6 +3,7 @@ import {
   emptyWorkspace,
   hasOrgLevel,
   ORG_UNIT,
+  lineSelection,
   selectedLineUnit,
   type Workspace,
 } from '../../core/model';
@@ -169,7 +170,9 @@ export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | n
     const line = selectedLineUnit(current);
     if (line !== undefined && $ws.lineUnits?.some((u) => u.id === line)) return;
     if (current !== null && [...$ws.teams, ...$ws.areas].some((u) => u.id === current)) return;
-    const fallback = $ws.teams[0]?.id ?? null;
+    // Line teams without products (#387) still have a page to show.
+    const firstLine = $ws.lineUnits?.[0]?.id;
+    const fallback = $ws.teams[0]?.id ?? (firstLine ? lineSelection(firstLine) : null);
     if (fallback !== current) active.set(fallback);
   });
   return active;

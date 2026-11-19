@@ -218,7 +218,11 @@ export function templateStart(
 export function applyTemplate(
   ws: Workspace,
   template: Template,
-  opts: { name: string; today: ISODate },
+  /**
+   * `joinArea`: with a template that has an area, the team joins this area (an id), or `null`
+   * always starts a new area. Left out, the team joins the area of the same template, if any.
+   */
+  opts: { name: string; today: ISODate; joinArea?: string | null },
 ): Result<[Workspace, string]> {
   const out = structuredClone(ws);
   const tpl = structuredClone(template);
@@ -244,7 +248,12 @@ export function applyTemplate(
   const roleMap = mapItems('roles', 'r');
   const catMap = mapItems('categories', 'c');
 
-  const joined = joinedArea(out, tpl);
+  const joined =
+    opts.joinArea === undefined
+      ? joinedArea(out, tpl)
+      : tpl.area && opts.joinArea !== null
+        ? out.areas.find((a) => a.id === opts.joinArea)
+        : undefined;
   const cadenceStart = tpl.team.cadence.start;
   const shift = templateShift(tpl, joined, opts.today);
 

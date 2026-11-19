@@ -1,6 +1,8 @@
 <script lang="ts">
+  import type { SetupMode } from '../../core/setup';
   import { translate as t } from '../../i18n';
   import SetupWizard from '../setup/SetupWizard.svelte';
+  import { AREA_ICON, LINE_ICON, ORG_ICON } from '../viewIcons';
 
   let {
     onOpenFile,
@@ -15,12 +17,28 @@
     onOpenLineExample: () => void;
     /** Switches to Help. */
     onManual: () => void;
-    /** A team was created by the wizard. */
-    onCreated: () => void;
+    /** The wizard created a team, an area, the organisation or line teams. */
+    onCreated: (mode: SetupMode) => void;
   } = $props();
 
   const uid = $props.id();
   let wizard: SetupWizard | undefined;
+
+  /**
+   * Who starts (#387): each role sets up its own level of the same organisation, in the level's
+   * colour of the app. The product owner gets the team wizard.
+   */
+  const ROLES: { key: string; mode: SetupMode; icon: string; tone: string }[] = [
+    { key: 'line', mode: 'line', icon: LINE_ICON, tone: 'line' },
+    { key: 'area', mode: 'area', icon: AREA_ICON, tone: 'area' },
+    {
+      key: 'po',
+      mode: 'team',
+      icon: 'M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1',
+      tone: 'team',
+    },
+    { key: 'coach', mode: 'org', icon: ORG_ICON, tone: 'org' },
+  ];
 
   const folder =
     'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z';
@@ -60,14 +78,29 @@
   <div class="copy">
     <h3 id="{uid}-h">{$t('start.title')}</h3>
     <p class="intro">{$t('start.intro')}</p>
+  </div>
 
-    <div class="plan">
-      <button type="button" class="primary big" onclick={() => wizard?.show()}>
-        {$t('setup.open')}
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-      </button>
-      <p class="hint">{$t('start.plan.hint')}</p>
-    </div>
+  <div class="rest">
+    <ul class="roles" aria-label={$t('start.roles')}>
+      {#each ROLES as role (role.key)}
+        {@const label = `start.role.${role.key}`}
+        <li class="role {role.tone}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d={role.icon} /></svg>
+          <button
+            type="button"
+            aria-describedby="{uid}-{role.key}-does {uid}-{role.key}-d"
+            onclick={() => wizard?.show(role.mode, role.key === 'po')}>{$t(label)}</button
+          >
+          <p class="does" id="{uid}-{role.key}-does">
+            {$t(label + '.does')}<svg viewBox="0 0 24 24" aria-hidden="true"
+              ><path d="M5 12h14M13 6l6 6-6 6" /></svg
+            >
+          </p>
+          <p class="role-desc" id="{uid}-{role.key}-d">{$t(label + '.hint')}</p>
+        </li>
+      {/each}
+    </ul>
+    <p class="hint">{$t('start.plan.hint')}</p>
 
     <p class="or"><span>{$t('start.or')}</span></p>
 
@@ -76,7 +109,6 @@
       {@render tile('example', 'start.example', onOpenExample, sparkle)}
       {@render tile('lineExample', 'start.lineExample', onOpenLineExample, org)}
     </div>
-    <p class="areas">{$t('start.areas')}</p>
 
     <p class="foot">
       <button type="button" class="link" onclick={onManual}>
@@ -126,7 +158,7 @@
   </div>
 </section>
 
-<SetupWizard bind:this={wizard} oncreated={onCreated} />
+<SetupWizard bind:this={wizard} oncreated={(_, mode) => onCreated(mode)} />
 
 <style>
   .welcome {
@@ -145,8 +177,21 @@
     box-shadow: var(--shadow);
     overflow: hidden;
   }
+  /* Title and art side by side; the roles and the other ways in span the whole width. */
+  .welcome {
+    grid-template-areas: 'copy art' 'rest rest';
+    row-gap: 1.75rem;
+  }
   .copy {
-    max-width: 32rem;
+    grid-area: copy;
+    max-width: 36rem;
+  }
+  .rest {
+    grid-area: rest;
+    min-width: 0;
+  }
+  .art {
+    grid-area: art;
   }
   :global(#app) .welcome h3 {
     margin: 0 0 0.75rem;
@@ -163,23 +208,105 @@
     color: var(--text-muted);
     text-wrap: pretty;
   }
-  .plan {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1rem;
+  /* ---------- Roles (#387): one card per role, in its level's colour ---------- */
+  .roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
-  :global(#app) .welcome button.big {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.8rem 1.4rem;
+  .role {
+    --tone: var(--accent-text);
+    --tone-soft: var(--accent-soft);
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.85rem;
+    align-content: start;
+    padding: 1rem 1.1rem 1.05rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    transition:
+      border-color 0.15s,
+      background-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .role.line {
+    --tone: var(--line);
+    --tone-soft: var(--line-soft);
+  }
+  .role.area {
+    --tone: var(--area);
+    --tone-soft: var(--area-soft);
+  }
+  .role.org {
+    --tone: var(--org);
+    --tone-soft: var(--org-soft);
+  }
+  .role:hover,
+  .role:has(button:focus-visible) {
+    border-color: var(--tone);
+    background: color-mix(in srgb, var(--tone-soft) 60%, var(--surface));
+    box-shadow: 0 10px 24px -18px var(--tone);
+  }
+  .role > svg {
+    grid-row: span 3;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    background: var(--tone-soft);
+    fill: none;
+    stroke: var(--tone);
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  :global(#app) .welcome .role button {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
     font-size: 1.05rem;
-    border-radius: calc(var(--radius) * 1.4);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    text-align: start;
+    transform: none;
   }
-  .big svg {
-    width: 1.15rem;
-    height: 1.15rem;
+  /* The whole card is the click target. */
+  .role button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  @supports selector(:has(*)) {
+    :global(#app) .welcome .role button:focus-visible {
+      outline: none;
+    }
+    .role:has(button:focus-visible) {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+  }
+  .does {
+    margin: 0.2rem 0 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--tone);
+  }
+  /* Inline, so the arrow follows the last word when the text wraps. */
+  .does svg {
+    display: inline-block;
+    width: 0.95rem;
+    height: 0.95rem;
+    margin-inline-start: 0.3rem;
+    vertical-align: -0.15em;
     fill: none;
     stroke: currentColor;
     stroke-width: 2.2;
@@ -187,18 +314,23 @@
     stroke-linejoin: round;
     transition: transform 0.15s;
   }
-  .big:hover svg {
+  .role:hover .does svg {
     transform: translateX(3px);
   }
-  .areas {
-    margin: 0.85rem 0 0;
-    font-size: 0.875rem;
-    line-height: 1.5;
+  .role-desc {
+    margin: 0.3rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
     color: var(--text-muted);
     text-wrap: pretty;
   }
+  @media (prefers-reduced-motion: reduce) {
+    .does svg {
+      transition: none;
+    }
+  }
   .hint {
-    margin: 0;
+    margin: 0.75rem 0 0;
     font-size: 0.875rem;
     color: var(--text-muted);
   }
@@ -426,6 +558,7 @@
   @media (max-width: 64rem) {
     .welcome {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: 'copy' 'rest';
     }
     .art {
       display: none;

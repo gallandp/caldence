@@ -56,7 +56,10 @@ async function axe(page: Page) {
 
 test('the start screen mentions areas, and the example opens with its area', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText(/^Several teams\? Group them into one area/)).toBeVisible();
+  // The roles offer areas from the start (#387).
+  await expect(
+    page.getByRole('button', { name: 'Platform owner or head of department' }),
+  ).toHaveAccessibleDescription(/Set up a platform or department/);
   await openExample(page);
   await expect(unitNames(page)).toContainText(['Commerce', 'Team Gamma', 'Team Delta']);
   // The example has an area, so the hint to group teams stays away.
