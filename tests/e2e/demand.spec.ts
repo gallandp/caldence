@@ -19,7 +19,12 @@ test('product demand: request skills and roles, see the Mindestzusage (#318)', a
   // Committed FTE and who, from the assignments.
   await expect(card.locator('[data-demand-sum]')).toHaveText('0.7 of 2.0 FTE committed');
   await expect(rows.locator('[data-demand="d1"]')).toContainText('Ledgerline Booking');
-  await expect(rows.locator('[data-demand="d1"]')).toContainText('Robin 0.2 FTE, Jordan 0.5 FTE');
+  await expect(rows.locator('[data-demand="d1"] [data-who="person-robin"]')).toContainText(
+    'Robin 0.2 FTE',
+  );
+  await expect(rows.locator('[data-demand="d1"] [data-who="person-jordan"]')).toContainText(
+    'Jordan 0.5 FTE',
+  );
   await expect(rows.locator('[data-demand="d2"]')).toContainText('Scrum Master');
   await expect(rows.locator('[data-demand="d2"]')).toContainText('nobody yet');
 

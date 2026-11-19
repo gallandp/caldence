@@ -1,6 +1,15 @@
 import { syncAssignments } from './line';
 import { occurrenceHours, occurrencesPerWeek } from './load';
-import { areaOf, type CalEvent, type Demand, type Skill, type Team, type Workspace } from './model';
+import {
+  areaAsTeam,
+  areaOf,
+  teamRolesFor,
+  type CalEvent,
+  type Demand,
+  type Skill,
+  type Team,
+  type Workspace,
+} from './model';
 import { effectiveDuration } from './recurrence';
 import { validate, type Result } from './validate';
 
@@ -139,6 +148,40 @@ export function roleMeetings(team: Team, roleId: string): { event: CalEvent; hou
   return out;
 }
 
+export interface ProductMeeting {
+  event: CalEvent;
+  /** The team itself, or its platform (area) for a meeting that invites the role from every team. */
+  unitId: string;
+  hours: number;
+}
+
+/**
+ * The meetings one person in a role attends because of a product (#320): the team's own recurring
+ * meetings for the role and the platform's recurring meetings that invite the role "from every
+ * team" (directly or through a role link, #338). Hours per typical week, counted as `roleMeetings`.
+ */
+export function productMeetings(ws: Workspace, team: Team, roleId: string): ProductMeeting[] {
+  const out: ProductMeeting[] = roleMeetings(team, roleId).map((m) => ({ ...m, unitId: team.id }));
+  const area = areaOf(ws, team.id);
+  if (!area) return out;
+  const unit = areaAsTeam(area);
+  for (const event of area.events) {
+    const perWeek = occurrencesPerWeek(event.rule, unit);
+    if (perWeek === 0) continue;
+    const minutes = effectiveDuration(event, unit);
+    const hours = event.participants
+      .filter(
+        (p) =>
+          p.personId === undefined &&
+          p.fromTeams &&
+          teamRolesFor(area, team.id, p.roleId).includes(roleId),
+      )
+      .reduce((s, p) => s + perWeek * occurrenceHours(event, minutes, p.share), 0);
+    if (hours > 0) out.push({ event, unitId: area.id, hours });
+  }
+  return out;
+}
+
 export interface MinCommitment {
   /** Meeting hours of one person in the role in a typical week. */
   meetingHours: number;
@@ -149,8 +192,8 @@ export interface MinCommitment {
 }
 
 /**
- * Mindestzusage (#318): the role's meeting hours ÷ the Grenze (share of the weekly hours in
- * meetings), rounded up to 0.1 FTE. Below it, a person spends more than the Grenze of their time
+ * Mindestzusage (#318): the role's meeting hours in the product (its own and its platform's
+ * meetings, #320) ÷ the Grenze (share of the weekly hours in meetings), rounded up to 0.1 FTE. Below it, a person spends more than the Grenze of their time
  * in this team in meetings. Undefined when the role has no recurring meetings in the team.
  */
 export function minCommitment(
@@ -158,7 +201,14 @@ export function minCommitment(
   team: Team,
   roleId: string,
 ): MinCommitment | undefined {
-  const meetingHours = roleMeetings(team, roleId).reduce((s, m) => s + m.hours, 0);
+  return minCommitmentOf(
+    ws,
+    productMeetings(ws, team, roleId).reduce((s, m) => s + m.hours, 0),
+  );
+}
+
+/** The Mindestzusage for meetings of `meetingHours` a week (see `minCommitment`). */
+export function minCommitmentOf(ws: Workspace, meetingHours: number): MinCommitment | undefined {
   const { hoursPerWeek } = ws.settings;
   const { maxFte } = ws.settings.thresholds;
   if (meetingHours <= 0 || hoursPerWeek <= 0 || maxFte <= 0) return undefined;
