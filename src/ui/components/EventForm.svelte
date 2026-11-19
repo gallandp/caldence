@@ -1019,6 +1019,8 @@
       display: block;
     }
   }
+  /* "Who" takes the role's width, so its options are never cut off (#431); the share below it
+     gets its own label. */
   @container (max-width: 30rem) {
     .in-area .part-heads {
       display: none;
@@ -1027,10 +1029,15 @@
       grid-template-columns: minmax(0, 1fr) 5rem 2.5rem;
       grid-template-areas:
         'role role remove'
-        'who share .';
+        'who who .'
+        'label share .';
     }
     .in-area .share-label {
-      display: none;
+      display: block;
+    }
+    .in-area .parts > li + li {
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
     }
   }
   .part-heads {
