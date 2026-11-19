@@ -47,6 +47,11 @@ test('product demand: request skills and roles, see the Mindestzusage (#318)', a
   await card.getByRole('button', { name: 'Add demand' }).click();
   await expect(card.locator('[data-demand-sum]')).toHaveText('0.7 of 2.4 FTE committed');
   await expect(card.getByLabel('FTE', { exact: true })).toHaveValue('1');
+  // An emptied field is no demand: it says so instead of adding one.
+  await card.getByLabel('FTE', { exact: true }).fill('');
+  await card.getByRole('button', { name: 'Add demand' }).click();
+  await expect(card).toContainText('Invalid number at FTE');
+  await expect(card.locator('[data-demand-sum]')).toHaveText('0.7 of 2.4 FTE committed');
 
   // A role-only demand asks for the role; its Mindestzusage follows that role.
   await skill.selectOption({ label: 'No skill, role only' });

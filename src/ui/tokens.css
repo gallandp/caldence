@@ -15,7 +15,8 @@
   --surface-2: light-dark(#f1f2f9, #191d36);
   --text: light-dark(#0f1426, #eceefa);
   --text-muted: light-dark(#555d74, #a8aec8);
-  /* Placeholders: clearly dimmer than entered text (~5:1 vs 15–18:1), still at least 4.5:1 on --surface. */
+  /* Placeholders: clearly dimmer than entered text (~5:1 vs 15–18:1), still at least 4.5:1 on
+     --surface, --surface-2 and --bg (fields only; tinted *-soft backgrounds fall below 4.5:1). */
   --text-placeholder: light-dark(#666d84, #868ca8);
   --border: light-dark(#e2e5f0, #262b49);
   --border-strong: light-dark(#7a8197, #6f7699);
