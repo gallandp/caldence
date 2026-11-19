@@ -462,6 +462,7 @@
 
     <fieldset>
       <legend>{$t('settings.horizon')}</legend>
+      <p class="help">{$t('settings.horizon.hint')}</p>
       <div class="grid">
         <div class="field">
           <label for="set-from">{$t('settings.horizon.from')}</label>

@@ -172,11 +172,17 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(
-    dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
+    dialog.getByRole('heading', { name: 'Time zone, holidays and planning horizon' }),
   ).toBeFocused();
   // The region is preset, not chosen: the wizard asks to check it (#341).
   await expect(dialog.getByLabel('Region (holidays)')).toHaveAccessibleDescription(/Please check/);
   await dialog.getByLabel('Time zone').selectOption('Europe/Vienna');
+  // The horizon is preset and explained; its dates show on request.
+  const horizon = dialog.getByRole('group', { name: 'Planning horizon' });
+  await expect(horizon).toContainText('Planning runs from');
+  await expect(horizon).toContainText('The calendar, meeting load and costs refer to it');
+  await expect(dialog.getByLabel('Horizon to')).toHaveCount(0);
+  await horizon.getByRole('button', { name: 'Change dates' }).click();
   await dialog.getByLabel('Horizon to').fill('2027-03-01');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
