@@ -1,9 +1,10 @@
 <script lang="ts">
   import { workspaceIndex } from '../../core/views';
-  import { countChanges, effectScope, whatIfEffect } from '../../core/whatIf';
-  import { formatEuro, formatPercent, locale, translate as t } from '../../i18n';
+  import { countChanges, effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
+  import { formatEuro, locale, translate as t } from '../../i18n';
   import { resetWhatIf } from '../state/present';
   import { activeTeamId, index, workspace } from '../state/workspace';
+  import { loadValue } from './WhatIfEffect.svelte';
 
   /** Above every view while presenting: what the what-ifs changed so far, with a reset (M1). */
   const { presentBase } = workspace;
@@ -11,9 +12,10 @@
   const changes = $derived($presentBase ? countChanges($presentBase, $workspace) : 0);
   const scope = $derived($activeTeamId ? effectScope($workspace, $activeTeamId) : undefined);
   const rate = $derived($workspace.settings.hourlyRate);
+  const baseIndex = $derived($presentBase ? workspaceIndex($presentBase) : undefined);
   const before = $derived(
-    $presentBase && scope && changes > 0
-      ? whatIfEffect($presentBase, workspaceIndex($presentBase), scope, rate)
+    $presentBase && baseIndex && scope && changes > 0
+      ? whatIfEffect($presentBase, baseIndex, scope, rate)
       : undefined,
   );
   const after = $derived(
@@ -24,7 +26,19 @@
       $workspace.teams.find((x) => x.id === scope)?.name ??
       '',
   );
-  const pct = (n: number) => formatPercent($locale, n);
+  /** A team in an area: its own load comes first, the area's can round to the same (#340). */
+  const team = $derived.by(() => {
+    const id = $activeTeamId;
+    if (!id || !$presentBase || !baseIndex || !scope || scope === id || changes === 0)
+      return undefined;
+    const b = whatIfEffect($presentBase, baseIndex, id);
+    const a = whatIfEffect($workspace, $index, id);
+    const name = $workspace.teams.find((x) => x.id === id)?.name ?? '';
+    return b && a ? { name, before: b, after: a } : undefined;
+  });
+  /** "Meeting load Team Alpha: 5.6 h → 5.2 h · 16 % → 14 %" */
+  const load = (name: string, b: Effect, a: Effect) =>
+    $t('whatif.bar.share', { name, value: loadValue($t, $locale, b, a) });
   const signedEuro = (n: number) =>
     (n > 0.004 ? '+' : n < -0.004 ? '−' : '±') + formatEuro($locale, Math.abs(n));
 </script>
@@ -44,15 +58,12 @@
         n: changes,
       })}</strong
     >
-    <!-- Only when the changes touch the selected scope; otherwise the line would read "16 % → 16 %". -->
+    <!-- Only the lines the changes touch; otherwise a line would read "16 % → 16 %". -->
+    {#if team && team.before.hours !== team.after.hours}
+      <span>{load(team.name, team.before, team.after)}</span>
+    {/if}
     {#if before && after && (before.hours !== after.hours || before.inStep?.n !== after.inStep?.n)}
-      <span
-        >{$t('whatif.bar.share', {
-          name: scopeName,
-          from: pct(before.share),
-          to: pct(after.share),
-        })}</span
-      >
+      <span>{load(scopeName, before, after)}</span>
       {#if before.cost && after.cost}
         <span
           >{$t('whatif.bar.cost', {

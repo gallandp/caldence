@@ -90,9 +90,18 @@
   const scope = $derived(effectScope($workspace, target.unitId));
   const rate = $derived($workspace.settings.hourlyRate);
   const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate) : undefined);
+  const candidateIndex = $derived('ws' in candidate ? workspaceIndex(candidate.ws) : undefined);
   const after = $derived.by((): Effect | undefined => {
-    if (!scope || !('ws' in candidate)) return undefined;
-    return whatIfEffect(candidate.ws, workspaceIndex(candidate.ws), scope, rate);
+    if (!scope || !('ws' in candidate) || !candidateIndex) return undefined;
+    return whatIfEffect(candidate.ws, candidateIndex, scope, rate);
+  });
+  /** A team in an area: its own load comes first, the area's can round to the same (#340). */
+  const team = $derived.by(() => {
+    const id = target.unitId;
+    if (scope === id || !('ws' in candidate) || !candidateIndex) return undefined;
+    const b = whatIfEffect($workspace, $index, id);
+    const a = whatIfEffect(candidate.ws, candidateIndex, id);
+    return b && a ? { name: unit?.name ?? '', before: b, after: a } : undefined;
   });
   /** A product's Mindestzusage before and after (#318), for the role its demands start with. */
   const minRow = $derived.by(() => {
@@ -192,6 +201,7 @@
       {after}
       {scopeName}
       extra={minRow}
+      {team}
       error={'error' in candidate ? $t(candidate.error, candidate.params) : undefined}
       note={'moved' in candidate ? candidate.moved : undefined}
     />

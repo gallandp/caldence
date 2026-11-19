@@ -614,7 +614,9 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   // Weekly Sync: 15 minutes, Product Owner and Scrum Master. Twice as long: +0.5 h.
   await form.getByLabel('Duration (minutes)').fill('30');
   await expect(effect).toContainText('+0.5 h per week');
-  await expect(effect).toContainText(/Meeting load · Team Alpha\s*\d+% → \d+%/);
+  await expect(effect).toContainText(
+    /Meeting load · Team Alpha\s*\d+\.\d\sh → \d+\.\d\sh · \d+% → \d+%/,
+  );
   // An empty duration has no effect to show.
   await form.getByLabel('Duration (minutes)').fill('');
   await expect(effect).toContainText('The effect shows once all entries are valid.');

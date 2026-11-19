@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { levels, translate as t } from '../i18n';
   import { ORG_UNIT } from '../core/model';
   import { activeTeamId, filter, workspace } from './state/workspace';
@@ -27,6 +28,12 @@
     if (personId !== '' && !$workspace.people.some((p) => p.id === personId)) personId = '';
     // Also when another team or area is picked, or the team leaves the area.
     if (teamId !== '' && !choices.some((unit) => unit.id === teamId)) teamId = '';
+  });
+
+  // A person chosen from another view, such as a week link in Meeting load (#343).
+  $effect(() => {
+    const chosen = $filter.personId ?? '';
+    if (chosen !== untrack(() => personId)) personId = chosen;
   });
 
   // The person view spans all teams; otherwise the filter follows the active team.

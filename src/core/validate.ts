@@ -616,6 +616,26 @@ function checkArea(
     claimed.add(id);
   });
 
+  // Area roles a team calls by another name (#338): one link per team and area role.
+  if (a.roleLinks !== undefined) {
+    const linked = new Set<string>();
+    c.each(
+      a.roleLinks,
+      `${p}.roleLinks`,
+      (l, lp) => {
+        c.ref(l, 'teamId', lp, own);
+        c.ref(l, 'roleId', lp, ids.roles);
+        c.ref(l, 'teamRoleId', lp, ids.roles);
+        if (!isStr(l.teamId) || !isStr(l.roleId)) return;
+        if (l.roleId === l.teamRoleId) c.err(`${lp}.teamRoleId`, 'error.id.duplicate');
+        const key = JSON.stringify([l.teamId, l.roleId]);
+        if (linked.has(key)) c.err(lp, 'error.id.duplicate');
+        linked.add(key);
+      },
+      LIMITS.teams * LIMITS.roles,
+    );
+  }
+
   const cadenceDays =
     a.cadence === undefined ? undefined : checkCadence(c, a.cadence, `${p}.cadence`);
   checkMembers(c, a, p, ids.roles, ids.people);

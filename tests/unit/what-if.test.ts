@@ -48,6 +48,20 @@ describe('what-if effect', () => {
     expect(whatIfEffect(w, noIndex(), area.id)!.cost).toBeUndefined();
   });
 
+  it("shows a team's own change that the area's load rounds away (#340)", () => {
+    const w = ws();
+    const team = w.teams.find((t) => t.id === 'team-alpha')!;
+    const refinement = { ...team.events.find((e) => e.name === 'Backlog Refinement')! };
+    const next = upsertEvent(structuredClone(w), team.id, { ...refinement, duration: 30 })[0];
+    const pct = (e: { share: number }) => Math.round(e.share * 100);
+    const at = (x: Workspace, id: string) => whatIfEffect(x, noIndex(), id)!;
+    const area = [at(w, 'area-payments'), at(next, 'area-payments')];
+    const own = [at(w, team.id), at(next, team.id)];
+    expect(area.map(pct)).toEqual([13, 13]);
+    expect(own.map(pct)).toEqual([16, 14]);
+    expect(own[0]!.hours - own[1]!.hours).toBeCloseTo(area[0]!.hours - area[1]!.hours);
+  });
+
   it('counts the teams in step with the area', () => {
     const w = ws();
     const area = w.areas[0]!;

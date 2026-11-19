@@ -1,4 +1,10 @@
-import type { CalEvent, Rule, Team, Workspace } from '../../src/core/model';
+import {
+  CURRENT_SCHEMA,
+  type CalEvent,
+  type Rule,
+  type Team,
+  type Workspace,
+} from '../../src/core/model';
 
 /**
  * A generated workspace at the target scale of the line organisation epic (#315): 11 platforms
@@ -187,7 +193,7 @@ export function perfWorkspace(): Workspace {
   }
 
   return {
-    schemaVersion: 7,
+    schemaVersion: CURRENT_SCHEMA,
     id: '0f2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d',
     settings: {
       locale: 'de',
