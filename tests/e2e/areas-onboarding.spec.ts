@@ -259,7 +259,10 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(area.getByText('Commerce has no teams yet')).toHaveCount(0);
     // The button is gone with the empty state: focus lands on the chosen team, and the comparison
     // of cadences, hidden without teams, is back.
-    await expect(area.getByRole('button', { name: /Team Gamma/ }).first()).toBeFocused();
+    // (The cost table's link, not the overlap example above it, which also names Team Gamma.)
+    await expect(
+      area.locator('[data-area-costs]').getByRole('button', { name: /Team Gamma/ }),
+    ).toBeFocused();
     await expect(area.getByRole('heading', { name: 'Cadence and meeting load' })).toBeVisible();
   });
 }
