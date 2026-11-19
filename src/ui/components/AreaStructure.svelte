@@ -155,9 +155,11 @@
 
   /** A link to this page at a person (#361): their card opens at the hours in the area. */
   $effect(() => {
-    const id = $structurePerson;
-    if (!id) return;
+    const target = $structurePerson;
+    if (!target) return;
     structurePerson.set(undefined);
+    if (target.areaId !== area.id) return;
+    const id = target.personId;
     void tick().then(() => {
       const tile = root?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`);
       if (!tile) return;

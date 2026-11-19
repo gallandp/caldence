@@ -57,7 +57,7 @@ test('I take part myself: the wizard asks for my hours too, and says when none a
   const hours = dialog.getByLabel('Sam is already in Team Alpha, Team Beta (40 h). Hours here:');
   await expect(hours).toHaveValue('0');
   await expect(hours).toHaveAccessibleDescription(
-    'No hours left – meetings here count towards their whole load and are over the limit only if that total is.',
+    "No hours left – meetings here count towards the person's whole load and are over the limit only if that total is.",
   );
   // A negative number stops the form (min 0) and the field gets the focus.
   await hours.fill('-2');

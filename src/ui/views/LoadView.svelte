@@ -775,13 +775,15 @@
           <li>
             {h.text}
             {#if onOpenStructure}
-              ·
-              <button
-                type="button"
-                class="week-link"
-                aria-label={h.label}
-                onclick={() => onOpenStructure(h.areaId, h.personId)}
-                >{$t('area.participants.setHours')}</button
+              <span data-no-print data-no-present
+                >·
+                <button
+                  type="button"
+                  class="week-link"
+                  aria-label={h.label}
+                  onclick={() => onOpenStructure(h.areaId, h.personId)}
+                  >{$t('area.participants.setHours')}</button
+                ></span
               >{/if}
           </li>
         {/each}

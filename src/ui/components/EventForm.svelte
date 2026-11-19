@@ -40,7 +40,7 @@
     /** Set for a meeting of an area: each role is then invited in the area or from every team. */
     area?: Area;
     /** Opens where a person's area hours are set. */
-    onSetHours?: () => void;
+    onSetHours?: (personId?: string) => void;
   } = $props();
 
   const uid = $props.id();
@@ -759,12 +759,12 @@
                     {$t('meet.people.alsoRole', { role: also.join(', ') })}
                   </p>
                 {/if}
-                <!-- Area time without hours there counts as over the limit, as for "from every team". -->
+                <!-- No hours in the area yet: a hint under Meeting load, as for "from every team" (#307). -->
                 {#if area && areaHours($workspace, area.id, p.personId) === 0}
                   <p class="also no-hours" role="note">
                     {$t('area.participants.noHours.one', { names: personName(p.personId) })}
                     {#if onSetHours}
-                      <button type="button" class="link" onclick={onSetHours}
+                      <button type="button" class="link" onclick={() => onSetHours(p.personId)}
                         >{$t('area.participants.setHours')}</button
                       >
                     {/if}

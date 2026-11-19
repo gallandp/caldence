@@ -245,14 +245,16 @@
     else select('calendar', true);
   }
 
-  /** An area's Structure page with the card of `personId` open at their hours there (#361). */
-  function openStructure(areaId: string, personId: string) {
+  /**
+   * An area's Structure page (#361); with `personId`, their card opens at their hours there.
+   */
+  function openStructure(areaId: string, personId?: string) {
     activeTeamId.set(areaId);
     select('team', true);
     // After the unit's own effect, which opens another area on its overview.
     void tick().then(() => {
       areaPage.set('structure');
-      structurePerson.set(personId);
+      if (personId) structurePerson.set({ areaId, personId });
     });
   }
 
@@ -822,7 +824,9 @@
                   onEditOpened={() => (editRequest = undefined)}
                   show={showRequest}
                   onShown={() => (showRequest = undefined)}
-                  onSetHours={activeArea ? () => select('team', true) : undefined}
+                  onSetHours={activeArea
+                    ? (personId) => openStructure(activeArea.id, personId)
+                    : undefined}
                   onExport={() => select('exchange', true)}
                   onOpenDay={openDay}
                 />{/if}
