@@ -63,7 +63,9 @@ test('select first and drag create the same assignment; undo removes it', async 
   await expect(board.getByRole('status').filter({ hasText: '1 fits Kim.' })).toBeVisible();
   const target = row(board, 'team-alpha/d2');
   await expect(target).toHaveClass(/match/);
-  await target.getByRole('button', { name: 'Assign Kim to Orvalis Betrieb in Team Alpha' }).click();
+  await target
+    .getByRole('button', { name: /^Assign Kim ?: Orvalis Betrieb in Team Alpha$/ })
+    .click();
   const dialog = page.locator('[data-assign-dialog]');
   await expect(dialog.getByRole('heading')).toHaveText('Kim → Team Alpha');
   await expect(dialog.locator('input[type="number"]')).toHaveValue('0.3');
@@ -103,17 +105,17 @@ test('dropping on a demand without the skill is allowed with a hint', async ({ p
 
 test('a fully staffed demand leaves the list', async ({ page }) => {
   const board = await openBoard(page);
-  await board.getByLabel('only with free time', { exact: false }).uncheck();
+  // Lou has 0.5 free, exactly Alpha's Betrieb demand: the dialog suggests all of it.
   await board.locator('button.person[data-person="person-lou"]').click();
-  await row(board, 'team-delta/d1')
-    .getByRole('button', { name: 'Assign Lou to Orvalis Handel in Team Delta' })
+  await row(board, 'team-alpha/d2')
+    .getByRole('button', { name: /^Assign Lou ?: Orvalis Betrieb in Team Alpha$/ })
     .click();
   const dialog = page.locator('[data-assign-dialog]');
-  await dialog.locator('input[type="number"]').fill('1');
-  await dialog.locator('input[type="number"]').dispatchEvent('change');
+  await expect(dialog.locator('input[type="number"]')).toHaveValue('0.5');
   await dialog.locator('[data-assign-save]').click();
   await expect(board.locator('.toast')).toContainText('The demand is fully staffed.');
-  await expect(row(board, 'team-delta/d1')).toHaveCount(0);
+  await expect(row(board, 'team-alpha/d2')).toHaveCount(0);
+  await expect(board.locator('.toast').getByRole('button', { name: 'Undo' })).toBeFocused();
 });
 
 test('presenting hides the tabs', async ({ page }) => {
@@ -123,18 +125,26 @@ test('presenting hides the tabs', async ({ page }) => {
 });
 
 test.describe('phone', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
   test('people above demands, the select-first path works', async ({ page }) => {
     const board = await openBoard(page);
+    await page.setViewportSize({ width: 390, height: 844 });
     const people = await board.locator('.people').boundingBox();
     const demands = await board.locator('.demands').boundingBox();
     expect(people!.y + people!.height).toBeLessThanOrEqual(demands!.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      390,
+    );
     await board.locator('button.person[data-person="person-kim"]').click();
     await row(board, 'team-alpha/d2')
       .getByRole('button', { name: /Assign Kim/ })
       .click();
     await expect(page.locator('[data-assign-dialog]')).toBeVisible();
-    const width = await page.evaluate(() => document.documentElement.scrollWidth);
-    expect(width).toBeLessThanOrEqual(390);
+    const wide = await page.evaluate(() =>
+      [...document.querySelectorAll('*')]
+        .filter((e) => e.getBoundingClientRect().right > 391)
+        .map((e) => `${e.tagName}.${e.className}`)
+        .slice(0, 8),
+    );
+    expect(wide).toEqual([]);
   });
 });

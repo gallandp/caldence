@@ -234,6 +234,7 @@
 
 <style>
   dialog {
+    box-sizing: border-box;
     width: min(36rem, calc(100vw - 2 * var(--space)));
     max-height: calc(100dvh - 2 * var(--space));
     padding: calc(var(--space) * 1.5);

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { minCommitment } from '../../core/demand';
-  import { assignmentOf } from '../../core/line';
   import type { LineUnit, Person, Team } from '../../core/model';
   import {
     boardPeople,
@@ -12,7 +11,7 @@
     type OpenDemand,
     type PlatformGroup,
   } from '../../core/staffing';
-  import { formatNumber, levels, locale, translate as t } from '../../i18n';
+  import { formatNumber, locale, translate as t } from '../../i18n';
   import { initials } from '../avatar';
   import { workspace } from '../state/workspace';
   import AssignDialog from './AssignDialog.svelte';
@@ -85,14 +84,12 @@
 
   const groupKey = (g: PlatformGroup) => g.area?.id ?? '';
   /** Platforms opened by hand; undefined means the default: only the first one is open. */
-  let opened = $state<Set<string> | undefined>(undefined);
+  let opened = $state<string[] | undefined>(undefined);
   const isOpen = (g: PlatformGroup, i: number) =>
-    opened === undefined ? i === 0 || productQuery.trim() !== '' : opened.has(groupKey(g));
+    opened === undefined ? i === 0 || productQuery.trim() !== '' : opened.includes(groupKey(g));
   function toggleGroup(g: PlatformGroup, i: number) {
-    const next = new Set(opened ?? groups.filter((x, j) => isOpen(x, j)).map((x) => groupKey(x)));
-    if (isOpen(g, i)) next.delete(groupKey(g));
-    else next.add(groupKey(g));
-    opened = next;
+    const now = opened ?? groups.filter((x, j) => isOpen(x, j)).map(groupKey);
+    opened = isOpen(g, i) ? now.filter((k) => k !== groupKey(g)) : [...now, groupKey(g)];
   }
 
   /** Selecting a person opens only the platforms with a matching demand. */
@@ -101,7 +98,7 @@
     const p = ws.people.find((x) => x.id === selectedId);
     if (!p) return;
     const withMatch = groups.filter((g) => matchCount(g, p) > 0).map(groupKey);
-    if (withMatch.length > 0) opened = new Set(withMatch);
+    if (withMatch.length > 0) opened = withMatch;
   }
 
   // ---------- assigning ----------
@@ -325,7 +322,7 @@
                 <span class="free" class:over={p.free < 0}>
                   {#if p.free < 0}
                     <span class="num">{$t('board.person.over')}</span>
-                    <span class="muted small">{fte(-p.free)} FTE</span>
+                    <span class="muted small">{$t('line.fte', { fte: fte(-p.free) })}</span>
                   {:else}
                     <span class="num">{fte(p.free)}</span>
                     <span class="muted small"
@@ -383,13 +380,15 @@
               <span class="group-figures"
                 >{$t('board.group.open', { n: g.rows.length, fte: fte(g.open) })}</span
               >
-              {#if n > 0}<span class="badge">{$t('board.group.fits', { n })}</span>{/if}
+              {#if n > 0}<span class="badge"
+                  >{$t(n === 1 ? 'board.group.fits.one' : 'board.group.fits', { n })}</span
+                >{/if}
             </button>
             {#if g.area}<span class="group-owners"><OwnerAvatars unit={g.area} /></span>{/if}
           </h4>
           {#if open}
             <ul class="rows">
-              {#each rowsOf(g, lens) as row (rowKey(row))}
+              {#each rowsOf(g, selected) as row (rowKey(row))}
                 {@const match = lens ? fits(lens, row.demand) : false}
                 {@const min = minCommitment(ws, row.team, row.demand.roleId)}
                 {@const member = selected ? isMember(row.team, selected.id) : false}
@@ -453,23 +452,24 @@
                       <button
                         type="button"
                         class:primary={match}
-                        aria-label={$t('board.assignPerson.label', {
-                          name: selected.name,
-                          skill: what(row),
-                          team: row.team.name,
-                        })}
                         onclick={(e) => openDialog(row, selected.id, e.currentTarget)}
-                        >{$t('board.assignPerson', { name: selected.name })}</button
+                        >{$t('board.assignPerson', { name: selected.name })}<span class="sr-only"
+                          >{$t('board.row.context', {
+                            skill: what(row),
+                            team: row.team.name,
+                          })}</span
+                        ></button
                       >
                     {:else}
                       <button
                         type="button"
-                        aria-label={$t('board.assign.label', {
-                          skill: what(row),
-                          team: row.team.name,
-                        })}
                         onclick={(e) => openDialog(row, undefined, e.currentTarget)}
-                        >{$t('assign.start')}</button
+                        >{$t('assign.start')}<span class="sr-only"
+                          >{$t('board.row.context', {
+                            skill: what(row),
+                            team: row.team.name,
+                          })}</span
+                        ></button
                       >
                     {/if}
                   </div>
@@ -838,7 +838,7 @@
   .skill {
     justify-self: start;
     padding: 0.15rem 0.6rem;
-    border-radius: 999px;
+    border-radius: 0.8rem;
     background: var(--surface);
     border: 1px solid var(--line);
     color: var(--line);
@@ -851,6 +851,7 @@
     font-weight: 550;
   }
   .amounts {
+    white-space: nowrap;
     display: flex;
     flex-direction: column;
     font-size: 0.9rem;

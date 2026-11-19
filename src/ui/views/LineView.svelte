@@ -57,7 +57,13 @@
     }),
   );
 
+  const TABS = ['staff', 'board'] as const;
   let tab = $state<'staff' | 'board'>('staff');
+  function tabKey(e: KeyboardEvent) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    tab = tab === 'staff' ? 'board' : 'staff';
+    document.getElementById(`line-tab-${tab}`)?.focus();
+  }
   const showStaff = $derived(!$presenting);
   let dialog: LineUnitDialog | undefined = $state();
   let addButton: HTMLButtonElement | undefined = $state();
@@ -163,7 +169,7 @@
 
   {#if !group && showStaff}
     <div class="tabs" role="tablist" aria-label={$t('line.tabs', { name: unit.name })}>
-      {#each ['staff', 'board'] as const as id (id)}
+      {#each TABS as id (id)}
         <button
           type="button"
           role="tab"
@@ -172,12 +178,7 @@
           aria-controls="line-panel-{id}"
           tabindex={tab === id ? 0 : -1}
           onclick={() => (tab = id)}
-          onkeydown={(e) => {
-            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-              tab = id === 'staff' ? 'board' : 'staff';
-              document.getElementById(`line-tab-${tab}`)?.focus();
-            }
-          }}>{$t(id === 'staff' ? 'line.tab.staff' : 'line.tab.board')}</button
+          onkeydown={tabKey}>{$t(id === 'staff' ? 'line.tab.staff' : 'line.tab.board')}</button
         >
       {/each}
     </div>

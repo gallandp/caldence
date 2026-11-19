@@ -158,14 +158,14 @@ test('line units and skills are managed in place', async ({ page }) => {
   await skills.getByRole('button', { name: 'Done' }).click();
 });
 
-test('presenting hides the staff tab and line staff names', async ({ page }) => {
+test('presenting hides the tabs and line staff names', async ({ page }) => {
   await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
   await pickLine(page, 'Orvalis Ware');
   await showView(page, 'Line team');
   await page.getByRole('button', { name: 'Present' }).click();
   const view = panel(page, 'Line team');
   await expect(view.getByRole('tab', { name: 'Staff', exact: true })).toHaveCount(0);
-  await expect(view.getByRole('tab', { name: 'Staffing' })).toBeVisible();
+  await expect(view.getByRole('tab', { name: 'Staffing' })).toHaveCount(0);
   await expect(view.locator('table')).toHaveCount(0);
   await expect(view).not.toContainText('Led by');
   await expect(view).not.toContainText('Alex');

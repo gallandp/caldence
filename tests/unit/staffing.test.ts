@@ -107,10 +107,12 @@ describe('boardPeople', () => {
   it('personSkills keeps the file’s skill order and drops unknown ids', () => {
     const w = board();
     w.people.find((p) => p.id === 'cem')!.skillIds = ['s3', 'gone', 's1'];
-    expect(personSkills(w, w.people.find((p) => p.id === 'cem')!).map((s) => s.id)).toEqual([
-      's1',
-      's3',
-    ]);
+    expect(
+      personSkills(
+        w,
+        w.people.find((p) => p.id === 'cem')!,
+      ).map((s) => s.id),
+    ).toEqual(['s1', 's3']);
   });
 });
 
