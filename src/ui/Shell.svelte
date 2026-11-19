@@ -104,8 +104,12 @@
   /** Views that follow the role/person filter; the others hide it. */
   const FILTERED: readonly ViewId[] = ['calendar', 'load'];
   let active = $state<ViewId>('calendar');
-  /** Without teams the Calendar shows the start screen and the team bar steps aside. */
   const noTeams = $derived($workspace.teams.length === 0);
+  /**
+   * An empty file: the Calendar shows the start screen and the team bar steps aside. A file with
+   * line teams but no products yet (#387) is not empty: its line pages work, the rest waits.
+   */
+  const blank = $derived(noTeams && !$workspace.lineUnits?.length);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   /** The area's products, for its staffing map (#322). */
@@ -134,7 +138,7 @@
   const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
   const scopeName = $derived(
-    noTeams
+    noTeams && !activeLine
       ? undefined
       : activeLine
         ? activeLine.name
@@ -430,7 +434,7 @@
    */
   async function fromEmptyState(action: Promise<void> | undefined) {
     await action;
-    if (noTeams) return;
+    if (blank) return;
     await tick();
     select(active, true);
   }
@@ -525,7 +529,7 @@
       </button>
     </header>
 
-    {#if !(active === 'calendar' && noTeams)}
+    {#if !(active === 'calendar' && blank)}
       <!-- In the rail the switcher is only its badge: a click unfolds the sidebar first, so the
            list of teams opens at full width. -->
       <div
@@ -686,11 +690,11 @@
               <span class="eyebrow-text">{scope(id)}</span>
             </p>
           {/if}
-          <h2 class:sr-only={id === 'calendar' && noTeams}>
+          <h2 class:sr-only={id === 'calendar' && blank}>
             {id === 'team' && scopeName ? scopeName : $t(viewKey(id))}
           </h2>
           <svelte:boundary>
-            {#if id === 'calendar' && noTeams}
+            {#if id === 'calendar' && blank}
               <StartView
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
@@ -699,12 +703,13 @@
                   openTopic.set('start');
                   select('help', true);
                 }}
-                onCreated={() => {
-                  setupDone = true;
-                  void tick().then(() => select('calendar', true));
+                onCreated={(mode) => {
+                  // One team: its calendar with the next steps; anything larger opens on its page.
+                  setupDone = mode === 'team';
+                  void tick().then(() => select(mode === 'team' ? 'calendar' : 'team', true));
                 }}
               />
-            {:else if (id === 'load' || id === 'meetings' || id === 'team') && noTeams}
+            {:else if noTeams && (id === 'calendar' || id === 'load' || id === 'meetings' || (id === 'team' && !activeLine))}
               <!-- The same way in as the start screen, from every view that needs a team. -->
               <section class="start">
                 <h3>{$t('calendar.empty.title')}</h3>

@@ -1,8 +1,16 @@
 import type { ISODate } from './date';
-import { addItem, addTeam, updateSettings } from './edit';
-import type { Settings, Workspace } from './model';
+import { addArea, addItem, addTeam, renameArea, renameOrganisation, updateSettings } from './edit';
+import type { LevelNames } from './levels';
+import { addLineUnit } from './lineEdit';
+import { ORG_UNIT, type Settings, type Workspace } from './model';
 import { applyTemplate, areaRoleIds, type Template } from './template';
 import { validate, type Result } from './validate';
+
+/**
+ * What the wizard sets up (#387): one team (product owner), an area with its teams (platform
+ * owner / head of department), the product organisation (agile coach) or line teams (line manager).
+ */
+export type SetupMode = 'team' | 'area' | 'org' | 'line';
 
 export interface SetupMember {
   name: string;
@@ -85,4 +93,127 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
   const checked = validate(out);
   if (!checked.ok) return checked;
   return { ok: true, value: [checked.value, teamId] };
+}
+
+/** Names typed into one field, separated by line breaks or commas; blanks and repeats dropped. */
+export function splitNames(text: string): string[] {
+  const out: string[] = [];
+  for (const raw of text.split(/[\n,]/)) {
+    const name = raw.trim();
+    if (name !== '' && !out.some((n) => norm(n) === norm(name))) out.push(name);
+  }
+  return out;
+}
+
+const fail = <T>(path: string, key: string): Result<T> => ({ ok: false, errors: [{ path, key }] });
+
+export interface StructureInput {
+  template: Template | null;
+  start: ISODate;
+  /** The organisation's name (#313); blank leaves it unnamed. */
+  organisation?: string;
+  levelNames?: LevelNames;
+  /** Areas with the names of their teams. */
+  areas: { name: string; teams: string[] }[];
+  settings?: Partial<Settings>;
+}
+
+/**
+ * Sets up a part of the product organisation in one go (#387): areas with their teams, every team
+ * from the same template (or empty), without people. A template with its own area level (SAFe)
+ * gives each area its own area cadence and meetings. Returns the unit to show: the organisation
+ * when there is more than one area or it got a name, else the area.
+ */
+export function setupStructure(ws: Workspace, input: StructureInput): Result<[Workspace, string]> {
+  if (input.areas.length === 0) return fail('areas', 'error.required');
+  let out = updateSettings(ws, {
+    ...input.settings,
+    ...(input.levelNames ? { levelNames: input.levelNames } : {}),
+  });
+  const orgName = input.organisation?.trim() ?? '';
+  if (orgName !== '') {
+    const r = renameOrganisation(out, orgName);
+    if (!r.ok) return r;
+    out = r.value;
+  }
+  if (!input.areas.some((a) => a.teams.some((t) => t.trim() !== '')))
+    return fail('teams', 'error.required');
+  let firstArea = '';
+  for (const [i, area] of input.areas.entries()) {
+    const name = area.name.trim();
+    if (name === '') return fail(`areas.${i}.name`, 'error.required');
+    let areaId: string | undefined;
+    const teamIds: string[] = [];
+    for (const teamName of area.teams.map((t) => t.trim()).filter((t) => t !== '')) {
+      let teamId: string;
+      if (input.template) {
+        const r = applyTemplate(out, input.template, {
+          name: teamName,
+          today: input.start,
+          joinArea: areaId ?? null,
+        });
+        if (!r.ok) return r;
+        [out, teamId] = r.value;
+        // A template with an area level made a new area for the first team.
+        areaId ??= out.areas.find((a) => a.teamIds.includes(teamId))?.id;
+      } else {
+        [out, teamId] = addTeam(out, teamName, input.start);
+      }
+      teamIds.push(teamId);
+    }
+    if (areaId !== undefined) {
+      const r = renameArea(out, areaId, name);
+      if (!r.ok) return r;
+      out = r.value;
+    } else {
+      const r = addArea(out, name, teamIds);
+      if (!r.ok) return r;
+      [out, areaId] = r.value;
+    }
+    if (i === 0) firstArea = areaId;
+  }
+  const checked = validate(out);
+  if (!checked.ok) return checked;
+  const show = input.areas.length > 1 || orgName !== '' ? ORG_UNIT : firstArea;
+  return { ok: true, value: [checked.value, show] };
+}
+
+export interface LineSetupInput {
+  /** The organisation's name, the root of the line tree too; blank keeps the current one. */
+  organisation?: string;
+  /** A group above the line teams (a specialist group); blank puts them at the top. */
+  group?: string;
+  teams: string[];
+  settings?: Partial<Settings>;
+}
+
+/**
+ * Sets up line teams (#387), optionally under one group. Returns the id of the line unit to show:
+ * the group, or the first line team.
+ */
+export function setupLine(ws: Workspace, input: LineSetupInput): Result<[Workspace, string]> {
+  const teams = input.teams.map((t) => t.trim()).filter((t) => t !== '');
+  if (teams.length === 0) return fail('lineUnits', 'error.required');
+  let out = input.settings ? updateSettings(ws, input.settings) : ws;
+  const orgName = input.organisation?.trim() ?? '';
+  if (orgName !== '') {
+    const r = renameOrganisation(out, orgName);
+    if (!r.ok) return r;
+    out = r.value;
+  }
+  let groupId: string | undefined;
+  if (input.group?.trim()) {
+    const r = addLineUnit(out, input.group);
+    if (!r.ok) return r;
+    [out, groupId] = r.value;
+  }
+  let first = '';
+  for (const name of teams) {
+    const r = addLineUnit(out, name, groupId);
+    if (!r.ok) return r;
+    let id: string;
+    [out, id] = r.value;
+    first ||= id;
+  }
+  return { ok: true, value: [out, groupId ?? first] };
 }

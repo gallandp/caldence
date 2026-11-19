@@ -78,7 +78,7 @@ const START: ManualStep[] = [
     control: { role: 'tab', name: 'view.calendar' },
     labels: { title: 'start.title' },
   },
-  { text: 'help.first.step.open', control: { role: 'button', name: 'setup.open' } },
+  { text: 'help.first.step.open', control: { role: 'button', name: 'start.role.po' } },
   {
     text: 'help.first.step.template',
     control: { role: 'radio', name: 'template:scrum' },
