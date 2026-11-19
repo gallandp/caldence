@@ -6,3 +6,6 @@ import type { ISODate } from '../../core/date';
  * Load clears it when it closes, so it never shows up later for another team.
  */
 export const loadWeek = writable<{ teamId: string; monday: ISODate } | null>(null);
+
+/** A day to open in the Calendar with its details, set from a link in another view (#341). */
+export const calendarDay = writable<ISODate | null>(null);

@@ -181,6 +181,13 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     toCalendar: 'meet.toCalendar',
     meetings: 'view.meetings',
   },
+  'help.ics.holidays': {
+    skip: 'settings.skipHolidays',
+    region: 'settings.region',
+    export: 'exchange.export',
+    meetings: 'view.meetings',
+    settings: 'view.settings',
+  },
   'help.ics.note': {},
   'help.files.present': {
     present: 'file.present',
