@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { lineWorkspace } from './line-fixture';
-import { openExample, openWorkspaceFile, showView, useFileFallback } from './helpers';
+import {
+  autosaved,
+  openExample,
+  openWorkspaceFile,
+  showView,
+  teamAction,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -99,6 +106,34 @@ test('the two worlds each keep their own units, pages and selection (#393, #394,
   await expect(worlds.getByRole('radio', { name: 'Products' })).toBeFocused();
   await expect(worlds.getByRole('radio', { name: 'Products' })).toHaveAttribute(
     'aria-checked',
+    'true',
+  );
+});
+
+test('deleting a top unit stays in the line; a reload comes back to the line root', async ({
+  page,
+}) => {
+  const ws = lineWorkspace();
+  ws.organisation = { name: 'Velmora Holding' };
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
+  await pickLine(page, 'Orvalis');
+  await teamAction(page, 'Delete from the line');
+  await page
+    .getByRole('dialog', { name: /^Delete / })
+    .getByRole('button', { name: 'Delete from the line' })
+    .click();
+  // Its units move up; the line world stays, on the line's root.
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Velmora Holding');
+  await expect(
+    page.getByRole('radiogroup', { name: 'World' }).getByRole('radio', { name: 'Line' }),
+  ).toHaveAttribute('aria-checked', 'true');
+
+  await showView(page, 'Staff');
+  await autosaved(page, '@line:@organisation');
+  await page.reload();
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Velmora Holding');
+  await expect(page.getByRole('tab', { name: 'Staff', exact: true })).toHaveAttribute(
+    'aria-selected',
     'true',
   );
 });
