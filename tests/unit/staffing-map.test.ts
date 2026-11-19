@@ -124,6 +124,9 @@ describe('staffing map (#322)', () => {
     w.teams[1]!.demands = [{ id: 'd1', fte: 0.2, roleId: 'r1' }];
     const p = staffingMap(staff(w, 'p3', 't2', 0.5)).platforms[0]!.products[1]!;
     expect(p).toMatchObject({ demand: 0.2, committed: 0.2, open: 0, coverage: 1 });
+    // 20 h committed against 8 h asked for: the time counts only up to the demand.
+    const { totals } = staffingMap(staff(w, 'p3', 't2', 0.5));
+    expect(totals.afterMeetings + totals.inMeetings).toBeCloseTo(0.2, 2);
   });
 
   it('counts missing wanted owners of the platform and its products', () => {

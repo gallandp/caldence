@@ -85,7 +85,17 @@ test('the organisation overview shows the staffing map with counts, never people
     .click();
   await expect(map.locator('[data-platform]')).toHaveCount(1);
 
+  // Collapse all closes the rows again; a filter opens the rows with matches.
+  await map
+    .getByRole('group', { name: 'Skill family' })
+    .getByRole('button', { name: 'All' })
+    .click();
+  await map.getByRole('button', { name: 'Collapse all' }).click();
+  await expect(commerce.getByRole('button', { expanded: false })).toBeVisible();
+  await expect(map.locator('button.product')).toHaveCount(0);
+
   // A tile opens the product's page.
+  await map.getByRole('button', { name: 'Expand all' }).click();
   await delta.click();
   await expect(currentUnit(page)).toHaveText('Team Delta');
 });

@@ -11,7 +11,8 @@ import { ownerGaps, ownerNames } from './owners';
  * and the assign dialog never disagree. It shows counts, never the people behind them.
  */
 
-const EPS = 1e-9;
+/** Open demand below this shows as "besetzt": the map shows FTE to one decimal. */
+export const OPEN_EPS = 0.05;
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 export interface ProductStaffing {
@@ -79,13 +80,16 @@ export function productStaffing(ws: Workspace, team: Team): ProductStaffing {
   for (const row of demandRows(ws, team)) {
     demand += row.demand.fte;
     committed += Math.min(row.committed, row.demand.fte);
+    // An over-committed demand counts its people's hours only up to what it asks for, so the
+    // time after and in meetings adds up to the committed FTE.
+    const scale = row.committed > row.demand.fte ? row.demand.fte / row.committed : 1;
     for (const { personId } of row.who) {
       const impact = commitmentImpact(ws, team.id, personId, row.demand.roleId);
       if (!impact) continue;
       people.push(personId);
       if (impact.state !== 'enough') under++;
-      hours += impact.hours;
-      meetingHours += Math.min(impact.meetingHours, impact.hours);
+      hours += impact.hours * scale;
+      meetingHours += Math.min(impact.meetingHours, impact.hours) * scale;
     }
   }
   demand = round2(demand);
@@ -137,7 +141,7 @@ export function staffingMap(ws: Workspace, teams: Team[] = ws.teams): StaffingMa
     for (const p of products) {
       if (p.demand <= 0) continue;
       totals.products++;
-      if (p.open <= EPS) totals.full++;
+      if (p.open < OPEN_EPS) totals.full++;
     }
     totals.demand += sum((p) => p.demand);
     totals.committed += sum((p) => p.committed);
@@ -150,7 +154,7 @@ export function staffingMap(ws: Workspace, teams: Team[] = ws.teams): StaffingMa
       products,
       demand: round2(sum((p) => p.demand)),
       committed: round2(sum((p) => p.committed)),
-      open: products.filter((p) => p.open > EPS).length,
+      open: products.filter((p) => p.open >= OPEN_EPS).length,
       under: sum((p) => p.under),
       ownerGaps: (area ? ownerGaps(ws, area) : 0) + sum((p) => p.ownerGaps),
     };
@@ -183,7 +187,7 @@ export interface MapFilter {
   status: StatusFilter;
 }
 
-/** A product with something to look at: open demand, a weak commitment or a missing owner. */
+/** A product with something to look at: a weak commitment or a missing owner. */
 export const hasHint = (p: ProductStaffing): boolean => p.under > 0 || p.ownerGaps > 0;
 
 /**
@@ -198,7 +202,7 @@ export function productMatches(
 ): boolean {
   if (filter.familyId !== undefined && platform.area?.skillFamilyId !== filter.familyId)
     return false;
-  if (filter.status === 'open' && p.open <= EPS) return false;
+  if (filter.status === 'open' && p.open < OPEN_EPS) return false;
   if (filter.status === 'hint' && !hasHint(p)) return false;
   const q = filter.query.trim().toLocaleLowerCase();
   if (!q) return true;

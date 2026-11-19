@@ -9,6 +9,7 @@
   import { loadPerWeek } from '../../core/load';
   import type { Cadence, Team } from '../../core/model';
   import {
+    OPEN_EPS,
     overLimitCount,
     productMatches,
     staffingMap,
@@ -37,6 +38,8 @@
   let { teams, single = false, onOpen }: Props = $props();
 
   const uid = $props.id();
+  /** Row key of the products in no platform. */
+  const LOOSE = '@loose';
   const ws = $derived($workspace);
   const map = $derived(staffingMap(ws, teams));
   const over = $derived(overLimitCount(ws, map, loadPerWeek(ws, $index)));
@@ -45,26 +48,35 @@
   let query = $state('');
   let familyId = $state<string | undefined>(undefined);
   let status = $state<StatusFilter>('all');
-  const filter: MapFilter = $derived({ query, familyId, status });
   const families = $derived(
     (ws.skillFamilies ?? []).filter((f) =>
       map.platforms.some((p) => p.area?.skillFamilyId === f.id),
     ),
   );
+  /** A family that left the map (another file, a change) no longer filters. */
+  const family = $derived(families.some((f) => f.id === familyId) ? familyId : undefined);
+  const filter: MapFilter = $derived({ query, familyId: family, status });
+  const filtering = $derived(query.trim() !== '' || family !== undefined || status !== 'all');
 
   const rows = $derived(
     map.platforms.map((pl) => {
       const match = new Set(
         pl.products.filter((p) => productMatches(ws, pl, p, filter)).map((p) => p.team.id),
       );
-      return { pl, match, key: pl.area?.id ?? '' };
+      // A platform missing its own owner has a hint even when none of its products has one.
+      const own =
+        status === 'hint' &&
+        pl.ownerGaps > pl.products.reduce((n, p) => n + p.ownerGaps, 0) &&
+        pl.products.some((p) => productMatches(ws, pl, p, { ...filter, status: 'all' }));
+      return { pl, match, key: pl.area?.id ?? LOOSE, shown: match.size > 0 || own };
     }),
   );
-  const visible = $derived(rows.filter((r) => r.match.size > 0));
+  const visible = $derived(rows.filter((r) => r.shown));
   const hidden = $derived(rows.length - visible.length);
 
   /** Platforms start closed on the organisation's map, open on one platform's. */
-  const isOpen = (key: string): boolean => single || (toggled.get(key) ?? false);
+  /** Closed by default, open while a filter is on, so its matches show; a click decides. */
+  const isOpen = (key: string): boolean => single || (toggled.get(key) ?? filtering);
   const toggle = (key: string) => toggled.set(key, !isOpen(key));
   const allOpen = $derived(visible.length > 0 && visible.every((r) => isOpen(r.key)));
   function toggleAll() {
@@ -131,17 +143,16 @@
       </span>
       {#if p.demand <= 0}
         <span class="p-state muted">{$t('map.product.none')}</span>
-      {:else if p.open > 0}
+      {:else if p.open >= OPEN_EPS}
         <span class="p-state open">{$t('map.product.open', { fte: fte(p.open) })}</span>
       {:else}
         <span class="p-state full">{$t('map.product.full')}</span>
       {/if}
       <span class="p-foot">
         {#if !$presenting}<OwnerAvatars unit={p.team} />{/if}
+        <span class="p-cadence">{cadenceText(p.team.cadence)}</span>
         {#if p.under > 0}
           <span class="p-under">{countText('map.pill.under', p.under)}</span>
-        {:else}
-          <span class="p-cadence">{cadenceText(p.team.cadence)}</span>
         {/if}
       </span>
     </button>
@@ -203,11 +214,11 @@
       <div class="seg" role="group" aria-label={$t('map.family.label')}>
         <button
           type="button"
-          aria-pressed={familyId === undefined}
+          aria-pressed={family === undefined}
           onclick={() => (familyId = undefined)}>{$t('map.all')}</button
         >
         {#each families as f (f.id)}
-          <button type="button" aria-pressed={familyId === f.id} onclick={() => (familyId = f.id)}
+          <button type="button" aria-pressed={family === f.id} onclick={() => (familyId = f.id)}
             >{f.name}</button
           >
         {/each}
@@ -279,15 +290,15 @@
               >{/if}
           </div>
         </div>
-        {#if open}
-          <ul class="products" id="{uid}-{key}">
+        <ul class="products" id="{uid}-{key}" hidden={!open}>
+          {#if open}
             {#each pl.products as p (p.team.id)}{@render tile(p, match.has(p.team.id))}{/each}
-          </ul>
-        {/if}
+          {/if}
+        </ul>
       </li>
     {/each}
   </ul>
-  {#if hidden > 0}
+  {#if hidden > 0 && !single}
     <p class="hidden-note">{countText('map.hidden', hidden)}</p>
   {/if}
 </section>
@@ -517,6 +528,9 @@
   .pill.bad {
     background: var(--danger-soft);
     color: var(--danger);
+  }
+  .products[hidden] {
+    display: none;
   }
   .products {
     display: grid;
