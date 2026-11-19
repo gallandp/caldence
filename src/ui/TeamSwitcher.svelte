@@ -550,6 +550,10 @@
         <button type="button" onclick={() => run(() => openDialog('renameLine'))}
           >{$t('line.rename')}</button
         >
+        <!-- The organisation may not be listed in the product world (one team): reachable here. -->
+        <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
+          >{$t('org.rename')}</button
+        >
       {:else if activeOrg}
         <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
           >{$t('org.rename')}</button

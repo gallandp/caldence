@@ -20,7 +20,8 @@ describe('line root name', () => {
     expect(r.value.organisation).toEqual({ name: 'Lumora Platforms' });
     expect(lineRootName(r.value, 'Organisation')).toBe('Lumora Group');
     const cleared = renameLine(r.value, ' ');
-    expect(cleared.ok && 'lineName' in cleared.value).toBe(false);
+    expect(cleared.ok).toBe(true);
+    if (cleared.ok) expect('lineName' in cleared.value).toBe(false);
   });
 
   it('survives renaming the organisation', () => {
