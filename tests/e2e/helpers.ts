@@ -196,3 +196,25 @@ export async function showAreaPage(page: Page, name: 'Structure' | 'Overview') {
   await button.click();
   await expect(button).toHaveAttribute('aria-pressed', 'true');
 }
+
+/** Waits until the autosave holds `text`, so a reload brings it back. */
+export async function autosaved(page: Page, text: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const all = await new Promise((resolve) => {
+          const req = indexedDB.open('caldence');
+          req.onsuccess = () => {
+            const db = req.result;
+            const names = [...db.objectStoreNames];
+            const tx = db.transaction(names, 'readonly');
+            const rows = tx.objectStore(names[0]!).getAll();
+            rows.onsuccess = () => resolve(rows.result);
+          };
+          req.onerror = () => resolve(null);
+        });
+        return JSON.stringify(all);
+      }),
+    )
+    .toContain(text);
+}

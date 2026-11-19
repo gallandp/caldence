@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { AREA_CONTROLS, AREA_LABELS } from '../../src/ui/help/areas';
 import {
+  autosaved,
   currentUnit,
   openExample,
   openWorkspaceFile,
@@ -83,6 +84,7 @@ test('two teams without an area get a hint that groups them; dismissed it stays 
   await expect(hint(page)).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Team', exact: true })).toBeFocused();
   // The same workspace after a reload (back on the Team page, where it was): still dismissed.
+  await autosaved(page, '"page":"team"');
   await page.reload();
   await expect(page.getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await expect(hint(page)).toHaveCount(0);

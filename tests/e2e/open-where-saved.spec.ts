@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { areaWorkspace } from './area-fixture';
 import {
+  autosaved,
   currentUnit,
   openWorkspaceFile,
   pickUnit,
@@ -33,28 +34,6 @@ const selectedTab = (page: import('@playwright/test').Page) =>
   page.getByRole('tablist', { name: 'Views' }).getByRole('tab', { selected: true });
 const pageSwitch = (page: import('@playwright/test').Page) =>
   page.getByRole('group', { name: 'Page' });
-
-/** Waits until the autosave holds `text`, so a reload brings it back. */
-async function autosaved(page: import('@playwright/test').Page, text: string) {
-  await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        const all = await new Promise((resolve) => {
-          const req = indexedDB.open('caldence');
-          req.onsuccess = () => {
-            const db = req.result;
-            const names = [...db.objectStoreNames];
-            const tx = db.transaction(names, 'readonly');
-            const rows = tx.objectStore(names[0]!).getAll();
-            rows.onsuccess = () => resolve(rows.result);
-          };
-          req.onerror = () => resolve(null);
-        });
-        return JSON.stringify(all);
-      }),
-    )
-    .toContain(text);
-}
 
 test('a file saved on Settings opens on the first area overview', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
