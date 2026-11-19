@@ -61,7 +61,8 @@
 
   /** '' is "without a skill, only a role". */
   let addSkill = $state<string | null>(null);
-  let addFte = $state<number | null>(null);
+  /** A new demand starts at 1 FTE, a real value (a placeholder "1" read as one but left the field empty). */
+  let addFte = $state<number | null>(1);
   let addRole = $state('');
   // A skill removed meanwhile (undo, another view) falls back to the first one.
   const skillChoice = $derived(
@@ -84,7 +85,7 @@
       const r = addDemand(w, team.id, data);
       return r.ok ? { ok: true, value: r.value[0] } : r;
     });
-    if (done) addFte = null;
+    if (done) addFte = 1;
   }
 
   // ---------- editing a row ----------
@@ -144,7 +145,7 @@
       deleting = null;
       addSkill = null;
       addRole = '';
-      addFte = null;
+      addFte = 1;
     });
   });
 
@@ -381,7 +382,6 @@
             type="number"
             min="0.1"
             step="0.1"
-            placeholder="1"
             value={addFte ?? ''}
             aria-invalid={invalid('add')}
             aria-describedby={describe('add')}

@@ -41,9 +41,12 @@ test('product demand: request skills and roles, see the Mindestzusage (#318)', a
   const skill = card.getByLabel('Skill', { exact: true });
   await expect(skill.locator('optgroup').first()).toHaveAttribute('label', 'Skills of Ledgerline');
   await skill.selectOption('Ledgerline Ops');
+  // A new demand starts at a real 1 FTE, not a placeholder that only looks like one.
+  await expect(card.getByLabel('FTE', { exact: true })).toHaveValue('1');
   await card.getByLabel('FTE', { exact: true }).fill('0.4');
   await card.getByRole('button', { name: 'Add demand' }).click();
   await expect(card.locator('[data-demand-sum]')).toHaveText('0.7 of 2.4 FTE committed');
+  await expect(card.getByLabel('FTE', { exact: true })).toHaveValue('1');
 
   // A role-only demand asks for the role; its Mindestzusage follows that role.
   await skill.selectOption({ label: 'No skill, role only' });
