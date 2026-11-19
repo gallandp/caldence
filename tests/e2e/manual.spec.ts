@@ -237,13 +237,17 @@ test.describe('staffing help (#324)', () => {
       help.locator('[data-manual-steps] > li').nth(i).locator('.ui').allTextContents();
 
     // Read now: the guide is gone once another view opens.
-    const [org, , map] = await named(5);
+    const [, , org, map] = await named(5);
+    const world = (name: string) =>
+      page.getByRole('group', { name: c['world.label'] }).getByRole('button', { name });
 
-    // 1: the sidebar's actions offer adding a line unit; the import sits in Import / Export.
-    const [actions, ...rest] = await named(0);
+    // 1: in the line world, the sidebar's actions offer adding a line unit; the import sits in
+    // Import / Export.
+    const [line, actions, ...rest] = await named(0);
     expect(rest).toEqual(
-      expect.arrayContaining([c['line.tab.staff'], c['view.exchange'], c['staff.open']]),
+      expect.arrayContaining([c['view.people'], c['view.exchange'], c['staff.open']]),
     );
+    await world(line!).click();
     await page.locator('.switcher').getByRole('button', { name: actions, exact: true }).click();
     await expect(
       page.locator('.switcher').getByRole('button', { name: steps[0]!.name!, exact: true }),
@@ -251,14 +255,16 @@ test.describe('staffing help (#324)', () => {
     await page.keyboard.press('Escape');
 
     // 2: a team's own page lists its demands with "Add demand".
+    const [products, view] = await named(1);
+    await world(products!).click();
     await pickUnit(page, 'Team Delta');
-    const [view] = await named(1);
     await showView(page, view!);
     await expect(
       page.getByRole('button', { name: steps[1]!.name!, exact: true }).first(),
     ).toBeVisible();
 
-    // 3 to 5: a line team's staffing tab, a demand's "Staff …" and the dialog's button.
+    // 3 to 5: a line team's staffing page, a demand's "Staff …" and the dialog's button.
+    await world(line!).click();
     await page.locator('.switcher .pick').click();
     await page
       .locator('.switcher .list button.line')
@@ -277,6 +283,7 @@ test.describe('staffing help (#324)', () => {
     await page.keyboard.press('Escape');
 
     // 6: the organisation's Overview holds the staffing map (#322).
+    await world(products!).click();
     await page.locator('.switcher .pick').click();
     await page.locator('.switcher .list button.org').click();
     await showView(page, org!);
