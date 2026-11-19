@@ -38,6 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
+  import { calendarDay } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -353,6 +354,16 @@
       ?.focus({ preventScroll: next === 'range' });
   }
 
+  // A day another view links to (#341): opened with its details, as if chosen in the grid.
+  $effect(() => {
+    const date = $calendarDay;
+    if (date === null || !shown) return;
+    calendarDay.set(null);
+    if (!inHorizon(date)) return;
+    if (mode === 'range') mode = lastMode = 'month';
+    void tick().then(() => selectByKey(date));
+  });
+
   function edit(item: DayItem) {
     onEditMeeting?.(item.teamId, item.eventId);
   }
@@ -488,6 +499,8 @@
     if (selected === null || !board || !(event.target instanceof Node)) return;
     // Hidden behind another view, or the click was on the calendar itself.
     if (board.offsetParent === null || board.contains(event.target)) return;
+    // A link in another view that opened this day (#341) is gone by now: not a click outside.
+    if (!event.target.isConnected) return;
     selected = null;
   }
 

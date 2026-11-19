@@ -224,6 +224,63 @@ function exportUnits(ws: Workspace, scope: Filter): Team[] {
   return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
 }
 
+/**
+ * Every meeting a scope exports with its occurrences in from..to, holiday-skipped ones included
+ * (`skippedHoliday`): the file leaves those out (EXDATE), `holidayDrops` names them.
+ */
+function* scopedMeetings(
+  ws: Workspace,
+  index: HolidayIndex,
+  scope: Filter,
+  from: ISODate,
+  to: ISODate,
+): Generator<{ team: Team; event: CalEvent; occs: Occurrence[] }> {
+  const settings = { ...ws.settings, horizon: { from, to } };
+  for (const team of exportUnits(ws, scope)) {
+    const byEvent = new Map<string, Occurrence[]>();
+    for (const occ of occurrences(team, settings, index)) {
+      const list = byEvent.get(occ.eventId);
+      if (list) list.push(occ);
+      else byEvent.set(occ.eventId, [occ]);
+    }
+    for (const event of eventsInScope(ws, team, scope)) {
+      yield { team, event, occs: byEvent.get(event.id) ?? [] };
+    }
+  }
+}
+
+/** A meeting holidays leave out of an export, with the dates it drops on (#341). */
+export interface HolidayDrop {
+  name: string;
+  dates: ISODate[];
+}
+
+/**
+ * The meetings of a scope that fall on a public holiday in from..to and so are missing from its
+ * .ics file, one entry per meeting name, ordered by their first such date. `index` must cover
+ * from..to. Empty when the file skips no holidays.
+ */
+export function holidayDrops(
+  ws: Workspace,
+  index: HolidayIndex,
+  scope: Filter,
+  from: ISODate,
+  to: ISODate,
+): HolidayDrop[] {
+  const byName = new Map<string, Set<ISODate>>();
+  for (const { event, occs } of scopedMeetings(ws, index, scope, from, to)) {
+    for (const occ of occs) {
+      if (!occ.skippedHoliday) continue;
+      const dates = byName.get(event.name) ?? new Set<ISODate>();
+      dates.add(occ.date);
+      byName.set(event.name, dates);
+    }
+  }
+  return [...byName]
+    .map(([name, dates]) => ({ name, dates: [...dates].sort() }))
+    .sort((a, b) => (a.dates[0]! < b.dates[0]! ? -1 : a.dates[0]! > b.dates[0]! ? 1 : 0));
+}
+
 /** True when the person attends at least one of the meetings a team's or area's export holds. */
 export function attendsUnitMeetings(ws: Workspace, unitId: string, personId: string): boolean {
   return exportUnits(ws, { teamId: unitId }).some(
@@ -282,7 +339,6 @@ export function exportIcsWithCounts(
   const dtstamp = `DTSTAMP:${utcStamp(opts.now)}`;
   // Every VEVENT of this export carries the same version, so a re-export updates all of them.
   const version = [`SEQUENCE:${sequenceOf(opts.now)}`, `LAST-MODIFIED:${utcStamp(opts.now)}`];
-  const settings = { ...ws.settings, horizon: { from: opts.from, to: opts.to } };
   const personNames = new Map(ws.people.map((p) => [p.id, p.name]));
   const roleNames = new Map(ws.roles.map((r) => [r.id, r.name]));
   const categoryNames = new Map(ws.categories.map((c) => [c.id, c.name]));
@@ -310,93 +366,84 @@ export function exportIcsWithCounts(
           'END:VALARM',
         ];
 
-  for (const team of exportUnits(ws, opts.scope)) {
-    const byEvent = new Map<string, Occurrence[]>();
-    for (const occ of occurrences(team, settings, index)) {
-      const list = byEvent.get(occ.eventId);
-      if (list) list.push(occ);
-      else byEvent.set(occ.eventId, [occ]);
-    }
-    for (const event of eventsInScope(ws, team, opts.scope)) {
-      scopeKeys.add(`${event.id}.${team.id}`);
-      const occs = byEvent.get(event.id);
-      const first = occs?.[0];
-      if (!occs || !first) continue;
-      const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
-      const key = `${event.id}.${team.id}`;
-      // Roles, then the people invited by name (#285).
-      const roles = event.participants
-        .map((p) =>
-          p.personId !== undefined ? personNames.get(p.personId) : roleNames.get(p.roleId),
-        )
-        .filter((n): n is string => n !== undefined);
-      const category = categoryNames.get(event.categoryId);
-      // Remote meetings are written as before, so existing subscriptions do not change (#309).
-      const words = ON_SITE[opts.locale];
-      const travel = event.onSite?.travel ? `\n${words.travel(event.onSite.travel)}` : '';
-      const common = [
-        `SUMMARY:${escapeText(event.name)}`,
-        ...(category !== undefined ? [`CATEGORIES:${escapeText(category)}`] : []),
-        ...(event.onSite ? [`LOCATION:${escapeText(words.place)}`] : []),
-        `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${travel}`)}`,
-        'TRANSP:OPAQUE',
-      ];
-      // A series whose every occurrence in range is skipped is not written.
-      if (occs.every((o) => o.skippedHoliday)) continue;
-      const rule = rrule(event.rule, team, first.date, occs.length);
-      if (rule === null) {
-        // Single entries: a skipped one is simply not written.
-        for (const occ of occs) {
-          if (occ.skippedHoliday) continue;
-          single++;
-          const start = `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`;
-          const end = `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`;
-          const id = `${uid}-${occ.date}@caldence`;
-          events.push({ uid: id, key, date: occ.date, start, end, summary: event.name });
-          writtenKeys.add(key);
-          lines.push(
-            'BEGIN:VEVENT',
-            `UID:${id}`,
-            dtstamp,
-            ...version,
-            start,
-            end,
-            ...common,
-            ...alarm(event.name),
-            'END:VEVENT',
-          );
-        }
-        continue;
+  for (const { team, event, occs } of scopedMeetings(ws, index, opts.scope, opts.from, opts.to)) {
+    scopeKeys.add(`${event.id}.${team.id}`);
+    const first = occs[0];
+    if (!first) continue;
+    const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
+    const key = `${event.id}.${team.id}`;
+    // Roles, then the people invited by name (#285).
+    const roles = event.participants
+      .map((p) =>
+        p.personId !== undefined ? personNames.get(p.personId) : roleNames.get(p.roleId),
+      )
+      .filter((n): n is string => n !== undefined);
+    const category = categoryNames.get(event.categoryId);
+    // Remote meetings are written as before, so existing subscriptions do not change (#309).
+    const words = ON_SITE[opts.locale];
+    const travel = event.onSite?.travel ? `\n${words.travel(event.onSite.travel)}` : '';
+    const common = [
+      `SUMMARY:${escapeText(event.name)}`,
+      ...(category !== undefined ? [`CATEGORIES:${escapeText(category)}`] : []),
+      ...(event.onSite ? [`LOCATION:${escapeText(words.place)}`] : []),
+      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${travel}`)}`,
+      'TRANSP:OPAQUE',
+    ];
+    // A series whose every occurrence in range is skipped is not written.
+    if (occs.every((o) => o.skippedHoliday)) continue;
+    const rule = rrule(event.rule, team, first.date, occs.length);
+    if (rule === null) {
+      // Single entries: a skipped one is simply not written.
+      for (const occ of occs) {
+        if (occ.skippedHoliday) continue;
+        single++;
+        const start = `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`;
+        const end = `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`;
+        const id = `${uid}-${occ.date}@caldence`;
+        events.push({ uid: id, key, date: occ.date, start, end, summary: event.name });
+        writtenKeys.add(key);
+        lines.push(
+          'BEGIN:VEVENT',
+          `UID:${id}`,
+          dtstamp,
+          ...version,
+          start,
+          end,
+          ...common,
+          ...alarm(event.name),
+          'END:VEVENT',
+        );
       }
-      series++;
-      const start = `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`;
-      const end = `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`;
-      events.push({
-        uid: `${uid}@caldence`,
-        key,
-        series: true,
-        date: first.date,
-        start,
-        end,
-        summary: event.name,
-      });
-      writtenKeys.add(key);
-      lines.push(
-        'BEGIN:VEVENT',
-        `UID:${uid}@caldence`,
-        dtstamp,
-        ...version,
-        start,
-        end,
-        rule,
-        ...occs
-          .filter((o) => o.skippedHoliday)
-          .map((o) => `EXDATE;TZID=${tzid}:${localStamp(o.date, o.start)}`),
-        ...common,
-        ...alarm(event.name),
-        'END:VEVENT',
-      );
+      continue;
     }
+    series++;
+    const start = `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`;
+    const end = `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`;
+    events.push({
+      uid: `${uid}@caldence`,
+      key,
+      series: true,
+      date: first.date,
+      start,
+      end,
+      summary: event.name,
+    });
+    writtenKeys.add(key);
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${uid}@caldence`,
+      dtstamp,
+      ...version,
+      start,
+      end,
+      rule,
+      ...occs
+        .filter((o) => o.skippedHoliday)
+        .map((o) => `EXDATE;TZID=${tzid}:${localStamp(o.date, o.start)}`),
+      ...common,
+      ...alarm(event.name),
+      'END:VEVENT',
+    );
   }
 
   const allDay = (

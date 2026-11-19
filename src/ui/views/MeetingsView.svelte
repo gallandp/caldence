@@ -23,6 +23,9 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import { exportRequest } from '../state/exportScope';
+  import HolidayDrops from '../components/HolidayDrops.svelte';
+  import { holidayDrops } from '../../core/ics';
+  import { resolveRegion } from '../../core/regions';
   import CyclesCard from '../components/CyclesCard.svelte';
   import Rich from '../help/Rich.svelte';
   import EventForm from '../components/EventForm.svelte';
@@ -55,8 +58,10 @@
     onSetHours?: () => void;
     /** Opens Import / Export with this team (or the person exported last) preselected. */
     onExport?: () => void;
+    /** Opens a day in the Calendar (a date a holiday leaves out, #341). */
+    onOpenDay?: (date: string) => void;
   }
-  let { edit, onEditOpened, show, onShown, onSetHours, onExport }: Props = $props();
+  let { edit, onEditOpened, show, onShown, onSetHours, onExport, onOpenDay }: Props = $props();
   /** The meeting a drill-in pointed at; highlighted until the unit changes. */
   let pointed = $state<string | undefined>();
 
@@ -66,6 +71,15 @@
   const area = $derived($workspace.areas.find((x) => x.id === $activeTeamId));
   const team = $derived(
     $workspace.teams.find((x) => x.id === $activeTeamId) ?? (area ? areaAsTeam(area) : undefined),
+  );
+  const horizon = $derived($workspace.settings.horizon);
+  /** Meetings holidays leave out in the planning horizon, the export's default period (#341). */
+  const drops = $derived(
+    team ? holidayDrops($workspace, $index, { teamId: team.id }, horizon.from, horizon.to) : [],
+  );
+  const regionName = $derived(
+    resolveRegion($workspace, $workspace.settings.region)?.name[$locale] ??
+      $workspace.settings.region,
   );
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
@@ -468,6 +482,12 @@
           {$t('meet.print.filter', { query: query.trim() })}
         </p>
       {/if}
+      <HolidayDrops
+        {drops}
+        lead={$t('holidayDrops.meetings', { region: regionName })}
+        {horizon}
+        {onOpenDay}
+      />
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
       {/if}

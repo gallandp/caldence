@@ -7,6 +7,7 @@ import {
   exportIcs,
   exportIcsWithCounts,
   foldLine,
+  holidayDrops,
   paramValue,
   scopeHasEvents,
   uidPart,
@@ -306,6 +307,42 @@ describe('exportIcs holidays (Review Focus 3)', () => {
     const series = [...expand(friday(true)).values()][0]!;
     expect(series.local).not.toContain('2027-03-26 10:00');
     expect(series.local).toContain('2027-04-02 10:00');
+  });
+
+  it('lists the meetings holidays leave out, by name with their dates (#341)', () => {
+    const w = example();
+    w.teams[0]!.events = [
+      ev('Review', { type: 'weekly', weekday: 5 }, '10:00'),
+      ev('Planning', { type: 'weekly', weekday: 1 }, '09:00'),
+      ev('Kick-off', { type: 'once', date: '2027-03-29' }, '13:00'),
+      ev('Daily', { type: 'weekly', weekday: 3 }, '09:00'),
+    ];
+    const range = { from: '2027-03-01', to: '2027-04-30' };
+    const index = workspaceIndex({ ...w, settings: { ...w.settings, horizon: range } });
+    const drops = holidayDrops(w, index, { teamId: 'team-alpha' }, range.from, range.to);
+    // Good Friday, Easter Monday; ordered by the first dropped date, a name only once.
+    expect(drops).toEqual([
+      { name: 'Review', dates: ['2027-03-26'] },
+      { name: 'Planning', dates: ['2027-03-29'] },
+      { name: 'Kick-off', dates: ['2027-03-29'] },
+    ]);
+    // The same dates the file leaves out.
+    const lines = unfold(run(w, opts({ ...range, scope: { teamId: 'team-alpha' } })));
+    expect(lines).toContain('EXDATE;TZID=Europe/Berlin:20270326T100000');
+    expect(lines).toContain('EXDATE;TZID=Europe/Berlin:20270329T090000');
+    expect(lines.join('\n')).not.toContain('Kick-off');
+  });
+
+  it('lists nothing when skipHolidays is off or no meeting falls on a holiday', () => {
+    const w = example();
+    w.teams[0]!.events = [ev('Review', { type: 'weekly', weekday: 5 }, '10:00')];
+    const range = { from: '2027-03-01', to: '2027-04-30' };
+    const index = workspaceIndex({ ...w, settings: { ...w.settings, horizon: range } });
+    expect(holidayDrops(w, index, { teamId: 'team-alpha' }, '2027-04-01', '2027-04-30')).toEqual(
+      [],
+    );
+    w.settings.skipHolidays = false;
+    expect(holidayDrops(w, index, { teamId: 'team-alpha' }, range.from, range.to)).toEqual([]);
   });
 
   it('writes no EXDATE when skipHolidays is off', () => {
