@@ -1,14 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addLineUnit, updateLineUnit } from '../core/lineEdit';
-  import { lineTree, parentChoices } from '../core/lineStaff';
-  import { lineSelection, type LineUnit } from '../core/model';
+  import { lineKind, lineTree, parentChoices } from '../core/lineStaff';
+  import { lineSelection, type LineKind, type LineUnit } from '../core/model';
   import { levels, translate as t } from '../i18n';
+  import { lineLevelWord } from '../i18n/levels';
   import { activeTeamId, workspace } from './state/workspace';
 
   /**
-   * Adds a line unit or changes one (#316): name, the unit above it, the line manager and the
-   * skill family. A unit with units below it is a group; one without is a line team.
+   * Adds a line unit or changes one (#316): name, level (#399), the unit above it, the line
+   * manager and the skill family. A company always sits at the top.
    */
   let { returnFocus }: { returnFocus?: () => void } = $props();
   const uid = $props.id();
@@ -17,6 +18,10 @@
   let unit = $state<LineUnit | undefined>();
   let name = $state('');
   let parentId = $state('');
+  let kind = $state<LineKind>('team');
+  /** The level as shown when the dialog opened: only a level the user changes is stored. */
+  let shownKind: LineKind = 'team';
+  const KINDS: readonly LineKind[] = ['company', 'group', 'team'];
   let managerId = $state('');
   let familyId = $state('');
   let error = $state('');
@@ -36,6 +41,10 @@
     // A unit on the lowest level offers no place below it: then the new one starts at the top.
     const offered = parentChoices($workspace, of?.id).some((u) => u.id === under);
     parentId = of?.parentId ?? (offered ? under! : '');
+    // New units and units of older files show their derived level; it is only stored once the
+    // user picks another one, so a unit without a stored level can still get units below it.
+    kind = of ? lineKind($workspace, of.id) : 'team';
+    shownKind = kind;
     managerId = of?.managerPersonId ?? '';
     familyId =
       of?.skillFamilyId ??
@@ -56,14 +65,16 @@
     }
     const target = unit;
     const patch = {
-      parentId: parentId || null,
+      ...(kind !== shownKind || unit?.kind !== undefined ? { kind } : {}),
+      // A company always sits at the top (#399).
+      parentId: (kind === 'company' ? '' : parentId) || null,
       managerPersonId: managerId || null,
       skillFamilyId: familyId || null,
     };
     let newId: string | undefined;
     const result = workspace.apply((ws) => {
       if (target) return updateLineUnit(ws, target.id, { name, ...patch });
-      const added = addLineUnit(ws, name, parentId || undefined);
+      const added = addLineUnit(ws, name, (kind === 'company' ? '' : parentId) || undefined);
       if (!added.ok) return added;
       const [next, id] = added.value;
       newId = id;
@@ -99,15 +110,37 @@
       {/if}
     </div>
     <div class="field">
+      <label for="{uid}-kind">{$t('line.unit.kind')}</label>
+      <select
+        id="{uid}-kind"
+        bind:value={kind}
+        aria-describedby={kind === 'company' ? `${uid}-kind-hint` : undefined}
+      >
+        {#each KINDS as k (k)}
+          <option value={k}>{lineLevelWord($levels, k)}</option>
+        {/each}
+      </select>
+      {#if kind === 'company'}
+        <p class="hint" id="{uid}-kind-hint">
+          {$t('line.unit.company.hint', { name: name.trim() || lineLevelWord($levels, 'company') })}
+        </p>
+      {/if}
+    </div>
+    <div class="field">
       <label for="{uid}-parent">{$t('line.unit.parent')}</label>
-      <select id="{uid}-parent" bind:value={parentId} aria-describedby="{uid}-parent-hint">
+      <select
+        id="{uid}-parent"
+        bind:value={parentId}
+        disabled={kind === 'company'}
+        aria-describedby="{uid}-parent-hint"
+      >
         <option value="">{$t('line.unit.top')}</option>
         {#each choices as u (u.id)}
           <option value={u.id}>{'\u00a0'.repeat((depth.get(u.id) ?? 0) * 3)}{u.name}</option>
         {/each}
       </select>
       <p class="hint" id="{uid}-parent-hint">
-        {$t('line.unit.parent.hint', { group: $levels.lineGroupLc, team: $levels.lineTeamLc })}
+        {$t('line.unit.parent.hint', { company: $levels.lineCompany, team: $levels.lineTeam })}
       </p>
     </div>
     <div class="field">
@@ -129,7 +162,9 @@
       </select>
     </div>
     {#if general}
-      <p class="field-error" role="alert">{$t(general, { path: $t('line.unit.parent') })}</p>
+      <p class="field-error" role="alert">
+        {$t(general, { path: name.trim() || $t('line.unit.parent') })}
+      </p>
     {/if}
     <div class="actions">
       <button type="submit" class="primary"

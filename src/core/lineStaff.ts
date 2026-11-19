@@ -1,7 +1,14 @@
 import { contextHint, type ContextHint } from './contextSwitch';
 import { contractFte, freeFte } from './line';
 import { capacity, warnings, type WeekLoad } from './load';
-import { linePeople, lineSubtree, type LineUnit, type Person, type Workspace } from './model';
+import {
+  linePeople,
+  lineSubtree,
+  type LineKind,
+  type LineUnit,
+  type Person,
+  type Workspace,
+} from './model';
 
 /**
  * The line team page (#316): a line unit's staff with their contract, what they are committed to
@@ -151,6 +158,30 @@ export function childUnits(ws: Workspace, parentId?: string): LineUnit[] {
 export const isLineGroup = (ws: Workspace, unitId: string): boolean =>
   (ws.lineUnits ?? []).some((u) => u.parentId === unitId);
 
+/**
+ * The level of a line unit (#399): the one chosen for it, else derived as before (a unit with
+ * units below it is a group, one without a team).
+ */
+export function lineKind(ws: Workspace, unitId: string): LineKind {
+  const unit = ws.lineUnits?.find((u) => u.id === unitId);
+  return unit?.kind ?? (isLineGroup(ws, unitId) ? 'group' : 'team');
+}
+
+/**
+ * A person's company: the one set on the person, else the company of the nearest company unit
+ * above their line unit (#399).
+ */
+export function personCompanyId(ws: Workspace, person: Person): string | undefined {
+  if (person.companyId !== undefined) return person.companyId;
+  const units = ws.lineUnits ?? [];
+  for (let id = person.lineUnitId, steps = 0; id !== undefined && steps < 10; steps++) {
+    const unit = units.find((u) => u.id === id);
+    if (unit?.kind === 'company' && unit.companyId) return unit.companyId;
+    id = unit?.parentId;
+  }
+  return undefined;
+}
+
 /** The line units in tree order (parents before their children), with their depth from 0. */
 export function lineTree(ws: Workspace): { unit: LineUnit; depth: number }[] {
   const out: { unit: LineUnit; depth: number }[] = [];
@@ -180,5 +211,8 @@ export function parentChoices(
   const height = (id: string): number =>
     1 + Math.max(0, ...childUnits(ws, id).map((c) => height(c.id)));
   const needs = unitId === undefined ? 1 : height(unitId);
-  return (ws.lineUnits ?? []).filter((u) => !own.has(u.id) && depthOf(u.id) + needs <= maxLevels);
+  // A unit chosen as line team takes no units below it (#399).
+  return (ws.lineUnits ?? []).filter(
+    (u) => u.kind !== 'team' && !own.has(u.id) && depthOf(u.id) + needs <= maxLevels,
+  );
 }

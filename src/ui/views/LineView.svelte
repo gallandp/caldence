@@ -4,12 +4,14 @@
   import {
     childUnits,
     isLineGroup,
+    lineKind,
     overLimitPeople,
     staffRows,
     unitStats,
   } from '../../core/lineStaff';
   import { lineSelection, linePeople, type LineUnit } from '../../core/model';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
+  import { lineLevelWord } from '../../i18n/levels';
   import LineUnitDialog from '../LineUnitDialog.svelte';
   import LineStaff from '../components/LineStaff.svelte';
   import StaffingBoard from '../components/StaffingBoard.svelte';
@@ -43,7 +45,7 @@
         unit: k,
         stats: unitStats(rows.filter((r) => ids.has(r.person.id))),
         manager: ws.people.find((p) => p.id === k.managerPersonId)?.name,
-        group: isLineGroup(ws, k.id),
+        level: lineLevelWord($levels, lineKind(ws, k.id)),
       };
     }),
   );
@@ -78,7 +80,7 @@
     <div class="tile id">
       <span class="label"
         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg>{[
-          group ? $levels.lineGroup : $levels.lineTeam,
+          lineLevelWord($levels, lineKind(ws, unit.id)),
           family?.name,
         ]
           .filter(Boolean)
@@ -124,7 +126,7 @@
               <span class="kid-name">{k.unit.name}</span>
               <span class="kid-meta"
                 >{[
-                  k.group ? $levels.lineGroup : $levels.lineTeam,
+                  k.level,
                   k.manager && !$presenting ? $t('line.tile.manager', { name: k.manager }) : '',
                 ]
                   .filter(Boolean)
@@ -153,15 +155,18 @@
       <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
       <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
       {#if !$presenting}
-        <div class="empty-actions">
-          <button
-            type="button"
-            class="secondary"
-            bind:this={addButton}
-            onclick={() => dialog?.show(undefined, unit.id)}
-            >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
-          >
-        </div>
+        <!-- A unit chosen as line team takes no units below it (#399). -->
+        {#if unit.kind !== 'team'}
+          <div class="empty-actions">
+            <button
+              type="button"
+              class="secondary"
+              bind:this={addButton}
+              onclick={() => dialog?.show(undefined, unit.id)}
+              >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
+            >
+          </div>
+        {/if}
         <p class="note">{$t('line.empty.people')}</p>
       {/if}
     </section>

@@ -205,10 +205,13 @@ function checkSettings(c: Checker, v: unknown): void {
   }
 }
 
+const LINE_KINDS = ['company', 'group', 'team'];
+
 function checkLineLevels(c: Checker, s: Obj): void {
   if (s.lineLevelNames === undefined) return;
   const n = c.obj(s.lineLevelNames, 'settings.lineLevelNames');
   if (n) for (const k of ['group', 'team']) c.str(n, k, 'settings.lineLevelNames');
+  if (n?.company !== undefined) c.str(n, 'company', 'settings.lineLevelNames');
 }
 
 function checkRule(
@@ -508,7 +511,21 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
     optRef(o, 'parentId', p, units);
     optRef(o, 'managerPersonId', p, ids.people);
     optRef(o, 'skillFamilyId', p, families);
+    optRef(o, 'companyId', p, companies);
+    if (o.kind !== undefined && !LINE_KINDS.includes(o.kind as string))
+      c.err(`${p}.kind`, 'error.type');
+    // A company sits at the top, below the organisation (#399).
+    if (o.kind === 'company' && o.parentId !== undefined)
+      c.err(`${p}.parentId`, 'error.line.companyTop');
     if (isStr(o.id) && isStr(o.parentId)) parent.set(o.id, o.parentId);
+  });
+  // A unit chosen as line team has no units below it (#399).
+  unitList.forEach((o, i) => {
+    if (isObj(o) && isStr(o.parentId)) {
+      const above = unitList.find((u) => isObj(u) && u.id === o.parentId);
+      if (isObj(above) && above.kind === 'team')
+        c.err(`lineUnits.${i}.parentId`, 'error.line.teamParent');
+    }
   });
   // At most three levels and no cycles: walk up from every unit.
   unitList.forEach((o, i) => {

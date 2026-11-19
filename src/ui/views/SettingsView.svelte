@@ -290,16 +290,18 @@
 
   /** The line's level names (#316), offered once the file has a line. */
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
-  function onLineName(level: 'group' | 'team', event: Event) {
-    const word = (k: 'group' | 'team') => $t('line.level.' + k);
+  function onLineName(level: 'company' | 'group' | 'team', event: Event) {
+    const word = (k: 'company' | 'group' | 'team') => $t('line.level.' + k);
     const text = (event.currentTarget as HTMLInputElement).value.trim();
-    const next = {
+    const next: { group: string; team: string; company?: string } = {
       group: settings.lineLevelNames?.group ?? word('group'),
       team: settings.lineLevelNames?.team ?? word('team'),
+      company: settings.lineLevelNames?.company ?? word('company'),
       [level]: text || word(level),
     };
     // The default words are stored as no setting, so they follow the language.
-    const plain = next.group === word('group') && next.team === word('team');
+    if (next.company === word('company')) delete next.company;
+    const plain = next.group === word('group') && next.team === word('team') && !next.company;
     commit([`lineLevelNames.${level}`], { lineLevelNames: plain ? undefined : next });
   }
 
@@ -624,7 +626,7 @@
       {/if}
       {#if hasLine}
         <div class="grid">
-          {#each ['group', 'team'] as const as level (level)}
+          {#each ['company', 'group', 'team'] as const as level (level)}
             <div class="field">
               <label for="set-line-{level}">{$t('settings.lineLevels.' + level)}</label>
               <input
