@@ -35,3 +35,39 @@ export function lineWorkspace() {
   ws.people = ws.people.map((p) => ({ ...p, ...line[p.id] }));
   return ws;
 }
+
+/**
+ * The line fixture with open demands (#319): Payments asks for skills of the family Orvalis.
+ * Alpha wants Orvalis Lager 1.0 and Orvalis Betrieb 0.5, Gamma Orvalis Lager 0.5 (Sam on it with
+ * 0.2) and Delta Orvalis Handel 1.0 and a Scrum Master role only.
+ */
+export function staffingWorkspace() {
+  const ws = lineWorkspace();
+  const areas = ws.areas as { id: string; skillFamilyId?: string }[];
+  areas.find((a) => a.id === 'area-payments')!.skillFamilyId = 'sf1';
+  const team = (id: string) =>
+    (
+      ws.teams as unknown as {
+        id: string;
+        demands?: unknown[];
+        members: unknown[];
+        memberHours: Record<string, number>;
+      }[]
+    ).find((t) => t.id === id)!;
+  team('team-alpha').demands = [
+    { id: 'd1', skillId: 'sk1', fte: 1, roleId: 'role-dev' },
+    { id: 'd2', skillId: 'sk3', fte: 0.5, roleId: 'role-dev' },
+  ];
+  const gamma = team('team-gamma');
+  gamma.demands = [{ id: 'd1', skillId: 'sk1', fte: 0.5, roleId: 'role-dev' }];
+  gamma.members.push({ personId: 'person-sam', roleId: 'role-dev' });
+  gamma.memberHours['person-sam'] = 8;
+  team('team-delta').demands = [
+    { id: 'd1', skillId: 'sk2', fte: 1, roleId: 'role-dev' },
+    { id: 'd2', fte: 0.5, roleId: 'role-sm' },
+  ];
+  ws.assignments = [
+    { id: 'as1', personId: 'person-sam', teamId: 'team-gamma', demandId: 'd1', fte: 0.2 },
+  ];
+  return ws;
+}
