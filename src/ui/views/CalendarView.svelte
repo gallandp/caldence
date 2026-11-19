@@ -196,12 +196,18 @@
   const hoursKey = $derived(
     $t('cal.legend.hours', {
       hours: $t('cal.hours', { hours: formatNumber($locale, 1.5, 1) }),
-      who:
-        ($filter.personId && $workspace.people.find((p) => p.id === $filter.personId)?.name) ||
-        ($filter.roleId && $workspace.roles.find((r) => r.id === $filter.roleId)?.name) ||
-        $t('cal.legend.all'),
+      who: legendWho(),
     }),
   );
+
+  /** Whose hours the days show: the chosen person, all people in the chosen role, or all people. */
+  function legendWho(): string {
+    const person = $filter.personId && $workspace.people.find((p) => p.id === $filter.personId);
+    if (person) return person.name;
+    const role = $filter.roleId && $workspace.roles.find((r) => r.id === $filter.roleId);
+    if (role) return $t('cal.legend.role', { role: role.name });
+    return $t('cal.legend.all');
+  }
 
   /** Categories of the meetings shown in the month, in the order of the category list. */
   const legend = $derived.by(() => {
@@ -722,7 +728,7 @@
               >
             {/if}
             {#if overlaps.length > 0}
-              <span class="warn" role="img" aria-label={$t('cal.overlap.mark')}>!</span>
+              <span class="warn" aria-hidden="true">!</span>
             {/if}
           </div>
           <div class="items">
@@ -1138,8 +1144,17 @@
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
   }
+  .when {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.4rem;
+    align-content: start;
+  }
+  .when h3 {
+    flex-basis: 100%;
+  }
   .when .warn {
-    margin-left: 0.4rem;
     font-size: 0.85rem;
   }
   .items :global(ul) {

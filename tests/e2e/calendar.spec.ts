@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
 import { openExample, setLanguage, useFileFallback, pickUnit, currentUnit } from './helpers';
@@ -105,14 +105,16 @@ test('the week view marks the overlap of the chosen person and names the meeting
   const dayOf = (name: string) =>
     panel(page).locator('section', { has: page.getByRole('heading', { name }) });
   const thursday = dayOf('Thursday, January 7, 2027');
-  await expect(thursday.getByRole('img', { name: 'Has overlap' })).toHaveCount(0);
+  // The "!" is decorative here: the overlap line below carries the meaning for screen readers.
+  const mark = (scope: Locator) => scope.locator('.when .warn[aria-hidden="true"]');
+  await expect(mark(thursday)).toHaveCount(0);
   await page.getByLabel('Person').selectOption({ label: 'Alex' });
-  await expect(thursday.getByRole('img', { name: 'Has overlap' })).toHaveText('!');
+  await expect(mark(thursday)).toHaveText('!');
   await expect(thursday.getByText(/Overlap: .+ \(Team Alpha\) and .+ \(Team Beta\)/)).toBeVisible();
   // Only the day with the clash is marked.
-  await expect(panel(page).getByRole('img', { name: 'Has overlap' })).toHaveCount(1);
+  await expect(mark(panel(page))).toHaveCount(1);
   await page.getByLabel('Person').selectOption({ label: 'All' });
-  await expect(panel(page).getByRole('img', { name: 'Has overlap' })).toHaveCount(0);
+  await expect(mark(panel(page))).toHaveCount(0);
 });
 
 test('the legend names the chosen person or role whose hours the days show', async ({ page }) => {
@@ -120,7 +122,7 @@ test('the legend names the chosen person or role whose hours the days show', asy
   const key = panel(page).locator('.legend p');
   await expect(key).toHaveText(/meeting hours of the day \(all people\)$/);
   await page.getByLabel('Role').selectOption({ label: 'Scrum Master' });
-  await expect(key).toHaveText(/meeting hours of the day \(Scrum Master\)$/);
+  await expect(key).toHaveText(/meeting hours of the day \(all people in Scrum Master\)$/);
   await page.getByLabel('Role').selectOption({ label: 'All' });
   await page.getByLabel('Person').selectOption({ label: 'Alex' });
   await expect(key).toHaveText(/meeting hours of the day \(Alex\)$/);
