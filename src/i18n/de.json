@@ -160,6 +160,7 @@
   "setup.line.teams": "Linienteams",
   "setup.error.name": "Bitte einen Namen eingeben.",
   "setup.error.names": "Bitte mindestens einen Namen eingeben.",
+  "setup.error.taken": "Diesen Namen gibt es in der Linie schon. Bitte einen anderen wählen.",
   "setup.create": "Anlegen",
   "start.roles": "Ihre Rolle",
   "start.role.line": "Linien-Führungskraft",

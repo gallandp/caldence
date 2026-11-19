@@ -629,9 +629,9 @@
     </WorkspaceBar>
     <SetupWizard
       bind:this={planWizard}
-      oncreated={() => {
-        setupDone = true;
-        void tick().then(() => select('calendar', true));
+      oncreated={(_, mode) => {
+        setupDone = mode === 'team';
+        void tick().then(() => select(mode === 'team' ? 'calendar' : 'team', true));
       }}
     />
 
@@ -718,11 +718,22 @@
                   <button type="button" class="primary" onclick={() => planWizard?.show()}
                     >{$t('setup.open')}</button
                   >
-                  <button
-                    type="button"
-                    class="secondary"
-                    onclick={() => fromEmptyState(bar?.openExample())}>{$t('start.example')}</button
-                  >
+                  {#if blank}
+                    <button
+                      type="button"
+                      class="secondary"
+                      onclick={() => fromEmptyState(bar?.openExample())}
+                      >{$t('start.example')}</button
+                    >
+                  {:else}
+                    <!-- Line teams first (#387): the product side can follow at any level. -->
+                    <button type="button" class="secondary" onclick={() => planWizard?.show('area')}
+                      >{$t('start.role.area.does')}</button
+                    >
+                    <button type="button" class="secondary" onclick={() => planWizard?.show('org')}
+                      >{$t('start.role.coach.does')}</button
+                    >
+                  {/if}
                 </div>
               </section>
             {:else if id === 'team' && activeLine}

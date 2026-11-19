@@ -274,7 +274,13 @@
     if (activeLine) {
       const parent = activeLine.parentId;
       workspace.apply((ws) => removeLineUnit(ws, id));
-      activeTeamId.set(parent ? lineSelection(parent) : ($workspace.teams[0]?.id ?? null));
+      // Without teams the next line unit keeps a page to show (#387).
+      const next = $workspace.lineUnits?.[0]?.id;
+      activeTeamId.set(
+        parent
+          ? lineSelection(parent)
+          : ($workspace.teams[0]?.id ?? (next ? lineSelection(next) : null)),
+      );
     } else workspace.apply((ws) => (activeArea ? removeArea(ws, id) : removeTeam(ws, id)));
     await tick();
     // Without teams the Calendar shows the start screen and this bar is gone; fall back to the main area.

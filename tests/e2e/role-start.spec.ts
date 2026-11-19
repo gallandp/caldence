@@ -39,6 +39,11 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   expect((await axe(page)).violations).toEqual([]);
   await dialog.getByLabel('Organisation name').fill('Nordlicht');
   await dialog.getByLabel('Specialist group above them').fill('Engineering');
+  // Line unit names are unique, the group's too.
+  await dialog.getByLabel('Line teams').fill('Backend, engineering');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await expect(dialog.getByLabel('Line teams')).toBeFocused();
+  await expect(dialog.getByText('This name is already taken in the line.')).toBeVisible();
   await dialog.getByLabel('Line teams').fill('Backend\nFrontend, Data');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(
@@ -54,6 +59,11 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(calendar(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
+  // The product side can follow at any level, without asking for the frame again.
+  await calendar(page).getByRole('button', { name: 'Set up a platform or department' }).click();
+  const area = page.getByRole('dialog', { name: 'Set up a platform or department' });
+  await expect(area.getByText('Step 1 of 2')).toBeVisible();
+  await area.getByRole('button', { name: 'Cancel' }).click();
   // After a reload the line page is still there.
   await page.reload();
   await page.getByRole('tab', { name: /Specialist group|Line team/ }).click();
@@ -122,7 +132,7 @@ test('a product owner takes part in their own team as Product Owner', async ({ p
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Next' }).click();
-  await expect(dialog.getByLabel('I take part myself')).toBeChecked();
+  await dialog.getByLabel('I take part myself').check();
   await expect(dialog.getByLabel('Your role').locator('option:checked')).toHaveText(
     'Product Owner',
   );

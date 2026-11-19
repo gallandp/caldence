@@ -160,6 +160,7 @@
   "setup.line.teams": "Line teams",
   "setup.error.name": "Please enter a name.",
   "setup.error.names": "Please enter at least one name.",
+  "setup.error.taken": "This name is already taken in the line. Please choose another.",
   "setup.create": "Create",
   "start.roles": "Your role",
   "start.role.line": "Line manager",

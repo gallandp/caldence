@@ -34,7 +34,7 @@
   let nameInput = $state<HTMLInputElement>();
   let step = $state(1);
   let mode = $state<SetupMode>('team');
-  /** Opened as product owner: "I take part myself" starts with the Product Owner role. */
+  /** Opened as product owner: "I take part myself" offers the Product Owner role first. */
   let asOwner = false;
   /** The level names chosen for an area or organisation (#387). */
   let preset = $state<LevelPreset>('area');
@@ -183,7 +183,8 @@
     myName = '';
     myRole = '';
     const settings = get(workspace).settings;
-    withFrame = get(workspace).teams.length === 0;
+    // Line teams set the frame already (#387).
+    withFrame = get(workspace).teams.length === 0 && !get(workspace).lineUnits?.length;
     timezone = browserZone() ?? settings.timezone;
     region = settings.region;
     from = settings.horizon.from;
@@ -223,7 +224,15 @@
       if (!filledRows.some((r) => splitNames(r.teams).length > 0))
         return bad(`row-${rows.indexOf(filledRows[0]!)}-teams`, 'setup.error.names');
     } else if (mode === 'line') {
-      if (splitNames(lineTeams).length === 0) return bad('line-teams', 'setup.error.names');
+      const teams = splitNames(lineTeams);
+      if (teams.length === 0) return bad('line-teams', 'setup.error.names');
+      // Line unit names are unique in a file, the group's too.
+      const existing = ($workspace.lineUnits ?? []).map((u) => u.name.trim().toLowerCase());
+      const group = lineGroup.trim().toLowerCase();
+      if (group !== '' && existing.includes(group)) return bad('line-group', 'setup.error.taken');
+      const taken = group === '' ? existing : [...existing, group];
+      if (teams.some((n) => taken.includes(n.toLowerCase())))
+        return bad('line-teams', 'setup.error.taken');
     }
     return true;
   }
@@ -253,12 +262,9 @@
           : localToday();
       names = {};
       myRole = '';
-      // A product owner takes part in their own team.
+      // A product owner who takes part does so as Product Owner.
       const owner = asOwner ? ownerRole() : undefined;
-      if (owner) {
-        me = true;
-        myRole = owner;
-      }
+      if (owner) myRole = owner;
     }
     if (next > step && leaving === 'team' && name.trim() === '') {
       nameError = true;

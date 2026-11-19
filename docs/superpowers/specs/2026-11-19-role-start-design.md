@@ -6,8 +6,10 @@ Caldence 2 maps one organisation from two sides: the product side (organisation 
 teams) and the line side (line groups → line teams → people). Different people own different
 parts of that picture. Instead of one generic "Plan new" flow, the start screen asks who you are
 and sets up *your* level, so several people can fill the same file from their own perspective.
-The roles follow the persona concept (design/personas): agile coach, product owner, area lead
-(platform owner / head of department) and people manager (line manager).
+The roles follow the personas (docs/product-vision.md; the concept lives in the project files
+under design/personas): agile coach, product owner, area lead (platform owner / head of
+department) and people manager (line manager). The order on screen is Philipp's (line first).
+It is a way in, not a persona mode: after setup everyone uses the same app.
 
 ## What each role creates
 
@@ -38,3 +40,6 @@ The frame step (time zone, region, horizon) appears only for a file without team
   page works. The selection falls back to the first line unit when there is no team.
 - Team names are typed one per line or comma separated (`splitNames`).
 - The chosen role is not stored (out of scope).
+- A file with only line teams offers "Plan new", "Set up a platform or department" and "Set up
+  the product organisation" in the views that need a team, so the product side can follow.
+  The frame step is skipped there, since the line manager set it already.

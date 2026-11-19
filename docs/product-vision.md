@@ -50,4 +50,5 @@ Builders create and change plans; readers come with one question and mostly see 
 
 ## Changes
 
+- 2026-11-19 (Caldence 2, #387): the start screen asks for the role and each role sets up its own level of the same organisation (line teams, an area, one team, the whole organisation). This is a way in, not a persona mode: afterwards everyone uses the same app, and readers still get the file from a builder.
 - 2026-11-18: created from the app (1.44), the personas and the builders/readers split; focus themes reflect proposals #272 to #281.
