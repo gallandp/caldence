@@ -71,7 +71,7 @@ test('a cadence what-if shows its effect, counts in the bar and is gone after Es
   await expect(sheet.getByText('Enter a length in whole weeks.')).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Apply' })).toBeDisabled();
   await sheet.getByLabel('Length (weeks)').fill('3');
-  await expect(sheet.getByText('Hours in meetings, everyone')).toBeVisible();
+  await expect(sheet.getByText('Hours in meetings, Team Alpha')).toBeVisible();
   await expect(sheet.getByText(/^Meeting load · Team Alpha$/)).toBeVisible();
   // The review moves with the end of the sprint, and the effect says so.
   await expect(sheet.getByText('Kept at the end: Sprint Review: day 14 → day 21')).toBeVisible();
@@ -152,7 +152,7 @@ test('a what-if in a team of an area shows the team first, then the area (#340)'
   ]);
   // The area's hours follow its line and match its rounded figures.
   await expect(sheet.locator('.effect dl > div').nth(2)).toHaveText(
-    'Hours in meetings, everyone −0.5 h per week',
+    'Hours in meetings, Payments −0.5 h per week',
   );
   await sheet.getByRole('button', { name: 'Apply' }).click();
   await expect(sheet).toBeHidden();

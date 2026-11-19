@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
+import { matchingRole, setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
 import { costSummary, meetingCost } from '../../src/core/cost';
 import { exportIcs } from '../../src/core/ics';
 import { loadSummary } from '../../src/core/views';
@@ -258,5 +258,46 @@ describe('role filter with role links (#338)', () => {
       },
     );
     expect(plain).not.toContain('SUMMARY:PI Planning day 1');
+  });
+});
+
+describe('matchingRole (#362)', () => {
+  const roles = [
+    { id: 'po', name: 'Product Owner' },
+    { id: 'sm', name: 'Scrum Master' },
+    { id: 'dev', name: 'Developers' },
+  ];
+
+  it('suggests a team role with the same name, ignoring case and spaces', () => {
+    expect(matchingRole(' product  owner', roles)).toBe('po');
+  });
+
+  it('suggests the one team role whose words all appear in the area role, or the other way round', () => {
+    expect(matchingRole('Scrum Master/Team Coach', roles)).toBe('sm');
+    expect(matchingRole('master', roles)).toBe('sm');
+  });
+
+  it('prefers the same name over a match of words', () => {
+    expect(
+      matchingRole('Scrum Master', [
+        { id: 'a', name: 'Scrum Master/Team Coach' },
+        { id: 'b', name: 'scrum master' },
+      ]),
+    ).toBe('b');
+  });
+
+  it('suggests nothing without a match or when several roles match', () => {
+    expect(matchingRole('Agile Team', roles)).toBeUndefined();
+    expect(
+      matchingRole('Scrum Master/Product Owner', [
+        { id: 'sm', name: 'Scrum Master' },
+        { id: 'po', name: 'Product Owner' },
+      ]),
+    ).toBeUndefined();
+    expect(matchingRole('', roles)).toBeUndefined();
+  });
+
+  it('splits words at punctuation, so "Entwickler:innen" matches "Entwickler/innen"', () => {
+    expect(matchingRole('Entwickler:innen', [{ id: 'd', name: 'Entwickler/innen' }])).toBe('d');
   });
 });

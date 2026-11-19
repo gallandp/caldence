@@ -99,6 +99,35 @@ export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): strin
   return [...new Set(invited)].filter((id) => !own.has(id));
 }
 
+const words = (name: string) =>
+  name
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w !== '');
+
+/**
+ * The team role that obviously stands for an area role (#362): the one with the same name
+ * (ignoring case, spaces and punctuation), otherwise the only one whose words all appear in the
+ * area role's name or the other way round, e.g. "Scrum Master" for "Scrum Master/Team Coach".
+ * Nothing when no role or several roles match; the coach still confirms.
+ */
+export function matchingRole(
+  name: string,
+  candidates: readonly { id: string; name: string }[],
+): string | undefined {
+  const own = words(name);
+  if (own.length === 0) return undefined;
+  const key = own.join(' ');
+  const same = candidates.filter((c) => words(c.name).join(' ') === key);
+  if (same.length > 0) return same.length === 1 ? same[0]!.id : undefined;
+  const set = new Set(own);
+  const partial = candidates.filter((c) => {
+    const w = words(c.name);
+    return w.length > 0 && (w.every((x) => set.has(x)) || own.every((x) => w.includes(x)));
+  });
+  return partial.length === 1 ? partial[0]!.id : undefined;
+}
+
 /** Replaces the area's role links (#338); an empty list removes them. */
 export function setRoleLinks(ws: Workspace, areaId: string, links: RoleLink[]): Result<Workspace> {
   return mapArea(ws, areaId, (a) => {

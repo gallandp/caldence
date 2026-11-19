@@ -59,19 +59,29 @@
   const euro = (n: number) => formatEuro($locale, n);
   const pct = (n: number) => formatPercent($locale, n);
   const load = (b: Effect, a: Effect) => loadValue($t, $locale, b, a);
-  /** The compact one-line form: hours, cost per week (with a rate) and meeting load. */
-  const line = (b: Effect, a: Effect) =>
+  /** "16 % → 14 %", wrapping as a whole. */
+  const arrow = (b: Effect, a: Effect) =>
+    $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }).replace(/\s/g, ' ');
+  /** One line of hours, cost per week (with a rate) and meeting load. */
+  const own = (name: string, b: Effect, a: Effect) =>
     $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
       hours: signed(hoursDelta(b, a), hours),
       cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
-      // A team in an area names its own load: that is what changed (#340).
-      name: team?.name ?? scopeName,
-      // "16 % → 14 %" wraps as a whole.
-      share: $t('whatif.arrow', {
-        from: pct((team?.before ?? b).share),
-        to: pct((team?.after ?? a).share),
-      }).replace(/\s/g, ' '),
+      name,
+      share: arrow(b, a),
     });
+  /**
+   * The compact one-line form. A team in an area shows its own change, then the area's meeting
+   * load in short (#340, #364).
+   */
+  const line = (b: Effect, a: Effect) =>
+    team
+      ? $t('whatif.line.area', {
+          line: own(team.name, team.before, team.after),
+          name: scopeName,
+          share: arrow(b, a),
+        })
+      : own(scopeName, b, a);
 </script>
 
 <div class="effect" aria-live={live ? 'polite' : undefined}>
@@ -96,14 +106,14 @@
         {@render share(scopeName, before, after)}
       {/if}
       <div>
-        <dt>{$t('whatif.effect.hours')}</dt>
+        <dt>{$t('whatif.effect.hours', { name: scopeName })}</dt>
         <dd class:up={hoursDelta(before, after) > 0.004}>
           {$t('whatif.perWeek.hours', { value: signed(hoursDelta(before, after), hours) })}
         </dd>
       </div>
       {#if before.cost && after.cost}
         <div>
-          <dt>{$t('whatif.effect.cost')}</dt>
+          <dt>{$t('whatif.effect.cost', { name: scopeName })}</dt>
           <dd class:up={after.cost.perWeek - before.cost.perWeek > 0.004}>
             {$t('whatif.effect.costValue', {
               week: signed(after.cost.perWeek - before.cost.perWeek, euro),
