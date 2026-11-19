@@ -492,6 +492,8 @@ test('without warnings the list says so', async ({ page }) => {
   await page.goto('/');
   await openWorkspaceFile(page, ws);
   await setLanguage(page, 'en');
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
   await showView(page, 'Meeting load');
   const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
