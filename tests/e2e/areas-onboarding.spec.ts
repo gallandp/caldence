@@ -58,8 +58,10 @@ test('the start screen mentions areas, and the example opens with its area', asy
   await page.goto('/');
   // The roles offer areas from the start (#387).
   await expect(
-    page.getByRole('button', { name: 'Platform owner or head of department' }),
-  ).toHaveAccessibleDescription(/Set up a platform or department/);
+    page.getByRole('button', { name: 'Leading several teams' }),
+  ).toHaveAccessibleDescription(
+    /platform owner, head of area or department.*Set up a unit and its teams/,
+  );
   await openExample(page);
   await expect(unitNames(page)).toContainText(['Commerce', 'Team Gamma', 'Team Delta']);
   // The example has an area, so the hint to group teams stays away.

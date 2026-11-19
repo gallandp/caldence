@@ -19,16 +19,16 @@ const axe = (page: Page) =>
 test('every role card says what it sets up', async ({ page }) => {
   const roles = calendar(page).getByRole('list', { name: 'Your role' });
   await expect(roles.getByRole('listitem')).toHaveCount(4);
-  await expect(roles.getByRole('button', { name: 'Line manager' })).toHaveAccessibleDescription(
-    /^Set up line teams Your line teams/,
+  await expect(roles.getByRole('button', { name: 'Line management' })).toHaveAccessibleDescription(
+    /^e\.g\. line manager, .* Set up line teams$/,
   );
-  await expect(roles.getByRole('button', { name: 'Agile Coach' })).toHaveAccessibleDescription(
-    /^Set up the product organisation/,
+  await expect(roles.getByRole('button', { name: 'Agile coaching' })).toHaveAccessibleDescription(
+    /scrum master, .* Set up the product organisation$/,
   );
 });
 
 test('a line manager sets up line teams and lands on their page', async ({ page }) => {
-  await calendar(page).getByRole('button', { name: 'Line manager' }).click();
+  await calendar(page).getByRole('button', { name: 'Line management' }).click();
   const dialog = page.getByRole('dialog', { name: 'Set up line teams' });
   await expect(dialog.getByText('Step 1 of 2')).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'Your line teams' })).toBeFocused();
@@ -60,8 +60,8 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(calendar(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
   // The product side can follow at any level, without asking for the frame again.
-  await calendar(page).getByRole('button', { name: 'Set up a platform or department' }).click();
-  const area = page.getByRole('dialog', { name: 'Set up a platform or department' });
+  await calendar(page).getByRole('button', { name: 'Set up a unit and its teams' }).click();
+  const area = page.getByRole('dialog', { name: 'Set up a unit and its teams' });
   await expect(area.getByText('Step 1 of 2')).toBeVisible();
   await area.getByRole('button', { name: 'Cancel' }).click();
   // After a reload the line page is still there.
@@ -72,10 +72,8 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
 });
 
 test('a platform owner sets up one platform with its products', async ({ page }) => {
-  await calendar(page)
-    .getByRole('button', { name: 'Platform owner or head of department' })
-    .click();
-  const dialog = page.getByRole('dialog', { name: 'Set up a platform or department' });
+  await calendar(page).getByRole('button', { name: 'Leading several teams' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Set up a unit and its teams' });
   await expect(dialog.getByText('Step 1 of 3')).toBeVisible();
   await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -100,7 +98,7 @@ test('a platform owner sets up one platform with its products', async ({ page })
 });
 
 test('an agile coach sets up the product organisation with several areas', async ({ page }) => {
-  await calendar(page).getByRole('button', { name: 'Agile Coach' }).click();
+  await calendar(page).getByRole('button', { name: 'Agile coaching' }).click();
   const dialog = page.getByRole('dialog', { name: 'Set up the product organisation' });
   await dialog.getByRole('radio', { name: 'No template' }).check();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -131,7 +129,7 @@ test('an agile coach sets up the product organisation with several areas', async
 });
 
 test('a product owner takes part in their own team as Product Owner', async ({ page }) => {
-  await calendar(page).getByRole('button', { name: 'Product Owner', exact: true }).click();
+  await calendar(page).getByRole('button', { name: 'Product ownership' }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Next' }).click();
@@ -145,6 +143,6 @@ for (const scheme of ['light', 'dark'] as const)
   test(`the role cards pass axe in German (${scheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
     await setLanguage(page, 'de');
-    await expect(page.getByRole('button', { name: 'Linien-Führungskraft' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Linienverantwortung' })).toBeVisible();
     expect((await axe(page)).violations).toEqual([]);
   });
