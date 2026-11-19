@@ -3,6 +3,7 @@
   import { get } from 'svelte/store';
   import {
     COLUMNS,
+    levelColumns,
     parseCsv,
     reviewStaff,
     staffTable,
@@ -12,6 +13,7 @@
     type Column,
     type Note,
     type RowResult,
+    type StaffRow,
     type StaffTable,
     type TemplateText,
   } from '../../core/staffImport';
@@ -19,7 +21,9 @@
   import { xlsx } from '../../core/xlsx';
   import { LIMITS } from '../../core/limits';
   import { validate } from '../../core/validate';
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, levels, locale, translate as t } from '../../i18n';
+  import { lineLevelWord } from '../../i18n/levels';
+  import { groupLineLevel, lineLevels, lowestLineLevel } from '../../core/lineLevels';
   import { browserFileEnv, exportTextFile } from '../state/files';
   import { workspace } from '../state/workspace';
 
@@ -72,14 +76,32 @@
     onclose();
   }
 
-  const headers = (): Record<Column, string> =>
-    Object.fromEntries(COLUMNS.map((c) => [c, $t('staff.head.' + c)])) as Record<Column, string>;
+  /** The file has its own line levels (#408): their words name the line columns. */
+  const ownLevels = $derived(ws.settings.lineLevels !== undefined);
+  const headers = (): Record<Column, string> => {
+    const out = Object.fromEntries(COLUMNS.map((c) => [c, $t('staff.head.' + c)])) as Record<
+      Column,
+      string
+    >;
+    if (ownLevels) {
+      out.team = $levels.lineTeam;
+      out.group = $levels.lineGroup;
+    }
+    return out;
+  };
 
   // Header names in both languages plus the file's own line level names.
-  const extraHeaders = $derived.by(() => {
-    const own = ws.settings.lineLevelNames;
-    return { team: own ? [own.team] : [], group: own ? [own.group] : [] };
-  });
+  const extraHeaders = $derived({ team: [$levels.lineTeam], group: [$levels.lineGroup] });
+  /** Columns for the further own line levels (#408), named by their words. */
+  const levelCols = $derived(levelColumns(ws.settings, (id) => lineLevelWord($levels, id)));
+  /** The line above a row's line team, top-down: its level columns and its group. */
+  const pathOf = (row: StaffRow): string => {
+    const group = groupLineLevel(ws.settings);
+    return lineLevels(ws.settings)
+      .map((l) => (l.id === group ? row.group : (row.levels?.[l.id] ?? '')))
+      .filter(Boolean)
+      .join(' › ');
+  };
 
   const review = $derived(
     table && table.missing.length === 0 && table.rows.length > 0
@@ -192,7 +214,7 @@
           return;
         }
       }
-      const parsed = staffTable(cells, extraHeaders);
+      const parsed = staffTable(cells, extraHeaders, levelCols);
       if (parsed.rows.length > LIMITS.people) {
         problem = $t('staff.error.tooMany', { n: LIMITS.people });
         return;
@@ -228,6 +250,16 @@
     headers: headers(),
     sheet: $t('staff.sheet'),
     exampleSheet: $t('staff.sheet.example'),
+    ...(ownLevels
+      ? {
+          line: lineLevels(ws.settings)
+            .filter((l) => !l.company && l.id !== lowestLineLevel(ws.settings))
+            .map((l) => ({
+              header: lineLevelWord($levels, l.id),
+              group: l.id === groupLineLevel(ws.settings),
+            })),
+        }
+      : {}),
   });
 
   async function saveTemplate(kind: 'xlsx' | 'csv') {
@@ -297,7 +329,7 @@
   }
 
   function errorText(r: RowResult): string {
-    const name = r.row.group !== '' ? r.row.group : r.row.team;
+    const name = r.errorName ?? (r.row.group !== '' ? r.row.group : r.row.team);
     return $t('staff.error.' + r.error, { name });
   }
 
@@ -523,7 +555,7 @@
                 </th>
                 <td class="wide">
                   {r.row.team}
-                  {#if r.row.group}<span class="sub">{r.row.group}</span>{/if}
+                  {#if pathOf(r.row)}<span class="sub">{pathOf(r.row)}</span>{/if}
                   {#if r.row.company}<span class="sub">{r.row.company}</span>{/if}
                 </td>
                 <td class="num wide">{r.row.fte === null ? r.row.fteText : fte(r.row.fte)}</td>

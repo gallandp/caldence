@@ -1,6 +1,7 @@
 <script lang="ts">
   import { loadPerWeek } from '../../core/load';
   import {
+    lineKind,
     overLimitPeople,
     staffRows,
     unitStats,
@@ -70,8 +71,8 @@
   const meta = (u: LineUnit, group: boolean, withCount = false) => {
     const manager = managerOf(u);
     return [
-      // The level chosen for the unit (#399), else derived from whether it has units below.
-      lineLevelWord($levels, u.id === ORG_UNIT ? 'org' : (u.kind ?? (group ? 'group' : 'team'))),
+      // The level chosen for the unit (#399), else derived from whether it has units below (#408).
+      lineLevelWord($levels, lineKind(ws, u.id)),
       withCount && group ? unitsText(countBelow(u.id)) : '',
       manager ? $t('line.tile.manager', { name: manager }) : '',
     ]
@@ -215,6 +216,12 @@
     gap: 0.5rem;
     margin-left: 1.1rem;
     padding-left: 0.9rem;
+  }
+  /* Narrow: deep lines (#408) indent less per level, so the deepest cards keep their width. */
+  @media (max-width: 40rem) {
+    .kids {
+      margin-left: 0.35rem;
+    }
   }
   .kids > li {
     position: relative;

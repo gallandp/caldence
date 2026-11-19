@@ -83,6 +83,8 @@ describe('buildMatrix (#396)', () => {
       ['Ware', 'Orvalis'],
       ['Kasse', 'Orvalis'],
     ]);
+    // The path above each line team, top-down (#408).
+    expect(m.rows.map((r) => r.path.map((u) => u.name))).toEqual([['Orvalis'], ['Orvalis']]);
     const ware = m.rows[0]!;
     expect(ware.cells).toEqual({ t1: 0.5, t2: 1.25 });
     expect(ids(ware.people.map((p) => p.person))).toEqual(['p2', 'p3', 'p4']);

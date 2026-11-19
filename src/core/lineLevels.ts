@@ -39,7 +39,3 @@ export function groupLineLevel(settings: Levels): LineKind {
   for (let i = list.length - 2; i >= 0; i--) if (!list[i]!.company) return list[i]!.id;
   return list.at(-1)!.id;
 }
-
-/** The level a unit without a chosen one gets while nothing hangs below it. */
-export const leafLineLevel = (settings: Levels): LineKind =>
-  lineLevels(settings).some((l) => l.id === 'team') ? 'team' : lowestLineLevel(settings);

@@ -1,7 +1,8 @@
 import type { Cell, Sheet } from './xlsx';
 import type { LineUnit, Person, Workspace } from './model';
 import { LIMITS } from './limits';
-import { groupLineLevel, lineLevels, lowestLineLevel } from './lineLevels';
+import { groupLineLevel, isCompanyLevel, lineLevels, lowestLineLevel } from './lineLevels';
+import { lineKind } from './lineStaff';
 
 /**
  * Staff import for the line organisation (#330): people with line team, contract FTE, skills and,
@@ -99,6 +100,8 @@ export interface StaffRow {
   skills: string[];
   group: string;
   company: string;
+  /** Units on further line levels (#408), by level id: only the levels the table has a column for. */
+  levels?: Record<string, string>;
 }
 
 export interface StaffTable {
@@ -119,13 +122,38 @@ export function parseFte(c: Cell | undefined): number | null {
   return m[2] ? n / 100 : n;
 }
 
+/** A column for one of the file's own line levels (#408): the level and its header names. */
+export interface LevelColumn {
+  id: string;
+  names: string[];
+}
+
+/**
+ * The line levels that get a column of their own (#408): all but the lowest (the line team
+ * column), the group level (the specialist group column) and a company level (the company column
+ * stays a person attribute). Without own levels there are none.
+ */
+export function levelColumns(
+  settings: Workspace['settings'],
+  word: (id: string) => string,
+): LevelColumn[] {
+  if (settings.lineLevels === undefined) return [];
+  const lowest = lowestLineLevel(settings);
+  const group = groupLineLevel(settings);
+  return lineLevels(settings)
+    .filter((l) => l.id !== lowest && l.id !== group && !l.company)
+    .map((l) => ({ id: l.id, names: [word(l.id)] }));
+}
+
 /**
  * Reads the rows under the first non-empty row (the header). `extra` adds header names, e.g. the
- * file's own names for the line levels.
+ * file's own names for the line levels; `levels` are further line level columns (#408), matched
+ * before the built-in names.
  */
 export function staffTable(
   cells: Cell[][],
   extra: Partial<Record<Column, string[]>> = {},
+  levels: LevelColumn[] = [],
 ): StaffTable {
   const headerAt = cells.findIndex((r) => r.some((c) => text(c) !== ''));
   if (headerAt < 0) return { rows: [], ignored: [], missing: [...REQUIRED] };
@@ -134,12 +162,19 @@ export function staffTable(
   for (const col of COLUMNS)
     for (const alias of [...ALIASES[col], ...(extra[col] ?? [])])
       if (!lookup.has(headerKey(alias))) lookup.set(headerKey(alias), col);
+  const levelLookup = new Map<string, string>();
+  for (const l of levels)
+    for (const n of l.names)
+      if (!levelLookup.has(headerKey(n))) levelLookup.set(headerKey(n), l.id);
   const at: Partial<Record<Column, number>> = {};
+  const levelAt: Record<string, number> = {};
   const ignored: string[] = [];
   header.forEach((h, i) => {
     const label = text(h);
+    const level = levelLookup.get(headerKey(label));
     const col = lookup.get(headerKey(label));
-    if (col !== undefined && at[col] === undefined) at[col] = i;
+    if (level !== undefined && levelAt[level] === undefined) levelAt[level] = i;
+    else if (col !== undefined && at[col] === undefined) at[col] = i;
     else if (label !== '') ignored.push(label);
   });
   // A column without header but with values is not read either; name it by its letter position.
@@ -156,7 +191,13 @@ export function staffTable(
   const rows: StaffRow[] = [];
   cells.forEach((r, i) => {
     if (i <= headerAt) return;
-    if (!COLUMNS.some((col) => text(get(r, col)) !== '')) return;
+    const rowLevels: Record<string, string> = {};
+    for (const [id, i] of Object.entries(levelAt)) {
+      const v = text(r[i]);
+      if (v !== '') rowLevels[id] = v;
+    }
+    if (!COLUMNS.some((col) => text(get(r, col)) !== '') && Object.keys(rowLevels).length === 0)
+      return;
     const seen = new Set<string>();
     const skills = text(get(r, 'skills'))
       .split(/[;\n]/)
@@ -171,6 +212,7 @@ export function staffTable(
       skills,
       group: text(get(r, 'group')),
       company: text(get(r, 'company')),
+      ...(Object.keys(rowLevels).length > 0 ? { levels: rowLevels } : {}),
     });
   });
   return { rows, ignored, missing };
@@ -188,6 +230,7 @@ export type RowError =
   | 'teamUnknown'
   | 'teamAmbiguous'
   | 'groupAmbiguous'
+  | 'groupUnknown'
   | 'company'
   | 'tooDeep'
   | 'fte'
@@ -214,6 +257,8 @@ export interface RowResult {
   /** Key of the group of rows/people that share company + name (only when the user picks). */
   conflict?: string;
   personId?: string;
+  /** The unit an error is about (`tooDeep`, `groupAmbiguous`), when it is not the row's team. */
+  errorName?: string;
 }
 
 export interface StaffReview {
@@ -275,8 +320,15 @@ export function reviewStaff(
   const lowest = lowestLineLevel(out.settings);
   // With own levels every unit stores its level: new groups the group level, new teams the lowest.
   const own = out.settings.lineLevels !== undefined;
-  const groupKind = own ? { kind: groupLineLevel(out.settings) } : {};
   const teamKind = own ? { kind: lowest } : {};
+  // The levels a row can name above its line team, top-down: the specialist group column's level
+  // and the own levels with a column (#408). Without own levels only the group.
+  const groupLevel = groupLineLevel(out.settings);
+  const chainLevels = lineLevels(out.settings)
+    .map((l) => l.id)
+    .filter(
+      (id) => id !== lowest && (id === groupLevel || (own && !isCompanyLevel(out.settings, id))),
+    );
   const unitById = new Map(units.map((u) => [u.id, u] as const));
   const depth = (u: LineUnit): number => {
     let d = 1;
@@ -297,7 +349,8 @@ export function reviewStaff(
         nameKey(u.name) === nameKey(name) &&
         // A unit chosen on the lowest level takes no units below it (#399).
         u.kind !== lowest &&
-        (u.parentId === undefined || parents.has(u.id)),
+        // With own levels a unit's stored level says it can hold units, children or not (#408).
+        (u.parentId === undefined || parents.has(u.id) || (own && u.kind !== undefined)),
     );
   const familiesByName = new Map(out.skillFamilies.map((f) => [nameKey(f.name), f] as const));
   /** Units of that name; `parentId` null means anywhere in the tree. */
@@ -406,41 +459,89 @@ export function reviewStaff(
       continue;
     }
 
-    // The line unit: the team under the given group, or the one team of that name.
+    // The line unit: the team under the given units above it, or the one team of that name. The
+    // units above are the row's level columns top-down (#408), the specialist group among them;
+    // the first one is looked for anywhere in the line, each further one below the one before.
+    // Without a level between the top and the lowest one, the group column names a company unit
+    // at the top, which the import finds but never creates (#408).
+    const groupInChain = chainLevels.includes(groupLevel);
+    const chain = [
+      ...(row.group !== '' && !groupInChain ? [{ id: undefined, name: row.group }] : []),
+      ...chainLevels.flatMap((id) => {
+        const name = id === groupLevel ? row.group : (row.levels?.[id] ?? '');
+        return name === '' ? [] : [{ id, name }];
+      }),
+    ];
+    if (chain.some((c) => c.name.length > LIMITS.textChars)) {
+      error('team');
+      continue;
+    }
+    // With own levels a unit only counts when it is on the column's level; otherwise a found unit
+    // of another level could end up above a unit of a higher one.
+    const onLevel = (u: LineUnit, id: string | undefined) =>
+      !own || id === undefined || lineKind(out, u.id) === id;
     let unit: LineUnit | undefined;
-    if (row.group !== '') {
-      const groups = groupsByName(row.group);
-      if (groups.length > 1) {
-        error('groupAmbiguous');
-        continue;
+    let anchor: LineUnit | undefined;
+    /** Units this row creates; they join the file only when the whole row succeeds. */
+    const fresh: LineUnit[] = [];
+    let failed = false;
+    const fail = (e: RowError, name: string) => {
+      res.errorName = name;
+      error(e);
+      failed = true;
+    };
+    for (const step of chain) {
+      const found = (
+        anchor
+          ? byName(step.name, anchor.id).filter((u) => u.kind !== lowest)
+          : groupsByName(step.name)
+      ).filter((u) => onLevel(u, step.id));
+      if (found.length > 1) {
+        fail('groupAmbiguous', step.name);
+        break;
       }
-      let group = groups[0];
-      unit = group ? byName(row.team, group.id)[0] : undefined;
-      if (!unit && group && depth(group) >= maxLevels) {
-        error('tooDeep');
-        continue;
-      }
-      if (!unit) {
-        if (!group) {
-          // Without a level between the top and the lowest one there is no place for a new group.
-          if (own && groupKind.kind === lowest) {
-            error('tooDeep');
-            continue;
-          }
-          group = { id: newUnit(), name: row.group, ...groupKind };
-          units.push(group);
-          unitById.set(group.id, group);
-          created.units.push(group.name);
-          res.notes.push({ key: 'newGroup', name: group.name });
+      let next = found[0];
+      if (!next) {
+        if (step.id === undefined) {
+          fail('groupUnknown', step.name);
+          break;
         }
-        unit = { id: newUnit(), name: row.team, parentId: group.id, ...teamKind };
-        parents.add(group.id);
-        units.push(unit);
-        unitById.set(unit.id, unit);
-        created.units.push(unit.name);
-        res.notes.push({ key: 'newTeam', name: unit.name });
+        if (anchor && depth(anchor) >= maxLevels) {
+          fail('tooDeep', anchor.name);
+          break;
+        }
+        next = {
+          id: newUnit(),
+          name: step.name,
+          ...(anchor ? { parentId: anchor.id } : {}),
+          ...(own ? { kind: step.id } : {}),
+        };
+        fresh.push(next);
+        unitById.set(next.id, next);
       }
-    } else {
+      anchor = next;
+    }
+    if (!failed && anchor) {
+      unit = byName(row.team, anchor.id)[0];
+      if (!unit && depth(anchor) >= maxLevels) fail('tooDeep', anchor.name);
+      else if (!unit) {
+        unit = { id: newUnit(), name: row.team, parentId: anchor.id, ...teamKind };
+        fresh.push(unit);
+        unitById.set(unit.id, unit);
+      }
+    }
+    if (failed) {
+      for (const u of fresh) unitById.delete(u.id);
+      continue;
+    }
+    for (const u of fresh) {
+      units.push(u);
+      if (u.parentId !== undefined) parents.add(u.parentId);
+      created.units.push(u.name);
+      res.notes.push({ key: u === unit ? 'newTeam' : 'newGroup', name: u.name });
+    }
+    if (anchor) parents.add(anchor.id);
+    if (!anchor) {
       const found = byName(row.team, null);
       if (found.length === 0) {
         error('teamUnknown');
@@ -452,6 +553,7 @@ export function reviewStaff(
       }
       unit = found[0]!;
     }
+    if (!unit) continue; // Set on every path above; this tells the type checker.
 
     // Company, skills.
     let companyId: string | undefined;
@@ -564,6 +666,20 @@ export interface TemplateText {
   headers: Record<Column, string>;
   sheet: string;
   exampleSheet: string;
+  /**
+   * The headers of the line above the line team, top-down, when the file has own levels (#408):
+   * they stand where the specialist group column is, `group` marking that column itself.
+   */
+  line?: { header: string; group?: boolean }[];
+}
+
+/** The template's headers, and for each the index of the example value (-1 for an empty cell). */
+function templateColumns(t: TemplateText): { header: string; from: number }[] {
+  const base = COLUMNS.map((c, i) => ({ header: t.headers[c], from: i }));
+  if (!t.line) return base;
+  const at = COLUMNS.indexOf('group');
+  const line = t.line.map((l) => ({ header: l.header, from: l.group ? at : -1 }));
+  return [...base.slice(0, at), ...line, ...base.slice(at + 1)];
 }
 
 /** Invented example rows for the template's example sheet. */
@@ -589,14 +705,23 @@ const EXAMPLE: [string, string, number, string, string, string][] = [
 
 /** The template workbook: an empty staff sheet and an example sheet with invented people. */
 export function staffTemplateSheets(t: TemplateText): Sheet[] {
-  const columns = COLUMNS.map((c) => t.headers[c]);
+  const cols = templateColumns(t);
+  const columns = cols.map((c) => c.header);
   return [
     { name: t.sheet, columns, rows: [] },
-    { name: t.exampleSheet, columns, rows: EXAMPLE.map((r) => [...r]) },
+    {
+      name: t.exampleSheet,
+      columns,
+      rows: EXAMPLE.map((r) => cols.map((c) => (c.from < 0 ? null : r[c.from]!))),
+    },
   ];
 }
 
 /** The template as CSV: just the header, with `;` (German Excel) or `,`. */
 export function staffTemplateCsv(t: TemplateText, sep: ';' | ','): string {
-  return COLUMNS.map((c) => t.headers[c]).join(sep) + '\r\n';
+  return (
+    templateColumns(t)
+      .map((c) => c.header)
+      .join(sep) + '\r\n'
+  );
 }

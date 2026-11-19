@@ -54,6 +54,8 @@ export interface MatrixRow {
   unit: LineUnit;
   /** The unit the line team hangs under, if any. */
   group: LineUnit | undefined;
+  /** The units above the line team, top-down (#408): with own levels the line can be deep. */
+  path: LineUnit[];
   /** Product id → the sum of the shown people's FTE. */
   cells: Record<string, number>;
   /** The sum of the shown people's free FTE. */
@@ -175,6 +177,16 @@ export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld
     return out;
   };
 
+  const pathOf = (unit: LineUnit): LineUnit[] => {
+    const out: LineUnit[] = [];
+    let at = unit.parentId !== undefined ? unitById.get(unit.parentId) : undefined;
+    // The validator rules out cycles; the bound only guards a broken file.
+    while (at && out.length < units.length) {
+      out.unshift(at);
+      at = at.parentId !== undefined ? unitById.get(at.parentId) : undefined;
+    }
+    return out;
+  };
   const rows: MatrixRow[] = [];
   for (const unit of treeOrder(units)) {
     const list = byUnit.get(unit.id);
@@ -185,6 +197,7 @@ export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld
     rows.push({
       unit,
       group: unit.parentId !== undefined ? unitById.get(unit.parentId) : undefined,
+      path: pathOf(unit),
       cells: sum(people),
       free: round2(people.reduce((s, p) => s + p.free, 0)),
       people,
