@@ -216,7 +216,9 @@ describe('editing the line (#316)', () => {
       updateLinePerson(lined(), 'p1', { lineUnitId: 'l1', contractFte: 0.5, skillIds: ['s1'] }),
     );
     expect(w.people[0]).toMatchObject({ lineUnitId: 'l1', contractFte: 0.5, skillIds: ['s1'] });
-    const back = ok(updateLinePerson(w, 'p1', { lineUnitId: null, contractFte: null, skillIds: [] }));
+    const back = ok(
+      updateLinePerson(w, 'p1', { lineUnitId: null, contractFte: null, skillIds: [] }),
+    );
     expect(back.people[0]).toEqual({ id: 'p1', name: 'Alex' });
     expect(updateLinePerson(w, 'p1', { contractFte: 1.5 }).ok).toBe(false);
   });

@@ -9,7 +9,21 @@
     renameOrganisation,
     updateTeam,
   } from '../core/edit';
-  import { areaOf, hasOrgLevel, ORG_UNIT, orgName, type Area } from '../core/model';
+  import {
+    areaOf,
+    hasOrgLevel,
+    linePeople,
+    lineSelection,
+    ORG_UNIT,
+    orgName,
+    selectedLineUnit,
+    type Area,
+    type LineUnit,
+  } from '../core/model';
+  import { removeLineUnit } from '../core/line';
+  import { childUnits, isLineGroup } from '../core/lineStaff';
+  import LineUnitDialog from './LineUnitDialog.svelte';
+  import { LINE_ICON } from './viewIcons';
   import { initials as nameInitials } from './avatar';
   import { levels, translate as t } from '../i18n';
   import AreaDialog from './AreaDialog.svelte';
@@ -29,7 +43,14 @@
   const showOrg = $derived(hasOrgLevel($workspace));
   const activeOrg = $derived(showOrg && $activeTeamId === ORG_UNIT);
   const org = $derived({ id: ORG_UNIT, name: orgName($workspace, $levels.org) });
-  const current = $derived(activeOrg ? org : (activeArea ?? active));
+  /** A line unit (#316): its own group in the list, below the organisation's tree. */
+  const lineUnits = $derived($workspace.lineUnits ?? []);
+  const activeLine = $derived(lineUnits.find((u) => u.id === selectedLineUnit($activeTeamId)));
+  const lineLevel = (u: LineUnit) =>
+    isLineGroup($workspace, u.id) ? $levels.lineGroup : $levels.lineTeam;
+  const peopleText = (n: number) => $t(n === 1 ? 'org.people.one' : 'org.people.other', { n });
+  let lineDialog: LineUnitDialog | undefined = $state();
+  const current = $derived(activeLine ?? (activeOrg ? org : (activeArea ?? active)));
   const orgCount = $derived(
     areas.length > 0
       ? $t(areas.length === 1 ? 'org.count.areas.one' : 'org.count.areas.other', {
@@ -60,19 +81,21 @@
   const initials = $derived(nameInitials(current?.name ?? ''));
   /** Long names are cut after two lines; the tooltip keeps the whole text. */
   const pickTitle = $derived(
-    activeOrg
-      ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
-      : activeArea
-        ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
-        : active
-          ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
-              'team.switcher.meta',
-              {
-                kind: $t('team.cadence.kind.' + active.cadence.kind),
-                weeks: active.cadence.lengthWeeks,
-              },
-            )}`
-          : '',
+    activeLine
+      ? `${activeLine.name}\n${lineLevel(activeLine)} · ${peopleText(linePeople($workspace, activeLine.id).size)}`
+      : activeOrg
+        ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
+        : activeArea
+          ? `${activeArea.name}\n${$t('area.meta', { count: teamCount(activeArea) })}`
+          : active
+            ? `${active.name}\n${activeAreaOf ? `${activeAreaOf.name} · ` : ''}${$t(
+                'team.switcher.meta',
+                {
+                  kind: $t('team.cadence.kind.' + active.cadence.kind),
+                  weeks: active.cadence.lengthWeeks,
+                },
+              )}`
+            : '',
   );
 
   /** The list of teams and areas is a disclosure too, in the flow like the menu. */
@@ -248,7 +271,11 @@
     confirming = false;
     if (choice !== 'save' || !current) return;
     const id = current.id;
-    workspace.apply((ws) => (activeArea ? removeArea(ws, id) : removeTeam(ws, id)));
+    if (activeLine) {
+      const parent = activeLine.parentId;
+      workspace.apply((ws) => removeLineUnit(ws, id));
+      activeTeamId.set(parent ? lineSelection(parent) : ($workspace.teams[0]?.id ?? null));
+    } else workspace.apply((ws) => (activeArea ? removeArea(ws, id) : removeTeam(ws, id)));
     await tick();
     // Without teams the Calendar shows the start screen and this bar is gone; fall back to the main area.
     (toggle ?? document.getElementById(`${uid}-add`) ?? document.getElementById('main'))?.focus();
@@ -285,6 +312,35 @@
   </li>
 {/snippet}
 
+{#snippet lineIcon()}
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg>
+{/snippet}
+
+{#snippet lineOption(u: LineUnit)}
+  {@const kids = childUnits($workspace, u.id)}
+  {@const n = linePeople($workspace, u.id).size}
+  <li>
+    <button
+      type="button"
+      class="opt line"
+      aria-current={lineSelection(u.id) === $activeTeamId ? 'true' : undefined}
+      onclick={() => choose(lineSelection(u.id))}
+    >
+      <span class="avatar mini line" aria-hidden="true">{@render lineIcon()}</span>
+      <span class="opt-name-line">{u.name}</span>
+      <span class="sr-only">{lineLevel(u)}</span>
+      <span class="count"
+        ><span aria-hidden="true">{n}</span><span class="sr-only">{peopleText(n)}</span></span
+      >
+    </button>
+    {#if kids.length > 0}
+      <ul class="kids line-kids">
+        {#each kids as kid (kid.id)}{@render lineOption(kid)}{/each}
+      </ul>
+    {/if}
+  </li>
+{/snippet}
+
 <div class="switcher">
   {#if current}
     <button
@@ -296,7 +352,9 @@
       aria-controls="{uid}-list"
       onclick={openList}
     >
-      {#if activeOrg}
+      {#if activeLine}
+        <span class="avatar line" aria-hidden="true">{@render lineIcon()}</span>
+      {:else if activeOrg}
         <span class="avatar org" aria-hidden="true">{@render orgIcon()}</span>
       {:else if activeArea}
         <span class="avatar area" aria-hidden="true">{@render areaIcon()}</span>
@@ -312,7 +370,9 @@
           ></span
         >
         <span class="meta">
-          {#if activeOrg}
+          {#if activeLine}
+            {lineLevel(activeLine)} · {peopleText(linePeople($workspace, activeLine.id).size)}
+          {:else if activeOrg}
             {$t('org.meta', { count: orgCount })}
           {:else if activeArea}
             {$t('area.meta', { count: teamCount(activeArea) })}
@@ -402,6 +462,12 @@
           {#each teams as team (team.id)}{@render teamOption(team.id)}{/each}
         </ul>
       {/if}
+      {#if lineUnits.length > 0}
+        <p class="group line-group" id="{uid}-line">{$t('line.switcher.group')}</p>
+        <ul aria-labelledby="{uid}-line">
+          {#each childUnits($workspace) as u (u.id)}{@render lineOption(u)}{/each}
+        </ul>
+      {/if}
     </div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -418,8 +484,20 @@
         >{$t('team.add')}</button
       >
       <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button>
+      <button type="button" onclick={() => run(() => lineDialog?.show(undefined, activeLine?.id))}
+        >{$t('line.unit.add')}</button
+      >
       <hr />
-      {#if activeOrg}
+      {#if activeLine}
+        {@const unit = activeLine}
+        <button type="button" onclick={() => run(() => lineDialog?.show(unit))}
+          >{$t('line.unit.editMenu')}</button
+        >
+        <hr />
+        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
+          >{$t('line.unit.delete')}</button
+        >
+      {:else if activeOrg}
         <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
           >{$t('org.rename')}</button
         >
@@ -508,20 +586,25 @@
 </dialog>
 
 <AreaDialog bind:this={areaDialog} returnFocus={() => toggle?.focus()} />
+<LineUnitDialog bind:this={lineDialog} returnFocus={() => toggle?.focus()} />
 
 <ConfirmDialog
   open={confirming}
   title={$t('team.delete.title', { name: current?.name ?? '' })}
-  message={activeArea
-    ? [
-        $t('area.delete.message'),
-        areaLoss.events + areaLoss.people > 0 ? $t('area.delete.goes', areaLoss) : '',
-        $t('area.undo'),
-      ]
-        .filter(Boolean)
-        .join(' ')
-    : $t('team.delete.message')}
-  confirmLabel={$t(activeArea ? 'area.delete' : 'team.delete')}
+  message={activeLine
+    ? $t('line.unit.delete.message', {
+        n: linePeople($workspace, activeLine.id).size,
+      })
+    : activeArea
+      ? [
+          $t('area.delete.message'),
+          areaLoss.events + areaLoss.people > 0 ? $t('area.delete.goes', areaLoss) : '',
+          $t('area.undo'),
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : $t('team.delete.message')}
+  confirmLabel={$t(activeLine ? 'line.unit.delete' : activeArea ? 'area.delete' : 'team.delete')}
   discard={false}
   onchoose={onConfirm}
 />
@@ -620,6 +703,9 @@
   .avatar.org {
     background: linear-gradient(135deg, #3b82f6, #1e3a8a);
   }
+  .avatar.line {
+    background: linear-gradient(135deg, #db2777, #8b5cf6);
+  }
   .avatar svg {
     width: 1.1rem;
     height: 1.1rem;
@@ -671,6 +757,17 @@
     top: 0.15rem;
     bottom: 0.9rem;
     border-left: 2px solid color-mix(in srgb, #14b8a6 50%, transparent);
+  }
+  .line-group {
+    margin-top: 0.35rem;
+    border-top: 1px solid var(--border);
+  }
+  .list .line-kids::before {
+    border-left-color: color-mix(in srgb, #db2777 45%, transparent);
+  }
+  .opt-name-line {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .group {
     margin: 0;

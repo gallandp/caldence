@@ -287,6 +287,21 @@
     commit([`levelNames.${level}`], { levelNames: next });
   }
 
+  /** The line's level names (#316), offered once the file has a line. */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  function onLineName(level: 'group' | 'team', event: Event) {
+    const word = (k: 'group' | 'team') => $t('line.level.' + k);
+    const text = (event.currentTarget as HTMLInputElement).value.trim();
+    const next = {
+      group: settings.lineLevelNames?.group ?? word('group'),
+      team: settings.lineLevelNames?.team ?? word('team'),
+      [level]: text || word(level),
+    };
+    // The default words are stored as no setting, so they follow the language.
+    const plain = next.group === word('group') && next.team === word('team');
+    commit([`lineLevelNames.${level}`], { lineLevelNames: plain ? undefined : next });
+  }
+
   const lang = (event: Event) =>
     commit([], { locale: (event.currentTarget as HTMLSelectElement).value as Locale });
 </script>
@@ -594,6 +609,23 @@
                 onchange={(e) => onLevelName(level, e)}
               />
               {@render err(`levelNames.${level}`, $t('settings.levels.' + level))}
+            </div>
+          {/each}
+        </div>
+      {/if}
+      {#if hasLine}
+        <div class="grid">
+          {#each ['group', 'team'] as const as level (level)}
+            <div class="field">
+              <label for="set-line-{level}">{$t('settings.lineLevels.' + level)}</label>
+              <input
+                id="set-line-{level}"
+                type="text"
+                maxlength={LIMITS.textChars}
+                placeholder={$t('line.level.' + level)}
+                value={settings.lineLevelNames?.[level] ?? ''}
+                onchange={(e) => onLineName(level, e)}
+              />
             </div>
           {/each}
         </div>

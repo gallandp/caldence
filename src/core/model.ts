@@ -371,7 +371,7 @@ export function lineSubtree(ws: Workspace, unitId: string): Set<string> {
   const out = new Set<string>([unitId]);
   const units = ws.lineUnits ?? [];
   // At most three levels (validated), so a few passes collect the subtree.
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const u of units)
       if (u.parentId !== undefined && out.has(u.parentId) && !out.has(u.id)) {
@@ -398,7 +398,10 @@ export function linePeople(ws: Workspace, unitId: string): Set<string> {
 }
 
 /** The people a selection is limited to: a line unit's people, else undefined (no limit). */
-export function selectionPeople(ws: Workspace, selection: string | undefined): Set<string> | undefined {
+export function selectionPeople(
+  ws: Workspace,
+  selection: string | undefined,
+): Set<string> | undefined {
   const line = selectedLineUnit(selection);
   return line === undefined ? undefined : linePeople(ws, line);
 }

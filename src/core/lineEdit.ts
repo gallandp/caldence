@@ -26,7 +26,10 @@ export function addLineUnit(
   const n = named(name, `lineUnits.${units.length}.name`);
   if (!n.ok) return n;
   const out = structuredClone(ws);
-  const id = newId('lu', units.map((u) => u.id));
+  const id = newId(
+    'lu',
+    units.map((u) => u.id),
+  );
   const unit: LineUnit = { id, name: n.value, ...(parentId ? { parentId } : {}) };
   out.lineUnits = [...(out.lineUnits ?? []), unit];
   return checked(out, [out, id]);
@@ -66,12 +69,19 @@ export function addSkillFamily(ws: Workspace, name: string): Result<[Workspace, 
   const n = named(name, `skillFamilies.${list.length}.name`);
   if (!n.ok) return n;
   const out = structuredClone(ws);
-  const id = newId('sf', list.map((f) => f.id));
+  const id = newId(
+    'sf',
+    list.map((f) => f.id),
+  );
   out.skillFamilies = [...list.map((f) => ({ ...f })), { id, name: n.value }];
   return checked(out, [out, id]);
 }
 
-export function renameSkillFamily(ws: Workspace, familyId: string, name: string): Result<Workspace> {
+export function renameSkillFamily(
+  ws: Workspace,
+  familyId: string,
+  name: string,
+): Result<Workspace> {
   const out = structuredClone(ws);
   const i = out.skillFamilies?.findIndex((f) => f.id === familyId) ?? -1;
   if (i < 0) return fail('skillFamilies', 'error.ref.unknown');
@@ -90,7 +100,10 @@ export function addSkill(
   const n = named(name, `skills.${list.length}.name`);
   if (!n.ok) return n;
   const out = structuredClone(ws);
-  const id = newId('sk', list.map((s) => s.id));
+  const id = newId(
+    'sk',
+    list.map((s) => s.id),
+  );
   out.skills = [...(out.skills ?? []), { id, name: n.value, familyId }];
   return checked(out, [out, id]);
 }

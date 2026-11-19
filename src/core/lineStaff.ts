@@ -57,13 +57,27 @@ export function commitments(ws: Workspace, personId: string, weeks: WeekLoad[]):
   for (const t of ws.teams) {
     if (!t.members.some((m) => m.personId === personId)) continue;
     const hours = capacity(ws, personId, t.id);
-    out.push({ unitId: t.id, name: t.name, area: false, hours, fte: round2(hours / hpw), meetings: avg(t.id) });
+    out.push({
+      unitId: t.id,
+      name: t.name,
+      area: false,
+      hours,
+      fte: round2(hours / hpw),
+      meetings: avg(t.id),
+    });
   }
   for (const a of ws.areas) {
     if (!Object.hasOwn(a.memberHours, personId)) continue;
     const hours = a.memberHours[personId]!;
     if (hours <= 0) continue;
-    out.push({ unitId: a.id, name: a.name, area: true, hours, fte: round2(hours / hpw), meetings: avg(a.id) });
+    out.push({
+      unitId: a.id,
+      name: a.name,
+      area: true,
+      hours,
+      fte: round2(hours / hpw),
+      meetings: avg(a.id),
+    });
   }
   return out;
 }
@@ -145,7 +159,11 @@ export function lineTree(ws: Workspace): { unit: LineUnit; depth: number }[] {
 }
 
 /** Units a unit may move under: not itself or its subtree, and the result stays three levels. */
-export function parentChoices(ws: Workspace, unitId: string | undefined, maxLevels = 3): LineUnit[] {
+export function parentChoices(
+  ws: Workspace,
+  unitId: string | undefined,
+  maxLevels = 3,
+): LineUnit[] {
   const own = unitId === undefined ? new Set<string>() : lineSubtree(ws, unitId);
   const depthOf = (id: string | undefined): number => {
     let d = 0;

@@ -195,8 +195,7 @@ export function areaHours(ws: Workspace, areaId: string, personId: string): numb
 export function capacity(ws: Workspace, personId: string, unitId?: string): number {
   // The organisation is everything: the same as no unit. So is a line unit (#316): its people
   // are measured on all their hours, wherever they work.
-  const teamId =
-    unitId === ORG_UNIT || selectedLineUnit(unitId) !== undefined ? undefined : unitId;
+  const teamId = unitId === ORG_UNIT || selectedLineUnit(unitId) !== undefined ? undefined : unitId;
   const fallback = ws.settings.hoursPerWeek;
   const scope = teamId === undefined ? undefined : new Set(unitTeamIds(ws, teamId));
   const teams = ws.teams.filter(

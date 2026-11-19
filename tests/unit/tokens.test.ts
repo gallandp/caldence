@@ -34,6 +34,8 @@ for (const [name, t] of [
       expect(contrastRatio(t['warn']!, t['warn-soft']!)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(t['danger']!, t['danger-soft']!)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(t['ok']!, t['ok-soft']!)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t['line']!, t['line-soft']!)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t['line']!, t['surface']!)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(t['side-text']!, t['side-bg']!)).toBeGreaterThanOrEqual(4.5);
     });
     // --border is decorative only; control outlines use --border-strong.
