@@ -3,6 +3,7 @@ import {
   capacity,
   fte,
   hoursLeft,
+  loadBase,
   loadPerWeek,
   overbooked,
   warnings,
@@ -304,6 +305,35 @@ describe('hours per team', () => {
     const ws = twoTeams();
     ws.teams[0]!.memberHours = { p1: 0 };
     // 12 / 18 = 0.67 is above 0.5.
+    expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
+    ]);
+  });
+
+  it('the load base is all weekly hours, at most the Settings weekly hours (#342)', () => {
+    const ws = twoTeams();
+    // 20 + 18 is within 40 h: the base is all of them.
+    expect(loadBase(ws, 'p1')).toBe(38);
+    // 20 + 40 (Beta on the default) tops 40 h: the base stays at 40.
+    ws.teams[1]!.memberHours = {};
+    expect(capacity(ws, 'p1')).toBe(60);
+    expect(loadBase(ws, 'p1')).toBe(40);
+    // Someone in no team has the Settings weekly hours.
+    expect(loadBase(ws, 'p2')).toBe(40);
+  });
+
+  it('overbooking a person never makes them look less loaded (#342)', () => {
+    const ws = twoTeams();
+    ws.settings.hoursPerWeek = 32;
+    ws.teams[0]!.memberHours = { p1: 32 };
+    ws.teams = [ws.teams[0]!];
+    // 12 h of meetings ÷ 32 h = 0.375; within the 0.5 limit.
+    expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([]);
+    // Another 16 h in a team on top would lower the share to 12 / 48 = 0.25 without the cap.
+    ws.teams.push(team([], { id: 'beta', memberHours: { p1: 16 } }));
+    expect(loadBase(ws, 'p1')).toBe(32);
+    // The cap also holds for the limit: 17 h ÷ 32 h is over it, 17 h ÷ 48 h would not be.
+    ws.teams[0]!.events[0]!.duration = 17 * 60;
     expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([
       { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
     ]);

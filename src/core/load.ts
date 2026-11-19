@@ -205,6 +205,28 @@ export function overbooked(ws: Workspace, personId: string): boolean {
   return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;
 }
 
+/**
+ * The weekly hours a person's share in meetings, the limit and the room before it are measured
+ * against: all their hours in all teams and areas, but at most the Settings weekly hours. Hours
+ * booked beyond a working week never make a person look less loaded (#342); more hours within it
+ * still lower the share.
+ */
+export function loadBase(ws: Workspace, personId: string): number {
+  return Math.min(capacity(ws, personId), ws.settings.hoursPerWeek);
+}
+
+/** A person's average meeting hours per week over these weeks, their load base and share. */
+export function personLoad(
+  ws: Workspace,
+  weeks: WeekLoad[],
+  personId: string,
+): { hours: number; base: number; share: number } {
+  const total = weeks.reduce((sum, w) => sum + (w.byPerson[personId] ?? 0), 0);
+  const hours = weeks.length > 0 ? total / weeks.length : 0;
+  const base = loadBase(ws, personId);
+  return { hours, base, share: fte(hours, base) };
+}
+
 /** A person's hours in a week in these teams. */
 export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: string): number {
   return teamIds.reduce((sum, id) => sum + (week.byTeamPerson[id]?.[personId] ?? 0), 0);
@@ -215,8 +237,9 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
  * of a week is the person's average, or their recurring meetings that week if that is more, so
  * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
  * and cycle milestones on top of them are. The limit is one rule everywhere: all of a person's
- * meeting hours ÷ their hours summed over their teams and areas, whatever the scope, so a person
- * is over the limit everywhere or nowhere (#273, #307, #334). Area meetings measured against the
+ * meeting hours ÷ their hours summed over their teams and areas (at most the Settings weekly
+ * hours, see `loadBase`), whatever the scope, so a person is over the limit everywhere or nowhere
+ * (#273, #307, #334, #342). Area meetings measured against the
  * area hours alone are hints, see `areaHints`.
  */
 export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
@@ -225,7 +248,7 @@ export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
     const average = weeks.length > 0 ? total / weeks.length : 0;
-    const hoursPerWeek = capacity(ws, person.id);
+    const hoursPerWeek = loadBase(ws, person.id);
     for (const week of weeks) {
       const hours = week.byPerson[person.id] ?? 0;
       const usual = Math.max(average, week.regularByPerson[person.id] ?? 0);
