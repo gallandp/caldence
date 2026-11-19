@@ -274,11 +274,60 @@ describe('staff import', () => {
     expect(run(ws, rows).limits).toEqual(['companies']);
   });
 
-  it('creates a team under a group at most three levels deep', () => {
+  it('a group name only matches groups, and must be unique', () => {
     const ws = lined();
-    ws.lineUnits!.push({ id: 'l3', name: 'Tief', parentId: 'l1' });
+    // "Tief" is a line team (no sub-units), so it is not taken as the group: a new group is made.
+    ws.lineUnits!.push({ id: 'l3', name: 'Tief', parentId: 'g1' });
     const r = run(ws, [['Lina', 'Neu', 1, '', 'Tief']]);
-    expect(r.rows[0]!.error).toBe('tooDeep');
+    const lina = r.ws.people.find((p) => p.name === 'Lina')!;
+    const team = r.ws.lineUnits!.find((u) => u.id === lina.lineUnitId)!;
+    expect(r.ws.lineUnits!.find((u) => u.id === team.parentId)).toMatchObject({ name: 'Tief' });
+    expect(team.parentId).not.toBe('l3');
+    ws.lineUnits!.push({ id: 'g2', name: 'Fachgruppe Handel' });
+    expect(run(ws, [['Lina', 'Neu', 1, '', 'Fachgruppe Handel']]).rows[0]!.error).toBe(
+      'groupAmbiguous',
+    );
+  });
+
+  it('the same name without company on one side waits for a choice', () => {
+    const ws = lined();
+    ws.people.push({ id: 'p7', name: 'Ina Roth', lineUnitId: 'l1' });
+    // Earlier import without company, now with one.
+    const r = run(ws, [['Ina Roth', 'Orvalis Ware', 1, '', '', 'Velmora AG']]);
+    expect(r.rows[0]).toMatchObject({ status: 'choose' });
+    expect(r.rows[0]!.candidates.map((p) => p.id)).toEqual(['p7']);
+    const picked = run(ws, [['Ina Roth', 'Orvalis Ware', 1, '', '', 'Velmora AG']], {
+      2: { kind: 'person', personId: 'p7' },
+    });
+    expect(picked.rows[0]).toMatchObject({ status: 'updated' });
+    expect(picked.ws.people.find((p) => p.id === 'p7')!.companyId).toBe('co1');
+    // A file per company that leaves the column out.
+    expect(run(ws, [['Atlas Ware', 'Orvalis Ware', 0.8, 'Orvalis Lager']]).rows[0]).toMatchObject({
+      status: 'choose',
+    });
+  });
+
+  it('new skills share one family per top unit, also when the name exists', () => {
+    const ws = lined();
+    ws.skillFamilies!.push({ id: 'f2', name: 'Skills Technik' });
+    const r = run(ws, [
+      ['A', 'Netze', 1, 'Netzbau', 'Technik'],
+      ['B', 'Funk', 1, 'Funkplanung', 'Technik'],
+    ]);
+    expect(keys(r.ws)).toEqual([]);
+    expect(r.ws.skills!.filter((s) => s.familyId === 'f2').map((s) => s.name)).toEqual([
+      'Netzbau',
+      'Funkplanung',
+    ]);
+  });
+
+  it('a too long company is a row error', () => {
+    const r = run(lined(), [['A', 'Orvalis Ware', 1, '', '', 'x'.repeat(201)]]);
+    expect(r.rows[0]!.error).toBe('company');
+  });
+
+  it('stops reading CSV after the row limit', () => {
+    expect(parseCsv('a\nb\nc\nd', 2)).toEqual([['a'], ['b']]);
   });
 
   it('a file without line data stays without empty lists', () => {
@@ -378,6 +427,31 @@ describe('xlsx reader', () => {
       tooMany: false,
     });
     expect((await readXlsx(bytes, [], 2))?.tooMany).toBe(true);
+  });
+
+  it('reads self-closing shared strings without shifting the rest', async () => {
+    const bytes = deflatedZip({
+      'xl/workbook.xml': '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+      'xl/_rels/workbook.xml.rels':
+        '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+      'xl/sharedStrings.xml': '<sst><si/><si><t>a</t></si><si><t>b</t></si></sst>',
+      'xl/worksheets/sheet1.xml':
+        '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>1</v></c><c r="B1" t="s"><v>2</v></c></row></sheetData></worksheet>',
+    });
+    expect((await readXlsx(bytes, [], 10))?.rows).toEqual([['a', 'b']]);
+  });
+
+  it('stays fast on a hostile sheet of unclosed tags', async () => {
+    const bytes = deflatedZip({
+      'xl/workbook.xml': '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+      'xl/_rels/workbook.xml.rels':
+        '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+      'xl/sharedStrings.xml': '<sst>' + '<si>'.repeat(200_000),
+      'xl/worksheets/sheet1.xml': '<row r="1"><c><v>'.repeat(200_000),
+    });
+    const start = performance.now();
+    expect((await readXlsx(bytes, [], 10))?.rows).toEqual([]);
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 
   it('returns null for bytes that are not a workbook', async () => {

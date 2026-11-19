@@ -46,9 +46,9 @@ export const nameKey = (s: string): string => text(s).toLowerCase();
 
 /**
  * Rows of a CSV file. The separator is guessed from the header line: `;` (Excel in German), `,`
- * or tab. Quotes follow RFC 4180. A byte order mark is dropped.
+ * or tab. Quotes follow RFC 4180. A byte order mark is dropped. Reading stops after `maxRows` rows.
  */
-export function parseCsv(input: string): string[][] {
+export function parseCsv(input: string, maxRows = Infinity): string[][] {
   const s = input.replace(/^\uFEFF/, '');
   const firstLine = s.slice(0, s.search(/\r?\n|$/));
   const count = (ch: string) => firstLine.split(ch).length - 1;
@@ -75,6 +75,7 @@ export function parseCsv(input: string): string[][] {
       rows.push(row);
       row = [];
       field = '';
+      if (rows.length >= maxRows) return rows;
     } else field += ch;
   }
   if (field !== '' || row.length > 0) {
@@ -141,7 +142,8 @@ export function staffTable(
     else if (label !== '') ignored.push(label);
   });
   // A column without header but with values is not read either; name it by its letter position.
-  const width = Math.max(header.length, ...cells.slice(headerAt + 1).map((r) => r.length));
+  let width = header.length;
+  for (const r of cells) width = Math.max(width, r.length);
   for (let i = header.length; i < width; i++)
     if (cells.slice(headerAt + 1).some((r) => text(r[i]) !== '')) ignored.push(`#${i + 1}`);
   for (let i = 0; i < header.length; i++)
@@ -184,6 +186,8 @@ export type RowError =
   | 'team'
   | 'teamUnknown'
   | 'teamAmbiguous'
+  | 'groupAmbiguous'
+  | 'company'
   | 'tooDeep'
   | 'fte'
   | 'tooManySkills'
@@ -195,6 +199,7 @@ export type Note =
   | { key: 'newGroup'; name: string }
   | { key: 'newCompany'; name: string }
   | { key: 'moved'; name: string }
+  | { key: 'company'; name: string }
   | { key: 'fte'; from: number }
   | { key: 'skills' };
 
@@ -217,7 +222,7 @@ export interface StaffReview {
   counts: Record<'new' | 'unchanged' | 'updated' | 'error' | 'choose' | 'skipped', number>;
   created: { skills: string[]; companies: string[]; units: string[] };
   /** Limits of the file the import would exceed; the import is refused then. */
-  limits: ('people' | 'skills' | 'companies' | 'lineUnits')[];
+  limits: ('people' | 'skills' | 'skillFamilies' | 'companies' | 'lineUnits')[];
 }
 
 export interface ImportNames {
@@ -281,6 +286,13 @@ export function reviewStaff(
       at = unitById.get(at.parentId) ?? at;
     return at;
   };
+  // A specialist group is a unit with sub-units or at the top; a team of the same name is not one.
+  const parents = new Set(units.flatMap((u) => (u.parentId === undefined ? [] : [u.parentId])));
+  const groupsByName = (name: string): LineUnit[] =>
+    units.filter(
+      (u) => nameKey(u.name) === nameKey(name) && (u.parentId === undefined || parents.has(u.id)),
+    );
+  const familiesByName = new Map(out.skillFamilies.map((f) => [nameKey(f.name), f] as const));
   /** Units of that name; `parentId` null means anywhere in the tree. */
   const byName = (name: string, parentId: string | null): LineUnit[] =>
     units.filter(
@@ -295,9 +307,11 @@ export function reviewStaff(
       ? ''
       : nameKey(out.companies!.find((c) => c.id === companyId)?.name ?? companyId);
   const peopleByKey = new Map<string, Person[]>();
+  const peopleByName = new Map<string, Person[]>();
   for (const p of out.people) {
     const k = `${companyKeyOf(p.companyId)}\u0000${nameKey(p.name)}`;
     peopleByKey.set(k, [...(peopleByKey.get(k) ?? []), p]);
+    peopleByName.set(nameKey(p.name), [...(peopleByName.get(nameKey(p.name)) ?? []), p]);
   }
   const rowKey = (r: StaffRow) => `${nameKey(r.company)}\u0000${nameKey(r.name)}`;
   const rowsByKey = new Map<string, number>();
@@ -334,6 +348,10 @@ export function reviewStaff(
       error('fte');
       continue;
     }
+    if (row.company.length > LIMITS.textChars) {
+      error('company');
+      continue;
+    }
     if (row.skills.length > LIMITS.skills || row.skills.some((s) => s.length > LIMITS.textChars)) {
       error('tooManySkills');
       continue;
@@ -341,10 +359,21 @@ export function reviewStaff(
 
     // Who the row is.
     const key = rowKey(row);
-    const candidates = peopleByKey.get(key) ?? [];
+    const exact = peopleByKey.get(key) ?? [];
+    // Without a company on one side, the same name may be the same person (say, a first import
+    // without the company column, or one file per company that leaves it out): the user decides.
+    // Two different companies mean two people.
+    const candidates =
+      exact.length > 0
+        ? exact
+        : (peopleByName.get(nameKey(row.name)) ?? []).filter(
+            (p) => row.company === '' || p.companyId === undefined,
+          );
     let target: Person | null = null;
-    if (candidates.length <= 1 && (rowsByKey.get(key) ?? 0) <= 1) {
-      target = candidates[0] ?? null;
+    if (candidates.length === 0 && (rowsByKey.get(key) ?? 0) <= 1) {
+      target = null;
+    } else if (exact.length === 1 && (rowsByKey.get(key) ?? 0) <= 1) {
+      target = exact[0]!;
     } else {
       res.candidates = candidates;
       res.conflict = key;
@@ -373,7 +402,12 @@ export function reviewStaff(
     // The line unit: the team under the given group, or the one team of that name.
     let unit: LineUnit | undefined;
     if (row.group !== '') {
-      let group = byName(row.group, null)[0];
+      const groups = groupsByName(row.group);
+      if (groups.length > 1) {
+        error('groupAmbiguous');
+        continue;
+      }
+      let group = groups[0];
       unit = group ? byName(row.team, group.id)[0] : undefined;
       if (!unit && group && depth(group) >= LIMITS.lineLevels) {
         error('tooDeep');
@@ -388,6 +422,7 @@ export function reviewStaff(
           res.notes.push({ key: 'newGroup', name: group.name });
         }
         unit = { id: newUnit(), name: row.team, parentId: group.id };
+        parents.add(group.id);
         units.push(unit);
         unitById.set(unit.id, unit);
         created.units.push(unit.name);
@@ -433,8 +468,14 @@ export function reviewStaff(
         familyId = u.skillFamilyId;
       if (!familyId) {
         const root = top(unit!);
-        familyId = newFamily();
-        out.skillFamilies!.push({ id: familyId, name: names.family(root.name) });
+        const familyName = names.family(root.name);
+        let family = familiesByName.get(nameKey(familyName));
+        if (!family) {
+          family = { id: newFamily(), name: familyName };
+          out.skillFamilies!.push(family);
+          familiesByName.set(nameKey(familyName), family);
+        }
+        familyId = family.id;
         root.skillFamilyId = familyId;
       }
       const skill = { id: newSkill(), name, familyId };
@@ -463,6 +504,12 @@ export function reviewStaff(
     claimed.add(target.id);
     res.personId = target.id;
     let changed = false;
+    // A row without company keeps the person's company; a row with one sets it.
+    if (companyId !== undefined && target.companyId !== companyId) {
+      res.notes.push({ key: 'company', name: row.company });
+      target.companyId = companyId;
+      changed = true;
+    }
     if (target.lineUnitId !== unit.id) {
       res.notes.push({ key: 'moved', name: unit.name });
       target.lineUnitId = unit.id;
@@ -487,6 +534,7 @@ export function reviewStaff(
   const limits: StaffReview['limits'] = [];
   if (out.people.length > LIMITS.people) limits.push('people');
   if (out.skills.length > LIMITS.skills) limits.push('skills');
+  if (out.skillFamilies.length > LIMITS.skillFamilies) limits.push('skillFamilies');
   if (out.companies.length > LIMITS.companies) limits.push('companies');
   if (out.lineUnits.length > LIMITS.lineUnits) limits.push('lineUnits');
   // Keep the file as it was where nothing was added.

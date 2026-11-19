@@ -1420,5 +1420,14 @@
   "staff.count.skills.one": "1 neuer Skill",
   "staff.count.companies.one": "1 neue Gesellschaft",
   "staff.count.units.one": "1 neue Linieneinheit",
-  "staff.count.error.one": "1 Zeile mit Fehler"
+  "staff.count.error.one": "1 Zeile mit Fehler",
+  "staff.error.groupAmbiguous": "Fachgruppe „{name}“ gibt es mehrmals",
+  "staff.error.company": "Gesellschaft ist zu lang",
+  "staff.error.tooLarge": "Die Datei ist größer als 10 MB. Für 1.000 Personen reicht viel weniger; prüfen Sie, ob es die richtige Datei ist.",
+  "staff.error.invalid": "So lässt sich der Import nicht übernehmen: {reason}",
+  "staff.note.company": "Gesellschaft jetzt {name}",
+  "staff.limit.skillFamilies": "Mit diesem Import hätte die Datei mehr als {n} Skill-Familien.",
+  "staff.bulk.person": "{n} offene Zeilen: vorhandene Person nehmen",
+  "staff.bulk.new": "{n} offene Zeilen: als neue Personen anlegen",
+  "staff.read.one": "1 Zeile gelesen"
 }

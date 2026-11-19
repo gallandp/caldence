@@ -18,6 +18,7 @@
   import { readXlsx } from '../../core/xlsxRead';
   import { xlsx } from '../../core/xlsx';
   import { LIMITS } from '../../core/limits';
+  import { validate } from '../../core/validate';
   import { formatNumber, locale, translate as t } from '../../i18n';
   import { browserFileEnv, exportTextFile } from '../state/files';
   import { workspace } from '../state/workspace';
@@ -30,8 +31,8 @@
   }: {
     open: boolean;
     onclose: () => void;
-    /** After the import: how many people were taken over. */
-    ondone: (n: number) => void;
+    /** After the import: how many people were taken over, and whether the file changed. */
+    ondone: (n: number, changed: boolean) => void;
     /** Opens the help on privacy (the dialog closes first). */
     onprivacy?: () => void;
   } = $props();
@@ -88,9 +89,54 @@
   const taken = $derived(
     review ? review.counts.new + review.counts.updated + review.counts.unchanged : 0,
   );
-  const blocked = $derived(
-    !review || review.counts.choose > 0 || review.limits.length > 0 || taken === 0,
+  // The preview runs the file's own checks, so a refused import shows here and not on submit.
+  const invalid = $derived.by(() => {
+    if (!review || review.limits.length > 0) return null;
+    const v = validate(review.ws);
+    return v.ok ? null : (v.errors[0] ?? null);
+  });
+  const invalidText = $derived(
+    invalid ? $t('staff.error.invalid', { reason: $t(invalid.key, { path: invalid.path }) }) : '',
   );
+  // Only unchanged rows change nothing: there is nothing to take over (and nothing to undo).
+  const blocked = $derived(
+    !review ||
+      review.counts.choose > 0 ||
+      review.limits.length > 0 ||
+      invalid !== null ||
+      review.counts.new + review.counts.updated === 0,
+  );
+  const chips = $derived.by(() => {
+    if (!review) return [];
+    const c = review.counts;
+    const list: { cls: string; text: string; n: number }[] = [
+      { cls: 'ok', n: c.new, text: $t('staff.count.new', { n: c.new }) },
+      { cls: '', n: c.unchanged, text: $t('staff.count.unchanged', { n: c.unchanged }) },
+      { cls: 'accent', n: c.updated, text: $t('staff.count.updated', { n: c.updated }) },
+      {
+        cls: 'warn',
+        n: review.created.skills.length,
+        text: count('skills', review.created.skills.length),
+      },
+      {
+        cls: 'warn',
+        n: review.created.companies.length,
+        text: count('companies', review.created.companies.length),
+      },
+      {
+        cls: 'warn',
+        n: review.created.units.length,
+        text: count('units', review.created.units.length),
+      },
+      { cls: 'warn', n: c.choose, text: $t('staff.count.choose', { n: c.choose }) },
+      { cls: '', n: c.skipped, text: $t('staff.count.skipped', { n: c.skipped }) },
+      { cls: 'danger', n: c.error, text: count('error', c.error) },
+    ];
+    return list.filter((x) => x.n > 0);
+  });
+  /** Open choices where exactly one person is offered, for the bulk buttons. */
+  const openRows = $derived((review?.rows ?? []).filter((r) => r.status === 'choose'));
+  const singleCandidate = $derived(openRows.filter((r) => r.candidates.length === 1));
   const shown = $derived(
     (review?.rows ?? []).filter(
       (r) => !onlyHints || r.status === 'error' || r.status === 'choose' || r.notes.length > 0,
@@ -98,12 +144,32 @@
   );
   const errorRows = $derived((review?.rows ?? []).filter((r) => r.status === 'error'));
 
+  /** Larger files are refused before reading: 1000 people fit in far less. */
+  const MAX_FILE = 10 * 1024 * 1024;
+  let readToken = 0;
+
+  /** CSV text: UTF-8, or Windows-1252 as German Excel writes plain "CSV (Trennzeichen-getrennt)". */
+  function decode(bytes: Uint8Array): string {
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      return new TextDecoder('windows-1252').decode(bytes);
+    }
+  }
+
   async function readFile(file: File) {
+    if (busy) return;
     reset();
-    busy = true;
+    const token = ++readToken;
     fileName = file.name;
+    if (file.size > MAX_FILE) {
+      problem = $t('staff.error.tooLarge');
+      return;
+    }
+    busy = true;
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
+      if (token !== readToken) return;
       let cells;
       // An .xlsx is a zip ("PK"); anything else is read as CSV text.
       if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
@@ -120,7 +186,11 @@
         }
         cells = read.rows;
       } else {
-        cells = parseCsv(new TextDecoder().decode(bytes));
+        cells = parseCsv(decode(bytes), 2 * LIMITS.people + 1);
+        if (cells.length > 2 * LIMITS.people) {
+          problem = $t('staff.error.tooMany', { n: LIMITS.people });
+          return;
+        }
       }
       const parsed = staffTable(cells, extraHeaders);
       if (parsed.rows.length > LIMITS.people) {
@@ -195,7 +265,17 @@
     return !c ? '' : c.kind === 'person' ? `p:${c.personId}` : c.kind;
   }
 
+  function chooseAll(kind: 'person' | 'new') {
+    const next = { ...choices };
+    for (const r of kind === 'person' ? singleCandidate : openRows)
+      next[r.row.line] =
+        kind === 'person' ? { kind: 'person', personId: r.candidates[0]!.id } : { kind: 'new' };
+    choices = next;
+    copied = false;
+  }
+
   function choose(line: number, value: string) {
+    copied = false;
     const next = { ...choices };
     if (value === '') delete next[line];
     else if (value.startsWith('p:')) next[line] = { kind: 'person', personId: value.slice(2) };
@@ -243,6 +323,7 @@
     event.preventDefault();
     if (!review || blocked) return;
     const next = review.ws;
+    const before = get(workspace);
     const result = workspace.apply(() => next);
     if (!result.ok) {
       const first = result.errors[0];
@@ -251,7 +332,7 @@
     }
     const n = taken;
     reset();
-    ondone(n);
+    ondone(n, get(workspace) !== before);
   }
 
   // Escape closes like Abbrechen.
@@ -285,7 +366,7 @@
   class="staff-import"
 >
   <form method="dialog" onsubmit={submit}>
-    <p class="eyebrow">{$t('staff.eyebrow')}</p>
+    <p class="kicker">{$t('staff.eyebrow')}</p>
     <h2 id="{uid}-title">{$t('staff.title')}</h2>
     <p id="{uid}-intro">{$t('staff.intro')}</p>
 
@@ -344,7 +425,11 @@
         <p class="file" id="{uid}-file">
           <strong>{fileName}</strong>
           {#if table && !problem}
-            <span>{$t('staff.read', { n: table.rows.length })}</span>
+            <span
+              >{$t(table.rows.length === 1 ? 'staff.read.one' : 'staff.read', {
+                n: table.rows.length,
+              })}</span
+            >
           {/if}
         </p>
       {:else}
@@ -356,6 +441,17 @@
     </div>
 
     <div role="alert" class="error">{problem ?? ''}</div>
+    <!-- Announces the result of reading a file; the chips below show it. -->
+    <p role="status" class="visually-hidden">
+      {review
+        ? [
+            $t(table?.rows.length === 1 ? 'staff.read.one' : 'staff.read', {
+              n: table?.rows.length ?? 0,
+            }),
+            ...chips.map((c) => c.text),
+          ].join(', ')
+        : ''}
+    </p>
 
     {#if table && table.ignored.length > 0}
       <p class="ignored">
@@ -365,40 +461,27 @@
 
     {#if review}
       <ul class="chips" aria-label={$t('staff.summary')}>
-        {#if review.counts.new}<li class="ok">
-            {$t('staff.count.new', { n: review.counts.new })}
-          </li>{/if}
-        {#if review.counts.unchanged}<li>
-            {$t('staff.count.unchanged', { n: review.counts.unchanged })}
-          </li>{/if}
-        {#if review.counts.updated}<li class="accent">
-            {$t('staff.count.updated', { n: review.counts.updated })}
-          </li>{/if}
-        {#if review.created.skills.length}<li class="warn">
-            {count('skills', review.created.skills.length)}
-          </li>{/if}
-        {#if review.created.companies.length}<li class="warn">
-            {count('companies', review.created.companies.length)}
-          </li>{/if}
-        {#if review.created.units.length}<li class="warn">
-            {count('units', review.created.units.length)}
-          </li>{/if}
-        {#if review.counts.choose}<li class="warn">
-            {$t('staff.count.choose', { n: review.counts.choose })}
-          </li>{/if}
-        {#if review.counts.skipped}<li>
-            {$t('staff.count.skipped', { n: review.counts.skipped })}
-          </li>{/if}
-        {#if review.counts.error}<li class="danger">
-            {count('error', review.counts.error)}
-          </li>{/if}
+        {#each chips as chip (chip.text)}<li class={chip.cls}>{chip.text}</li>{/each}
       </ul>
 
       {#each review.limits as limit (limit)}
         <p class="error">{$t('staff.limit.' + limit, { n: LIMITS[limit] })}</p>
       {/each}
+      {#if invalidText}
+        <p class="error">{invalidText}</p>
+      {/if}
       {#if review.counts.choose > 0}
         <p class="hint">{$t('staff.choose.hint')}</p>
+        <div class="tools">
+          {#if singleCandidate.length > 0}
+            <button type="button" onclick={() => chooseAll('person')}
+              >{$t('staff.bulk.person', { n: singleCandidate.length })}</button
+            >
+          {/if}
+          <button type="button" onclick={() => chooseAll('new')}
+            >{$t('staff.bulk.new', { n: openRows.length })}</button
+          >
+        </div>
       {/if}
 
       <div class="tools">
@@ -446,7 +529,7 @@
                 <td class="num wide">{r.row.fte === null ? r.row.fteText : fte(r.row.fte)}</td>
                 <td class="skills">{r.row.skills.join('; ')}</td>
                 <td>
-                  {#if r.conflict !== undefined && r.status !== 'error'}
+                  {#if r.conflict !== undefined}
                     <select
                       aria-labelledby="{uid}-h-result {uid}-n-{r.row.line}"
                       value={choiceValue(r)}
@@ -519,7 +602,7 @@
   .info p {
     margin: 0;
   }
-  .eyebrow {
+  .kicker {
     color: var(--text-muted);
     font-size: 0.875rem;
   }
@@ -556,7 +639,7 @@
   .match,
   .hint,
   .ignored,
-  .eyebrow {
+  .kicker {
     color: var(--text-muted);
   }
   .drop {

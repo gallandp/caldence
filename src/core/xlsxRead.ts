@@ -8,7 +8,7 @@ import type { Cell } from './xlsx';
  */
 
 /** Largest unpacked part of a workbook we read; a sheet of 1000 people is far below 1 MB. */
-const MAX_PART = 32 * 1024 * 1024;
+const MAX_PART = 8 * 1024 * 1024;
 
 interface Entry {
   method: number;
@@ -105,11 +105,67 @@ export function xmlText(raw: string): string {
 const attr = (attrs: string, name: string): string | undefined =>
   new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attrs)?.[1];
 
-/** The visible text of a string item: all `<t>` runs, without phonetic hints. */
+/**
+ * The elements `<tag …>body</tag>` or `<tag …/>` in `xml`, in order, by a forward scan with
+ * `indexOf`: linear in the length, so a hostile file cannot make it slow (a lazy regex would rescan
+ * to the end from every unclosed tag). Same-name nesting does not occur in the parts we read. An
+ * unclosed element ends the scan.
+ */
+export function* elements(xml: string, tag: string): Generator<{ attrs: string; body: string }> {
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  let at = 0;
+  for (;;) {
+    const start = xml.indexOf(open, at);
+    if (start < 0) return;
+    const next = xml[start + open.length];
+    const end = xml.indexOf('>', start);
+    if (end < 0) return;
+    if (
+      next !== '>' &&
+      next !== '/' &&
+      next !== ' ' &&
+      next !== '\t' &&
+      next !== '\n' &&
+      next !== '\r'
+    ) {
+      at = start + open.length;
+      continue;
+    }
+    if (xml[end - 1] === '/') {
+      yield { attrs: xml.slice(start + open.length, end - 1), body: '' };
+      at = end + 1;
+      continue;
+    }
+    const stop = xml.indexOf(close, end + 1);
+    if (stop < 0) return;
+    yield { attrs: xml.slice(start + open.length, end), body: xml.slice(end + 1, stop) };
+    at = stop + close.length;
+  }
+}
+
+const first = (xml: string, tag: string): string | undefined =>
+  elements(xml, tag).next().value?.body;
+
+/** The visible text of a string item: all `<t>` runs, without phonetic hints (`<rPh>`). */
 function runs(xml: string): string {
-  return [...xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '').matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)]
-    .map((m) => xmlText(m[1]!))
-    .join('');
+  let visible = '';
+  let at = 0;
+  for (;;) {
+    const start = xml.indexOf('<rPh', at);
+    if (start < 0) break;
+    const stop = xml.indexOf('</rPh>', start);
+    visible += xml.slice(at, start);
+    if (stop < 0) {
+      at = xml.length;
+      break;
+    }
+    at = stop + 6;
+  }
+  visible += xml.slice(at);
+  let out = '';
+  for (const t of elements(visible, 't')) out += xmlText(t.body);
+  return out;
 }
 
 /** Column index of a cell reference: A1 → 0, AB7 → 27. */
@@ -154,32 +210,29 @@ export async function readXlsx(
   const xml = await part(bytes, dir, path);
   if (xml === null) return null;
   const sharedXml = await part(bytes, dir, 'xl/sharedStrings.xml');
-  const shared = sharedXml
-    ? [...sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>|<si\b[^>]*\/>/g)].map((m) =>
-        runs(m[1] ?? ''),
-      )
-    : [];
+  const shared: string[] = [];
+  if (sharedXml) for (const si of elements(sharedXml, 'si')) shared.push(runs(si.body));
 
   const rows: Cell[][] = [];
   let tooMany = false;
-  for (const row of xml.matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)) {
-    const r = Number(attr(row[1]!, 'r') ?? rows.length + 1) - 1;
+  for (const row of elements(xml, 'row')) {
+    const r = Number(attr(row.attrs, 'r') ?? rows.length + 1) - 1;
     if (!Number.isInteger(r) || r < 0) continue;
     if (r >= maxRows) {
       tooMany = true;
       break;
     }
     const cells: Cell[] = [];
-    for (const c of (row[2] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-      const a = c[1]!;
+    for (const c of elements(row.body, 'c')) {
+      const a = c.attrs;
       const ref = attr(a, 'r');
       const col = ref ? columnIndex(ref) : cells.length;
       if (col < 0 || col > 255) continue;
-      const body = c[2] ?? '';
+      const body = c.body;
       const type = attr(a, 't');
-      const v = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1];
+      const v = first(body, 'v');
       let value: Cell;
-      if (type === 'inlineStr') value = runs(/<is>([\s\S]*?)<\/is>/.exec(body)?.[1] ?? '');
+      if (type === 'inlineStr') value = runs(first(body, 'is') ?? '');
       else if (v === undefined) value = null;
       else if (type === 's') value = shared[Number(v)] ?? null;
       else if (type === 'str' || type === 'e') value = xmlText(v);

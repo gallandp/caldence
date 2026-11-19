@@ -56,9 +56,10 @@ test('Import / Export imports line staff from a CSV with a preview and one-step 
     buffer: Buffer.from(CSV),
   });
   await expect(dialog).toContainText('3 rows read');
+  await expect(dialog.getByRole('status').first()).toContainText('3 rows read, 2 new');
   await expect(dialog).toContainText('Not taken: Personnel no.');
   await expect(dialog.getByText('2 new', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('1 row with an error')).toBeVisible();
+  await expect(dialog.getByText('1 row with an error', { exact: true })).toBeVisible();
   await expect(dialog).toContainText('Line team “Netze” will be created');
   await expect(dialog).toContainText('Line team “Orvalis Kasse” does not exist');
   await expect(dialog.getByText('4711')).toHaveCount(0);
@@ -100,13 +101,13 @@ test('the staff import asks who is meant when company + name are not unique', as
       'Name,Line team,Contract FTE,Skills,Company\nLina Hartwig,Orvalis Ware,"0,8",,Velmora AG',
     ),
   });
-  await expect(dialog.getByText('1 to choose')).toBeVisible();
+  await expect(dialog.getByText('1 to choose', { exact: true })).toBeVisible();
   const submit = dialog.getByRole('button', { name: /Take over/ });
   await expect(submit).toBeDisabled();
   await dialog
     .getByRole('combobox', { name: /Lina Hartwig/ })
     .selectOption({ label: 'Lina Hartwig · Orvalis Ware, 0.5 FTE' });
-  await expect(dialog.getByText('1 updated')).toBeVisible();
+  await expect(dialog.getByText('1 updated', { exact: true })).toBeVisible();
   await expect(submit).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

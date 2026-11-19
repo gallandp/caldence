@@ -1420,5 +1420,14 @@
   "staff.count.skills.one": "1 new skill",
   "staff.count.companies.one": "1 new company",
   "staff.count.units.one": "1 new line unit",
-  "staff.count.error.one": "1 row with an error"
+  "staff.count.error.one": "1 row with an error",
+  "staff.error.groupAmbiguous": "There are several specialist groups “{name}”",
+  "staff.error.company": "Company is too long",
+  "staff.error.tooLarge": "The file is larger than 10 MB. 1,000 people need far less; check that it is the right file.",
+  "staff.error.invalid": "The import cannot be taken over like this: {reason}",
+  "staff.note.company": "company now {name}",
+  "staff.limit.skillFamilies": "With this import the file would have more than {n} skill families.",
+  "staff.bulk.person": "{n} open rows: take the existing person",
+  "staff.bulk.new": "{n} open rows: create as new people",
+  "staff.read.one": "1 row read"
 }

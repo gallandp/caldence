@@ -365,16 +365,17 @@
 
   // ---------- staff import (#330) ----------
 
-  function staffImported(n: number) {
+  function staffImported(n: number, changed: boolean) {
     staffOpen = false;
     clearStatus();
     problem = null;
-    staffDone = { n, after: get(workspace) };
+    // Undo only what this import changed: an import that changed nothing has no undo step.
+    staffDone = { n, after: changed ? get(workspace) : null };
     void tick().then(() => staffButton?.focus());
   }
 
   function undoStaff() {
-    if (!staffDone || get(workspace) !== staffDone.after) return;
+    if (!staffDone || staffDone.after === null || get(workspace) !== staffDone.after) return;
     workspace.undo();
     clearStatus();
     staffUndone = true;
@@ -479,7 +480,7 @@
   <div role="status" class="notice">
     {#if staffDone}
       <span>{$t(staffDone.n === 1 ? 'staff.done.one' : 'staff.done', { n: staffDone.n })}</span>
-      {#if $workspace === staffDone.after}
+      {#if staffDone.after !== null && $workspace === staffDone.after}
         <button type="button" onclick={undoStaff}>{$t('staff.undo')}</button>
       {/if}
     {:else if staffUndone}
