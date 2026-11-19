@@ -29,6 +29,7 @@ export type TopicId =
   | 'present'
   | 'team'
   | 'areas'
+  | 'staffing'
   | 'templates'
   | 'settings'
   | 'files'
@@ -36,6 +37,7 @@ export type TopicId =
   | 'calc'
   | 'where'
   | 'keys'
+  | 'privacy'
   | 'a11y';
 
 /** Colour family of a topic's icon tile. */
@@ -65,6 +67,8 @@ const KEY =
   'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM7 10h.01M11 10h.01M15 10h.01M7 14h10';
 const A11Y = 'M12 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM5 8l7 1.5L19 8M12 9.5V14l-3 6M12 14l3 6';
 const MAP = 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14';
+const STAFF = 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M19 8v6M16 11h6';
+const SHIELD = 'M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6zM9 12l2 2 4-4';
 const AREA = 'M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4';
 
 /** The steps from the start screen to a new team. */
@@ -221,6 +225,31 @@ export const TOPICS: Topic[] = [
     ],
   },
   {
+    id: 'staffing',
+    kind: 'guide',
+    icon: STAFF,
+    tint: 'ok',
+    steps: [
+      {
+        text: 'help.g.staffing.1',
+        control: { role: 'button', name: 'line.unit.add' },
+        labels: { actions: 'team.actions', staff: 'line.tab.staff', import: 'staff.open' },
+      },
+      {
+        text: 'help.g.staffing.2',
+        control: { role: 'button', name: 'demand.add' },
+        labels: { view: 'view.team', demand: 'demand.heading' },
+      },
+      {
+        text: 'help.g.staffing.3',
+        control: { role: 'tab', name: 'line.tab.board' },
+        labels: { line: 'line.switcher.group', lineTeam: 'view.lineTeam' },
+      },
+      { text: 'help.g.staffing.4', control: { role: 'button', name: 'assign.start' } },
+      { text: 'help.g.staffing.5', control: { role: 'button', name: 'assign.save' } },
+    ],
+  },
+  {
     id: 'settings',
     kind: 'guide',
     icon: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
@@ -267,6 +296,7 @@ export const TOPICS: Topic[] = [
   { id: 'calc', kind: 'reference', icon: CALC, tint: 'warn' },
   { id: 'where', kind: 'reference', icon: PIN, tint: 'ok' },
   { id: 'keys', kind: 'reference', icon: KEY, tint: 'accent' },
+  { id: 'privacy', kind: 'reference', icon: SHIELD, tint: 'accent' },
   { id: 'a11y', kind: 'reference', icon: A11Y, tint: 'area' },
 ];
 

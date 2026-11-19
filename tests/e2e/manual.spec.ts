@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test';
 import { GUIDES, REFERENCES, TOPICS } from '../../src/ui/help/topics';
-import { showView, useFileFallback } from './helpers';
+import { staffingWorkspace } from './line-fixture';
+import { openWorkspaceFile, pickUnit, showView, useFileFallback } from './helpers';
 
 type Catalogue = Record<string, string>;
 const catalogue = (locale: 'de' | 'en'): Catalogue =>
@@ -214,6 +215,86 @@ for (const locale of ['de', 'en'] as const) {
     });
   });
 }
+
+test.describe('staffing help (#324)', () => {
+  test.use({ locale: 'en-US' });
+  test.beforeEach(async ({ page }) => {
+    await useFileFallback(page);
+    await page.goto('/');
+  });
+
+  test('the staffing guide names the controls on the way', async ({ page }) => {
+    const c = catalogue('en');
+    await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
+    await showView(page, c['view.help']!);
+    const help = panel(page, c['view.help']!);
+    await help.locator('[data-topic="staffing"]').click();
+    const steps = await readSteps(help);
+    expect(steps).toHaveLength(5);
+    for (const step of steps) if (step.name) expect(step.text).toContain(step.name);
+    /** The labels a step names besides its control, in the order of the text. */
+    const named = (i: number) =>
+      help.locator('[data-manual-steps] > li').nth(i).locator('.ui').allTextContents();
+
+    // 1: the sidebar's actions offer adding a line unit.
+    const [actions] = await named(0);
+    await page.locator('.switcher').getByRole('button', { name: actions, exact: true }).click();
+    await expect(
+      page.locator('.switcher').getByRole('button', { name: steps[0]!.name!, exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // 2: a team's own page lists its demands with "Add demand".
+    await pickUnit(page, 'Team Delta');
+    const [view] = await named(1);
+    await showView(page, view!);
+    await expect(
+      page.getByRole('button', { name: steps[1]!.name!, exact: true }).first(),
+    ).toBeVisible();
+
+    // 3 to 5: a line team's staffing tab, a demand's "Staff …" and the dialog's button.
+    await page.locator('.switcher .pick').click();
+    await page
+      .locator('.switcher .list button.line')
+      .filter({ has: page.locator('.opt-name-line', { hasText: /^Orvalis Ware$/ }) })
+      .click();
+    await showView(page, c['view.lineTeam']!.replace('{levelLineTeam}', 'Line team'));
+    await page.getByRole('tab', { name: steps[2]!.name!, exact: true }).click();
+    // The board's button adds the demand to its name for screen readers.
+    await page
+      .getByRole('button', { name: new RegExp('^' + steps[3]!.name!) })
+      .first()
+      .click();
+    await expect(
+      page.getByRole('dialog').getByRole('button', { name: steps[4]!.name!, exact: true }),
+    ).toBeVisible();
+  });
+
+  test('the privacy page names the law; the guide and the staff import lead to it', async ({
+    page,
+  }) => {
+    const c = catalogue('en');
+    const help = panel(page, c['view.help']!);
+    const heading = help.getByRole('heading', { level: 3, name: c['help.topic.privacy.title'] });
+    await showView(page, c['view.help']!);
+    await help.locator('[data-topic="staffing"]').click();
+    await help.getByText(c['help.more']!, { exact: true }).click();
+    await help.getByRole('link', { name: c['help.topic.privacy.title'], exact: true }).click();
+    await expect(heading).toBeFocused();
+    const text = (await help.getByRole('article').textContent()) ?? '';
+    expect(text).toContain('§ 87 (1) no. 6 BetrVG');
+    expect(text).toContain('GDPR');
+
+    await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
+    await showView(page, c['view.exchange']!);
+    await page.getByRole('button', { name: c['staff.open'], exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: c['staff.privacy.link'], exact: true })
+      .click();
+    await expect(heading).toBeFocused();
+  });
+});
 
 for (const locale of ['de', 'en'] as const) {
   test.describe(`narrow help (${locale})`, () => {
