@@ -8,6 +8,7 @@
   import RoleList from '../components/RoleList.svelte';
   import OwnerCard from '../components/OwnerCard.svelte';
   import PageTabs from '../components/PageTabs.svelte';
+  import MatrixView from './MatrixView.svelte';
   import { hasOwnerRoles } from '../../core/owners';
   import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
@@ -17,8 +18,18 @@
    * The upper level's page while an area is selected: one sidebar entry, two pages behind a
    * switch. The overview page comes from the caller.
    */
-  let { area, overview, onMeetings }: { area: Area; overview: Snippet; onMeetings: () => void } =
-    $props();
+  let {
+    area,
+    overview,
+    onMeetings,
+    onOpen,
+  }: {
+    area: Area;
+    overview: Snippet;
+    onMeetings: () => void;
+    /** Opens a unit from the matrix (#396): a product, or a line unit's selection. */
+    onOpen: (selection: string) => void;
+  } = $props();
 
   // A new area opens on its structure, where the "ready" card's steps act (only when shown).
   // Any other area opens on its overview (#337); the page shown is kept while it stays selected.
@@ -76,6 +87,8 @@
       <summary>{$t('area.roles.edit', { count: $workspace.roles.length })}</summary>
       <RoleList />
     </details>
+  {:else if page === 'matrix'}
+    <MatrixView selection={area.id} world="product" {onOpen} />
   {:else}
     {@render overview()}
   {/if}

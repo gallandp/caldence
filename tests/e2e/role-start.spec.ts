@@ -32,6 +32,13 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   const dialog = page.getByRole('dialog', { name: 'Set up line teams' });
   await expect(dialog.getByText('Step 1 of 2')).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'Your line teams' })).toBeFocused();
+  // Fictional examples guide the first entries (placeholders, not values).
+  await expect(dialog.getByLabel('Organisation name')).toHaveAttribute(
+    'placeholder',
+    'e.g. Velmora Group',
+  );
+  await expect(dialog.getByLabel('Line teams')).toHaveAttribute('placeholder', /^e\.g\. /);
+  await expect(dialog.getByLabel('Line teams')).toHaveValue('');
   // At least one line team.
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(dialog.getByLabel('Line teams')).toBeFocused();

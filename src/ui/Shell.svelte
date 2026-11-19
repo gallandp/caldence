@@ -828,7 +828,11 @@
               {/if}
             {:else if id === 'team' && activeArea}
               {#if active === id}
-                <AreaView area={activeArea} onMeetings={() => select('meetings', true)}>
+                <AreaView
+                  area={activeArea}
+                  onMeetings={() => select('meetings', true)}
+                  onOpen={(unit) => activeTeamId.set(unit)}
+                >
                   {#snippet overview()}
                     {#if activeArea.teamIds.length === 0}
                       <AreaTeams area={activeArea} view="team" />

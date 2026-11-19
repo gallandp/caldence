@@ -65,7 +65,9 @@ test('the two worlds each keep their own units, pages and selection (#393, #394,
   await showView(page, 'Overview');
   const root = panel(page, 'Overview');
   await expect(root.getByRole('heading', { level: 2 })).toHaveText('Velmora Holding');
-  await expect(root.locator('button.kid')).toHaveCount(1);
+  const tree = root.getByRole('list', { name: 'Line tree of Velmora Holding' });
+  await expect(tree).toContainText('Organisation · 3 units below');
+  await expect(tree.locator('button[data-line-node]')).toHaveCount(3);
   await expect(root.locator('.tile').nth(1)).toContainText('7 people');
 
   // The line world's list holds the line tree only.
@@ -152,18 +154,34 @@ test('a line team shows its staff, and a person opens with figures and line fiel
   await expect(overview.locator('.tile').nth(1)).toContainText('3.3 FTE');
 });
 
-test('a specialist group lists its line teams and opens them', async ({ page }) => {
-  await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
+test('a specialist group shows its line tree at every depth and opens a unit (#390)', async ({
+  page,
+}) => {
+  const ws = lineWorkspace();
+  (ws.lineUnits as { id: string; name: string; parentId?: string }[]).push({
+    id: 'lu4',
+    name: 'Orvalis Kasse',
+    parentId: 'lu3',
+  });
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
   await pickLine(page, 'Orvalis');
   await showView(page, 'Overview');
   const view = panel(page, 'Overview');
-  await expect(view.getByRole('heading', { name: 'Units below' })).toBeVisible();
-  await expect(view.locator('button.kid')).toHaveCount(2);
+  await expect(view.getByRole('heading', { name: 'Structure' })).toBeVisible();
+  const tree = view.getByRole('list', { name: 'Line tree of Orvalis' });
+  await expect(tree).toContainText('Specialist group · 3 units below · Led by Ruth');
+  await expect(tree).toContainText('7 people');
+  await expect(tree.locator('button[data-line-node]')).toHaveCount(3);
+  // Orvalis Geld has a unit of its own now: a group, with Orvalis Kasse nested below it.
+  const geld = tree.locator('[data-line-node="lu3"]');
+  await expect(geld).toContainText('Specialist group');
+  await expect(geld).toContainText('3 people');
+  await expect(tree.locator('.kids [data-line-node="lu4"]')).toContainText('Line team');
   await showView(page, 'Staff');
   await expect(panel(page, 'Staff').locator('tbody tr')).toHaveCount(7);
   await showView(page, 'Overview');
-  await view.locator('button.kid', { hasText: 'Orvalis Geld' }).click();
-  await expect(page.locator('.switcher .pick .label')).toHaveText('Orvalis Geld');
+  await tree.locator('[data-line-node="lu4"]').click();
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Orvalis Kasse');
 });
 
 test('meeting load follows the line team, and its products lead into the product world', async ({

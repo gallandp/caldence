@@ -9,11 +9,12 @@
     staffRows,
     unitStats,
   } from '../../core/lineStaff';
-  import { ORG_UNIT, lineSelection, linePeople, type LineUnit } from '../../core/model';
+  import { ORG_UNIT, type LineUnit } from '../../core/model';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { lineLevelWord } from '../../i18n/levels';
   import LineUnitDialog from '../LineUnitDialog.svelte';
   import LineStaff from '../components/LineStaff.svelte';
+  import LineTree from '../components/LineTree.svelte';
   import StaffingBoard from '../components/StaffingBoard.svelte';
   import LineProducts from '../components/LineProducts.svelte';
   import { presenting } from '../state/present';
@@ -22,8 +23,8 @@
 
   /**
    * A page of the line world (#316, #394) for a line unit or the whole line (the organisation,
-   * #395). Overview: figures, the units below and, for a line team, the products its people work
-   * in. Staff: its people with skills, contract, commitments, free FTE and hints. Staffing (#319):
+   * #395). Overview: figures, the line tree below it (#390) and, for a line team, the products its
+   * people work in. Staff: its people with skills, contract, commitments, free FTE and hints. Staffing (#319):
    * its people next to open demands. While presenting there are no staff and staffing pages.
    */
   let {
@@ -48,19 +49,6 @@
   const manager = $derived(ws.people.find((p) => p.id === unit.managerPersonId));
   const kids = $derived(childUnits(ws, unit.id));
 
-  /** Per sub-unit: its people's rows, for the group's cards. */
-  const kidStats = $derived(
-    kids.map((k) => {
-      const ids = linePeople(ws, k.id);
-      return {
-        unit: k,
-        stats: unitStats(rows.filter((r) => ids.has(r.person.id))),
-        manager: ws.people.find((p) => p.id === k.managerPersonId)?.name,
-        level: lineLevelWord($levels, lineKind(ws, k.id)),
-      };
-    }),
-  );
-
   const fte = (n: number) => formatNumber($locale, n, 1);
   const peopleText = (n: number) => $t(n === 1 ? 'org.people.one' : 'org.people.other', { n });
   const limitText = $derived(
@@ -75,108 +63,78 @@
   let addButton: HTMLButtonElement | undefined = $state();
 
   const empty = $derived(rows.length === 0 && kids.length === 0);
-  const freeLabel = (r: { free: number }) =>
-    r.free < 0 ? $t('line.overbooked') : $t('line.free', { fte: fte(r.free) });
 </script>
 
 <div class="line-view">
   {#if page === 'overview'}
-  <section class="tiles" aria-label={$t('line.tiles', { name: unit.name })}>
-    <div class="tile id">
-      <span class="label"
-        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg>{[
-          lineLevelWord($levels, lineKind(ws, unit.id)),
-          family?.name,
-        ]
-          .filter(Boolean)
-          .join(' · ')}</span
-      >
-      <span class="value name">{unit.name}</span>
-      {#if !$presenting && unit.id !== ORG_UNIT}
-        <span class="sub"
-          >{manager
-            ? $t('line.tile.manager', { name: manager.name })
-            : $t('line.tile.noManager')}</span
+    <section class="tiles" aria-label={$t('line.tiles', { name: unit.name })}>
+      <div class="tile id">
+        <span class="label"
+          ><svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg>{[
+            lineLevelWord($levels, lineKind(ws, unit.id)),
+            family?.name,
+          ]
+            .filter(Boolean)
+            .join(' · ')}</span
         >
-      {/if}
-    </div>
-    <div class="tile">
-      <span class="label">{$t('line.tile.contract')}</span>
-      <span class="value">{$t('line.fte', { fte: fte(stats.contract) })}</span>
-      <span class="sub">{peopleText(stats.people)}</span>
-    </div>
-    <div class="tile">
-      <span class="label">{$t('line.tile.committed', { teams: $levels.teams })}</span>
-      <span class="value">{$t('line.fte', { fte: fte(stats.committed) })}</span>
-      <span class="sub" class:bad={stats.free < 0}
-        >{stats.free < 0
-          ? $t('line.tile.overbooked', { fte: fte(-stats.free) })
-          : $t('line.tile.free', { fte: fte(stats.free) })}</span
-      >
-    </div>
-    <div class="tile">
-      <span class="label">{$t('line.tile.hints')}</span>
-      <span class="value" class:bad={stats.hinted > 0}>{stats.hinted}</span>
-      <span class="sub">{limitText}</span>
-    </div>
-  </section>
-
-  {#if kidStats.length > 0}
-    <section class="kids" aria-labelledby="line-kids-title">
-      <h3 id="line-kids-title">{$t('line.kids.units')}</h3>
-      <ul>
-        {#each kidStats as k (k.unit.id)}
-          <li>
-            <button type="button" class="kid" onclick={() => onOpen(lineSelection(k.unit.id))}>
-              <span class="kid-name">{k.unit.name}</span>
-              <span class="kid-meta"
-                >{[
-                  k.level,
-                  k.manager && !$presenting ? $t('line.tile.manager', { name: k.manager }) : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}</span
-              >
-              <span class="kid-figures">
-                <span>{peopleText(k.stats.people)}</span>
-                <span class:bad={k.stats.free < 0}>{freeLabel(k.stats)}</span>
-                {#if k.stats.hinted > 0}
-                  <span class="hint-count"
-                    >{$t(k.stats.hinted === 1 ? 'line.hinted.one' : 'line.hinted.other', {
-                      n: k.stats.hinted,
-                    })}</span
-                  >
-                {/if}
-              </span>
-            </button>
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-
-  {#if empty}
-    <section class="empty" aria-labelledby="line-empty-title">
-      <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
-      <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
-      {#if !$presenting}
-        <!-- A unit chosen as line team takes no units below it (#399). -->
-        {#if unit.kind !== 'team'}
-          <div class="empty-actions">
-            <button
-              type="button"
-              class="secondary"
-              bind:this={addButton}
-              onclick={() => dialog?.show(undefined, unit.id)}
-              >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
-            >
-          </div>
+        <span class="value name">{unit.name}</span>
+        {#if !$presenting && unit.id !== ORG_UNIT}
+          <span class="sub"
+            >{manager
+              ? $t('line.tile.manager', { name: manager.name })
+              : $t('line.tile.noManager')}</span
+          >
         {/if}
-        <p class="note">{$t('line.empty.people')}</p>
-      {/if}
+      </div>
+      <div class="tile">
+        <span class="label">{$t('line.tile.contract')}</span>
+        <span class="value">{$t('line.fte', { fte: fte(stats.contract) })}</span>
+        <span class="sub">{peopleText(stats.people)}</span>
+      </div>
+      <div class="tile">
+        <span class="label">{$t('line.tile.committed', { teams: $levels.teams })}</span>
+        <span class="value">{$t('line.fte', { fte: fte(stats.committed) })}</span>
+        <span class="sub" class:bad={stats.free < 0}
+          >{stats.free < 0
+            ? $t('line.tile.overbooked', { fte: fte(-stats.free) })
+            : $t('line.tile.free', { fte: fte(stats.free) })}</span
+        >
+      </div>
+      <div class="tile">
+        <span class="label">{$t('line.tile.hints')}</span>
+        <span class="value" class:bad={stats.hinted > 0}>{stats.hinted}</span>
+        <span class="sub">{limitText}</span>
+      </div>
     </section>
-  {/if}
 
+    {#if kids.length > 0}
+      <section class="structure" aria-labelledby="line-tree-title">
+        <h3 id="line-tree-title">{$t('line.tree.title')}</h3>
+        <LineTree root={unit} {rows} {onOpen} />
+      </section>
+    {/if}
+
+    {#if empty}
+      <section class="empty" aria-labelledby="line-empty-title">
+        <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
+        <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
+        {#if !$presenting}
+          <!-- A unit chosen as line team takes no units below it (#399). -->
+          {#if unit.kind !== 'team'}
+            <div class="empty-actions">
+              <button
+                type="button"
+                class="secondary"
+                bind:this={addButton}
+                onclick={() => dialog?.show(undefined, unit.id)}
+                >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
+              >
+            </div>
+          {/if}
+          <p class="note">{$t('line.empty.people')}</p>
+        {/if}
+      </section>
+    {/if}
   {/if}
   {#if page === 'overview' && !group && !empty}
     <LineProducts {unit} {onOpen} />
@@ -266,56 +224,6 @@
   h3 {
     margin: 0 0 0.6rem;
     font-size: 1.05rem;
-  }
-  .kids ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-    gap: 0.6rem;
-  }
-  :global(#app) .line-view button.kid {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.2rem;
-    width: 100%;
-    height: 100%;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--surface);
-    color: var(--text);
-    text-align: start;
-    font-weight: 500;
-    box-shadow: none;
-  }
-  :global(#app) .line-view button.kid:hover {
-    background: var(--surface-2);
-  }
-  .kid-name {
-    font-weight: 650;
-    overflow-wrap: anywhere;
-  }
-  .kid-meta {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-  .kid-figures {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .hint-count {
-    padding: 0 0.45rem;
-    border-radius: 999px;
-    background: var(--danger-soft);
-    color: var(--danger);
-    font-weight: 600;
   }
   .empty {
     padding: var(--space);
