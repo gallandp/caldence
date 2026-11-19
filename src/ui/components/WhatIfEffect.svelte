@@ -1,12 +1,37 @@
-<script lang="ts">
+<script lang="ts" module>
   import type { Effect } from '../../core/whatIf';
   import { formatEuro, formatNumber, formatPercent, locale, translate as t } from '../../i18n';
 
+  type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+  /** "5.6 h → 5.2 h · 16 % → 14 %": a meeting load with its hours; "24.5 h" never wraps. */
+  export function loadValue(
+    tr: Translate,
+    loc: Parameters<typeof formatNumber>[0],
+    b: Effect,
+    a: Effect,
+  ): string {
+    return tr('whatif.effect.loadValue', {
+      fromHours: formatNumber(loc, b.hours, 1),
+      toHours: formatNumber(loc, a.hours, 1),
+      from: formatPercent(loc, b.share),
+      to: formatPercent(loc, a.share),
+    }).replace(/(\d) h/g, '$1\u00a0h');
+  }
+
+  /** The change in hours as the rounded figures show it, so "25.0 h → 24.5 h" reads −0.5 h. */
+  export const hoursDelta = (b: Effect, a: Effect) =>
+    Math.round(a.hours * 10) / 10 - Math.round(b.hours * 10) / 10;
+</script>
+
+<script lang="ts">
   /**
-   * The "Wirkung" box: what a change does to hours, cost, Terminlast and teams in step, measured
+   * The effect box: what a change does to hours, cost, meeting load and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
    * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
    * `live` false drops the live region, where the box follows every keystroke of a form.
+   * `team`: a team in an area; its own meeting load comes first, then the area's (#340). The
+   * area's hours and cost follow the area's line then, so they are not read as the team's.
    */
   let {
     before,
@@ -16,6 +41,7 @@
     note,
     compact = false,
     live = true,
+    team,
   }: {
     before?: Effect;
     after?: Effect;
@@ -24,6 +50,7 @@
     note?: string;
     compact?: boolean;
     live?: boolean;
+    team?: { name: string; before: Effect; after: Effect };
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -31,14 +58,19 @@
   const hours = (n: number) => formatNumber($locale, n, 1);
   const euro = (n: number) => formatEuro($locale, n);
   const pct = (n: number) => formatPercent($locale, n);
-  /** The compact one-line form: hours, cost per week (with a rate) and Terminlast. */
+  const load = (b: Effect, a: Effect) => loadValue($t, $locale, b, a);
+  /** The compact one-line form: hours, cost per week (with a rate) and meeting load. */
   const line = (b: Effect, a: Effect) =>
     $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
-      hours: signed(a.hours - b.hours, hours),
+      hours: signed(hoursDelta(b, a), hours),
       cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
-      name: scopeName,
+      // A team in an area names its own load: that is what changed (#340).
+      name: team?.name ?? scopeName,
       // "16 % → 14 %" wraps as a whole.
-      share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }).replace(/\s/g, ' '),
+      share: $t('whatif.arrow', {
+        from: pct((team?.before ?? b).share),
+        to: pct((team?.after ?? a).share),
+      }).replace(/\s/g, ' '),
     });
 </script>
 
@@ -52,11 +84,21 @@
         {line(before, after)}
       </p>
     {/if}
+    {#snippet share(name: string, b: Effect, a: Effect)}
+      <div>
+        <dt>{$t('whatif.effect.share', { name })}</dt>
+        <dd>{load(b, a)}</dd>
+      </div>
+    {/snippet}
     <dl class:compact>
+      {#if team}
+        {@render share(team.name, team.before, team.after)}
+        {@render share(scopeName, before, after)}
+      {/if}
       <div>
         <dt>{$t('whatif.effect.hours')}</dt>
-        <dd class:up={after.hours - before.hours > 0.004}>
-          {$t('whatif.perWeek.hours', { value: signed(after.hours - before.hours, hours) })}
+        <dd class:up={hoursDelta(before, after) > 0.004}>
+          {$t('whatif.perWeek.hours', { value: signed(hoursDelta(before, after), hours) })}
         </dd>
       </div>
       {#if before.cost && after.cost}
@@ -70,10 +112,9 @@
           </dd>
         </div>
       {/if}
-      <div>
-        <dt>{$t('whatif.effect.share', { name: scopeName })}</dt>
-        <dd>{$t('whatif.arrow', { from: pct(before.share), to: pct(after.share) })}</dd>
-      </div>
+      {#if !team}
+        {@render share(scopeName, before, after)}
+      {/if}
       {#if before.inStep && after.inStep}
         <div>
           <dt>{$t('whatif.effect.inStep')}</dt>

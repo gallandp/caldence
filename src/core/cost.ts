@@ -8,6 +8,7 @@ import {
   type Participant,
   type Team,
   type Workspace,
+  roleHeads,
 } from './model';
 import { effectiveDuration, occurrences } from './recurrence';
 import { record } from './record';
@@ -147,7 +148,7 @@ export function costSummary(
   for (const unit of [...scopeTeams(ws, filter), ...areasInScope(ws, filter)]) {
     const heads = (p: Participant, e: CalEvent): number => {
       if (filter.personId) return Number(attendees(ws, unit.id, p, e).includes(filter.personId));
-      if (filter.roleId && p.roleId !== filter.roleId) return 0;
+      if (filter.roleId) return roleHeads(ws, unit.id, p, e, filter.roleId);
       return headCount(ws, unit.id, p, e);
     };
     addUnitCosts(ws, index, unit, rate, heads, sums);
@@ -155,15 +156,18 @@ export function costSummary(
   return summary(ws, sums);
 }
 
-/** Costs of one team's or area's own meetings (an area without those of its teams). */
+/**
+ * Costs of one team's or area's own meetings (an area without those of its teams); `heads` can
+ * count only some of the people, as for a team's share of its area's meetings (#336).
+ */
 export function unitCostSummary(
   ws: Workspace,
   index: HolidayIndex,
   unit: Team,
   rate: number,
+  heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e),
 ): CostSummary {
   const sums = emptySums();
-  const heads = (p: Participant, e: CalEvent) => headCount(ws, unit.id, p, e);
   addUnitCosts(ws, index, unit, rate, heads, sums);
   return summary(ws, sums);
 }

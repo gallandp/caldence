@@ -12,6 +12,9 @@ import {
   type Settings,
   type Team,
   type Workspace,
+  invitesRole,
+  roleAttendees,
+  roleHeads,
 } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
@@ -108,8 +111,13 @@ function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter)
   return event.participants.map((p) =>
     personId
       ? attendees(ws, unitId, p, event).includes(personId)
-      : !filter.roleId || p.roleId === filter.roleId,
+      : !filter.roleId || invitesRole(ws, unitId, p, filter.roleId),
   );
+}
+
+/** With a role filter, a role participant's hours list under that role: a linked team role (#338). */
+function underRole(p: Participant, roleId: string | undefined): Participant {
+  return roleId && p.personId === undefined ? { ...p, roleId } : p;
 }
 
 /**
@@ -124,6 +132,7 @@ function heads(
   filter: Filter,
 ): number {
   if (filter.personId) return 1;
+  if (filter.roleId) return roleHeads(ws, unitId, p, event, filter.roleId);
   return nobodyHolds(ws, unitId, p) ? 1 : attendees(ws, unitId, p, event).length;
 }
 
@@ -296,7 +305,10 @@ export function loadSummary(
       const counts = counted(ws, unit.id, event, filter);
       const participants = event.participants
         .filter((_, i) => counts[i])
-        .map((p) => ({ ...p, share: p.share * heads(ws, unit.id, p, event, filter) }));
+        .map((p) => ({
+          ...underRole(p, filter.roleId),
+          share: p.share * heads(ws, unit.id, p, event, filter),
+        }));
       for (const p of participants) seenRoles.add(participantKey(p));
       return { ...event, participants };
     });
@@ -305,13 +317,24 @@ export function loadSummary(
     events.forEach((e, i) => {
       // The saved meeting, so people invited by name leave the role rows as in `heads`.
       const saved = unit.events[i]!;
-      for (const p of e.participants) {
-        const key = participantKey(p);
-        const ids = filter.personId ? [filter.personId] : attendees(ws, unit.id, p, saved);
+      const counts = counted(ws, unit.id, saved, filter);
+      saved.participants.forEach((p, k) => {
+        if (!counts[k]) return;
+        const key = participantKey(underRole(p, filter.roleId));
+        const ids = filter.personId
+          ? [filter.personId]
+          : filter.roleId
+            ? roleAttendees(ws, unit.id, p, saved, filter.roleId)
+            : attendees(ws, unit.id, p, saved);
         const set = (holders[key] ??= new Set());
         for (const id of ids) set.add(id);
-        if (!filter.personId && nobodyHolds(ws, unit.id, p)) empty.add(key);
-      }
+        if (
+          !filter.personId &&
+          (!filter.roleId || p.roleId === filter.roleId) &&
+          nobodyHolds(ws, unit.id, p)
+        )
+          empty.add(key);
+      });
     });
     for (const roleId of empty) unfilled[roleId] = (unfilled[roleId] ?? 0) + 1;
     const base = weeklyBaseLoad({ ...unit, events });

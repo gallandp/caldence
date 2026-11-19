@@ -299,10 +299,18 @@
       ? ''
       : JSON.stringify({ ...build(), name: 'x', time: '09:00', categoryId: event.categoryId }),
   );
-  const after = $derived.by(() => {
+  const drafted = $derived.by(() => {
     if (!scope || !effectKey) return undefined;
     const checked = validate(upsertEvent($workspace, team.id, JSON.parse(effectKey))[0]);
-    return checked.ok ? whatIfEffect(checked.value, $index, scope, rate) : undefined;
+    return checked.ok ? checked.value : undefined;
+  });
+  const after = $derived(scope && drafted ? whatIfEffect(drafted, $index, scope, rate) : undefined);
+  /** A team in an area: its own load comes first, the area's can round to the same (#340). */
+  const own = $derived.by(() => {
+    if (!drafted || scope === team.id) return undefined;
+    const b = whatIfEffect($workspace, $index, team.id);
+    const a = whatIfEffect(drafted, $index, team.id);
+    return b && a ? { name: team.name, before: b, after: a } : undefined;
   });
   const scopeName = $derived(
     $workspace.areas.find((a) => a.id === scope)?.name ??
@@ -787,6 +795,7 @@
           {before}
           {after}
           {scopeName}
+          team={own}
           compact
           live={false}
           error={after ? undefined : $t('meet.effect.invalid')}
