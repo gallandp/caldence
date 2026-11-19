@@ -425,6 +425,38 @@ test('a team row and the cost card name unfilled roles, counted as one person (#
   expect(axe2.violations).toEqual([]);
 });
 
+test('each team row and its cost card add what its people spend in area meetings (#336)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  const table = overview.locator('[data-area-costs]');
+  // Kim (PO) attends the PO forum, 1 h, and Lou (SM) the Scrum of Scrums, 0.5 h, each week.
+  const share = table.locator('[data-cost-row="team-gamma"] [data-area-share]');
+  await expect(share).toHaveText('+ €150 / week in Area meetings');
+  await table.getByRole('button', { name: 'in the planning horizon (2027, 52\u00a0wks)' }).click();
+  await expect(share).toHaveText(/^\+ €[\d,]+ in Area meetings$/);
+
+  await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
+  const card = page.locator('[data-costs] [data-cost-area-share]');
+  await expect(card).toContainText('These figures count only the meetings of Team Gamma itself.');
+  await expect(card).toContainText('+ €150 / week and €');
+  await expect(card).toContainText('in Area meetings for the people of Team Gamma.');
+  // Meeting load for the team shows the same card line.
+  await showView(page, 'Meeting load');
+  await expect(page.locator('[data-costs] [data-cost-area-share]')).toContainText('+ €150 / week');
+});
+
+test('a team without an area shows no area share in its cost card (#336)', async ({ page }) => {
+  await openOverview(page, 100, (ws) => {
+    const area = ws.areas[0] as { teamIds: string[] };
+    area.teamIds = area.teamIds.filter((id) => id !== 'team-delta');
+  });
+  await pickUnit(page, 'Team Delta');
+  await showView(page, 'Meetings & cadence');
+  await expect(page.locator('[data-costs] [data-cost-week]')).toBeVisible();
+  await expect(page.locator('[data-cost-area-share]')).toHaveCount(0);
+});
+
 test('the first screen holds the answers: KPI tiles at 1280×720 presenting, cost rows at 1440×900', async ({
   page,
 }) => {

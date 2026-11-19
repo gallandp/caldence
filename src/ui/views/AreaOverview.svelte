@@ -374,7 +374,7 @@
           <p class="note">
             {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
                 >{' ' + $t('overview.cost.hint.person')}</span
-              >{/if}
+              >{' ' + $t('overview.cost.hint.areaShare')}{/if}
           </p>
           <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
@@ -446,7 +446,13 @@
                 </span>
               </td>
               {#if rate && r.cost}
-                <td class="num strong cost">{euro(costOf(r.cost))}</td>
+                <td class="num strong cost"
+                  >{euro(costOf(r.cost))}{#if r.areaShare}<small data-area-share
+                      >{$t('overview.cost.areaShare.' + period, {
+                        amount: euro(costOf(r.areaShare)),
+                      })}</small
+                    >{/if}</td
+                >
                 <td class="num muted extra"
                   >{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td
                 >
@@ -983,6 +989,13 @@
   .strong {
     font-weight: 650;
   }
+  /* A team's people in the area's meetings: informative, not part of the total (#336). */
+  [data-area-share] {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
   .unfilled {
     display: block;
     color: var(--warn);
@@ -1483,6 +1496,12 @@
     :global(#app) [data-area-costs] .cost {
       grid-row: 1;
       grid-column: 3;
+    }
+    /* The area share wraps below the cost instead of squeezing the team name. */
+    [data-area-share] {
+      max-width: 9rem;
+      margin-left: auto;
+      white-space: normal;
     }
     :global(#app) [data-area-costs] .extra,
     [data-area-costs] .bar,

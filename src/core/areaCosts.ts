@@ -2,10 +2,12 @@ import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
 import { capacity, occurrencesPerWeek } from './load';
 import {
   areaAsTeam,
+  areaOf,
   attendees,
   unfilled,
   type Area,
   type CalEvent,
+  type Participant,
   type Team,
   type Workspace,
 } from './model';
@@ -38,6 +40,14 @@ export interface UnitRow {
   invited: number;
   /** Only with an hourly rate. `unfilled`: roles nobody holds, counted as one person each (#264). */
   cost?: { perWeek: number; horizon: number; unfilled: UnfilledRole[] };
+  /** Teams only, with an hourly rate: see `areaShare` (#336). Not part of the total. */
+  areaShare?: AreaShare;
+}
+
+/** Euros per week (recurring meetings) and in the planning horizon (every occurrence). */
+export interface AreaShare {
+  perWeek: number;
+  horizon: number;
 }
 
 export interface AreaCosts {
@@ -105,6 +115,35 @@ export function unitRow(
   return out;
 }
 
+/**
+ * What the meetings of a team's area cost for the team's people, on top of the team's own
+ * meetings (#336). A person in several teams of the area has their part split over those teams
+ * by their weekly hours in each, as the people table lists them (evenly without any hours).
+ * People only in the area and roles nobody holds belong to no team: they stay in the area row.
+ * Undefined for a team without an area or without a rate.
+ */
+export function areaShare(
+  ws: Workspace,
+  index: HolidayIndex,
+  teamId: string,
+  rate: number | undefined,
+): AreaShare | undefined {
+  const area = areaOf(ws, teamId);
+  if (!area || !rate) return undefined;
+  const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
+  const weight = (personId: string): number => {
+    const mine = teams.filter((t) => t.members.some((m) => m.personId === personId));
+    if (!mine.some((t) => t.id === teamId)) return 0;
+    const hours = mine.map((t) => capacity(ws, personId, t.id));
+    const all = sum(hours);
+    return all > 0 ? hours[mine.findIndex((t) => t.id === teamId)]! / all : 1 / mine.length;
+  };
+  const heads = (p: Participant, e: CalEvent) =>
+    unfilled(ws, area.id, p) ? 0 : sum(attendees(ws, area.id, p, e).map(weight));
+  const s = unitCostSummary(ws, index, areaAsTeam(area), rate, heads);
+  return { perWeek: s.perWeek, horizon: s.horizon };
+}
+
 export function areaCosts(
   ws: Workspace,
   index: HolidayIndex,
@@ -117,7 +156,9 @@ export function areaCosts(
     const people = [...new Set(t.members.map((m) => m.personId))];
     const own = invitedTo(ws, t);
     own.forEach((p) => invited.add(p));
-    return unitRow(ws, index, t, sum(people.map((p) => capacity(ws, p, t.id))), rate, own);
+    const row = unitRow(ws, index, t, sum(people.map((p) => capacity(ws, p, t.id))), rate, own);
+    if (rate) row.areaShare = areaShare(ws, index, t.id, rate);
+    return row;
   });
   const areaPeople = [...new Set(area.members.map((m) => m.personId))];
   const areaUnit = areaAsTeam(area);
