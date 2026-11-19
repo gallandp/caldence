@@ -11,6 +11,7 @@
   import AreaPersonCard from './AreaPersonCard.svelte';
   import { workspace } from '../state/workspace';
   import { presenting } from '../state/present';
+  import { structurePerson } from '../state/view';
 
   /** The structure page of an area: who works only in the area, in both, or only in a team. */
   let { area }: { area: Area } = $props();
@@ -151,6 +152,20 @@
     tile.classList.add('pulse');
     setTimeout(() => tile.classList.remove('pulse'), 1600);
   }
+
+  /** A link to this page at a person (#361): their card opens at the hours in the area. */
+  $effect(() => {
+    const id = $structurePerson;
+    if (!id) return;
+    structurePerson.set(undefined);
+    void tick().then(() => {
+      const tile = root?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`);
+      if (!tile) return;
+      tile.scrollIntoView({ block: 'center' });
+      selected = id;
+      void card?.open(tile, true);
+    });
+  });
 
   function enter(personId: string) {
     hover = personId;

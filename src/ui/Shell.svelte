@@ -33,7 +33,14 @@
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
-  import { AREA_PAGES, areaPage, currentView, knownUnit, openingPlace } from './state/view';
+  import {
+    AREA_PAGES,
+    areaPage,
+    currentView,
+    knownUnit,
+    openingPlace,
+    structurePerson,
+  } from './state/view';
   import { formatRoute, parseRoute } from './state/route';
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
@@ -236,6 +243,17 @@
     calendarWeek.set(date);
     if (options.drill) drillIn(options.drill, 'calendar');
     else select('calendar', true);
+  }
+
+  /** An area's Structure page with the card of `personId` open at their hours there (#361). */
+  function openStructure(areaId: string, personId: string) {
+    activeTeamId.set(areaId);
+    select('team', true);
+    // After the unit's own effect, which opens another area on its overview.
+    void tick().then(() => {
+      areaPage.set('structure');
+      structurePerson.set(personId);
+    });
   }
 
   /** A dropped meeting's date (#341): the Calendar opens that day; its details take the focus. */
@@ -794,7 +812,10 @@
                 />
               {/key}
             {:else if id === 'load'}
-              {#if active === 'load'}<LoadView onOpenWeek={openCalendarWeek} />{/if}
+              {#if active === 'load'}<LoadView
+                  onOpenWeek={openCalendarWeek}
+                  onOpenStructure={openStructure}
+                />{/if}
             {:else if id === 'meetings'}
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}
