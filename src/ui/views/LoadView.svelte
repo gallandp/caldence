@@ -20,6 +20,7 @@
   } from '../../core/load';
   import { contextHint, contextHints, contextThreshold } from '../../core/contextSwitch';
   import {
+    hasLine,
     keyName,
     lineSelection,
     lineUnitsById,
@@ -86,7 +87,7 @@
    * Cross links (#397): in the products each person's line unit, in the line the products each
    * person works in. Only while the file has a line.
    */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const withLine = $derived(hasLine($workspace));
   const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
   const lineUnitById = $derived(lineUnitsById($workspace, $levels.org));
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
@@ -581,7 +582,7 @@
           </th>
           <td class="units">
             <!-- Cross links (#397): the products in the line, the line unit in the products. -->
-            {#if hasLine && inLineWorld && p.units.some((u) => !u.area)}
+            {#if withLine && inLineWorld && p.units.some((u) => !u.area)}
               <span class="cross">
                 {#each p.units.filter((u) => !u.area) as u (u.id)}
                   <UnitChip selection={u.id} name={u.name} />
@@ -597,7 +598,7 @@
                       .map((u) => u.name)
                       .join(', ')}
             {/if}
-            {#if hasLine && !inLineWorld}
+            {#if withLine && !inLineWorld}
               {@const unit = lineUnitById.get(p.person.lineUnitId ?? '')}
               {#if unit}
                 <span class="cross"

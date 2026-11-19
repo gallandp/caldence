@@ -19,6 +19,7 @@
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
   import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
   import {
+    hasLine,
     areaAsTeam,
     lineSelection,
     type Area,
@@ -354,8 +355,8 @@
       minutes: formatNumber($locale, e.duration, 0),
     });
   /** Where each product's people come from (#397): a column while the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
-  const fromLine = $derived(hasLine && !$presenting);
+  const withLine = $derived(hasLine($workspace));
+  const fromLine = $derived(withLine && !$presenting);
 </script>
 
 <div class="overview stack" data-area-overview>
@@ -468,7 +469,7 @@
           </p>
           <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
-        {#if hasLine}
+        {#if withLine}
           <!-- The line behind these products, as line teams × products (#397). -->
           <button
             type="button"

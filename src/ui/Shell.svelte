@@ -8,7 +8,7 @@
   import OrgView from './views/OrgView.svelte';
   import type { ISODate } from '../core/date';
   import type { SetupMode } from '../core/setup';
-  import { LINE_ROOT, ORG_UNIT, lineRootName, selectedLineUnit } from '../core/model';
+  import { LINE_ROOT, ORG_UNIT, lineRootName, selectedLineUnit, hasLine } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -140,14 +140,14 @@
     'matrix',
   ]);
   /** The file has a line: the world switch and the matrix show (#393, #396). */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const withLine = $derived(hasLine($workspace));
   /** The organisation has no meetings of its own yet, so it has no Meetings view. */
   const navViews = $derived(
     (inLine ? LINE_VIEWS : PRODUCT_VIEWS).filter(
       (id) =>
         (!$presenting || PRESENTED.has(id)) &&
         !(id === 'meetings' && activeOrg) &&
-        (id !== 'matrix' || hasLine),
+        (id !== 'matrix' || withLine),
     ),
   );
   const barViews = $derived(
@@ -339,7 +339,7 @@
         ? 'calendar'
         : mode === 'line'
           ? 'people'
-          : mode === 'org' && hasLine
+          : mode === 'org' && withLine
             ? 'matrix'
             : 'team';
     void tick().then(() => select(view, true));
@@ -787,7 +787,7 @@
       </button>
     </header>
 
-    {#if hasLine && !(active === 'calendar' && blank)}
+    {#if withLine && !(active === 'calendar' && blank)}
       <div class="world-switch"><WorldSwitch /></div>
     {/if}
     {#if !(active === 'calendar' && blank)}
@@ -938,7 +938,7 @@
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
-              {#if hasLine}
+              {#if withLine}
                 <span class="world {inLine ? 'line' : 'product'}"
                   >{$t(inLine ? 'world.line' : 'world.product')}</span
                 >

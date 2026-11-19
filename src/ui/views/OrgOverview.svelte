@@ -1,6 +1,6 @@
 <script lang="ts">
   import { costSummary } from '../../core/cost';
-  import { ORG_UNIT, lineSelection, orgName } from '../../core/model';
+  import { ORG_UNIT, lineSelection, orgName, hasLine } from '../../core/model';
   import { supplyingUnits } from '../../core/lineStaff';
   import UnitChip from '../components/UnitChip.svelte';
   import { openPlace } from '../state/jump';
@@ -28,9 +28,9 @@
   const num = (n: number, d: number) => formatNumber($locale, n, d);
   const euro = (n: number) => formatEuro($locale, n);
   /** Cross links into the line (#397): per platform (and the products in none), its line units. */
-  const hasLine = $derived((ws.lineUnits?.length ?? 0) > 0);
+  const withLine = $derived(hasLine(ws));
   const supply = $derived.by(() => {
-    if (!hasLine) return [];
+    if (!withLine) return [];
     const inArea = new Set(ws.areas.flatMap((a) => a.teamIds));
     const rows = ws.areas.map((a) => ({
       id: a.id,
@@ -71,7 +71,7 @@
   {#if !rate && meetings > 0}
     <div data-no-present><RateInvite focusAfter="[data-org-cost]" /></div>
   {/if}
-  {#if hasLine}
+  {#if withLine}
     <!-- Where each platform's people come from, and the matrix behind it (#397). -->
     <section class="from-line" aria-labelledby="{uid}-from-line">
       <div class="head">

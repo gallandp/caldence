@@ -11,6 +11,7 @@
     updateTeam,
   } from '../core/edit';
   import {
+    hasLine,
     areaOf,
     hasOrgLevel,
     LINE_ROOT,
@@ -297,7 +298,7 @@
       const parent = activeLine.parentId;
       workspace.apply((ws) => removeLineUnit(ws, id));
       // The line world stays while the file has a line (#393): on the parent, else the root.
-      const lineLeft = ($workspace.lineUnits?.length ?? 0) > 0;
+      const lineLeft = hasLine($workspace);
       activeTeamId.set(
         parent ? lineSelection(parent) : lineLeft ? LINE_ROOT : ($workspace.teams[0]?.id ?? null),
       );

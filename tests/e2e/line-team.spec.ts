@@ -263,6 +263,26 @@ test('a person is added directly at the line root, e.g. the managing director', 
   await expect(row.locator('td.unit')).toHaveText('Velmora GmbH');
 });
 
+test('people at the line root stay when the last line unit is deleted (#420)', async ({ page }) => {
+  const ws = lineWorkspace();
+  ws.lineName = 'Velmora GmbH';
+  ws.lineUnits = ws.lineUnits!.filter((u) => u.id === 'lu1');
+  for (const p of ws.people) if (p.lineUnitId !== undefined) p.lineUnitId = 'lu1';
+  ws.people.push({ id: 'person-hanne', name: 'Hanne Brix', lineUnitId: '@organisation' });
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
+  await pickLine(page, 'Orvalis');
+  await teamAction(page, 'Delete from the line');
+  await page
+    .getByRole('dialog', { name: /^Delete / })
+    .getByRole('button', { name: 'Delete from the line' })
+    .click();
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Velmora GmbH');
+  await showView(page, 'Staff');
+  await expect(
+    panel(page, 'Staff').locator('tbody tr').filter({ hasText: 'Hanne Brix' }),
+  ).toHaveCount(1);
+});
+
 test('line units and skills are managed in place', async ({ page }) => {
   await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
   await toWorld(page, 'Line');

@@ -1,4 +1,5 @@
 <script lang="ts" module>
+  import { hasLine } from '../../core/model';
   import { SvelteMap } from 'svelte/reactivity';
 
   /** Platforms the person opened or closed, kept while the app is open. */
@@ -39,7 +40,7 @@
   }
   let { teams, single = false, onOpen }: Props = $props();
   /** Cross links into the line (#397), while the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const withLine = $derived(hasLine($workspace));
   const fromLine = (teamId: string) =>
     supplyingUnits(ws, teamId)
       .map((u) => u.name)
@@ -156,7 +157,7 @@
       {:else}
         <span class="p-state full">{$t('map.product.full')}</span>
       {/if}
-      {#if hasLine && !$presenting}
+      {#if withLine && !$presenting}
         {@const line = fromLine(p.team.id)}
         <span class="p-line" data-from-line
           >{$t('cross.fromLine')}: {line || $t('cross.noLine')}</span
@@ -302,7 +303,7 @@
               >{/if}
             {#if pl.ownerGaps > 0}<span class="pill">{countText('owner.gaps', pl.ownerGaps)}</span
               >{/if}
-            {#if hasLine && pl.area && !single}
+            {#if withLine && pl.area && !single}
               {@const area = pl.area}
               <button
                 type="button"
