@@ -52,6 +52,8 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     role: 'filter.role',
     person: 'filter.person',
     all: 'filter.all',
+    week: 'cal.mode.week',
+    month: 'cal.mode.month',
   },
   'help.views.calendar': {
     month: 'cal.mode.month',
@@ -178,6 +180,13 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     me: 'setup.me',
     toCalendar: 'meet.toCalendar',
     meetings: 'view.meetings',
+  },
+  'help.ics.holidays': {
+    skip: 'settings.skipHolidays',
+    region: 'settings.region',
+    export: 'exchange.export',
+    meetings: 'view.meetings',
+    settings: 'view.settings',
   },
   'help.ics.note': {},
   'help.files.present': {

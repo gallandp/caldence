@@ -25,7 +25,7 @@ test('the area overview counts clash days and opens the example in the calendar'
   );
   await example.click();
 
-  // The calendar shows that week for Robin, with both meetings of the clash.
+  // The calendar shows that week for Robin, with the overlap named.
   const panel = page.getByRole('tabpanel', { name: 'Calendar' });
   await expect(panel.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -36,8 +36,9 @@ test('the area overview counts clash days and opens the example in the calendar'
   const monday = panel.locator('section', {
     has: page.getByRole('heading', { name: 'Monday, January 4, 2027' }),
   });
-  await expect(monday).toContainText('Sprint Planning');
-  await expect(monday).toContainText('Replenishment');
+  await expect(
+    monday.getByText('Overlap: Sprint Planning (Team Gamma) and Replenishment (Team Delta)'),
+  ).toBeVisible();
   // One click leads back to the overview.
   await page.getByRole('button', { name: 'Commerce overview' }).click();
   await expect(line).toBeVisible();

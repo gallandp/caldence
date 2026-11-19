@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
+import { areaCosts, areaShare, costliest, meetingCosts } from '../../src/core/areaCosts';
 import { teamLoad } from '../../src/core/areaOverview';
 import { costSummary, unitCostSummary } from '../../src/core/cost';
 import { loadPerWeek } from '../../src/core/load';
 import { loadSummary } from '../../src/core/views';
-import { areaAsTeam, type Workspace } from '../../src/core/model';
+import { areaAsTeam, attendees, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import { areaWorkspace } from '../e2e/area-fixture';
 
@@ -94,6 +94,100 @@ describe('areaCosts', () => {
     expect(gamma.capacity).toBe(40);
     expect(gamma.share).toBeCloseTo(gamma.hours / 40);
     expect(gamma.cost).toBeUndefined();
+  });
+});
+
+describe('areaShare (#336)', () => {
+  /** Ola works 30 h in Gamma and 10 h in Delta and attends a weekly 1-hour meeting of the area. */
+  function withOla() {
+    const w = ws();
+    const area = w.areas[0]!;
+    w.roles.push({ id: 'role-arch', name: 'Architect', colour: '#555555' });
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    const delta = w.teams.find((t) => t.id === 'team-delta')!;
+    gamma.members.push({ personId: 'person-ola', roleId: 'role-arch' });
+    gamma.memberHours['person-ola'] = 30;
+    delta.members.push({ personId: 'person-ola', roleId: 'role-arch' });
+    delta.memberHours['person-ola'] = 10;
+    const before = {
+      gamma: areaShare(w, noIndex(), 'team-gamma', 100)!,
+      delta: areaShare(w, noIndex(), 'team-delta', 100)!,
+    };
+    area.events.push({
+      ...structuredClone(area.events[0]!),
+      id: 'ev-arch-sync',
+      rule: { type: 'weekly', weekday: 3 },
+      duration: 60,
+      participants: [{ roleId: 'role-arch', share: 1, fromTeams: true }],
+    });
+    return { w, area, before };
+  }
+
+  it("splits a person's area meetings over their teams by their weekly hours there", () => {
+    const { w, before } = withOla();
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    const delta = areaShare(w, noIndex(), 'team-delta', 100)!;
+    expect(gamma.perWeek - before.gamma.perWeek).toBeCloseTo(75);
+    expect(delta.perWeek - before.delta.perWeek).toBeCloseTo(25);
+    expect(gamma.horizon).toBeGreaterThan(before.gamma.horizon);
+  });
+
+  it('splits evenly when the person has 0 h in each of their teams', () => {
+    const { w, before } = withOla();
+    w.teams.find((t) => t.id === 'team-gamma')!.memberHours['person-ola'] = 0;
+    w.teams.find((t) => t.id === 'team-delta')!.memberHours['person-ola'] = 0;
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    const delta = areaShare(w, noIndex(), 'team-delta', 100)!;
+    expect(gamma.perWeek - before.gamma.perWeek).toBeCloseTo(50);
+    expect(delta.perWeek - before.delta.perWeek).toBeCloseTo(50);
+  });
+
+  it('splits only over the teams of that area for a person in teams of two areas', () => {
+    const { w, area, before } = withOla();
+    // Delta moves to another area: Ola's Payments meeting now belongs to Gamma alone.
+    area.teamIds = area.teamIds.filter((id) => id !== 'team-delta');
+    w.areas.push({
+      ...structuredClone(area),
+      id: 'area-other',
+      name: 'Other',
+      teamIds: ['team-delta'],
+      members: [],
+      memberHours: {},
+      events: [],
+    });
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    expect(gamma.perWeek - before.gamma.perWeek).toBeCloseTo(100);
+    expect(areaShare(w, noIndex(), 'team-delta', 100)!.perWeek).toBe(0);
+  });
+
+  it('adds up to the area row without the people in no team and the unfilled roles', () => {
+    const { w, area } = withOla();
+    const c = areaCosts(w, noIndex(), area, 100);
+    const shares = c.teams.reduce((s, r) => s + r.areaShare!.perWeek, 0);
+    // Ruth and Pia work only in the area: their part stays with the area row alone.
+    const onlyArea = unitCostSummary(
+      w,
+      noIndex(),
+      areaAsTeam(area),
+      100,
+      (p, e) =>
+        ['person-ruth', 'person-pia'].filter((id) => attendees(w, area.id, p, e).includes(id))
+          .length,
+    ).perWeek;
+    expect(c.area.cost!.unfilled).toEqual([]);
+    expect(shares + onlyArea).toBeCloseTo(c.area.cost!.perWeek);
+    // Informative only: the total stays the sum of the rows.
+    expect(c.total.cost!.perWeek).toBeCloseTo(
+      [...c.teams, c.area].reduce((s, r) => s + r.cost!.perWeek, 0),
+    );
+  });
+
+  it('is undefined for a team without an area and without a rate', () => {
+    const w = ws();
+    w.areas[0]!.teamIds = w.areas[0]!.teamIds.filter((id) => id !== 'team-delta');
+    expect(areaShare(w, noIndex(), 'team-delta', 100)).toBeUndefined();
+    expect(areaShare(w, noIndex(), 'team-gamma', 0)).toBeUndefined();
+    expect(areaCosts(w, noIndex(), w.areas[0]!).teams[0]!.areaShare).toBeUndefined();
   });
 });
 

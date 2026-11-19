@@ -38,7 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
-  import { calendarWeek } from '../state/focus';
+  import { calendarDay, calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -202,10 +202,22 @@
     });
   }
 
-  /** Explains the hours at the top of a day, with an example value. */
+  /** Explains the hours at the top of a day, with an example value, for the chosen person or role. */
   const hoursKey = $derived(
-    $t('cal.legend.hours', { hours: $t('cal.hours', { hours: formatNumber($locale, 1.5, 1) }) }),
+    $t('cal.legend.hours', {
+      hours: $t('cal.hours', { hours: formatNumber($locale, 1.5, 1) }),
+      who: legendWho(),
+    }),
   );
+
+  /** Whose hours the days show: the chosen person, all people in the chosen role, or all people. */
+  function legendWho(): string {
+    const person = $filter.personId && $workspace.people.find((p) => p.id === $filter.personId);
+    if (person) return person.name;
+    const role = $filter.roleId && $workspace.roles.find((r) => r.id === $filter.roleId);
+    if (role) return $t('cal.legend.role', { role: role.name });
+    return $t('cal.legend.all');
+  }
 
   /** Categories of the meetings shown in the month, in the order of the category list. */
   const legend = $derived.by(() => {
@@ -362,6 +374,16 @@
       ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
       ?.focus({ preventScroll: next === 'range' });
   }
+
+  // A day another view links to (#341): opened with its details, as if chosen in the grid.
+  $effect(() => {
+    const date = $calendarDay;
+    if (date === null || !shown) return;
+    calendarDay.set(null);
+    if (!inHorizon(date)) return;
+    if (mode === 'range') mode = lastMode = 'month';
+    void tick().then(() => selectByKey(date));
+  });
 
   function edit(item: DayItem) {
     onEditMeeting?.(item.teamId, item.eventId);
@@ -716,6 +738,7 @@
     <div class="week">
       {#each weekDays as date (date)}
         {@const items = inHorizon(date) ? itemsOf(date) : []}
+        {@const overlaps = inHorizon(date) ? overlapsOf(date) : []}
         <section class="weekday" class:today={date === localToday()}>
           <div class="when">
             <h3>{formatDisplayDate($locale, date, 'long')}</h3>
@@ -723,6 +746,9 @@
               <span class="sum"
                 >{$t('cal.hours', { hours: formatNumber($locale, loads.get(date) ?? 0, 1) })}</span
               >
+            {/if}
+            {#if overlaps.length > 0}
+              <span class="warn" aria-hidden="true">!</span>
             {/if}
           </div>
           <div class="items">
@@ -736,6 +762,12 @@
                 <p class="note">{$t('cal.nonwork')}</p>
               {/if}
             {/if}
+            {#each overlaps as o (o.key)}
+              <p class="note">
+                <span aria-hidden="true">⚠</span>
+                {$t('cal.overlap', { a: o.a, teamA: o.teamA, b: o.b, teamB: o.teamB })}
+              </p>
+            {/each}
             {#if !inHorizon(date)}
               <p class="muted-text">{$t('cal.outside')}</p>
             {:else if items.length === 0}
@@ -1131,6 +1163,19 @@
     font-weight: 650;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
+  }
+  .when {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.4rem;
+    align-content: start;
+  }
+  .when h3 {
+    flex-basis: 100%;
+  }
+  .when .warn {
+    font-size: 0.85rem;
   }
   .items :global(ul) {
     display: grid;
