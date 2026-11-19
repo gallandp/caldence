@@ -7,11 +7,12 @@ import type { ISODate } from '../../core/date';
  */
 export const loadWeek = writable<{ teamId: string; monday: ISODate } | null>(null);
 
-/**
- * A day whose week the calendar opens in its week view, set from the area overview's clash line
- * (#339). The calendar clears it once it shows that week.
- */
-export const calendarWeek = writable<ISODate | null>(null);
-
 /** A day to open in the Calendar with its details, set from a link in another view (#341). */
 export const calendarDay = writable<ISODate | null>(null);
+
+/**
+ * A day whose week the Calendar opens on its week level, set from a link in another view: a week
+ * of a person in Meeting load (#343) and a clash in Meeting load or the area Overview (#339). The
+ * Calendar clears it once shown.
+ */
+export const calendarWeek = writable<ISODate | null>(null);

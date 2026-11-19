@@ -11,9 +11,12 @@
     loadPerWeek,
     overbooked,
     overMax,
+    personLoad,
+    personMeetings,
     warnings,
+    type PersonMeeting,
   } from '../../core/load';
-  import { keyName, unitLoadIds } from '../../core/model';
+  import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import {
     clashes,
@@ -33,8 +36,14 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
-  import { weekdayShort } from '../meetings/rules';
+  import { ruleSummary, weekdayShort } from '../meetings/rules';
   import { filter, index, workspace } from '../state/workspace';
+
+  interface Props {
+    /** Opens a week in the Calendar with the Person filter on that person (#343). */
+    onOpenWeek?: (personId: string, monday: string) => void;
+  }
+  let { onOpenWeek }: Props = $props();
 
   const summary = $derived(loadSummary($workspace, $filter));
   const weeks = $derived(loadPerWeek($workspace, $index));
@@ -66,19 +75,18 @@
   );
 
   /**
-   * Each person is judged on all their meetings ÷ their hours in all their teams and areas, in
-   * every scope (#273); with a team or area filter `here` keeps their part in it.
+   * Each person is judged on all their meetings ÷ their hours in all their teams and areas, at
+   * most the Settings weekly hours, in every scope (#273, #342); with a team or area filter
+   * `here` keeps their part in it.
    */
   const perPerson = $derived(
     people.map((person) => {
-      const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
-      const average = weeks.length > 0 ? total / weeks.length : 0;
+      const { hours: average, base: cap, share } = personLoad($workspace, weeks, person.id);
       let peak: { monday: string; hours: number } | undefined;
       for (const w of weeks) {
         const h = w.byPerson[person.id] ?? 0;
         if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
-      const cap = capacity($workspace, person.id);
       const hereHours =
         teamIds && weeks.length > 0
           ? weeks.reduce((sum, w) => sum + hoursIn(w, teamIds, person.id), 0) / weeks.length
@@ -88,7 +96,7 @@
         person,
         average,
         cap,
-        fte: fte(average, cap),
+        fte: share,
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
         /** Hours per week that still fit into meetings before the limit (none without hours). */
         free: Math.max(0, maxFte * cap - average),
@@ -133,6 +141,30 @@
       }));
     return [...teams, ...areas];
   }
+  /**
+   * Teams and areas whose meetings a person attends without working there: an area meeting that
+   * invites a role from the teams (#265) or a meeting that invites them by name (#285). Their lines
+   * in the drill-in keep the meetings adding up to the person's Ø hours per week.
+   */
+  function invitedOf(personId: string, known: { id: string }[]) {
+    const ws = $workspace;
+    const areaIds = new Set(ws.areas.map((a) => a.id));
+    return allUnits(ws)
+      .filter((u) => !known.some((k) => k.id === u.id))
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        area: areaIds.has(u.id),
+        roles: [] as string[],
+        hours: 0,
+        meetings:
+          weeks.length > 0
+            ? weeks.reduce((sum, w) => sum + (w.byTeamPerson[u.id]?.[personId] ?? 0), 0) /
+              weeks.length
+            : 0,
+      }))
+      .filter((u) => u.meetings > 0);
+  }
   let sortBy = $state<'share' | 'free'>('share');
   const sorted = $derived(
     [...perPerson].sort((a, b) =>
@@ -146,6 +178,21 @@
   $effect(() => {
     if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
       openPerson = null;
+  });
+  /** The meetings of the opened person, by team or area, with their repeat rule (#343). */
+  const openMeetings = $derived.by(() => {
+    const out = record<(PersonMeeting & { name: string; rule: string })[]>();
+    if (openPerson === null) return out;
+    const byUnit = personMeetings($workspace, $index, openPerson);
+    for (const unit of allUnits($workspace)) {
+      const list = byUnit[unit.id];
+      if (!list) continue;
+      out[unit.id] = list.map((m) => {
+        const event = unit.events.find((e) => e.id === m.eventId)!;
+        return { ...m, name: event.name, rule: ruleSummary(event.rule, unit, $t, $locale) };
+      });
+    }
+    return out;
   });
   /** Meetings without weekly hours to measure them against come first: always over the limit. */
   const noHours = (p: { average: number; cap: number }) => p.average > 0 && p.cap <= 0;
@@ -194,6 +241,8 @@
     }
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
     const { warnFactor, maxFte } = $workspace.settings.thresholds;
+    /** Each named week becomes a link: a marker in the text, split out again below. */
+    const mark = (i: number): string => `\uE000${i}\uE000`;
     const label = (mondays: string[]): string[] => {
       // Week numbers repeat on horizons longer than a year: then the Mondays are named instead.
       const labels = mondays.map(weekLabel);
@@ -202,6 +251,11 @@
         : mondays.map((m) => formatDisplayDate($locale, m, 'short'));
     };
     return Object.values(groups).map((g) => {
+      const links: { monday: string; label: string }[] = [];
+      const link = (monday: string, text: string): string => {
+        links.push({ monday, label: text });
+        return mark(links.length - 1);
+      };
       const parts = (['above-usual', 'above-fte'] as const)
         .filter((kind) => g.kinds[kind])
         .map((kind) => {
@@ -216,19 +270,22 @@
               named.length > NAMED_WEEKS
                 ? $t('load.warn.span', {
                     count: formatNumber($locale, named.length, 0),
-                    first: named[0]!,
-                    last: named[named.length - 1]!,
+                    first: link(mondays[0]!, named[0]!),
+                    last: link(mondays[mondays.length - 1]!, named[named.length - 1]!),
                   })
-                : list.format(named),
+                : // `label` keeps the order of `mondays`: named[i] is the label of mondays[i].
+                  list.format(named.map((n, i) => link(mondays[i]!, n))),
             hours: hours(most),
           });
         });
+      const person = $workspace.people.find((p) => p.id === g.personId)?.name ?? g.personId;
+      const text = $t('load.warn.person', { person, parts: parts.join('; ') });
       return {
         key: g.personId,
-        text: $t('load.warn.person', {
-          person: $workspace.people.find((p) => p.id === g.personId)?.name ?? g.personId,
-          parts: parts.join('; '),
-        }),
+        person,
+        segments: text
+          .split(/\uE000(\d+)\uE000/)
+          .map((part, i) => (i % 2 === 1 ? links[Number(part)]! : { label: part })),
       };
     });
   });
@@ -330,6 +387,28 @@
     </div>
   {/snippet}
 
+  {#snippet weekLink(personId: string, person: string, monday: string, label: string)}
+    {#if onOpenWeek}<button
+        type="button"
+        class="week-link"
+        aria-label={$t('load.openWeek', { week: label, person })}
+        title={$t('load.openWeek', { week: label, person })}
+        onclick={() => onOpenWeek(personId, monday)}>{label}</button
+      >{:else}{label}{/if}
+  {/snippet}
+
+  {#snippet unitLine(u: ReturnType<typeof unitsOf>[number])}
+    <span class="unit-name">{u.name}</span>
+    <span class="muted"
+      >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(' · ')}</span
+    >
+    <span class="num"
+      >{u.meetings > 0
+        ? $t('load.detail.meetings', { hours: hours(u.meetings) })
+        : $t('load.detail.noMeetings')}</span
+    >
+  {/snippet}
+
   {#snippet baseBody()}
     <thead>
       <tr>
@@ -402,7 +481,7 @@
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if overbooked($workspace, p.person.id)}
-              {@const total = weekly(p.cap)}
+              {@const total = weekly(capacity($workspace, p.person.id))}
               <span class="overbooked" data-overbooked
                 ><span class="long"
                   >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
@@ -450,7 +529,16 @@
           <td class="num nowrap">{$t('load.freeHours', { hours: hours(p.free) })}</td>
           <td class="num nowrap">
             {#if p.peak}
-              {$t('load.peak', { week: weekLabel(p.peak.monday), hours: hours(p.peak.hours) })}
+              {@const [before, after] = $t('load.peak', {
+                week: '\uE000',
+                hours: hours(p.peak.hours),
+              }).split('\uE000')}
+              {before}{@render weekLink(
+                p.person.id,
+                p.person.name,
+                p.peak.monday,
+                weekLabel(p.peak.monday),
+              )}{after}
             {:else}
               {$t('load.none')}
             {/if}
@@ -458,34 +546,65 @@
         </tr>
         <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
           <td colspan={teamId ? 7 : 6}>
-            {#if openPerson === p.person.id}
-              {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
-                <p class="note" data-set-hours>
-                  {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
-                </p>
+            <!-- Stays in the visible part of a table that scrolls sideways (phones). -->
+            <div class="detail-in">
+              {#if openPerson === p.person.id}
+                {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
+                  <p class="note" data-set-hours>
+                    {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                  </p>
+                {/if}
+                {@const lines = [...p.units, ...invitedOf(p.person.id, p.units)]}
+                {#if lines.length === 0}
+                  <p class="note">{$t('load.detail.none')}</p>
+                {:else}
+                  <ul class="split">
+                    {#each lines as u (u.id)}
+                      {@const list = openMeetings[u.id]}
+                      <li>
+                        {#if list}
+                          <!-- Collapsed per team or area: people in many of them keep a short list. -->
+                          <details>
+                            <summary class="line">{@render unitLine(u)}</summary>
+                            <ul class="meetings">
+                              {#each list as m (m.eventId)}
+                                <li>
+                                  <span>{m.name}</span>
+                                  <span class="muted"
+                                    >{m.rule}{#if m.oneOff}<span class="once"
+                                        >{$t('load.detail.oneOff')}</span
+                                      >{/if}</span
+                                  >
+                                  {#if m.oneOff}
+                                    <span class="num nowrap"
+                                      >{$t('load.detail.oneOffHours', { hours: hours(m.hours) })}
+                                      <span class="spread"
+                                        >{$t('load.detail.oneOffAvg', {
+                                          // Two digits: a one-off over the horizon is often below 0.1 h a week.
+                                          hours: formatNumber($locale, m.hoursPerWeek, 2),
+                                        })}</span
+                                      ></span
+                                    >
+                                  {:else}
+                                    <span class="num nowrap"
+                                      >{$t('load.detail.perWeek', {
+                                        hours: hours(m.hoursPerWeek),
+                                      })}</span
+                                    >
+                                  {/if}
+                                </li>
+                              {/each}
+                            </ul>
+                          </details>
+                        {:else}
+                          <div class="line">{@render unitLine(u)}</div>
+                        {/if}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
               {/if}
-              {#if p.units.length === 0}
-                <p class="note">{$t('load.detail.none')}</p>
-              {:else}
-                <ul class="split">
-                  {#each p.units as u (u.id)}
-                    <li>
-                      <span class="unit-name">{u.name}</span>
-                      <span class="muted"
-                        >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(
-                          ' · ',
-                        )}</span
-                      >
-                      <span class="num"
-                        >{u.meetings > 0
-                          ? $t('load.detail.meetings', { hours: hours(u.meetings) })
-                          : $t('load.detail.noMeetings')}</span
-                      >
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            {/if}
+            </div>
           </td>
         </tr>
       {/each}
@@ -594,7 +713,16 @@
     {#if warningItems.length > 0}
       <ul class="warnings">
         {#each warningItems as w (w.key)}
-          <li class="warning">{w.text}</li>
+          <li class="warning">
+            <span
+              >{#each w.segments as part, i (i)}{#if 'monday' in part}{@render weekLink(
+                    w.key,
+                    w.person,
+                    part.monday,
+                    part.label,
+                  )}{:else}{part.label}{/if}{/each}</span
+            >
+          </li>
         {/each}
       </ul>
     {/if}
@@ -831,6 +959,12 @@
   .scroll {
     position: relative;
     overflow-x: auto;
+    container-type: inline-size;
+  }
+  .detail-in {
+    position: sticky;
+    left: 0;
+    max-width: calc(100cqi - 1.5rem);
   }
   table {
     width: 100%;
@@ -1008,11 +1142,97 @@
     padding: 0;
     list-style: none;
   }
-  .split li {
+  /* The chevron column keeps lines with and without a meeting list aligned. */
+  .line,
+  .meetings li {
     display: grid;
-    grid-template-columns: minmax(8rem, 14rem) 1fr auto;
+    grid-template-columns: 1rem minmax(7rem, 13rem) 1fr auto;
     gap: 0.75rem;
     align-items: baseline;
+  }
+  .line > :first-child,
+  .meetings li > :first-child {
+    grid-column: 2;
+  }
+  summary.line {
+    min-height: 1.75rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary.line::-webkit-details-marker {
+    display: none;
+  }
+  summary.line::before {
+    content: '';
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    align-self: center;
+    width: 0.4em;
+    height: 0.4em;
+    border: solid var(--text-muted);
+    border-width: 0 2px 2px 0;
+    transform: rotate(-45deg);
+  }
+  details[open] > summary.line::before {
+    transform: rotate(45deg);
+  }
+  summary.line:hover .unit-name {
+    text-decoration: underline;
+  }
+  .meetings {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.25rem 0 0.5rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+  .once {
+    margin-left: 0.4rem;
+    padding: 0 0.4rem;
+    border-radius: 99px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  :global(#app) .week-link {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+  /* Phones: the meeting's rule goes under its name, the hours stay on the right. */
+  @media (max-width: 600px) {
+    .line,
+    .meetings li {
+      grid-template-columns: 1rem 1fr auto;
+      column-gap: 0.5rem;
+      row-gap: 0;
+    }
+    .line > .muted,
+    .meetings li > .muted {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    .line > .num,
+    .meetings li > .num {
+      grid-column: 3;
+      grid-row: 1;
+    }
+    .meetings .spread {
+      display: block;
+    }
   }
   .unit-name {
     font-weight: 600;

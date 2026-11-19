@@ -6,6 +6,7 @@
   import AreaIcon from './components/AreaIcon.svelte';
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
+  import type { ISODate } from '../core/date';
   import { hasOrgLevel, ORG_UNIT } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
@@ -220,11 +221,15 @@
     drillIn(teamId, 'load');
   }
 
-  /** The clash line in the area overview: that week in the calendar, for that person. */
-  function openCalendar(personId: string, date: string) {
+  /**
+   * The Calendar's week with `date`, with the Person filter on that person (#343). With `drill`,
+   * a drill-in from the area overview: the calendar offers one click back (#339).
+   */
+  function openCalendarWeek(personId: string, date: ISODate, options: { drill?: string } = {}) {
     filter.set({ personId });
     calendarWeek.set(date);
-    if (activeArea) drillIn(activeArea.id, 'calendar');
+    if (options.drill) drillIn(options.drill, 'calendar');
+    else select('calendar', true);
   }
 
   /** A dropped meeting's date (#341): the Calendar opens that day; its details take the focus. */
@@ -688,7 +693,8 @@
                         drillIn(unitId, 'meetings');
                       }}
                       onOpenUnit={(unitId) => drillIn(unitId, 'meetings')}
-                      onOpenCalendar={openCalendar}
+                      onOpenCalendar={(personId, date) =>
+                        openCalendarWeek(personId, date, { drill: activeArea.id })}
                     />
                   {/snippet}
                 </AreaView>
@@ -718,7 +724,7 @@
                 />
               {/key}
             {:else if id === 'load'}
-              {#if active === 'load'}<LoadView />{/if}
+              {#if active === 'load'}<LoadView onOpenWeek={openCalendarWeek} />{/if}
             {:else if id === 'meetings'}
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}

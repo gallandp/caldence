@@ -3,8 +3,10 @@ import {
   capacity,
   fte,
   hoursLeft,
+  loadBase,
   loadPerWeek,
   overbooked,
+  personMeetings,
   warnings,
   weeklyBaseLoad,
 } from '../../src/core/load';
@@ -309,6 +311,35 @@ describe('hours per team', () => {
     ]);
   });
 
+  it('the load base is all weekly hours, at most the Settings weekly hours (#342)', () => {
+    const ws = twoTeams();
+    // 20 + 18 is within 40 h: the base is all of them.
+    expect(loadBase(ws, 'p1')).toBe(38);
+    // 20 + 40 (Beta on the default) tops 40 h: the base stays at 40.
+    ws.teams[1]!.memberHours = {};
+    expect(capacity(ws, 'p1')).toBe(60);
+    expect(loadBase(ws, 'p1')).toBe(40);
+    // Someone in no team has the Settings weekly hours.
+    expect(loadBase(ws, 'p2')).toBe(40);
+  });
+
+  it('overbooking a person never makes them look less loaded (#342)', () => {
+    const ws = twoTeams();
+    ws.settings.hoursPerWeek = 32;
+    ws.teams[0]!.memberHours = { p1: 32 };
+    ws.teams = [ws.teams[0]!];
+    // 12 h of meetings ÷ 32 h = 0.375; within the 0.5 limit.
+    expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([]);
+    // Another 16 h in a team on top would lower the share to 12 / 48 = 0.25 without the cap.
+    ws.teams.push(team([], { id: 'beta', memberHours: { p1: 16 } }));
+    expect(loadBase(ws, 'p1')).toBe(32);
+    // The cap also holds for the limit: 17 h ÷ 32 h is over it, 17 h ÷ 48 h would not be.
+    ws.teams[0]!.events[0]!.duration = 17 * 60;
+    expect(warnings(loadPerWeek(ws, noIndex()), ws)).toEqual([
+      { monday: '2027-01-04', personId: 'p1', kind: 'above-fte' },
+    ]);
+  });
+
   it('an area stands for its teams: capacity sums over them', () => {
     const ws = twoTeams();
     ws.areas = [
@@ -375,5 +406,54 @@ describe('ids that name Object.prototype members (security #40)', () => {
     expect(Object.getOwnPropertyDescriptor(w.byPerson, id)?.value).toBe(1);
     expect(Object.getOwnPropertyDescriptor(w.byTeamRole[id] as object, id)?.value).toBe(1);
     expect(warnings(weeks, ws).every((x) => x.personId === id)).toBe(true);
+  });
+});
+
+describe('personMeetings (#343)', () => {
+  it('lists the meetings of a person per unit, Ø per week in the horizon, one-offs marked', () => {
+    const weekly = event({ type: 'weekly', weekday: 1 }, { id: 'daily', name: 'Daily' });
+    const kickoff = event(
+      { type: 'once', date: '2027-01-12' },
+      { id: 'kick', name: 'Kick-off', duration: 480 },
+    );
+    const other = event(
+      { type: 'weekly', weekday: 2 },
+      { id: 'other', name: 'Other', participants: [{ roleId: 'r2', share: 1 }] },
+    );
+    const ws = workspace([team([weekly, kickoff, other])]);
+    const list = personMeetings(ws, noIndex(), 'p1');
+    // Three weeks: 3 × 1 h weekly, 8 h once.
+    expect(list.t1).toEqual([
+      { eventId: 'daily', hoursPerWeek: 1, hours: 3, oneOff: false },
+      { eventId: 'kick', hoursPerWeek: 8 / 3, hours: 8, oneOff: true },
+    ]);
+    const weeks = loadPerWeek(ws, noIndex());
+    const avg = weeks.reduce((s, w) => s + (w.byTeamPerson.t1?.p1 ?? 0), 0) / weeks.length;
+    expect(list.t1!.reduce((s, m) => s + m.hoursPerWeek, 0)).toBeCloseTo(avg);
+    expect(personMeetings(ws, noIndex(), 'p2')).toEqual({});
+  });
+
+  it('lists an area meeting that invites a role from the teams, without area membership', () => {
+    const ws = workspace([team([])]);
+    ws.areas = [
+      {
+        id: 'area',
+        name: 'Area',
+        teamIds: ['t1'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        cadence: { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' },
+        events: [
+          event(
+            { type: 'weekly', weekday: 3 },
+            { id: 'forum', participants: [{ roleId: 'r1', share: 1, fromTeams: true }] },
+          ),
+        ],
+      } as Workspace['areas'][number],
+    ];
+    expect(personMeetings(ws, noIndex(), 'p1')).toEqual({
+      area: [{ eventId: 'forum', hoursPerWeek: 1, hours: 3, oneOff: false }],
+    });
   });
 });

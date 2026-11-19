@@ -34,8 +34,9 @@ column and bar uses it and shows its value ("über 60 %").
 | **abgestimmt / weicht ab** | aligned / differs | Whether a {levelTeam}'s Takt fits the {levelArea}'s. KPI "Abgestimmt: 2 von 4", pill "Weichen ab: …" | — |
 | **Terminlast** | meeting load | Hours in meetings and their share of weekly hours. Sidebar view, page title, KPI (was "Auslastung") | Total workload |
 | **Anteil in Terminen** | share in meetings | Every share column / bar | — |
-| **über Grenze** | over the limit | A person or week above the one Grenze, judged on all of the person's {levelTeams} and the {levelArea} in every scope: all meetings ÷ all weekly hours, the same in Warnings, the Calendar, the people table, the {levelArea} Overview and the week detail (#307, #334) | "Überlast" |
+| **über Grenze** | over the limit | A person or week above the one Grenze, judged on all of the person's {levelTeams} and the {levelArea} in every scope: all meetings ÷ all weekly hours (at most the Settings weekly hours, see **Last-Basis**), the same in Warnings, the Calendar, the people table, the {levelArea} Overview and the week detail (#307, #334, #342) | "Überlast" |
 | **Stunden {levelInArea}** (Hinweis) | hours in the area (hint) | One line per person and {levelArea} under Warnungen: invited to meetings {levelInArea} without hours set there, or those meetings take more than the Grenze of the hours there. Never a weekly warning | "über Grenze", "Warnung" |
+| **Last-Basis** (no UI label) | load base | The weekly hours a person's share in meetings, the Grenze and the Platz bis Grenze are measured against: all their hours in all {levelTeams} and {levelAreas}, at most the Standard-Wochenstunden from Settings. Hours booked beyond a working week never make a person look less loaded; more hours within it can lower the share (#342) | The hours shown as overbooked ("52 h – mehr als 40 h pro Woche") |
 | **Platz bis Grenze (Termine)** | room before limit (meetings) | Hours per week that still fit into meetings before the Grenze (was "Frei bis Grenze") | Free working time |
 | **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
 | **Überschneidung** | overlap | Two meetings of one person at the same time on one day. The calendar marks the day with a person chosen; the {levelArea} Overview counts the days in the next 12 weeks; Meeting load lists one line per person under “Overlapping meetings” (#339). Never a limit or a weekly warning | "Konflikt", "clash", "über Grenze" |
@@ -59,7 +60,7 @@ The same holds for the two weekly hour figures in Terminlast:
 - **übliche Woche** / typical week – the recurring meetings of one regular week (tiles, Grundlast table, cost per week, the hours and shares of the area Overview cost table). Every person in a role counts; a role without members counts as one person, as for cost (with the default weekly hours in a share, #335).
 - **Ø im Planungszeitraum** / Ø in the planning horizon – the average of the real weeks (chart line, people table): one-off meetings count, skipped holidays do not.
 
-A role tile's percentage is **Ø pro Person** / Ø per person: the role's hours ÷ the weekly hours of its people (with a person chosen: that person's weekly hours). FTE stays the capacity number.
+A role tile's percentage is **Ø pro Person** / Ø per person: the role's hours ÷ the weekly hours of its people (with a person chosen: that person's load base). FTE stays the capacity number.
 
 ## Tabs and page names
 

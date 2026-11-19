@@ -66,15 +66,6 @@
   let mode = $state<Mode>(lastMode);
   const modes: readonly Mode[] = ['week', 'month', 'range'];
   let cursor = $state<ISODate>(clampToHorizon());
-  // A week asked for from elsewhere (the area overview's clash line) opens in the week view.
-  $effect(() => {
-    const date = $calendarWeek;
-    if (date === null) return;
-    mode = lastMode = 'week';
-    selected = null;
-    cursor = date;
-    calendarWeek.set(null);
-  });
   let selected = $state<ISODate | null>(null);
   let grid: HTMLTableElement | undefined = $state();
   let details: DayDetails | undefined = $state();
@@ -374,6 +365,20 @@
       ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
       ?.focus({ preventScroll: next === 'range' });
   }
+
+  // A week another view links to (#343, #339): shown on the week level.
+  $effect(() => {
+    const date = $calendarWeek;
+    if (date === null || !shown) return;
+    calendarWeek.set(null);
+    const { from } = horizon;
+    // A week that starts before the horizon is shown from the horizon's first day.
+    const day = date < from && addDays(mondayOf(date), 6) >= from ? from : date;
+    if (!inHorizon(day)) return;
+    mode = lastMode = 'week';
+    selected = null;
+    cursor = day;
+  });
 
   // A day another view links to (#341): opened with its details, as if chosen in the grid.
   $effect(() => {
