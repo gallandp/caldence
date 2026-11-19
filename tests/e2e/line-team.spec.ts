@@ -286,3 +286,49 @@ test('a company is chosen as level and gives its people their company (#399)', a
   await edit.getByRole('button', { name: 'Apply' }).click();
   await expect(page.locator('.switcher .pick')).toContainText('Specialist group');
 });
+
+test('own line levels: add one in Settings and put a unit on it (#408)', async ({ page }) => {
+  await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
+  await showView(page, 'Settings');
+  const levels = page.getByRole('region', { name: 'Levels of the line' });
+  await expect(levels.getByRole('listitem')).toHaveCount(3);
+  // The levels in use cannot be removed; the company level has no units yet.
+  await expect(levels.getByRole('button', { name: 'Remove Specialist group' })).toBeDisabled();
+  await expect(levels.getByRole('button', { name: 'Remove Company' })).toBeEnabled();
+  await expect(levels.getByRole('listitem').nth(1)).toContainText('1 unit');
+
+  // A fourth level, moved between specialist group and line team, renamed "Squad".
+  await levels.getByRole('button', { name: 'Add level' }).click();
+  await expect(levels.getByRole('listitem')).toHaveCount(4);
+  const fresh = levels.getByLabel('Name of line level 4');
+  await expect(fresh).toBeFocused();
+  await fresh.fill('Squad');
+  await fresh.press('Enter');
+  await fresh.blur();
+  await levels.getByRole('button', { name: 'Move Squad up' }).click();
+  await expect(levels.getByLabel('Name of line level 3')).toHaveValue('Squad');
+  await expect(levels.getByLabel('Name of line level 4')).toHaveAttribute(
+    'placeholder',
+    'Line team',
+  );
+  expect((await new AxeBuilder({ page }).include('.line-levels').analyze()).violations).toEqual([]);
+
+  // A new unit on the new level sits between the group and its line teams.
+  await page.getByRole('button', { name: 'Team actions' }).click();
+  await page.locator('.switcher').getByRole('button', { name: 'Add line unit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add line unit' });
+  await dialog.getByLabel('Name of the line unit').fill('Squad Nord');
+  await dialog.getByLabel('Belongs to').selectOption({ label: 'Orvalis' });
+  await dialog.getByLabel('Level', { exact: true }).selectOption({ label: 'Squad' });
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.locator('.switcher .pick')).toContainText('Squad');
+
+  await pickLine(page, 'Orvalis Ware');
+  await page.getByRole('button', { name: 'Team actions' }).click();
+  await page.locator('.switcher').getByRole('button', { name: 'Edit …' }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit Orvalis Ware' });
+  await edit.getByLabel('Belongs to').selectOption({ label: '\u00a0\u00a0\u00a0Squad Nord' });
+  await edit.getByRole('button', { name: 'Apply' }).click();
+  await expect(edit).toBeHidden();
+  await expect(page.locator('.switcher .pick')).toContainText('Line team');
+});

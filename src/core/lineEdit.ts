@@ -1,6 +1,8 @@
 import { newId } from './edit';
 import { removeSkill } from './line';
-import type { LineKind, LineUnit, Person, Workspace } from './model';
+import { BUILT_IN_LINE_LEVELS, isCompanyLevel, lineLevels } from './lineLevels';
+import { lineKind } from './lineStaff';
+import type { LineKind, LineLevel, LineUnit, Person, Workspace } from './model';
 import { validate, type Result } from './validate';
 
 /**
@@ -72,7 +74,7 @@ export function updateLineUnit(
  * renaming the unit renames its company. Any other level drops the link, the company stays.
  */
 function linkCompany(ws: Workspace, unit: LineUnit): void {
-  if (unit.kind !== 'company') {
+  if (!isCompanyLevel(ws.settings, unit.kind)) {
     delete unit.companyId;
     return;
   }
@@ -91,6 +93,39 @@ function linkCompany(ws: Workspace, unit: LineUnit): void {
     unit.companyId = id;
   }
 }
+
+/**
+ * Sets the line's own levels (#408), top-down. The first time, every unit keeps the level it shows
+ * (derived ones are stored) and the names of `lineLevelNames` move onto the built-in levels, so the
+ * line looks as before. A level that units are still on cannot be removed.
+ */
+export function setLineLevels(ws: Workspace, levels: LineLevel[]): Result<Workspace> {
+  const out = structuredClone(ws);
+  const units = out.lineUnits ?? [];
+  const kinds = new Map(units.map((u) => [u.id, lineKind(ws, u.id)] as const));
+  const keep = new Set(levels.map((l) => l.id));
+  if ([...kinds.values()].some((k) => !keep.has(k)))
+    return fail('settings.lineLevels', 'error.line.levelInUse');
+  const fromNames = ws.settings.lineLevels === undefined ? ws.settings.lineLevelNames : undefined;
+  out.settings.lineLevels = levels.map((l) => {
+    const builtIn = (BUILT_IN_LINE_LEVELS as readonly string[]).includes(l.id);
+    const name = l.name?.trim() || (builtIn ? fromNames?.[l.id as 'group']?.trim() : undefined);
+    return { id: l.id, ...(name ? { name } : {}), ...(l.company ? { company: true } : {}) };
+  });
+  delete out.settings.lineLevelNames;
+  for (const u of units) {
+    u.kind = kinds.get(u.id)!;
+    linkCompany(out, u);
+  }
+  return checked(out, out);
+}
+
+/** A new level id that is none of the levels' ids. */
+export const newLineLevelId = (ws: Workspace): string =>
+  newId(
+    'll',
+    lineLevels(ws.settings).map((l) => l.id),
+  );
 
 export function addSkillFamily(ws: Workspace, name: string): Result<[Workspace, string]> {
   const list = ws.skillFamilies ?? [];

@@ -1,6 +1,7 @@
 import type { Cell, Sheet } from './xlsx';
 import type { LineUnit, Person, Workspace } from './model';
 import { LIMITS } from './limits';
+import { lineLevels, lowestLineLevel } from './lineLevels';
 
 /**
  * Staff import for the line organisation (#330): people with line team, contract FTE, skills and,
@@ -269,20 +270,18 @@ export function reviewStaff(
   const newCompany = idMaker('co', out.companies);
 
   const units = out.lineUnits;
+  // The file's levels (#408): how deep the tree may go and which level takes no units below it.
+  const maxLevels = lineLevels(out.settings).length;
+  const lowest = lowestLineLevel(out.settings);
   const unitById = new Map(units.map((u) => [u.id, u] as const));
   const depth = (u: LineUnit): number => {
     let d = 1;
-    for (
-      let p = u.parentId;
-      p !== undefined && d <= LIMITS.lineLevels;
-      p = unitById.get(p)?.parentId
-    )
-      d++;
+    for (let p = u.parentId; p !== undefined && d <= maxLevels; p = unitById.get(p)?.parentId) d++;
     return d;
   };
   const top = (u: LineUnit): LineUnit => {
     let at = u;
-    for (let i = 0; at.parentId !== undefined && i < LIMITS.lineLevels; i++)
+    for (let i = 0; at.parentId !== undefined && i < maxLevels; i++)
       at = unitById.get(at.parentId) ?? at;
     return at;
   };
@@ -292,8 +291,8 @@ export function reviewStaff(
     units.filter(
       (u) =>
         nameKey(u.name) === nameKey(name) &&
-        // A unit chosen as line team takes no units below it (#399).
-        u.kind !== 'team' &&
+        // A unit chosen on the lowest level takes no units below it (#399).
+        u.kind !== lowest &&
         (u.parentId === undefined || parents.has(u.id)),
     );
   const familiesByName = new Map(out.skillFamilies.map((f) => [nameKey(f.name), f] as const));
@@ -413,7 +412,7 @@ export function reviewStaff(
       }
       let group = groups[0];
       unit = group ? byName(row.team, group.id)[0] : undefined;
-      if (!unit && group && depth(group) >= LIMITS.lineLevels) {
+      if (!unit && group && depth(group) >= maxLevels) {
         error('tooDeep');
         continue;
       }

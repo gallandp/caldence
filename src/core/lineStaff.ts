@@ -1,5 +1,13 @@
 import { contextHint, type ContextHint } from './contextSwitch';
 import { contractFte, freeFte } from './line';
+import {
+  groupLineLevel,
+  isCompanyLevel,
+  leafLineLevel,
+  lineLevelIndex,
+  lineLevels,
+  lowestLineLevel,
+} from './lineLevels';
 import { capacity, warnings, type WeekLoad } from './load';
 import {
   linePeople,
@@ -164,7 +172,8 @@ export const isLineGroup = (ws: Workspace, unitId: string): boolean =>
  */
 export function lineKind(ws: Workspace, unitId: string): LineKind {
   const unit = ws.lineUnits?.find((u) => u.id === unitId);
-  return unit?.kind ?? (isLineGroup(ws, unitId) ? 'group' : 'team');
+  if (unit?.kind !== undefined) return unit.kind;
+  return isLineGroup(ws, unitId) ? groupLineLevel(ws.settings) : leafLineLevel(ws.settings);
 }
 
 /**
@@ -176,7 +185,7 @@ export function personCompanyId(ws: Workspace, person: Person): string | undefin
   const units = ws.lineUnits ?? [];
   for (let id = person.lineUnitId, steps = 0; id !== undefined && steps < 10; steps++) {
     const unit = units.find((u) => u.id === id);
-    if (unit?.kind === 'company' && unit.companyId) return unit.companyId;
+    if (isCompanyLevel(ws.settings, unit?.kind) && unit?.companyId) return unit.companyId;
     id = unit?.parentId;
   }
   return undefined;
@@ -195,12 +204,19 @@ export function lineTree(ws: Workspace): { unit: LineUnit; depth: number }[] {
   return out;
 }
 
-/** Units a unit may move under: not itself or its subtree, and the result stays three levels. */
+/**
+ * Units a unit may move under: not itself or its subtree, not a unit on the lowest level, the tree
+ * stays within the file's number of levels, and with `kind` the parent's level is above it (#408).
+ */
 export function parentChoices(
   ws: Workspace,
   unitId: string | undefined,
-  maxLevels = 3,
+  kind?: LineKind,
 ): LineUnit[] {
+  const settings = ws.settings;
+  if (isCompanyLevel(settings, kind)) return [];
+  const maxLevels = lineLevels(settings).length;
+  const lowest = lowestLineLevel(settings);
   const own = unitId === undefined ? new Set<string>() : lineSubtree(ws, unitId);
   const depthOf = (id: string | undefined): number => {
     let d = 0;
@@ -211,8 +227,14 @@ export function parentChoices(
   const height = (id: string): number =>
     1 + Math.max(0, ...childUnits(ws, id).map((c) => height(c.id)));
   const needs = unitId === undefined ? 1 : height(unitId);
-  // A unit chosen as line team takes no units below it (#399).
+  const below = kind === undefined ? -1 : lineLevelIndex(settings, kind);
+  // A unit without a chosen level becomes a group once something hangs below it.
+  const levelOf = (u: LineUnit) => lineLevelIndex(settings, u.kind ?? groupLineLevel(settings));
   return (ws.lineUnits ?? []).filter(
-    (u) => u.kind !== 'team' && !own.has(u.id) && depthOf(u.id) + needs <= maxLevels,
+    (u) =>
+      u.kind !== lowest &&
+      !own.has(u.id) &&
+      depthOf(u.id) + needs <= maxLevels &&
+      (below < 0 || levelOf(u) < below),
   );
 }

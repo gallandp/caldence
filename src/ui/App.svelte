@@ -23,15 +23,19 @@
     JSON.stringify([
       $workspace.settings.levelNames ?? null,
       $workspace.settings.lineLevelNames ?? null,
+      $workspace.settings.lineLevels ?? null,
     ]),
   );
   $effect(() => locale.set(uiLocale));
   $effect(() => {
-    const [names, line] = JSON.parse(levelKey) as [
+    const [names, line, lineLevels] = JSON.parse(levelKey) as [
       Parameters<typeof levelWords>[0] | null,
       Parameters<typeof levelWords>[2] | null,
+      Parameters<typeof levelWords>[3] | null,
     ];
-    levels.set(levelWords(names ?? undefined, uiLocale, line ?? undefined));
+    levels.set(
+      levelWords(names ?? undefined, uiLocale, line ?? undefined, lineLevels ?? undefined),
+    );
   });
   const horizonText = $derived(formatHorizon(uiLocale, $workspace.settings.horizon));
   $effect(() => horizonLabel.set(horizonText));

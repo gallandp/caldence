@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addLineUnit, updateLineUnit } from '../core/lineEdit';
+  import { isCompanyLevel, leafLineLevel, lineLevelIndex } from '../core/lineLevels';
   import { lineKind, lineTree, parentChoices } from '../core/lineStaff';
   import { lineSelection, type LineKind, type LineUnit } from '../core/model';
   import { levels, translate as t } from '../i18n';
@@ -21,13 +22,29 @@
   let kind = $state<LineKind>('team');
   /** The level as shown when the dialog opened: only a level the user changes is stored. */
   let shownKind: LineKind = 'team';
-  const KINDS: readonly LineKind[] = ['company', 'group', 'team'];
+  /** The level as it will be stored, or undefined while a derived one stays derived. */
+  const chosenKind = $derived(kind !== shownKind || unit?.kind !== undefined ? kind : undefined);
+  const company = $derived(isCompanyLevel($workspace.settings, kind));
+  /** The levels on offer (#408): a company level, or one below the chosen parent's level. */
+  const kinds = $derived.by(() => {
+    const above = $workspace.lineUnits?.find((u) => u.id === parentId)?.kind;
+    const from = above === undefined ? -1 : lineLevelIndex($workspace.settings, above);
+    return $levels.lineLevels.filter((l, i) => l.company || i > from || l.id === shownKind);
+  });
   let managerId = $state('');
   let familyId = $state('');
   let error = $state('');
   let general = $state('');
 
-  const choices = $derived(parentChoices($workspace, unit?.id));
+  const choices = $derived(parentChoices($workspace, unit?.id, chosenKind));
+  // A parent that does not fit the chosen level is dropped, and a level that is not below the
+  // chosen parent's gives way to the lowest one (#408).
+  $effect(() => {
+    if (parentId && !choices.some((u) => u.id === parentId)) parentId = '';
+  });
+  $effect(() => {
+    if (!kinds.some((k) => k.id === kind)) kind = leafLineLevel($workspace.settings);
+  });
   const depth = $derived(new Map(lineTree($workspace).map((x) => [x.unit.id, x.depth])));
   const people = $derived(
     [...$workspace.people].sort((a, b) => a.name.localeCompare(b.name, $workspace.settings.locale)),
@@ -43,7 +60,7 @@
     parentId = of?.parentId ?? (offered ? under! : '');
     // New units and units of older files show their derived level; it is only stored once the
     // user picks another one, so a unit without a stored level can still get units below it.
-    kind = of ? lineKind($workspace, of.id) : 'team';
+    kind = of ? lineKind($workspace, of.id) : leafLineLevel($workspace.settings);
     shownKind = kind;
     managerId = of?.managerPersonId ?? '';
     familyId =
@@ -65,16 +82,16 @@
     }
     const target = unit;
     const patch = {
-      ...(kind !== shownKind || unit?.kind !== undefined ? { kind } : {}),
+      ...(chosenKind !== undefined ? { kind: chosenKind } : {}),
       // A company always sits at the top (#399).
-      parentId: (kind === 'company' ? '' : parentId) || null,
+      parentId: (company ? '' : parentId) || null,
       managerPersonId: managerId || null,
       skillFamilyId: familyId || null,
     };
     let newId: string | undefined;
     const result = workspace.apply((ws) => {
       if (target) return updateLineUnit(ws, target.id, { name, ...patch });
-      const added = addLineUnit(ws, name, (kind === 'company' ? '' : parentId) || undefined);
+      const added = addLineUnit(ws, name, (company ? '' : parentId) || undefined);
       if (!added.ok) return added;
       const [next, id] = added.value;
       newId = id;
@@ -114,15 +131,15 @@
       <select
         id="{uid}-kind"
         bind:value={kind}
-        aria-describedby={kind === 'company' ? `${uid}-kind-hint` : undefined}
+        aria-describedby={company ? `${uid}-kind-hint` : undefined}
       >
-        {#each KINDS as k (k)}
-          <option value={k}>{lineLevelWord($levels, k)}</option>
+        {#each kinds as k (k.id)}
+          <option value={k.id}>{k.word}</option>
         {/each}
       </select>
-      {#if kind === 'company'}
+      {#if company}
         <p class="hint" id="{uid}-kind-hint">
-          {$t('line.unit.company.hint', { name: name.trim() || lineLevelWord($levels, 'company') })}
+          {$t('line.unit.company.hint', { name: name.trim() || lineLevelWord($levels, kind) })}
         </p>
       {/if}
     </div>
@@ -131,7 +148,7 @@
       <select
         id="{uid}-parent"
         bind:value={parentId}
-        disabled={kind === 'company'}
+        disabled={company}
         aria-describedby="{uid}-parent-hint"
       >
         <option value="">{$t('line.unit.top')}</option>
