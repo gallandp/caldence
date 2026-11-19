@@ -68,10 +68,14 @@
   const roleChoice = $derived(roles.some((r) => r.id === addRole) ? addRole : (roles[0]?.id ?? ''));
   /** People who are not in this team yet, offered while typing a name. */
   const others = $derived(people.filter((p) => !grouped.some((g) => g.personId === p.id)));
+  /** A known person typed in the form, not in this team yet. */
+  const typed = $derived.by(() => {
+    const key = addName.trim().toLowerCase();
+    return others.find((p) => p.name.trim().toLowerCase() === key);
+  });
   /** The typed person already works in another team or area: their hours left fill the field. */
   const elsewhere = $derived.by(() => {
-    const key = addName.trim().toLowerCase();
-    const person = others.find((p) => p.name.trim().toLowerCase() === key);
+    const person = typed;
     const places = person ? placesOf($workspace, person.id) : [];
     if (!person || places.length === 0) return null;
     return {
@@ -85,21 +89,24 @@
 
   /**
    * What adding them does to their meeting load (#342): their average meeting hours per week and
-   * share, measured like the people table, before and after.
+   * share, measured like the people table, after and, for someone who works elsewhere, before.
+   * The hours are those the form would save.
    */
+  const before = $derived(
+    typed && elsewhere ? personLoad($workspace, loadPerWeek($workspace, $index), typed.id) : null,
+  );
   const preview = $derived.by(() => {
-    if (!team || !elsewhere || roleChoice === '') return null;
-    const h = addHours ?? elsewhere.left;
-    if (!Number.isFinite(h) || h < 0) return null;
-    const { id: personId } = elsewhere;
-    const ws = $workspace;
-    const next = updateTeam(ws, team.id, {
+    if (!team || !typed || roleChoice === '') return null;
+    const h = addHours ?? elsewhere?.left ?? null;
+    if (h !== null && (!Number.isFinite(h) || h < 0)) return null;
+    const personId = typed.id;
+    const next = updateTeam($workspace, team.id, {
       members: [...team.members, { personId, roleId: roleChoice }],
-      memberHours: withHours(team.memberHours, personId, h),
+      memberHours: h === null ? team.memberHours : withHours(team.memberHours, personId, h),
     });
     if (!next.ok) return null;
     return {
-      before: personLoad(ws, loadPerWeek(ws, $index), personId),
+      name: typed.name,
       after: personLoad(next.value, loadPerWeek(next.value, $index), personId),
     };
   });
@@ -451,9 +458,9 @@
                   step="0.5"
                   placeholder={String(defaultHours)}
                   value={addHours ?? elsewhere?.left ?? ''}
-                  aria-describedby={elsewhere
-                    ? [`${uid}-elsewhere`, preview && `${uid}-preview`].filter(Boolean).join(' ')
-                    : undefined}
+                  aria-describedby={[elsewhere && `${uid}-elsewhere`, preview && `${uid}-preview`]
+                    .filter(Boolean)
+                    .join(' ') || undefined}
                   oninput={(e) => {
                     const v = e.currentTarget.value;
                     addHours = v.trim() === '' ? null : Number(v);
@@ -474,16 +481,21 @@
                 })}
                 {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
               </p>
-              {#if preview}
-                <p class="hint" id="{uid}-preview" data-member-preview data-no-present>
-                  {$t('team.members.preview', {
-                    name: elsewhere.name,
-                    hours: formatNumber($locale, preview.after.hours, 1),
-                    share: formatPercent($locale, preview.after.share),
-                    before: formatPercent($locale, preview.before.share),
-                  })}
-                </p>
-              {/if}
+            {/if}
+            {#if preview}
+              {@const after = {
+                name: preview.name,
+                hours: formatNumber($locale, preview.after.hours, 1),
+                share: formatPercent($locale, preview.after.share),
+              }}
+              <p class="hint" id="{uid}-preview" data-member-preview data-no-present>
+                {before
+                  ? $t('team.members.preview', {
+                      ...after,
+                      before: formatPercent($locale, before.share),
+                    })
+                  : $t('team.members.previewNew', after)}
+              </p>
             {/if}
             {@render err('member-add')}
           {/if}

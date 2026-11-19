@@ -193,6 +193,14 @@ test('the add-member form shows the meeting load before and after (#342)', async
   await team.getByRole('button', { name: 'Add member' }).click();
   await expect(preview).toHaveCount(0);
 
+  // Someone in no team yet has no "before".
+  await openPeoplePool(page);
+  await team.getByLabel('New person name').fill('Noa');
+  await team.getByLabel('New person name').press('Enter');
+  await team.getByLabel('Person', { exact: true }).fill('Noa');
+  await expect(preview).toHaveText('Meeting load of Noa after: 0.0 h · 0%');
+  await team.getByLabel('Person', { exact: true }).fill('');
+
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const load = page.getByRole('tabpanel', { name: 'Meeting load' });
   const row = load.locator('tr[data-person]').filter({ hasText: 'Alex' });

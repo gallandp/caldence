@@ -60,7 +60,8 @@
 
   /**
    * Each person is judged on all their meetings ÷ their hours in all their teams and areas, at
-   * most the Settings weekly hours, in every scope (#273, #342); with a team or area filter `here` keeps their part in it.
+   * most the Settings weekly hours, in every scope (#273, #342); with a team or area filter
+   * `here` keeps their part in it.
    */
   const perPerson = $derived(
     people.map((person) => {
