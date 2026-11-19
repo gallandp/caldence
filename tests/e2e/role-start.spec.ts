@@ -54,7 +54,7 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await dialog.getByLabel('Line teams').fill('Backend\nFrontend, Data');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(
-    dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
+    dialog.getByRole('heading', { name: 'Time zone, holidays and planning horizon' }),
   ).toBeFocused();
   await dialog.getByRole('button', { name: 'Create' }).click();
   await expect(dialog).toBeHidden();

@@ -61,6 +61,8 @@
   let region = $state('');
   let from = $state('');
   let to = $state('');
+  /** The horizon is preset to a year from today; its dates show only on request. */
+  let editHorizon = $state(false);
   /** The first team also confirms the workspace frame: time zone, region and horizon. */
   let withFrame = $state(true);
   let nameError = $state(false);
@@ -189,11 +191,19 @@
     region = settings.region;
     from = settings.horizon.from;
     to = settings.horizon.to;
+    editHorizon = false;
     nameError = false;
     problem = null;
     // The first step differs per mode: render it before the dialog picks its first focus.
     await tick();
     dialog?.showModal();
+  }
+
+  /** Shows the date fields and keeps keyboard focus in place of the button. */
+  async function showDates() {
+    editHorizon = true;
+    await tick();
+    document.getElementById(`${uid}-from`)?.focus();
   }
 
   function close() {
@@ -733,15 +743,33 @@
         <!-- Preset, not chosen: say so (#341). -->
         <p class="hint" id="{uid}-region-check">{$t('settings.region.check')}</p>
       </div>
-      <div class="row">
-        <div class="field">
-          <label for="{uid}-from">{$t('settings.horizon.from')}</label>
-          <input id="{uid}-from" type="date" bind:value={from} />
-        </div>
-        <div class="field">
-          <label for="{uid}-to">{$t('settings.horizon.to')}</label>
-          <input id="{uid}-to" type="date" bind:value={to} />
-        </div>
+      <!-- What the dates drive, before any date field. -->
+      <div class="field horizon" role="group" aria-labelledby="{uid}-horizon">
+        <p class="label" id="{uid}-horizon">{$t('settings.horizon')}</p>
+        {#if editHorizon}
+          <p class="hint">{$t('settings.horizon.hint')}</p>
+          <div class="row">
+            <div class="field">
+              <label for="{uid}-from">{$t('settings.horizon.from')}</label>
+              <input id="{uid}-from" type="date" bind:value={from} />
+            </div>
+            <div class="field">
+              <label for="{uid}-to">{$t('settings.horizon.to')}</label>
+              <input id="{uid}-to" type="date" bind:value={to} />
+            </div>
+          </div>
+        {:else}
+          <p class="summary">
+            {$t('setup.horizon.summary', {
+              from: formatDisplayDate($locale, from, 'short'),
+              to: formatDisplayDate($locale, to, 'short'),
+            })}
+          </p>
+          <p class="hint">{$t('settings.horizon.hint')}</p>
+          <button type="button" class="link" onclick={showDates}
+            >{$t('setup.horizon.change')}</button
+          >
+        {/if}
       </div>
     {/if}
     {#if problem}
@@ -917,7 +945,8 @@
     font-weight: 600;
   }
   /* A quiet text action; the shared #app button style would draw a frame. */
-  :global(#app) .unit button.link {
+  :global(#app) .unit button.link,
+  :global(#app) .horizon button.link {
     margin: 0 0 0.6rem;
     padding: 0;
     border: 0;
@@ -926,6 +955,16 @@
     color: var(--accent-text);
     text-decoration: underline;
     text-underline-offset: 0.2em;
+  }
+  .horizon .label {
+    margin: 0 0 0.25rem;
+    font-weight: 600;
+  }
+  .horizon .summary {
+    margin: 0 0 0.25rem;
+  }
+  .horizon button.link {
+    align-self: flex-start;
   }
   .add {
     margin-bottom: 0.75rem;

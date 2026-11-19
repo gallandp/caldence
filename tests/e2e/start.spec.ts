@@ -172,20 +172,27 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(
-    dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
+    dialog.getByRole('heading', { name: 'Time zone, holidays and planning horizon' }),
   ).toBeFocused();
   // The region is preset, not chosen: the wizard asks to check it (#341).
   await expect(dialog.getByLabel('Region (holidays)')).toHaveAccessibleDescription(/Please check/);
   await dialog.getByLabel('Time zone').selectOption('Europe/Vienna');
-  await dialog.getByLabel('Horizon to').fill('2027-03-01');
+  // The horizon is preset and explained; its dates show on request.
+  const horizon = dialog.getByRole('group', { name: 'Planning horizon' });
+  await expect(horizon).toContainText('Planning runs from');
+  await expect(horizon).toContainText('The calendar, meeting load and costs refer to it');
+  await expect(dialog.getByLabel('Planning until')).toHaveCount(0);
+  await horizon.getByRole('button', { name: 'Change dates' }).click();
+  await expect(dialog.getByLabel('Planning from')).toBeFocused();
+  await dialog.getByLabel('Planning until').fill('2027-03-01');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
-  await dialog.getByLabel('Horizon to').fill('2027-12-31');
+  await dialog.getByLabel('Planning until').fill('2027-12-31');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
-  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Planning until')).toHaveValue('2027-12-31');
 });
 
 test('after the wizard a card offers the next steps once', async ({ page }) => {
