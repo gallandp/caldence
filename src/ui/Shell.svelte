@@ -40,7 +40,8 @@
   import { AREA_ICON, LINE_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import LineView from './views/LineView.svelte';
   import LineProducts from './components/LineProducts.svelte';
-  import { isLineGroup } from '../core/lineStaff';
+  import { lineKind } from '../core/lineStaff';
+  import { lineLevelWord } from '../i18n/levels';
   import { openTopic } from './help/topics';
   import WhatIfBar from './components/WhatIfBar.svelte';
 
@@ -122,13 +123,15 @@
   const activeLine = $derived(
     $workspace.lineUnits?.find((u) => u.id === selectedLineUnit($activeTeamId)),
   );
-  const lineGroup = $derived(activeLine ? isLineGroup($workspace, activeLine.id) : false);
+  const lineLevel = $derived(activeLine ? lineKind($workspace, activeLine.id) : 'team');
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
   const viewKey = (id: ViewId) =>
     id === 'team' && activeLine
-      ? lineGroup
-        ? 'view.lineGroup'
-        : 'view.lineTeam'
+      ? lineLevel === 'company'
+        ? 'view.lineCompany'
+        : lineLevel === 'group'
+          ? 'view.lineGroup'
+          : 'view.lineTeam'
       : id === 'team' && activeOrg
         ? 'view.org'
         : id === 'team' && activeArea
@@ -148,9 +151,7 @@
   );
   const level = $derived(
     activeLine
-      ? lineGroup
-        ? $levels.lineGroup
-        : $levels.lineTeam
+      ? lineLevelWord($levels, lineLevel)
       : activeOrg
         ? $levels.org
         : activeArea

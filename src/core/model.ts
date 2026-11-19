@@ -28,10 +28,10 @@ export interface Settings {
   /** Names of the two levels; without it Bereich/Team (Area/Team). */
   levelNames?: LevelNames;
   /**
-   * Own names of the line levels (#315): a unit with sub-units, and a unit without. Without it
-   * Fachgruppe/Linienteam (Specialist group/Line team).
+   * Own names of the line levels (#315, #399): company, specialist group and line team. Without it
+   * Gesellschaft/Fachgruppe/Linienteam (Company/Specialist group/Line team).
    */
-  lineLevelNames?: { group: string; team: string };
+  lineLevelNames?: { group: string; team: string; company?: string };
 }
 
 export interface Role {
@@ -212,6 +212,13 @@ export interface Assignment {
 export interface LineUnit {
   id: string;
   name: string;
+  /**
+   * The unit's level (#399), chosen when it is created. Without it the level is derived as before:
+   * a unit with units below it is a group, one without a team.
+   */
+  kind?: LineKind;
+  /** A company unit is the company of #315 for the people below it. */
+  companyId?: string;
   parentId?: string;
   managerPersonId?: string;
   skillFamilyId?: string;
@@ -228,7 +235,13 @@ export interface Skill {
   familyId: string;
 }
 
-/** An affiliated company of the group; a person attribute, not a tree level. */
+/** The level of a line unit (#399); a company only sits at the top, below the organisation. */
+export type LineKind = 'company' | 'group' | 'team';
+
+/**
+ * An affiliated company of the group: a person attribute, and the company a company line unit
+ * stands for (#399).
+ */
 export interface Company {
   id: string;
   name: string;

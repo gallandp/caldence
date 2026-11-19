@@ -16,8 +16,10 @@ import {
   childUnits,
   hasHint,
   isLineGroup,
+  lineKind,
   lineTree,
   parentChoices,
+  personCompanyId,
   staffRows,
   unitStats,
 } from '../../src/core/lineStaff';
@@ -266,5 +268,52 @@ describe('editing the line (#316)', () => {
     );
     expect(back.people[0]).toEqual({ id: 'p1', name: 'Alex' });
     expect(updateLinePerson(w, 'p1', { contractFte: 1.5 }).ok).toBe(false);
+  });
+});
+
+describe('the level of a line unit (#399)', () => {
+  it('derives the level until one is chosen', () => {
+    const ws = lined();
+    expect(lineKind(ws, 'g1')).toBe('group');
+    expect(lineKind(ws, 'l1')).toBe('team');
+    const w1 = ok(updateLineUnit(ws, 'g1', { kind: 'group' }));
+    // A chosen level stays when the units below are gone.
+    w1.lineUnits = w1.lineUnits!.filter((u) => u.id !== 'l1');
+    expect(lineKind(w1, 'g1')).toBe('group');
+  });
+
+  it('makes a company unit the company of the people below it', () => {
+    const w1 = ok(updateLineUnit(lined(), 'g1', { name: 'Nordwerk GmbH', kind: 'company' }));
+    const unit = w1.lineUnits!.find((u) => u.id === 'g1')!;
+    expect(w1.companies).toEqual([{ id: unit.companyId, name: 'Nordwerk GmbH' }]);
+    const kai = w1.people.find((p) => p.id === 'p3')!;
+    expect(personCompanyId(w1, kai)).toBe(unit.companyId);
+    // Set on the person, another company wins.
+    const w2 = structuredClone(w1);
+    w2.companies!.push({ id: 'co9', name: 'Südwerk GmbH' });
+    expect(personCompanyId(w2, { ...kai, companyId: 'co9' })).toBe('co9');
+    // Renaming the unit renames its company; another level drops the link, the company stays.
+    const w3 = ok(updateLineUnit(w1, 'g1', { name: 'Nordwerk AG' }));
+    expect(w3.companies![0]!.name).toBe('Nordwerk AG');
+    const w4 = ok(updateLineUnit(w3, 'g1', { kind: 'group' }));
+    expect(w4.lineUnits!.find((u) => u.id === 'g1')!.companyId).toBeUndefined();
+    expect(w4.companies).toHaveLength(1);
+    expect(personCompanyId(w4, kai)).toBeUndefined();
+  });
+
+  it('links a company unit to the company of the same name', () => {
+    const ws = lined();
+    ws.companies = [{ id: 'co1', name: 'Orvalis' }];
+    const w1 = ok(updateLineUnit(ws, 'g1', { kind: 'company' }));
+    expect(w1.lineUnits!.find((u) => u.id === 'g1')!.companyId).toBe('co1');
+    expect(w1.companies).toHaveLength(1);
+  });
+
+  it('keeps companies at the top and line teams without units below', () => {
+    const ws = lined();
+    expect(updateLineUnit(ws, 'l1', { kind: 'company' }).ok).toBe(false);
+    expect(updateLineUnit(ws, 'g1', { kind: 'team' }).ok).toBe(false);
+    const w1 = ok(updateLineUnit(ws, 'l1', { kind: 'team' }));
+    expect(parentChoices(w1, undefined).map((u) => u.id)).toEqual(['g1']);
   });
 });
