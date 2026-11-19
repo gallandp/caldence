@@ -84,19 +84,25 @@
     <ul class="roles" aria-label={$t('start.roles')}>
       {#each ROLES as role (role.key)}
         {@const label = `start.role.${role.key}`}
+        {@const does = $t(label + '.does')}
+        {@const cut = does.lastIndexOf(' ') + 1}
         <li class="role {role.tone}">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d={role.icon} /></svg>
           <button
             type="button"
-            aria-describedby="{uid}-{role.key}-does {uid}-{role.key}-d"
+            aria-describedby="{uid}-{role.key}-aka {uid}-{role.key}-does"
             onclick={() => wizard?.show(role.mode, role.key === 'po')}>{$t(label)}</button
           >
+          <!-- Organisations name these roles differently: the usual titles (#387). -->
+          <p class="aka" id="{uid}-{role.key}-aka">{$t(label + '.aka')}</p>
+          <!-- The arrow stays with the last word when the text wraps. -->
           <p class="does" id="{uid}-{role.key}-does">
-            {$t(label + '.does')}<svg viewBox="0 0 24 24" aria-hidden="true"
-              ><path d="M5 12h14M13 6l6 6-6 6" /></svg
+            {does.slice(0, cut)}<span class="last"
+              >{does.slice(cut)}<svg viewBox="0 0 24 24" aria-hidden="true"
+                ><path d="M5 12h14M13 6l6 6-6 6" /></svg
+              ></span
             >
           </p>
-          <p class="role-desc" id="{uid}-{role.key}-d">{$t(label + '.hint')}</p>
         </li>
       {/each}
     </ul>
@@ -295,10 +301,13 @@
     }
   }
   .does {
-    margin: 0.2rem 0 0;
+    margin: 0.45rem 0 0;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--tone);
+  }
+  .last {
+    white-space: nowrap;
   }
   /* Inline, so the arrow follows the last word when the text wraps. */
   .does svg {
@@ -317,8 +326,8 @@
   .role:hover .does svg {
     transform: translateX(3px);
   }
-  .role-desc {
-    margin: 0.3rem 0 0;
+  .aka {
+    margin: 0.2rem 0 0;
     font-size: 0.85rem;
     line-height: 1.4;
     color: var(--text-muted);
