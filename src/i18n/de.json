@@ -1583,7 +1583,7 @@
   "line.skills.deleteFamily.unused": "Die Familie hat keine Skills und wird nirgends genutzt. Mit Strg+Z lässt sich das rückgängig machen.",
   "line.skills.count.one": "1 Skill",
   "line.skills.count.other": "{n} Skills",
-  "line.skills.usage.areas": "{level}: {n}",
+  "line.skills.usage.areas": "{levelAreas}: {n}",
   "line.skills.usage.lineUnits": "Linieneinheiten: {n}",
   "line.skills.delete.title": "{skill} löschen?",
   "line.skills.delete.message": "Genutzt von: {usage}. Personen verlieren den Skill, Bedarfe behalten Rolle und FTE ohne ihn. Mit Strg+Z lässt sich das rückgängig machen.",

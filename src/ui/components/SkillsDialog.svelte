@@ -12,7 +12,7 @@
   } from '../../core/lineEdit';
   import type { Workspace } from '../../core/model';
   import type { Result } from '../../core/validate';
-  import { levels, translate as t } from '../../i18n';
+  import { translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
   import ConfirmDialog, { type Choice } from './ConfirmDialog.svelte';
 
@@ -103,7 +103,7 @@
             n: u.demands,
           })
         : '',
-      u.areas > 0 ? $t('line.skills.usage.areas', { level: $levels.areas, n: u.areas }) : '',
+      u.areas > 0 ? $t('line.skills.usage.areas', { n: u.areas }) : '',
       u.lineUnits > 0 ? $t('line.skills.usage.lineUnits', { n: u.lineUnits }) : '',
     ].filter(Boolean);
     return parts.length === 0

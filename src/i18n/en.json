@@ -1583,7 +1583,7 @@
   "line.skills.deleteFamily.unused": "The family has no skills and is not used anywhere. Press Ctrl+Z to undo.",
   "line.skills.count.one": "1 skill",
   "line.skills.count.other": "{n} skills",
-  "line.skills.usage.areas": "{level}: {n}",
+  "line.skills.usage.areas": "{levelAreas}: {n}",
   "line.skills.usage.lineUnits": "Line units: {n}",
   "line.skills.delete.title": "Delete {skill}?",
   "line.skills.delete.message": "Used by: {usage}. People lose the skill, demands keep their role and FTE without it. Press Ctrl+Z to undo.",
