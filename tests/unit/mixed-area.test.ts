@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
 import { meetingCost } from '../../src/core/cost';
+import { exportIcs } from '../../src/core/ics';
+import { loadSummary } from '../../src/core/views';
 import {
   duplicateTeam,
   removeItem,
@@ -15,7 +17,9 @@ import {
   emptyWorkspace,
   eventAttendees,
   holders,
+  invitesRole,
   missingRoles,
+  roleAttendees,
 } from '../../src/core/model';
 import { applyTemplate } from '../../src/core/template';
 import { validate } from '../../src/core/validate';
@@ -166,5 +170,72 @@ describe('role links of an area (#338)', () => {
     const m = migrate(old);
     expect(m.ok && m.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA });
     expect(CURRENT_SCHEMA).toBe(8);
+  });
+});
+
+describe('role filter with role links (#338)', () => {
+  function linked() {
+    const { ws, north, areaId } = mixed();
+    const dev = roleId(ws, 'Developers');
+    const agile = roleId(ws, 'Agile Team');
+    const r = setRoleLinks(ws, areaId, [{ teamId: north, roleId: agile, teamRoleId: dev }]);
+    if (!r.ok) throw new Error('link');
+    const out = r.value;
+    const area = out.areas.find((a) => a.id === areaId)!;
+    const planning = area.events.find((e) => e.name === 'PI Planning day 1')!;
+    const p = planning.participants.find((x) => x.roleId === agile)!;
+    return { ws: out, areaId, dev, agile, planning, p };
+  }
+
+  it('the team role counts where it is linked; the area role only with its own people', () => {
+    const { ws, areaId, dev, agile, planning, p } = linked();
+    expect(invitesRole(ws, areaId, p, dev)).toBe(true);
+    expect(invitesRole(ws, areaId, p, roleId(ws, 'Scrum Master'))).toBe(false);
+    expect(roleAttendees(ws, areaId, p, planning, dev).sort()).toEqual(['cleo', 'dan']);
+    // Star has nobody yet: no one comes as "Agile Team", Cleo and Dan stay Developers.
+    expect(roleAttendees(ws, areaId, p, planning, agile)).toEqual([]);
+  });
+
+  it('the load by role lists the linked meetings under the filtered role', () => {
+    const { ws, areaId, dev, agile } = linked();
+    const devRows = loadSummary(ws, { teamId: areaId, roleId: dev }).byRole;
+    expect(devRows.map((r) => r.roleId)).toEqual([dev]);
+    expect(devRows[0]!.people).toBe(2);
+    expect(devRows[0]!.hours).toBeGreaterThan(0);
+    const agileRows = loadSummary(ws, { teamId: areaId, roleId: agile }).byRole;
+    // The unfilled Agile Team counts one person, not Cleo and Dan.
+    expect(agileRows.map((r) => [r.roleId, r.people])).toEqual([[agile, 1]]);
+  });
+
+  it('the calendar of a role includes the linked area meetings', () => {
+    const { ws, areaId, dev } = linked();
+    const ics = exportIcs(
+      ws,
+      { holidays: new Map(), schoolHolidays: new Map(), beyondKnown: false },
+      {
+        scope: { teamId: areaId, roleId: dev },
+        from: '2027-02-01',
+        to: '2027-12-31',
+        reminderMinutes: null,
+        allDay: { holidays: false, schoolHolidays: false, milestones: false },
+        now: new Date('2027-02-10T12:00:00Z'),
+        locale: 'en',
+      },
+    );
+    expect(ics).toContain('SUMMARY:PI Planning day 1');
+    const plain = exportIcs(
+      ws,
+      { holidays: new Map(), schoolHolidays: new Map(), beyondKnown: false },
+      {
+        scope: { teamId: areaId, roleId: roleId(ws, 'Scrum Master') },
+        from: '2027-02-01',
+        to: '2027-12-31',
+        reminderMinutes: null,
+        allDay: { holidays: false, schoolHolidays: false, milestones: false },
+        now: new Date('2027-02-10T12:00:00Z'),
+        locale: 'en',
+      },
+    );
+    expect(plain).not.toContain('SUMMARY:PI Planning day 1');
   });
 });

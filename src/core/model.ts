@@ -343,6 +343,64 @@ export function attendees(
   return named.size === 0 ? ids : ids.filter((id) => !named.has(id));
 }
 
+/**
+ * Whether a participant counts for a role filter: it invites the role, or, "from every team" in
+ * an area, a role that a team has linked to `roleId` (#338).
+ */
+export function invitesRole(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  roleId: string,
+): boolean {
+  if (p.roleId === roleId) return true;
+  if (p.personId !== undefined || !p.fromTeams) return false;
+  const area = ws.areas.find((a) => a.id === unitId);
+  return !!area?.roleLinks?.some((l) => l.roleId === p.roleId && l.teamRoleId === roleId);
+}
+
+/**
+ * The attendees of a participant who come with `roleId` (#338): with the participant's own role,
+ * or "from every team" with a team role linked to it. A linked team role's people are listed under
+ * their own role, never under the area's.
+ */
+export function roleAttendees(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  event: CalEvent,
+  roleId: string,
+): string[] {
+  if (p.personId !== undefined || !invitesRole(ws, unitId, p, roleId)) return [];
+  const area = ws.areas.find((a) => a.id === unitId);
+  const own = area ?? ws.teams.find((t) => t.id === unitId);
+  const ids = new Set(
+    p.roleId === roleId
+      ? (own?.members ?? []).flatMap((m) => (m.roleId === roleId ? [m.personId] : []))
+      : [],
+  );
+  if (area && p.fromTeams)
+    for (const t of ws.teams) {
+      if (!area.teamIds.includes(t.id) || !teamRolesFor(area, t.id, p.roleId).includes(roleId))
+        continue;
+      for (const m of t.members) if (m.roleId === roleId) ids.add(m.personId);
+    }
+  const named = namedPeople(event);
+  return [...ids].filter((id) => !named.has(id));
+}
+
+/** Heads a participant counts for a role filter; the role itself unfilled counts one person. */
+export function roleHeads(
+  ws: Workspace,
+  unitId: string,
+  p: Participant,
+  event: CalEvent,
+  roleId: string,
+): number {
+  if (p.roleId === roleId && unfilled(ws, unitId, p)) return 1;
+  return roleAttendees(ws, unitId, p, event, roleId).length;
+}
+
 /** A role participant that nobody holds in the unit: it counts as one person for the cost. */
 export function unfilled(ws: Workspace, unitId: string, p: Participant): boolean {
   return p.personId === undefined && holders(ws, unitId, p).length === 0;
