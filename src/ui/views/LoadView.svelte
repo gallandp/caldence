@@ -11,6 +11,7 @@
     loadPerWeek,
     overbooked,
     overMax,
+    personLoad,
     personMeetings,
     warnings,
     type PersonMeeting,
@@ -67,19 +68,18 @@
   );
 
   /**
-   * Each person is judged on all their meetings ÷ their hours in all their teams and areas, in
-   * every scope (#273); with a team or area filter `here` keeps their part in it.
+   * Each person is judged on all their meetings ÷ their hours in all their teams and areas, at
+   * most the Settings weekly hours, in every scope (#273, #342); with a team or area filter
+   * `here` keeps their part in it.
    */
   const perPerson = $derived(
     people.map((person) => {
-      const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
-      const average = weeks.length > 0 ? total / weeks.length : 0;
+      const { hours: average, base: cap, share } = personLoad($workspace, weeks, person.id);
       let peak: { monday: string; hours: number } | undefined;
       for (const w of weeks) {
         const h = w.byPerson[person.id] ?? 0;
         if (h > 0 && (peak === undefined || h > peak.hours)) peak = { monday: w.monday, hours: h };
       }
-      const cap = capacity($workspace, person.id);
       const hereHours =
         teamIds && weeks.length > 0
           ? weeks.reduce((sum, w) => sum + hoursIn(w, teamIds, person.id), 0) / weeks.length
@@ -89,7 +89,7 @@
         person,
         average,
         cap,
-        fte: fte(average, cap),
+        fte: share,
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
         /** Hours per week that still fit into meetings before the limit (none without hours). */
         free: Math.max(0, maxFte * cap - average),
@@ -432,7 +432,7 @@
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if overbooked($workspace, p.person.id)}
-              {@const total = weekly(p.cap)}
+              {@const total = weekly(capacity($workspace, p.person.id))}
               <span class="overbooked" data-overbooked
                 ><span class="long"
                   >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
