@@ -8,7 +8,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schemaVersion` | integer | Schema version of the file (`7`). |
+| `schemaVersion` | integer | Schema version of the file (`8`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
 | `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
@@ -63,6 +63,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `memberHours` | object | Weekly hours of a person in the area, by person id, from 0 to 168. Unlike in a team, a person without an entry has **0 hours** in the area: area time comes on top of team time and is set on purpose. |
 | `cycles` | list of `{ id, name, milestones }` | As in a team. |
 | `events` | list of events | The area's own meetings. |
+| `roleLinks` | list of `{ teamId, roleId, teamRoleId }`, optional | Area roles a team calls by another name, for example SAFe's "Agile Team" held by a Scrum team's "Developers". A meeting that invites `roleId` from every team then also invites the people with `teamRoleId` in that team. `teamId` is a team of the area; one link per team and `roleId`; `teamRoleId` differs from `roleId`. A link goes when its team leaves the area. |
 
 ### Event
 
@@ -94,7 +95,7 @@ Weekdays are numbers from 1 (Monday) to 7 (Sunday).
 
 ## Migrations and versions
 
-Older files (schema 1 to 6) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). Schema 7 lets meetings take place on site with a travel time (`onSite`; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer. Schema 7 files need Caldence 1.47 or newer.
+Older files (schema 1 to 7) are upgraded when they are opened: schema 2 added `id`, schema 3 added `customRegions`, schema 4 moved a person's `hoursPerWeek` to `memberHours` of their teams, split evenly (40 hours in two teams become 20 in each), schema 5 added an empty `areas` list, schema 6 lets meetings invite people by name (`{ personId, share }` participants; older files change only their version). Schema 7 lets meetings take place on site with a travel time (`onSite`; older files change only their version). Schema 8 lets an area link its roles to a team's own role names (`roleLinks`; older files change only their version). The optional `organisation` entry came without a new schema version. The upgraded file is written on the next save. A file with a newer schema than the app knows is rejected, so that no data is lost by an older app; update the app instead. Schema 5 files need Caldence 1.33 or newer; to show areas, their level names and their meetings, 1.36 or newer. Schema 6 files need Caldence 1.45 or newer. Schema 7 files need Caldence 1.47 or newer. Schema 8 files need Caldence 1.48 or newer.
 
 ## Limits
 
@@ -129,7 +130,7 @@ A workspace file contains names of people, their working hours and your meeting 
 
 ```json
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "id": "6f1c1d52-4b0e-4f0a-9a43-0c2f6a1d8e11",
   "settings": {
     "locale": "en",

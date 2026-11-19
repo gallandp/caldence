@@ -93,8 +93,8 @@ describe('migrate', () => {
     expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA, customRegions: [] });
   });
 
-  it('rejects a schema 8 file as newer', () => {
-    expect(migrate({ schemaVersion: 8 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  it('rejects a schema 9 file as newer', () => {
+    expect(migrate({ schemaVersion: 9 })).toEqual({ ok: false, key: 'error.schema.newer' });
   });
 
   it('migrates schema 4 to 5 by adding only an empty areas list', () => {

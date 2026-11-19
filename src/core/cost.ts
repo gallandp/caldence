@@ -8,6 +8,7 @@ import {
   type Participant,
   type Team,
   type Workspace,
+  roleHeads,
 } from './model';
 import { effectiveDuration, occurrences } from './recurrence';
 import { record } from './record';
@@ -147,7 +148,7 @@ export function costSummary(
   for (const unit of [...scopeTeams(ws, filter), ...areasInScope(ws, filter)]) {
     const heads = (p: Participant, e: CalEvent): number => {
       if (filter.personId) return Number(attendees(ws, unit.id, p, e).includes(filter.personId));
-      if (filter.roleId && p.roleId !== filter.roleId) return 0;
+      if (filter.roleId) return roleHeads(ws, unit.id, p, e, filter.roleId);
       return headCount(ws, unit.id, p, e);
     };
     addUnitCosts(ws, index, unit, rate, heads, sums);
