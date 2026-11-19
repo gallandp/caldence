@@ -12,15 +12,16 @@
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import LineUnitDialog from '../LineUnitDialog.svelte';
   import LineStaff from '../components/LineStaff.svelte';
+  import StaffingBoard from '../components/StaffingBoard.svelte';
   import { presenting } from '../state/present';
   import { index, workspace } from '../state/workspace';
   import { LINE_ICON } from '../viewIcons';
 
   /**
    * A line unit's page (#316). A line team has the tabs Personal (its people with skills,
-   * contract, commitments, free FTE and hints) and Besetzung (#319); a specialist group lists its
-   * line teams first and then all its people. While presenting there is no Personal tab and no
-   * people list: only figures.
+   * contract, commitments, free FTE and hints) and Besetzung (#319: staffing open demands); a
+   * specialist group lists its line teams first and then all its people. While presenting there
+   * are no tabs and no people list: only figures.
    */
   let { unit, onOpen }: { unit: LineUnit; onOpen: (selection: string) => void } = $props();
 
@@ -160,48 +161,33 @@
     </section>
   {/if}
 
-  {#if !group}
+  {#if !group && showStaff}
     <div class="tabs" role="tablist" aria-label={$t('line.tabs', { name: unit.name })}>
-      {#if showStaff}
+      {#each ['staff', 'board'] as const as id (id)}
         <button
           type="button"
           role="tab"
-          id="line-tab-staff"
-          aria-selected={tab === 'staff'}
-          aria-controls="line-panel-staff"
-          tabindex={tab === 'staff' ? 0 : -1}
-          onclick={() => (tab = 'staff')}
+          id="line-tab-{id}"
+          aria-selected={tab === id}
+          aria-controls="line-panel-{id}"
+          tabindex={tab === id ? 0 : -1}
+          onclick={() => (tab = id)}
           onkeydown={(e) => {
             if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-              tab = 'board';
-              document.getElementById('line-tab-board')?.focus();
+              tab = id === 'staff' ? 'board' : 'staff';
+              document.getElementById(`line-tab-${tab}`)?.focus();
             }
-          }}>{$t('line.tab.staff')}</button
+          }}>{$t(id === 'staff' ? 'line.tab.staff' : 'line.tab.board')}</button
         >
-      {/if}
-      <button
-        type="button"
-        role="tab"
-        id="line-tab-board"
-        aria-selected={tab === 'board' || !showStaff}
-        aria-controls="line-panel-board"
-        tabindex={tab === 'board' || !showStaff ? 0 : -1}
-        onclick={() => (tab = 'board')}
-        onkeydown={(e) => {
-          if (showStaff && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-            tab = 'staff';
-            document.getElementById('line-tab-staff')?.focus();
-          }
-        }}>{$t('line.tab.board')}</button
-      >
+      {/each}
     </div>
-    {#if showStaff && tab === 'staff'}
+    {#if tab === 'staff'}
       <div role="tabpanel" id="line-panel-staff" aria-labelledby="line-tab-staff">
         <LineStaff {rows} {unit} />
       </div>
     {:else}
-      <div role="tabpanel" id="line-panel-board" aria-labelledby="line-tab-board" class="board">
-        <p>{$t('line.board.soon')}</p>
+      <div role="tabpanel" id="line-panel-board" aria-labelledby="line-tab-board">
+        <StaffingBoard {unit} />
       </div>
     {/if}
   {:else if group && showStaff && rows.length > 0}
@@ -381,14 +367,5 @@
     background: var(--surface);
     color: var(--text);
     box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.12));
-  }
-  .board {
-    padding: var(--space);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius);
-    color: var(--text-muted);
-  }
-  .board p {
-    margin: 0;
   }
 </style>
