@@ -1,6 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import { translate } from '../../i18n';
-import { withNames, withoutNames } from '../../core/whatIf';
+import { isLineStaff, withNames, withoutNames } from '../../core/whatIf';
 import { workspace } from './workspace';
 
 /**
@@ -17,6 +17,7 @@ workspace.presentBase.subscribe((b) => {
 
 export function startPresenting(): void {
   workspace.beginPresent();
+  setHideNames(get(hideNames));
 }
 
 export function stopPresenting(): void {
@@ -27,7 +28,7 @@ export function stopPresenting(): void {
 /** Back to the state from when presenting started; names stay hidden if they were. */
 export function resetWhatIf(): void {
   workspace.resetPresent();
-  if (get(hideNames)) setHideNames(true);
+  setHideNames(get(hideNames));
 }
 
 export function setHideNames(on: boolean): void {
@@ -35,7 +36,12 @@ export function setHideNames(on: boolean): void {
   const base = get(workspace.presentBase);
   if (!base) return;
   const t = get(translate);
+  // Line staff stay unnamed either way (#315).
   workspace.presentView((ws) =>
-    on ? withoutNames(ws, (n) => t('present.person', { n })) : withNames(ws, base),
+    withoutNames(
+      withNames(ws, base),
+      (n) => t('present.person', { n }),
+      on ? undefined : isLineStaff,
+    ),
   );
 }

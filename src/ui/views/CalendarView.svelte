@@ -129,10 +129,13 @@
   const markerTeams = $derived(scopeUnits($workspace, $filter));
   const hasEvents = $derived(units($workspace).some((x) => x.events.length > 0));
 
-  const loads = $derived(dayLoad($workspace, $index, $filter));
+  // Only the days on screen: a big file walks one month, not the whole horizon (#315 budget).
+  const visible = $derived({ from: weeks[0]![0]!, to: weeks.at(-1)![6]! });
+  const loads = $derived(dayLoad($workspace, $index, $filter, visible));
   const byDate = $derived.by(() => {
     const map: Record<ISODate, FilteredOccurrence[]> = {};
-    for (const o of filteredOccurrences($workspace, $index, $filter)) (map[o.date] ??= []).push(o);
+    for (const o of filteredOccurrences($workspace, $index, $filter, visible))
+      (map[o.date] ??= []).push(o);
     for (const list of Object.values(map))
       list.sort((a, b) => a.start.localeCompare(b.start) || a.teamId.localeCompare(b.teamId));
     return map;

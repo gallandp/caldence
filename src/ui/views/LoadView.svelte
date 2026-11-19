@@ -1,5 +1,6 @@
 <script lang="ts">
   import { areaShare } from '../../core/areaCosts';
+  import { weeklyLimit } from '../../core/line';
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import {
@@ -168,6 +169,13 @@
         : b.free - a.free || a.person.name.localeCompare(b.person.name),
     ),
   );
+  /**
+   * A big organisation (#315: ~500 people) shows the most loaded people first and the rest on
+   * request: a table of every person would take seconds to build on a slow device.
+   */
+  const PERSON_ROWS = 50;
+  let allPeople = $state(false);
+  const shownPeople = $derived(allPeople ? sorted : sorted.slice(0, PERSON_ROWS));
   let openPerson = $state<string | null>(null);
   // A person who left the list (another team or filter) does not come back opened.
   $effect(() => {
@@ -205,7 +213,8 @@
   const hintItems = $derived.by(() => {
     const ws = $workspace;
     const inScope = scopePeople(ws, $filter);
-    const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+    const names = new Map(ws.people.map((p) => [p.id, p.name]));
+    const nameOf = (id: string) => names.get(id) ?? id;
     return areaHints(weeks, ws)
       .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
       .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
@@ -437,7 +446,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each sorted as p (p.person.id)}
+      {#each shownPeople as p (p.person.id)}
         {@const over = overMax(p.average, p.cap, maxFte)}
         <tr data-person={p.person.id} class:open={openPerson === p.person.id}>
           <th scope="row">
@@ -460,9 +469,15 @@
               {@const total = weekly(capacity($workspace, p.person.id))}
               <span class="overbooked" data-overbooked
                 ><span class="long"
-                  >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
+                  >{$t('team.people.over', {
+                    hours: total,
+                    max: weekly(weeklyLimit($workspace, p.person.id)),
+                  })}</span
                 ><span class="short" aria-hidden="true"
-                  >{$t('team.people.overShort', { hours: total, max: weekly(hpw) })}</span
+                  >{$t('team.people.overShort', {
+                    hours: total,
+                    max: weekly(weeklyLimit($workspace, p.person.id)),
+                  })}</span
                 ></span
               >
             {/if}
@@ -758,6 +773,15 @@
   {#if $workspace.people.length > 0}
     <section class="card people">
       {@render region('person', $t('load.table.person'), personBody)}
+      {#if shownPeople.length < sorted.length}
+        <button
+          type="button"
+          class="secondary more"
+          data-all-people
+          onclick={() => (allPeople = true)}
+          >{$t('load.table.person.all', { n: formatNumber($locale, sorted.length, 0) })}</button
+        >
+      {/if}
       <p class="note below">
         {#if !$filter.personId}
           {area
@@ -786,6 +810,9 @@
 </div>
 
 <style>
+  .more {
+    margin-top: calc(var(--space) * 0.75);
+  }
   .load {
     min-width: 0;
   }

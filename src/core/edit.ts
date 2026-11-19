@@ -13,6 +13,7 @@ import {
   type Workspace,
 } from './model';
 import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
+import { forgetPerson, syncAssignments } from './line';
 import { record } from './record';
 import { isBuiltinRegion, type Region } from './regions';
 import { validate, type Result, type ValidationError } from './validate';
@@ -196,6 +197,8 @@ export function removeItem(
           ),
         );
     }
+    // A replacement takes over the memberships, not the staffing: those stay manual.
+    forgetPerson(out, id);
     return { ok: true, value: out };
   }
 
@@ -205,7 +208,7 @@ export function removeItem(
           (t) =>
             t.members.some((m) => m.roleId === id) ||
             t.events.some((e) => e.participants.some((p) => p.roleId === id)),
-        )
+        ) || out.teams.some((t) => t.demands?.some((d) => d.roleId === id))
       : units.some((t) => t.events.some((e) => e.categoryId === id));
   if (inUse && replacementId === undefined) return fail(path, 'error.ref.inuse');
   if (kind === 'roles') {
@@ -238,6 +241,12 @@ export function removeItem(
     } else {
       for (const e of t.events) if (e.categoryId === id) e.categoryId = replacementId;
     }
+  }
+  if (kind === 'roles') {
+    for (const t of out.teams)
+      for (const d of t.demands ?? []) if (d.roleId === id) d.roleId = replacementId;
+    // A merged membership drops its assignment only if its pair is gone.
+    syncAssignments(out);
   }
   return { ok: true, value: out };
 }
@@ -275,7 +284,8 @@ export function updateTeam(
         errors.push({ path: `teams.${ti}.assumptions.${key}`, key: 'error.ref.inuse' });
     if (errors.length > 0) return failAll(errors);
   }
-  const next = mapTeam(ws, teamId, (t) => ({ ...t, ...structuredClone(patch) }));
+  // Hours of a staffed member change its assignment; a removed member ends it (#315).
+  const next = syncAssignments(mapTeam(ws, teamId, (t) => ({ ...t, ...structuredClone(patch) })));
   const v = validate(next);
   return v.ok ? { ok: true, value: next } : v;
 }
@@ -303,7 +313,7 @@ export function removeTeam(ws: Workspace, teamId: string): Workspace {
   out.teams = out.teams.filter((t) => t.id !== teamId);
   for (const a of out.areas) a.teamIds = a.teamIds.filter((id) => id !== teamId);
   dropStaleLinks(out);
-  return out;
+  return syncAssignments(out);
 }
 
 /** Removes role links whose team left the area or that link a role to itself (#338). */
@@ -608,7 +618,8 @@ export function updateSettings(ws: Workspace, patch: Partial<Settings>): Workspa
   // An emptied hourly rate turns costs off: the key goes, rather than staying as undefined.
   if (settings.hourlyRate === undefined) delete settings.hourlyRate;
   if (settings.levelNames === undefined) delete settings.levelNames;
-  return { ...structuredClone(ws), settings };
+  // Other weekly hours make other FTE of the same hours.
+  return syncAssignments({ ...structuredClone(ws), settings });
 }
 
 // ---------- imported regions ----------

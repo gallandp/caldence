@@ -304,7 +304,7 @@ export function applyTemplate(
 /**
  * A template of the team. When the team is in an area, the template also holds the area's name,
  * cadence, cycles and meetings and the file's level names, so applying it rebuilds both levels.
- * People, area members, hours and team ids are never part of it.
+ * People, area members, hours, demands and team ids are never part of it.
  */
 export function teamToTemplate(
   ws: Workspace,
@@ -334,6 +334,8 @@ export function teamToTemplate(
   delete rest.memberHours;
   delete rest.contextOverrides;
   delete rest.templateId;
+  // Demands name skills of this file; a template has no line data (#315).
+  delete rest.demands;
   const template: Template = {
     kind: 'caldence-template',
     schemaVersion: CURRENT_SCHEMA,

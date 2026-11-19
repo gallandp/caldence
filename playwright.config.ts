@@ -15,14 +15,21 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], launchOptions: { executablePath } },
-      testIgnore: /update-notice\.spec\.ts/,
+      testIgnore: /update-notice\.spec\.ts|performance\.spec\.ts/,
+    },
+    // Times views with the CPU throttled, so it runs alone after the other Chromium tests (#315).
+    {
+      name: 'chromium-perf',
+      use: { ...devices['Desktop Chrome'], launchOptions: { executablePath } },
+      testMatch: /performance\.spec\.ts/,
+      dependencies: ['chromium'],
     },
     // Changes the built sw.js, so it runs alone after all other Chromium tests.
     {
       name: 'chromium-update',
       use: { ...devices['Desktop Chrome'], launchOptions: { executablePath } },
       testMatch: /update-notice\.spec\.ts/,
-      dependencies: ['chromium'],
+      dependencies: ['chromium-perf'],
     },
     // The file and autosave flows must also work in Firefox and WebKit (CI only).
     ...(process.env.CI

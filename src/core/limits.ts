@@ -13,8 +13,8 @@ export const LIMITS = {
   /** Planning horizon in years. */
   horizonYears: 5,
   /** Events of all teams and areas together. */
-  events: 500,
-  teams: 50,
+  events: 1500,
+  teams: 150,
   areas: 50,
   roles: 200,
   people: 1000,
@@ -24,6 +24,17 @@ export const LIMITS = {
   milestonesPerCycle: 100,
   assumptionsPerTeam: 50,
   customRegions: 20,
+  /** Line organisation and staffing (#315), sized for ~60 products and ~500 people. */
+  demandsPerTeam: 50,
+  assignments: 5000,
+  lineUnits: 200,
+  /** Depth of the line tree. */
+  lineLevels: 3,
+  skillFamilies: 100,
+  skills: 500,
+  companies: 20,
+  /** FTE of one demand. */
+  demandFte: 100,
   regionHolidays: 100,
   regionSchoolHolidays: 500,
   /** Names, region and zone names, assumption keys. */

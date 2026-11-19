@@ -23,6 +23,7 @@
   import { isKnownZone } from '../../core/zone';
   import { zip } from '../../core/zip';
   import { xlsx } from '../../core/xlsx';
+  import { hasLineData } from '../../core/line';
   import { structureSheets } from '../../core/structureSheets';
   import { unitLoadIds } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
@@ -334,16 +335,23 @@
   // ---------- Excel ----------
 
   const canWorkbook = $derived(ws.teams.length + ws.areas.length > 0);
+  // Line data (#315) leaves the file only when ticked for this export.
+  const lineData = $derived(hasLineData(ws));
+  let withLineData = $state(false);
 
   async function exportWorkbook() {
     if (!canWorkbook) return;
     try {
-      const sheets = structureSheets(ws, {
-        t: $t,
-        repeats: (e, unit) => ruleSummary(e.rule, unit, $t, $locale),
-        percent: (share) =>
-          $t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) }),
-      });
+      const sheets = structureSheets(
+        ws,
+        {
+          t: $t,
+          repeats: (e, unit) => ruleSummary(e.rule, unit, $t, $locale),
+          percent: (share) =>
+            $t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) }),
+        },
+        { lineData: lineData && withLineData },
+      );
       const saved = await exportTextFile(
         env,
         `caldence-${slug($t('xlsx.file'))}.xlsx`,
@@ -653,6 +661,14 @@
   <section aria-labelledby="{uid}-xlsx-h">
     <h3 id="{uid}-xlsx-h">{$t('exchange.xlsx')}</h3>
     <p class="help" id="{uid}-xlsx-help">{$t('exchange.xlsx.help')}</p>
+    {#if lineData}
+      <div class="checks">
+        <label class="check"
+          ><input type="checkbox" bind:checked={withLineData} data-line-data />
+          {$t('exchange.xlsx.lineData')}</label
+        >
+      </div>
+    {/if}
     <button
       type="button"
       disabled={!canWorkbook}
