@@ -381,6 +381,24 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
+test('an area meeting for a role nobody holds counts one person in the area tile (#360)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { events: object[] };
+    area.events = [
+      {
+        ...structuredClone(area.events[0]!),
+        rule: { type: 'weekly', weekday: 3 },
+        participants: [{ roleId: 'role-dev', share: 1 }],
+      },
+    ];
+  });
+  const tile = overview.locator('[data-kpi="area"]');
+  await expect(tile.locator('b')).not.toHaveText('0 h');
+  await expect(tile).toContainText('per week, 1 person');
+});
+
 test('without a rate the overview shows time per team and invites a rate', async ({ page }) => {
   const overview = await openOverview(page);
   const table = overview.locator('[data-area-costs]');

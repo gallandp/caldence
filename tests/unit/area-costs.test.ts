@@ -289,7 +289,7 @@ describe('one meeting load in the cost table and the heat map (#262)', () => {
     const weeks = loadPerWeek(w, noIndex()).slice(1, -1);
     const cells = teamLoad(w, gamma, weeks);
     expect(row.share).toBeGreaterThan(0);
-    for (const c of cells) expect(c.share).toBeCloseTo(row.share);
+    for (const c of cells) expect(c.share).toBeCloseTo(row.share, 6);
   });
 
   it('a one-off meeting raises its week only, not the recurring share', () => {
@@ -435,7 +435,10 @@ describe('unfilled roles (#264)', () => {
     const meetings = areaMeetingHours(w, area);
     const steering = meetings.reduce((s, m) => s + m.perWeek, 0);
     expect(steering).toBeCloseTo(areaCosts(w, noIndex(), area).area.hours);
-    expect(meetings.find((m) => m.eventId === 'ev-dev-area')!.attendees).toEqual([[]]);
+    expect(meetings.find((m) => m.eventId === 'ev-dev-area')).toMatchObject({
+      attendees: [[]],
+      unfilled: ['role-dev'],
+    });
   });
 
   it('a one-off meeting adds cost only in the horizon, and the note says so', () => {

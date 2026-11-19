@@ -242,6 +242,8 @@ export interface AreaMeetingHours {
   recurring: boolean;
   /** Attendees per participant line, in the event's order. */
   attendees: string[][];
+  /** Roles the meeting invites that nobody holds; each counts as one person (#360). */
+  unfilled: string[];
 }
 
 /** Each area meeting's weekly hours (recurring average, all attendees) and who attends. */
@@ -262,6 +264,9 @@ export function areaMeetingHours(ws: Workspace, area: Area): AreaMeetingHours[] 
       perWeek: hours,
       recurring: perWeek > 0,
       attendees: lists,
+      unfilled: event.participants.flatMap((p) =>
+        p.roleId !== undefined && unfilled(ws, area.id, p) ? [p.roleId] : [],
+      ),
     };
   });
 }
