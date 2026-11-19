@@ -8,6 +8,7 @@
   import AreaPersonAdd from '../components/AreaPersonAdd.svelte';
   import AreaPersonCard from '../components/AreaPersonCard.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
+  import { presenting } from '../state/present';
   import { structurePerson } from '../state/view';
   import { workspace } from '../state/workspace';
 
@@ -32,6 +33,8 @@
   const structure = $derived(areaStructure(ws, org));
   /** People with a role or hours in the organisation; those only invited stay in the meetings. */
   const own = $derived(structure.people.filter((p) => p.areaRoleIds.length > 0 || p.areaHours > 0));
+  /** Invited through "every area" or "every team" without hours here (#436): set them here. */
+  const invited = $derived(structure.people.filter((p) => p.invitedOnly));
   const byId = $derived(new Map(structure.people.map((p) => [p.personId, p])));
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const roleOf = (id: string | undefined) => ws.roles.find((r) => r.id === id);
@@ -43,14 +46,15 @@
   let adder: AreaPersonAdd | undefined = $state();
   let addButton: HTMLButtonElement | undefined = $state();
   let peopleList: HTMLUListElement | undefined = $state();
+  let ownBox: HTMLDivElement | undefined = $state();
 
-  function pick(personId: string, event: Event) {
-    if (selected === personId) {
+  function pick(personId: string, event: Event, focusHours = false) {
+    if (selected === personId && !focusHours) {
       selected = null;
       return;
     }
     selected = personId;
-    void card?.open(event.currentTarget as HTMLElement);
+    void card?.open(event.currentTarget as HTMLElement, focusHours);
   }
 
   /**
@@ -63,8 +67,7 @@
     structurePerson.set(undefined);
     const id = target.personId;
     void tick().then(() => {
-      const from =
-        peopleList?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`) ?? addButton;
+      const from = ownBox?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`) ?? addButton;
       if (!from || !byId.has(id)) return;
       from.scrollIntoView({ block: 'center' });
       selected = id;
@@ -145,7 +148,7 @@
             onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
           >
         </div>
-        <div class="own">
+        <div class="own" bind:this={ownBox}>
           <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
           {#if own.length > 0}
             <ul class="people" bind:this={peopleList}>
@@ -175,6 +178,23 @@
             </ul>
           {:else}
             <p class="none">{$t('org.people.none')}</p>
+          {/if}
+          {#if invited.length > 0}
+            <p class="invited" data-org-invited>
+              <span class="lbl">{$t('org.invited')} · {invited.length}:</span>
+              {#each invited as p, i (p.personId)}{#if $presenting}{personName(
+                    p.personId,
+                  )}{:else}<button
+                    type="button"
+                    class="name"
+                    data-p={p.personId}
+                    aria-label={$t('load.hint.setHours', {
+                      person: personName(p.personId),
+                      area: inSentence,
+                    })}
+                    onclick={(e) => pick(p.personId, e, true)}>{personName(p.personId)}</button
+                  >{/if}{i < invited.length - 1 ? ', ' : ''}{/each}
+            </p>
           {/if}
         </div>
       </section>
@@ -349,6 +369,28 @@
   .none {
     font-size: 0.8rem;
     color: var(--text-muted);
+  }
+  .invited {
+    margin: 0.15rem 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .invited .lbl {
+    color: var(--warn);
+    font-weight: 600;
+  }
+  :global(#app) .invited .name {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
   }
   .h {
     flex: none;

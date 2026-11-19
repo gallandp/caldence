@@ -116,6 +116,9 @@ test('load and cost count organisation meetings for the organisation and its att
   const load = page.locator('#panel-load');
   // Mira attends only the sync: 1 h of her 8 h; the others without hours there get a hint.
   await expect(load.locator('[data-area-hints]')).toContainText('Northwind');
+  // "Of which here" would equal the total for the organisation (#436).
+  await expect(load.getByRole('columnheader', { name: /^Share/ })).toBeVisible();
+  await expect(load.getByRole('columnheader', { name: /^of which/ })).toHaveCount(0);
   await showView(page, 'Meetings & cadence');
   const panel = page.locator('#panel-meetings');
   // Mira, Jordan and the POs Alex, Kim and Lee: 5 people × 1 h × €100.
@@ -138,6 +141,15 @@ test('load and cost count organisation meetings for the organisation and its att
   await expect(page.locator('.node.root').getByRole('button', { name: /^Jordan/ })).toContainText(
     '2 h',
   );
+
+  // The page names who attends without hours there, each a way to set them (#436).
+  await page.keyboard.press('Escape');
+  const invited = page.locator('[data-org-invited]');
+  await expect(invited).toHaveText('Invited without hours · 3: Alex, Kim, Lee');
+  await invited.getByRole('button', { name: 'Set hours for Kim in Northwind' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Kim' }).locator('[data-area-hours]'),
+  ).toBeFocused();
 });
 
 test('presenting the organisation shows the what-if effect across all teams and areas', async ({

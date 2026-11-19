@@ -94,9 +94,15 @@
           <th scope="col">{$t('load.col.person')}</th>
           <th scope="col" class="num">{$t('load.week.hours')}</th>
           <th scope="col" class="num">{$t('load.week.share')}</th>
-          <th scope="col" class="num"
-            >{areaText($t, $levels, teamId ?? '')(area ? 'load.col.hereArea' : 'load.col.here')}</th
-          >
+          {#if teamId !== ORG_UNIT}
+            <th scope="col" class="num"
+              >{areaText(
+                $t,
+                $levels,
+                teamId ?? '',
+              )(area ? 'load.col.hereArea' : 'load.col.here')}</th
+            >
+          {/if}
         </tr>
       </thead>
       <tbody>
@@ -117,15 +123,17 @@
                   >{$t('load.week.over', { max: formatPercent($locale, maxFte) })}</span
                 >{/if}</td
             >
-            <td class="num"
-              ><span class="long"
-                >{$t('load.here', {
-                  hours: hours(r.here.hours),
-                  of: hours(r.here.cap),
-                  percent: herePercent,
-                })}</span
-              ><span class="short" aria-hidden="true">{herePercent}</span></td
-            >
+            {#if teamId !== ORG_UNIT}
+              <td class="num"
+                ><span class="long"
+                  >{$t('load.here', {
+                    hours: hours(r.here.hours),
+                    of: hours(r.here.cap),
+                    percent: herePercent,
+                  })}</span
+                ><span class="short" aria-hidden="true">{herePercent}</span></td
+              >
+            {/if}
           </tr>
         {/each}
       </tbody>

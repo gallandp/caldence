@@ -19,6 +19,7 @@ import {
   type Workspace,
 } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
+import { areaStructure } from '../../src/core/structure';
 import { validate } from '../../src/core/validate';
 import { scopePeople, scopeUnits } from '../../src/core/views';
 import { countChanges, effectScope, whatIfEffect } from '../../src/core/whatIf';
@@ -201,6 +202,18 @@ describe('organisation meetings and people (#328)', () => {
     expect(effect.cost?.perWeek).toBe(400);
     // Weekly hours of everyone: Alex, Bo and Dana 40 h in teams, Rita 10 h, Ron 0 h, Olga 8 h.
     expect(effect.share).toBeCloseTo(4 / 138);
+  });
+
+  it('lists who attends without hours there, until hours are set (#436)', () => {
+    const ws = workspace();
+    const invited = (w: Workspace) =>
+      areaStructure(w, orgArea(w))
+        .people.filter((p) => p.invitedOnly)
+        .map((p) => p.personId);
+    // Olga has a role and hours there; everyone else attends through "every area" or "every team".
+    expect(invited(ws).sort()).toEqual(['alex', 'bo', 'dana', 'rita', 'ron']);
+    const set = setAreaHours(ws, ORG_UNIT, 'rita', 2);
+    expect(set.ok && invited(set.value)).toEqual(['alex', 'bo', 'dana', 'ron']);
   });
 
   it('is edited like an area', () => {
