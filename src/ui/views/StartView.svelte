@@ -5,11 +5,14 @@
   let {
     onOpenFile,
     onOpenExample,
+    onOpenLineExample,
     onManual,
     onCreated,
   }: {
     onOpenFile: () => void;
     onOpenExample: () => void;
+    /** The large line organisation example (#323). */
+    onOpenLineExample: () => void;
     /** Switches to Help. */
     onManual: () => void;
     /** A team was created by the wizard. */
@@ -21,6 +24,8 @@
 
   const folder =
     'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z';
+  const org =
+    'M9.5 3.5h5v4h-5zM3.5 16.5h5v4h-5zM9.5 16.5h5v4h-5zM15.5 16.5h5v4h-5zM12 7.5v4.5M6 16.5V12h12v4.5';
   const sparkle =
     'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z';
 
@@ -69,6 +74,7 @@
     <div class="tiles">
       {@render tile('file', 'start.file', onOpenFile, folder)}
       {@render tile('example', 'start.example', onOpenExample, sparkle)}
+      {@render tile('lineExample', 'start.lineExample', onOpenLineExample, org)}
     </div>
     <p class="areas">{$t('start.areas')}</p>
 

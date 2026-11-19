@@ -123,7 +123,7 @@ Older files (schema 1 to 7) are upgraded when they are opened: schema 2 added `i
 
 ## Limits
 
-A file that goes beyond these limits is rejected with a message naming the field. They keep a shared file from making the app unusable (every view walks the planning horizon day by day for every meeting). They fit about 60 products and 500 people with headroom; a generated file at that scale (`tests/fixtures/perf-workspace.ts`) must open in under 2 s and render every view in under 1 s with the CPU throttled 4× (`tests/e2e/performance.spec.ts`).
+A file that goes beyond these limits is rejected with a message naming the field. They keep a shared file from making the app unusable (every view walks the planning horizon day by day for every meeting). They fit about 60 products and 500 people with headroom; the invented line example at that scale (`src/data/examples/line-example.ts`, #323) must open in under 2 s and render every view in under 1 s with the CPU throttled 4× (`tests/e2e/performance.spec.ts`).
 
 | What | Limit |
 | --- | --- |
