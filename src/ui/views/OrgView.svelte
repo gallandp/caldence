@@ -8,6 +8,7 @@
   import AreaPersonAdd from '../components/AreaPersonAdd.svelte';
   import AreaPersonCard from '../components/AreaPersonCard.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
+  import { structurePerson } from '../state/view';
   import { workspace } from '../state/workspace';
 
   /**
@@ -22,8 +23,11 @@
 
   // ---------- the organisation's own people (#328) ----------
 
-  /** The organisation as an area, under its name or level word, for the area dialogs. */
-  const org = $derived({ ...orgArea(ws), name });
+  /**
+   * The organisation as an area for the area dialogs, under its name or, unnamed, as "the
+   * organisation", so their sentences read "Add a person to the organisation".
+   */
+  const org = $derived({ ...orgArea(ws), name: orgName(ws, $levels.orgThe) });
   const structure = $derived(areaStructure(ws, org));
   /** People with a role or hours in the organisation; those only invited stay in the meetings. */
   const own = $derived(structure.people.filter((p) => p.areaRoleIds.length > 0 || p.areaHours > 0));
@@ -47,6 +51,25 @@
     selected = personId;
     void card?.open(event.currentTarget as HTMLElement);
   }
+
+  /**
+   * "Set hours" elsewhere (#361) opens the person's card at their hours here, also for someone
+   * only invited, who has no tile of their own.
+   */
+  $effect(() => {
+    const target = $structurePerson;
+    if (!target || target.areaId !== org.id) return;
+    structurePerson.set(undefined);
+    const id = target.personId;
+    void tick().then(() => {
+      const from =
+        peopleList?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`) ?? addButton;
+      if (!from || !byId.has(id)) return;
+      from.scrollIntoView({ block: 'center' });
+      selected = id;
+      void card?.open(from, true);
+    });
+  });
 
   /** After adding: the new person's tile gets the focus. */
   async function focusPerson(personId: string) {

@@ -1,6 +1,10 @@
 import { effectiveDuration } from './recurrence';
 import {
   areaAsTeam,
+  ORG_UNIT,
+  orgArea,
+  orgHasOwn,
+  orgName,
   participantName,
   type Area,
   type CalEvent,
@@ -20,14 +24,23 @@ export interface SheetText {
   percent: (share: number) => string;
 }
 
-/** A unit in file order: each area followed by its teams, then the teams outside any area. */
+/**
+ * A unit in file order: the organisation, each area followed by its teams, then the teams outside
+ * any area.
+ */
 interface Row {
   area: Area | undefined;
   team: Team | undefined;
 }
 
-function unitsInOrder(ws: Workspace): Row[] {
+/** The organisation comes first when it has people or meetings of its own (#328). */
+function unitsInOrder(ws: Workspace, orgWord: string): Row[] {
   const out: Row[] = [];
+  if (orgHasOwn(ws))
+    out.push({
+      area: { ...orgArea(ws), name: orgName(ws, orgWord), teamIds: [] },
+      team: undefined,
+    });
   for (const area of ws.areas) {
     out.push({ area, team: undefined });
     for (const id of area.teamIds) {
@@ -72,7 +85,7 @@ function participantText(ws: Workspace, p: Participant, text: SheetText): string
  */
 export function structureSheets(ws: Workspace, text: SheetText): Sheet[] {
   const { t } = text;
-  const units = unitsInOrder(ws);
+  const units = unitsInOrder(ws, t('xlsx.level.org'));
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const labels = (r: Row): [Cell, Cell] => [r.area?.name ?? null, r.team?.name ?? null];
 
@@ -98,7 +111,9 @@ export function structureSheets(ws: Workspace, text: SheetText): Sheet[] {
     return [
       r.team ? (r.area?.name ?? null) : null,
       unit.name,
-      t(r.team ? 'xlsx.level.team' : 'xlsx.level.area'),
+      t(
+        r.team ? 'xlsx.level.team' : r.area!.id === ORG_UNIT ? 'xlsx.level.org' : 'xlsx.level.area',
+      ),
       cadence ? t('team.cadence.kind.' + cadence.kind) : null,
       cadence ? cadence.lengthWeeks : null,
       cadence ? cadence.start : null,

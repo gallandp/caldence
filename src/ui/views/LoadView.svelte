@@ -38,6 +38,7 @@
     formatDisplayDate,
     formatNumber,
     formatPercent,
+    areaText,
     levels,
     locale,
     translate as t,
@@ -223,25 +224,34 @@
     const ws = $workspace;
     const inScope = scopePeople(ws, $filter);
     const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+    // Inside a sentence an unnamed organisation is "the organisation" (#328).
+    const where = (id: string) => unitName(ws, id, $levels.orgThe) || id;
     return areaHints(weeks, ws)
       .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
       .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
       .map((h) => ({
         ...h,
         key: `${h.personId}/${h.areaId}`,
-        label: $t('load.hint.setHours', {
-          person: nameOf(h.personId),
-          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
-        }),
+        label: $t('load.hint.setHours', { person: nameOf(h.personId), area: where(h.areaId) }),
         text: $t(`load.hint.${h.kind}`, {
           person: nameOf(h.personId),
-          area: unitName(ws, h.areaId, $levels.org) || h.areaId,
+          area: where(h.areaId),
           hours: hours(h.hours),
           share: formatPercent($locale, fte(h.hours, h.areaHours)),
           areaHours: weekly(h.areaHours),
         }),
       }));
   });
+  /**
+   * An organisation meeting that invites a role "from every team" can reach many people without
+   * hours there (#328): their lines are capped, the rest counted in one line.
+   */
+  const ORG_HINTS = 5;
+  const orgHints = $derived(hintItems.filter((h) => h.areaId === ORG_UNIT));
+  const shownHints = $derived(
+    hintItems.filter((h) => h.areaId !== ORG_UNIT || orgHints.indexOf(h) < ORG_HINTS),
+  );
+  const moreOrgHints = $derived(Math.max(0, orgHints.length - ORG_HINTS));
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -586,7 +596,11 @@
               {#if openPerson === p.person.id}
                 {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
                   <p class="note" data-set-hours>
-                    {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                    {#if p.units.every((u) => u.id === ORG_UNIT)}
+                      {$t('load.detail.setHoursOrg', { org: $t('view.org') })}
+                    {:else}
+                      {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                    {/if}
                   </p>
                 {/if}
                 {@const lines = [...p.units, ...invitedOf(p.person.id, p.units)]}
@@ -780,10 +794,15 @@
       </ul>
     {/if}
     {#if hintItems.length > 0}
-      <h4 class="hints-title">{$t('load.hints')}</h4>
-      <p class="note">{$t('load.hints.rule')}</p>
+      <h4 class="hints-title">
+        {areaText($t, $levels, orgHints.length === hintItems.length ? ORG_UNIT : '')('load.hints')}
+      </h4>
+      {#if orgHints.length < hintItems.length}<p class="note">{$t('load.hints.rule')}</p>{/if}
+      {#if orgHints.length > 0}<p class="note">
+          {$t('load.hints.ruleOrg', { org: $t('view.org') })}
+        </p>{/if}
       <ul class="hints" data-area-hints>
-        {#each hintItems as h (h.key)}
+        {#each shownHints as h (h.key)}
           <li>
             {h.text}
             {#if onOpenStructure}
@@ -799,6 +818,13 @@
               >{/if}
           </li>
         {/each}
+        {#if moreOrgHints > 0}
+          <li data-more-hints>
+            {$t(moreOrgHints === 1 ? 'load.hint.moreOrg.one' : 'load.hint.moreOrg.other', {
+              n: formatNumber($locale, moreOrgHints, 0),
+            })}
+          </li>
+        {/if}
       </ul>
     {/if}
   </section>

@@ -223,9 +223,12 @@ export interface Organisation {
  */
 export const ORG_UNIT = '@organisation';
 
-/** The organisation is a choice once there is something to group: an area or two teams. */
+/**
+ * The organisation is a choice once there is something to group (an area or two teams), or while
+ * it has people or meetings of its own (#328), so they never become unreachable.
+ */
 export function hasOrgLevel(ws: Workspace): boolean {
-  return ws.areas.length > 0 || ws.teams.length >= 2;
+  return ws.areas.length > 0 || ws.teams.length >= 2 || orgHasOwn(ws);
 }
 
 /**
@@ -309,7 +312,7 @@ export function storeOrg(ws: Workspace, area: Area): void {
 }
 
 /** The organisation has people or meetings of its own. */
-function orgHasOwn(ws: Workspace): boolean {
+export function orgHasOwn(ws: Workspace): boolean {
   const o = ws.organisation;
   return !!(o?.members?.length || o?.events?.length || Object.keys(o?.memberHours ?? {}).length);
 }

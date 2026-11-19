@@ -7,6 +7,7 @@ import { migrate } from '../../src/core/migrate';
 import {
   CURRENT_SCHEMA,
   emptyWorkspace,
+  hasOrgLevel,
   holders,
   missingRoles,
   ORG_UNIT,
@@ -106,6 +107,13 @@ describe('organisation meetings and people (#328)', () => {
     expect(holders(ws, ORG_UNIT, po!)).toEqual(['alex', 'bo', 'dana']);
     // Beta has no PO, and every area has its RTE.
     expect(missingRoles(ws, orgArea(ws), sync())).toEqual([{ teamId: 'beta', roleId: 'po' }]);
+    // An area without the role invited "from every area" is named too.
+    const noRte = workspace();
+    noRte.areas[1]!.members = [];
+    expect(missingRoles(noRte, orgArea(noRte), sync())).toEqual([
+      { teamId: 'south', roleId: 'rte' },
+      { teamId: 'beta', roleId: 'po' },
+    ]);
   });
 
   it('is valid, and "from every area" only exists in the organisation', () => {
@@ -160,7 +168,8 @@ describe('organisation meetings and people (#328)', () => {
       ['bo', 'no-area-hours'],
       ['dana', 'no-area-hours'],
       ['rita', 'no-area-hours'],
-      ['ron', 'no-area-hours'],
+      // Ron has no hours anywhere.
+      ['ron', 'no-hours'],
     ]);
   });
 
@@ -210,10 +219,34 @@ describe('organisation meetings and people (#328)', () => {
     const gone = removeItem(workspace(), 'people', 'olga');
     expect(gone.ok && gone.value.organisation?.members).toBeUndefined();
     expect(gone.ok && gone.value.organisation?.memberHours).toBeUndefined();
+    // A replaced role or person follows into the organisation's people and meetings.
+    const role = removeItem(workspace(), 'roles', 'ceo', 'rte');
+    expect(role.ok && role.value.organisation?.members).toEqual([
+      { personId: 'olga', roleId: 'rte' },
+    ]);
+    // The CEO row merges into "RTE from every area" and keeps that reach.
+    expect(role.ok && role.value.organisation?.events?.[0]?.participants).toEqual([
+      { roleId: 'rte', share: 1, fromAreas: true },
+      { roleId: 'po', share: 1, fromTeams: true },
+    ]);
+    const person = removeItem(workspace(), 'people', 'olga', 'ron');
+    expect(person.ok && person.value.organisation?.members).toEqual([
+      { personId: 'ron', roleId: 'ceo' },
+    ]);
+    expect(person.ok && person.value.organisation?.memberHours).toEqual({ ron: 8 });
     // Clearing the name keeps the people and meetings.
     const cleared = renameOrganisation(workspace(), ' ');
     expect(cleared.ok && cleared.value.organisation?.name).toBeUndefined();
     expect(cleared.ok && cleared.value.organisation?.events).toHaveLength(1);
+  });
+
+  it('stays selectable while it has people or meetings of its own', () => {
+    const ws = workspace();
+    ws.areas = [];
+    ws.teams = ws.teams.slice(0, 1);
+    expect(hasOrgLevel(ws)).toBe(true);
+    delete ws.organisation;
+    expect(hasOrgLevel(ws)).toBe(false);
   });
 
   it('loads older files unchanged and bumps the schema', () => {

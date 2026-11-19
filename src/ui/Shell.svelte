@@ -240,14 +240,15 @@
   }
 
   /**
-   * An area's Structure page (#361); with `personId`, their card opens at their hours there.
+   * An area's Structure page (#361), or the organisation's page (#328); with `personId`, their
+   * card opens at their hours there.
    */
   function openStructure(areaId: string, personId?: string) {
     activeTeamId.set(areaId);
     select('team', true);
     // After the unit's own effect, which opens another area on its overview.
     void tick().then(() => {
-      areaPage.set('structure');
+      if (areaId !== ORG_UNIT) areaPage.set('structure');
       if (personId) structurePerson.set({ areaId, personId });
     });
   }
@@ -818,8 +819,8 @@
                   onEditOpened={() => (editRequest = undefined)}
                   show={showRequest}
                   onShown={() => (showRequest = undefined)}
-                  onSetHours={activeArea
-                    ? (personId) => openStructure(activeArea.id, personId)
+                  onSetHours={activeArea || activeOrg
+                    ? (personId) => openStructure(activeArea?.id ?? ORG_UNIT, personId)
                     : undefined}
                   onExport={() => select('exchange', true)}
                   onOpenDay={openDay}

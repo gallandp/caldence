@@ -39,7 +39,7 @@ export function whatIfEffect(
 ): Effect | undefined {
   const area = findArea(ws, scopeId);
   if (area) {
-    const { total } = areaCosts(ws, index, area, rate);
+    const { total } = areaCosts(ws, index, area, rate, false);
     const out: Effect = { hours: total.hours, share: total.share };
     if (total.cost) out.cost = total.cost;
     // The organisation has no reference cadence; its teams follow their areas.

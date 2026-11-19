@@ -60,7 +60,7 @@ test('the organisation holds its own people and plans meetings from every area o
 
   // A person at organisation level, with a new role and hours set on purpose.
   await root.getByRole('button', { name: '+ Person' }).click();
-  const add = page.getByRole('dialog', { name: 'Add a person to Organisation' });
+  const add = page.getByRole('dialog', { name: 'Add a person to the organisation' });
   await add.getByLabel('Person').fill('Mira');
   await add.getByLabel('Role in the organisation').selectOption({ label: 'New role …' });
   await add.getByLabel('New role name').fill('Managing director');
@@ -118,6 +118,20 @@ test('load and cost count organisation meetings for the organisation and its att
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
   expect(results.violations).toEqual([]);
+
+  // "Set hours" in a hint opens the organisation's page with the person's card at the hours.
+  await showView(page, 'Meeting load');
+  await load
+    .locator('[data-area-hints] li', { hasText: /^Jordan: / })
+    .getByRole('button', { name: 'Set hours for Jordan in Northwind' })
+    .click();
+  const card = page.getByRole('dialog', { name: 'Jordan' });
+  await expect(card.locator('[data-area-hours]')).toBeFocused();
+  await card.locator('[data-area-hours]').fill('2');
+  await card.locator('[data-area-hours]').press('Tab');
+  await expect(page.locator('.node.root').getByRole('button', { name: /^Jordan/ })).toContainText(
+    '2 h',
+  );
 });
 
 test('presenting the organisation shows the what-if effect across all teams and areas', async ({

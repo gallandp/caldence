@@ -152,6 +152,8 @@ export function areaCosts(
   index: HolidayIndex,
   area: Area,
   rate?: number,
+  /** False when only the total is needed (the what-if): each team's area share is left out. */
+  shares = true,
 ): AreaCosts {
   const teams = ws.teams.filter((t) => area.teamIds.includes(t.id));
   const invited = new Set<string>();
@@ -160,7 +162,7 @@ export function areaCosts(
     const own = invitedTo(ws, t);
     own.forEach((p) => invited.add(p));
     const row = unitRow(ws, index, t, sum(people.map((p) => capacity(ws, p, t.id))), rate, own);
-    if (rate) row.areaShare = areaShare(ws, index, t.id, rate);
+    if (rate && shares) row.areaShare = areaShare(ws, index, t.id, rate);
     return row;
   });
   // The organisation also holds every area's own meetings (#328).
