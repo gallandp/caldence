@@ -156,9 +156,18 @@
     line: undefined,
   };
   let shownWorld: 'product' | 'line' | undefined;
+  /** A link that opens a unit (line tree, products of a line team, matrix) opens its page. */
+  let jumpTo: ViewId | undefined;
+  function openUnit(selection: string) {
+    const world = selectedLineUnit(selection) !== undefined ? 'line' : 'product';
+    activeTeamId.set(selection);
+    if (world === (inLine ? 'line' : 'product')) select('team');
+    else jumpTo = 'team';
+  }
   $effect(() => {
     const world = inLine ? 'line' : 'product';
-    const back = lastPage[world];
+    const back = jumpTo ?? lastPage[world];
+    jumpTo = undefined;
     // Entering a world (a switch, a jump, an undo or an opened file) brings back its last page,
     // even one both worlds have (meeting load).
     if (world !== shownWorld) {
@@ -208,9 +217,7 @@
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
   const viewKey = (id: ViewId) =>
     id === 'team' && activeLine
-      ? lineLevel === 'team'
-        ? 'view.lineTeam'
-        : 'view.lineOverview'
+      ? 'view.lineOverview'
       : id === 'team' && activeOrg
         ? 'view.org'
         : id === 'team' && activeArea
@@ -838,7 +845,7 @@
                 <MatrixView
                   selection={$activeTeamId ?? ORG_UNIT}
                   world={inLine ? 'line' : 'product'}
-                  onOpen={(unit) => activeTeamId.set(unit)}
+                  onOpen={openUnit}
                 />
               {/if}
             {:else if (id === 'team' || id === 'people' || id === 'staffing') && activeLine}
@@ -847,7 +854,7 @@
                   <LineView
                     unit={activeLine}
                     page={id === 'team' ? 'overview' : id}
-                    onOpen={(unit) => activeTeamId.set(unit)}
+                    onOpen={openUnit}
                   />
                 {/key}
               {/if}
@@ -1001,9 +1008,6 @@
   }
   .world-switch {
     padding: 0 0.75rem 0.5rem;
-  }
-  .rail .world-switch {
-    display: none;
   }
   .skip {
     position: absolute;
@@ -1471,6 +1475,9 @@
   }
   /* ---------- the rail: icons only, names as tooltips ---------- */
   @media (min-width: 60.0625rem) {
+    .rail .world-switch {
+      display: none;
+    }
     .layout.rail {
       grid-template-columns: 4.75rem minmax(0, 1fr);
     }

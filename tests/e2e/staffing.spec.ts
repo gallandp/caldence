@@ -11,7 +11,10 @@ test.beforeEach(async ({ page }) => {
 
 async function openBoard(page: Page) {
   await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
-  await page.getByRole('group', { name: 'World' }).getByRole('button', { name: 'Line' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'World' })
+    .getByRole('radio', { name: 'Line' })
+    .click();
   await page.locator('.switcher .pick').click();
   await page
     .locator('.switcher .list button.line')

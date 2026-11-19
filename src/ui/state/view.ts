@@ -1,6 +1,7 @@
 import { get, writable } from 'svelte/store';
 import {
   hasOrgLevel,
+  LINE_ROOT,
   ORG_UNIT,
   selectedLineUnit,
   type SavedView,
@@ -41,6 +42,7 @@ export function openingPlace(
   const saved = ws.view;
   const known = (unit: string | undefined) =>
     (unit === ORG_UNIT && hasOrgLevel(ws)) ||
+    (unit === LINE_ROOT && (ws.lineUnits?.length ?? 0) > 0) ||
     (unit !== undefined && ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
     [...ws.teams, ...ws.areas].some((u) => u.id === unit);
   if (!opened)

@@ -239,7 +239,7 @@ test.describe('staffing help (#324)', () => {
     // Read now: the guide is gone once another view opens.
     const [, , org, map] = await named(5);
     const world = (name: string) =>
-      page.getByRole('group', { name: c['world.label'] }).getByRole('button', { name });
+      page.getByRole('radiogroup', { name: c['world.label'] }).getByRole('radio', { name });
 
     // 1: in the line world, the sidebar's actions offer adding a line unit; the import sits in
     // Import / Export.
@@ -270,7 +270,6 @@ test.describe('staffing help (#324)', () => {
       .locator('.switcher .list button.line')
       .filter({ has: page.locator('.opt-name-line', { hasText: /^Orvalis Ware$/ }) })
       .click();
-    await showView(page, c['view.lineTeam']!.replace('{levelLineTeam}', 'Line team'));
     await page.getByRole('tab', { name: steps[2]!.name!, exact: true }).click();
     // The board's button adds the demand to its name for screen readers.
     await page

@@ -283,12 +283,10 @@
     if (activeLine) {
       const parent = activeLine.parentId;
       workspace.apply((ws) => removeLineUnit(ws, id));
-      // Without teams the next line unit keeps a page to show (#387).
-      const next = $workspace.lineUnits?.[0]?.id;
+      // The line world stays while the file has a line (#393): on the parent, else the root.
+      const lineLeft = ($workspace.lineUnits?.length ?? 0) > 0;
       activeTeamId.set(
-        parent
-          ? lineSelection(parent)
-          : ($workspace.teams[0]?.id ?? (next ? lineSelection(next) : null)),
+        parent ? lineSelection(parent) : lineLeft ? LINE_ROOT : ($workspace.teams[0]?.id ?? null),
       );
     } else workspace.apply((ws) => (activeArea ? removeArea(ws, id) : removeTeam(ws, id)));
     await tick();

@@ -11,7 +11,7 @@
 
   /**
    * The two worlds of a file with a line (#393): the product organisation and the line. A
-   * segmented control of two nouns at the top of the sidebar; each world keeps its own selection,
+   * segmented control (a radio group) of two nouns at the top of the sidebar; each world keeps its own selection,
    * so switching back returns to where you were. The page of each world is kept by the shell.
    */
   type World = 'product' | 'line';
@@ -59,13 +59,20 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_interactions (the arrow keys belong to the group) -->
-<div class="worlds" role="group" aria-label={$t('world.label')} onkeydown={onKeydown}>
+<!-- A radio group: one world is chosen, Tab reaches the chosen one, the arrow keys move. -->
+<div
+  class="worlds"
+  role="radiogroup"
+  aria-label={$t('world.label')}
+  tabindex="-1"
+  onkeydown={onKeydown}
+>
   {#each WORLDS as world (world)}
     <button
       type="button"
+      role="radio"
       data-world={world}
-      aria-pressed={current === world}
+      aria-checked={current === world}
       tabindex={current === world ? 0 : -1}
       onclick={() => go(world)}
     >
@@ -105,11 +112,11 @@
     color: #fff;
     background: rgb(255 255 255 / 0.05);
   }
-  :global(#app) .worlds button[aria-pressed='true'] {
+  :global(#app) .worlds button[aria-checked='true'] {
     background: #fff;
     color: #14183a;
   }
-  :global(#app) .worlds button[aria-pressed='true'][data-world='line'] {
+  :global(#app) .worlds button[aria-checked='true'][data-world='line'] {
     color: #8a2050;
   }
   :global(#app) .worlds button:focus-visible {
@@ -129,7 +136,7 @@
     background: #e0569b;
   }
   @media (forced-colors: active) {
-    :global(#app) .worlds button[aria-pressed='true'] {
+    :global(#app) .worlds button[aria-checked='true'] {
       outline: 2px solid ButtonText;
     }
   }

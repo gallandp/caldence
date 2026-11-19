@@ -11,14 +11,15 @@ test.beforeEach(async ({ page }) => {
 
 /** Switches to a world with the segmented control at the top of the sidebar (#393). */
 async function toWorld(page: Page, name: 'Products' | 'Line') {
-  const world = page.getByRole('group', { name: 'World' }).getByRole('button', { name });
+  const world = page.getByRole('radiogroup', { name: 'World' }).getByRole('radio', { name });
   await world.click();
-  await expect(world).toHaveAttribute('aria-pressed', 'true');
+  await expect(world).toHaveAttribute('aria-checked', 'true');
 }
 
 /** Picks a line unit in the switcher of the line world. */
 async function pickLine(page: Page, name: string) {
-  if ((await page.getByRole('group', { name: 'World' }).count()) > 0) await toWorld(page, 'Line');
+  if ((await page.getByRole('radiogroup', { name: 'World' }).count()) > 0)
+    await toWorld(page, 'Line');
   await page.locator('.switcher .pick').click();
   await page
     .locator('.switcher .list button.line')
@@ -31,7 +32,7 @@ const panel = (page: Page, name: string) => page.getByRole('tabpanel', { name })
 
 test('without a line there is no world switch and no line group', async ({ page }) => {
   await openExample(page);
-  await expect(page.getByRole('group', { name: 'World' })).toHaveCount(0);
+  await expect(page.getByRole('radiogroup', { name: 'World' })).toHaveCount(0);
   await page.locator('.switcher .pick').click();
   await expect(page.locator('.switcher .list')).toBeVisible();
   await expect(page.locator('.switcher .list .line-group')).toHaveCount(0);
@@ -43,9 +44,9 @@ test('the two worlds each keep their own units, pages and selection (#393, #394,
   const ws = lineWorkspace();
   ws.organisation = { name: 'Velmora Holding' };
   await openWorkspaceFile(page, ws, 'line.caldence.json');
-  const worlds = page.getByRole('group', { name: 'World' });
-  await expect(worlds.getByRole('button', { name: 'Products' })).toHaveAttribute(
-    'aria-pressed',
+  const worlds = page.getByRole('radiogroup', { name: 'World' });
+  await expect(worlds.getByRole('radio', { name: 'Products' })).toHaveAttribute(
+    'aria-checked',
     'true',
   );
   // The product world lists products only.
@@ -93,11 +94,11 @@ test('the two worlds each keep their own units, pages and selection (#393, #394,
   await expect(panel(page, 'Staff').locator('.eyebrow .world.line')).toHaveText('Line');
 
   // Arrow keys move between the two worlds.
-  await worlds.getByRole('button', { name: 'Line' }).focus();
+  await worlds.getByRole('radio', { name: 'Line' }).focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(worlds.getByRole('button', { name: 'Products' })).toBeFocused();
-  await expect(worlds.getByRole('button', { name: 'Products' })).toHaveAttribute(
-    'aria-pressed',
+  await expect(worlds.getByRole('radio', { name: 'Products' })).toBeFocused();
+  await expect(worlds.getByRole('radio', { name: 'Products' })).toHaveAttribute(
+    'aria-checked',
     'true',
   );
 });
@@ -109,8 +110,8 @@ test('a line team shows its staff, and a person opens with figures and line fiel
   await pickLine(page, 'Orvalis Ware');
 
   // The overview entry carries the level; staff is a page of its own.
-  await showView(page, 'Line team');
-  const overview = panel(page, 'Line team');
+  await showView(page, 'Overview');
+  const overview = panel(page, 'Overview');
   await expect(overview.getByRole('heading', { level: 2 })).toHaveText('Orvalis Ware');
   await expect(overview.getByText('Staff by contract')).toBeVisible();
   await expect(overview.locator('.tile').nth(1)).toContainText('3.8 FTE');
@@ -150,7 +151,7 @@ test('a line team shows its staff, and a person opens with figures and line fiel
   expect(
     (await new AxeBuilder({ page }).include('#panel-people').analyze()).violations.map((v) => v.id),
   ).toEqual([]);
-  await showView(page, 'Line team');
+  await showView(page, 'Overview');
   await expect(overview.locator('.tile').nth(1)).toContainText('3.3 FTE');
 });
 
@@ -196,14 +197,14 @@ test('meeting load follows the line team, and its products lead into the product
   await expect(people).not.toContainText('Nia');
 
   // Meetings belong to products: the overview lists them and a click switches worlds.
-  await showView(page, 'Line team');
-  const products = panel(page, 'Line team').locator('.line-products');
+  await showView(page, 'Overview');
+  const products = panel(page, 'Overview').locator('.line-products');
   await expect(products.getByRole('button')).toHaveCount(3);
   await products.getByRole('button', { name: /Team Gamma/ }).click();
   await expect(page.locator('.switcher .pick .label')).toHaveText('Team Gamma');
   await expect(
-    page.getByRole('group', { name: 'World' }).getByRole('button', { name: 'Products' }),
-  ).toHaveAttribute('aria-pressed', 'true');
+    page.getByRole('radiogroup', { name: 'World' }).getByRole('radio', { name: 'Products' }),
+  ).toHaveAttribute('aria-checked', 'true');
 });
 
 test('line units and skills are managed in place', async ({ page }) => {
@@ -218,8 +219,8 @@ test('line units and skills are managed in place', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.locator('.switcher .pick .label')).toHaveText('Orvalis Markt');
 
-  await showView(page, 'Line team');
-  await expect(panel(page, 'Line team').getByText('Nobody in this line team yet')).toBeVisible();
+  await showView(page, 'Overview');
+  await expect(panel(page, 'Overview').getByText('Nobody in this line team yet')).toBeVisible();
   await showView(page, 'Staff');
   const view = panel(page, 'Staff');
   await view.getByRole('button', { name: '+ Person' }).click();
@@ -277,7 +278,7 @@ test('presenting hides the staff pages and line staff names', async ({ page }) =
   await page.getByRole('button', { name: 'Present' }).click();
   await expect(page.getByRole('tab', { name: 'Staff', exact: true })).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Staffing' })).toHaveCount(0);
-  const view = panel(page, 'Line team');
+  const view = panel(page, 'Overview');
   await expect(view).toBeVisible();
   await expect(view.locator('table')).toHaveCount(0);
   await expect(view).not.toContainText('Led by');
@@ -299,7 +300,10 @@ test('a deep line tree in the sidebar keeps the words of long names whole', asyn
   ws.people = ws.people.map((p) => ({ ...p, lineUnitId: undefined }));
   await page.setViewportSize({ width: 1440, height: 900 });
   await openWorkspaceFile(page, ws, 'line.caldence.json');
-  await page.getByRole('group', { name: 'Welt' }).getByRole('button', { name: 'Linie' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Welt' })
+    .getByRole('radio', { name: 'Linie' })
+    .click();
   await page.locator('.switcher .pick').click();
   const names = page.locator('.switcher .list .opt-name-line');
   await expect(names).toHaveCount(4);

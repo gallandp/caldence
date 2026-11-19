@@ -139,11 +139,11 @@
   {#if page === 'overview' && !group && !empty}
     <LineProducts {unit} {onOpen} />
   {:else if page === 'people' && showStaff}
-    <section aria-label={$t('line.tab.staff')}>
+    <section aria-label={$t('view.people')}>
       <LineStaff {rows} {unit} lineColumn={group} />
     </section>
   {:else if page === 'staffing' && showStaff}
-    <section aria-label={$t('line.tab.board')}>
+    <section aria-label={$t('view.staffing')}>
       {#key unit.id}<StaffingBoard {unit} />{/key}
     </section>
   {/if}

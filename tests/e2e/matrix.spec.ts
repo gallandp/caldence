@@ -65,21 +65,20 @@ test('a cell shows who is behind it and opens the product or the line (#396)', a
   await pop.getByRole('button', { name: 'Sam in the line' }).click();
   await expect(currentUnit(page)).toHaveText('Orvalis Ware');
   // The matrix is a view of both worlds: the line world's filters by the line team.
-  const worlds = page.getByRole('group', { name: 'World' });
-  await expect(worlds.getByRole('button', { name: 'Line' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByRole('tab', { name: 'Matrix', exact: true })).toHaveAttribute(
+  const worlds = page.getByRole('radiogroup', { name: 'World' });
+  await expect(worlds.getByRole('radio', { name: 'Line' })).toHaveAttribute('aria-checked', 'true');
+  // A link opens the unit's page; the matrix is a view of this world too.
+  await expect(page.getByRole('tab', { name: 'Overview', exact: true })).toHaveAttribute(
     'aria-selected',
     'true',
   );
+  await showView(page, 'Matrix');
   const line = page.getByRole('table', { name: /Matrix of Orvalis Ware/ });
   await expect(line.getByRole('rowheader', { name: /Orvalis Ware/ })).toBeVisible();
   await expect(line.getByRole('rowheader', { name: /Orvalis Geld/ })).toHaveCount(0);
 
   // Back in the product world, Payments and its matrix are where they were.
-  await worlds.getByRole('button', { name: 'Products' }).click();
+  await worlds.getByRole('radio', { name: 'Products' }).click();
   await expect(currentUnit(page)).toHaveText('Payments');
   await page
     .getByRole('table', { name: /Matrix of Payments/ })

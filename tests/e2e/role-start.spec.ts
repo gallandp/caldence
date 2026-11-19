@@ -63,8 +63,8 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   for (const name of ['Backend', 'Frontend', 'Data'])
     await expect(team.getByText(name).first()).toBeVisible();
   // No product yet: the product world's calendar offers the way in instead of the start screen.
-  const worlds = page.getByRole('group', { name: 'World' });
-  await worlds.getByRole('button', { name: 'Products' }).click();
+  const worlds = page.getByRole('radiogroup', { name: 'World' });
+  await worlds.getByRole('radio', { name: 'Products' }).click();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(calendar(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
@@ -74,7 +74,7 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(area.getByText('Step 1 of 2')).toBeVisible();
   await area.getByRole('button', { name: 'Cancel' }).click();
   // After a reload the line page is still there.
-  await worlds.getByRole('button', { name: 'Line' }).click();
+  await worlds.getByRole('radio', { name: 'Line' }).click();
   await autosaved(page, 'Frontend');
   await page.reload();
   await page.getByRole('tab', { name: 'Overview', exact: true }).click();
