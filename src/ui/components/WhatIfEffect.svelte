@@ -7,6 +7,7 @@
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
    * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
    * `live` false drops the live region, where the box follows every keystroke of a form.
+   * `team`: a team in an area, whose own Terminlast comes first, before the area's (#340).
    */
   let {
     before,
@@ -16,6 +17,7 @@
     note,
     compact = false,
     live = true,
+    team,
   }: {
     before?: Effect;
     after?: Effect;
@@ -24,6 +26,7 @@
     note?: string;
     compact?: boolean;
     live?: boolean;
+    team?: { name: string; before: Effect; after: Effect };
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -31,14 +34,26 @@
   const hours = (n: number) => formatNumber($locale, n, 1);
   const euro = (n: number) => formatEuro($locale, n);
   const pct = (n: number) => formatPercent($locale, n);
+  /** "5.6 h → 5.2 h · 16 % → 14 %": the Terminlast with its hours; "24.5 h" never wraps. */
+  const load = (b: Effect, a: Effect) =>
+    $t('whatif.effect.loadValue', {
+      fromHours: hours(b.hours),
+      toHours: hours(a.hours),
+      from: pct(b.share),
+      to: pct(a.share),
+    }).replace(/(\d) h/g, '$1\u00a0h');
   /** The compact one-line form: hours, cost per week (with a rate) and Terminlast. */
   const line = (b: Effect, a: Effect) =>
     $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
       hours: signed(a.hours - b.hours, hours),
       cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
-      name: scopeName,
+      // A team in an area names its own load: that is what changed (#340).
+      name: team?.name ?? scopeName,
       // "16 % → 14 %" wraps as a whole.
-      share: $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }).replace(/\s/g, ' '),
+      share: $t('whatif.arrow', {
+        from: pct((team?.before ?? b).share),
+        to: pct((team?.after ?? a).share),
+      }).replace(/\s/g, ' '),
     });
 </script>
 
@@ -53,6 +68,12 @@
       </p>
     {/if}
     <dl class:compact>
+      {#if team}
+        <div>
+          <dt>{$t('whatif.effect.share', { name: team.name })}</dt>
+          <dd>{load(team.before, team.after)}</dd>
+        </div>
+      {/if}
       <div>
         <dt>{$t('whatif.effect.hours')}</dt>
         <dd class:up={after.hours - before.hours > 0.004}>
@@ -72,7 +93,7 @@
       {/if}
       <div>
         <dt>{$t('whatif.effect.share', { name: scopeName })}</dt>
-        <dd>{$t('whatif.arrow', { from: pct(before.share), to: pct(after.share) })}</dd>
+        <dd>{load(before, after)}</dd>
       </div>
       {#if before.inStep && after.inStep}
         <div>
