@@ -26,7 +26,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `locale` | `"de"` or `"en"` | Language of the app while the browser has none chosen. Switching the language in Settings is stored in the browser, not in the file; "Like the file" goes back to this one. |
+| `locale` | `"de"` or `"en"` | Language of the app while the browser has none chosen. Switching the language in Settings is stored in the browser, not in the file; "Match the file" goes back to this one. |
 | `region` | string | Id of a built-in or imported region. An unknown id still loads, but then no holidays are used. |
 | `timezone` | string | IANA time zone, for example `Europe/Berlin`. |
 | `workdays` | list of 1-7 | Working weekdays, Monday is 1, Sunday is 7. Not empty, no duplicates. |

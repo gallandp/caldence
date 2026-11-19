@@ -179,21 +179,30 @@ test('"Like the file" goes back to the file\'s language (#363)', async ({ page }
   await openExample(page);
   const select = page.getByRole('tabpanel').getByLabel(/^(Language|Sprache)$/);
   await expect(select).toHaveValue('');
-  await expect(select.locator('option:checked')).toHaveText('Like the file (English)');
+  await expect(select.locator('option:checked')).toHaveText('Match the file (English)');
+  await expect(select).toHaveAccessibleDescription(/only to this browser/);
   await select.selectOption('de');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await select.selectOption({ label: 'Wie die Datei (English)' });
+  await select.selectOption({ label: 'Wie in der Datei (English)' });
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   expect(await page.evaluate(() => localStorage.getItem('caldence.locale'))).toBeNull();
 });
 
-test('the browser language is applied before the app runs (#363)', async ({ page }) => {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.setItem('caldence.locale', 'de'));
-  // Without the app bundle only theme-init.js can set the language.
-  await page.route(/\/assets\/.*\.js$/, (route) => route.abort());
-  await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+test.describe('before the app runs', () => {
+  // page.route does not see requests that a service worker makes.
+  test.use({ serviceWorkers: 'block' });
+
+  test('the browser language is applied (#363)', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('caldence.locale', 'de'));
+    // Without the app bundle only theme-init.js can set the language.
+    await page.route(/\/assets\/.*\.js$/, (route) => route.abort());
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    // The app did not mount: main.ts would have replaced the static intro.
+    await expect(page.locator('.static-intro')).toHaveCount(1);
+    await expect(page.getByRole('tab')).toHaveCount(0);
+  });
 });
 
 /** Imports a region file through the file input (fallback path). */

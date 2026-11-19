@@ -288,12 +288,17 @@
 
 <div class="settings">
   <!-- This browser's settings, apart from the file's, like a section in iOS Settings (#363). -->
-  <section class="browser" aria-labelledby="set-browser" aria-describedby="note-browser">
+  <section class="browser" aria-labelledby="set-browser">
     <h3 id="set-browser">{$t('settings.browser')}</h3>
     <div class="grid">
       <div class="field">
         <label for="set-lang">{$t('lang.label')}</label>
-        <select id="set-lang" value={$language ?? ''} onchange={lang}>
+        <select
+          id="set-lang"
+          value={$language ?? ''}
+          onchange={lang}
+          aria-describedby="note-browser"
+        >
           <option value=""
             >{$t('lang.file', { language: $t('lang.name.' + settings.locale) })}</option
           >
@@ -302,7 +307,7 @@
           {/each}
         </select>
       </div>
-      <div class="wide"><ThemeSwitch /></div>
+      <div class="wide"><ThemeSwitch describedby="note-browser" /></div>
     </div>
     <p class="help" id="note-browser">{$t('lang.browser')}</p>
   </section>
@@ -585,8 +590,9 @@
     color: var(--text-muted);
   }
   /* A small grouped section with its note below, like one section of iOS Settings. */
+  /* --surface, so the appearance switch's --surface-2 track stands out. */
   .browser {
-    background: var(--surface-2);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 0.75rem var(--space);
