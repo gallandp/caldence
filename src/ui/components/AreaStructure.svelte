@@ -68,7 +68,7 @@
 
   /** A missing role the team may call differently opens the mapping (#433), as on the meeting. */
   let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
-  /** Once the mapping made the note go away: the next note, or the meeting it belongs to. */
+  /** Once the mapping made the note go away: another note of the meeting, or the meeting. */
   const nextGap = () =>
     root?.querySelector<HTMLElement>('button.gap') ??
     root?.querySelector<HTMLElement>('.chipbtn[aria-pressed="true"]');
@@ -541,7 +541,7 @@
                   team: team.name,
                   role: roleName(g.roleId),
                 })}
-                {#if !$presenting && canLinkRole($workspace, g.teamId, g.roleId)}
+                {#if !$presenting && canLinkRole($workspace, area, g.teamId, g.roleId)}
                   <button
                     type="button"
                     class="gap"
@@ -1154,27 +1154,21 @@
   }
   /* A note that opens the mapping (#433): the same look, with a chevron as its cue. */
   :global(#app) button.gap {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
     width: 100%;
-    margin: 0;
-    padding: 0.45rem 0.55rem;
     min-height: 2.75rem;
-    font: inherit;
+    padding: 0.45rem 0.55rem;
     font-size: 0.8rem;
     font-weight: inherit;
-    line-height: 1.35;
     border: 1.5px dashed var(--warn);
     border-radius: 0.625rem;
     background: var(--warn-soft);
     color: var(--warn);
     box-shadow: none;
     text-align: start;
-    cursor: pointer;
   }
   :global(#app) button.gap:hover {
     border-style: solid;
+    background: var(--warn-soft);
   }
   :global(#app) button.gap:focus-visible {
     outline: 2px solid var(--accent);

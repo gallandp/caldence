@@ -1,7 +1,8 @@
 <script lang="ts">
   import { workspaceIndex } from '../../core/views';
   import { countChanges, effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
-  import { formatEuro, locale, translate as t } from '../../i18n';
+  import { unitName } from '../../core/model';
+  import { formatEuro, levels, locale, translate as t } from '../../i18n';
   import { resetWhatIf } from '../state/present';
   import { activeTeamId, index, workspace } from '../state/workspace';
   import { loadValue } from './WhatIfEffect.svelte';
@@ -21,11 +22,7 @@
   const after = $derived(
     scope && changes > 0 ? whatIfEffect($workspace, $index, scope, rate) : undefined,
   );
-  const scopeName = $derived(
-    $workspace.areas.find((a) => a.id === scope)?.name ??
-      $workspace.teams.find((x) => x.id === scope)?.name ??
-      '',
-  );
+  const scopeName = $derived(unitName($workspace, scope, $levels.org));
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */
   const team = $derived.by(() => {
     const id = $activeTeamId;

@@ -1,4 +1,4 @@
-import type { Area, RoleLink, Workspace } from './model';
+import { ORG_UNIT, orgArea, storeOrg, type Area, type RoleLink, type Workspace } from './model';
 import { record } from './record';
 import { validate, type Result } from './validate';
 
@@ -9,6 +9,14 @@ const unknown = <T>(areaId: string): Result<T> => ({
 
 /** A copy of the workspace with one area changed; refuses an unknown area or an invalid result. */
 function mapArea(ws: Workspace, areaId: string, fn: (a: Area) => void): Result<Workspace> {
+  if (areaId === ORG_UNIT) {
+    // The organisation's people are edited as an area's (#328).
+    const out = structuredClone(ws);
+    const org = orgArea(out);
+    fn(org);
+    storeOrg(out, org);
+    return validate(out);
+  }
   if (!ws.areas.some((a) => a.id === areaId)) return unknown(areaId);
   const out = structuredClone(ws);
   for (const a of out.areas) if (a.id === areaId) fn(a);
@@ -100,12 +108,16 @@ export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): strin
 }
 
 /**
- * Whether a "No X in team" note can offer the role mapping (#362, #433): the team has roles to
- * choose from, and X is not one of them (a role the team has but nobody holds is not renamed).
+ * Whether a "No X in team" note can offer the role mapping (#362, #433): a saved meeting of the
+ * area invites X from every team, the team does not have X, and it has roles to choose from. The
+ * organisation takes its teams' links from their areas; it keeps none of its own (#328).
  */
-export function canLinkRole(ws: Workspace, teamId: string, roleId: string): boolean {
-  const own = teamRoleIds(ws, teamId);
-  return own.length > 0 && !own.includes(roleId);
+export function canLinkRole(ws: Workspace, area: Area, teamId: string, roleId: string): boolean {
+  return (
+    area.id !== ORG_UNIT &&
+    teamRoleIds(ws, teamId).length > 0 &&
+    unmatchedRoles(ws, area, teamId).includes(roleId)
+  );
 }
 
 const words = (name: string) =>

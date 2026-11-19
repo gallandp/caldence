@@ -16,7 +16,15 @@
     warnings,
     type PersonMeeting,
   } from '../../core/load';
-  import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
+  import {
+    areaUnits,
+    keyName,
+    ORG_UNIT,
+    orgName,
+    units as allUnits,
+    unitLoadIds,
+    unitName,
+  } from '../../core/model';
   import { record } from '../../core/record';
   import {
     clashes,
@@ -30,6 +38,8 @@
     formatDisplayDate,
     formatNumber,
     formatPercent,
+    areaText,
+    levels,
     locale,
     translate as t,
   } from '../../i18n';
@@ -128,14 +138,15 @@
         hours: capacity(ws, personId, x.id),
         meetings: avg(x.id),
       }));
-    const areas = ws.areas
+    // The organisation's people count like an area's (#328).
+    const areas = areaUnits(ws)
       .filter(
         (a) =>
           a.members.some((m) => m.personId === personId) || Object.hasOwn(a.memberHours, personId),
       )
       .map((a) => ({
         id: a.id,
-        name: a.name,
+        name: a.id === ORG_UNIT ? orgName(ws, $levels.org) : a.name,
         area: true,
         roles: a.members.filter((m) => m.personId === personId).map((m) => roleName(m.roleId)),
         hours: areaHours(ws, a.id, personId),
@@ -150,12 +161,12 @@
    */
   function invitedOf(personId: string, known: { id: string }[]) {
     const ws = $workspace;
-    const areaIds = new Set(ws.areas.map((a) => a.id));
+    const areaIds = new Set(areaUnits(ws).map((a) => a.id));
     return allUnits(ws)
       .filter((u) => !known.some((k) => k.id === u.id))
       .map((u) => ({
         id: u.id,
-        name: u.name,
+        name: unitName(ws, u.id, $levels.org),
         area: areaIds.has(u.id),
         roles: [] as string[],
         hours: 0,
@@ -213,25 +224,43 @@
     const ws = $workspace;
     const inScope = scopePeople(ws, $filter);
     const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+    // Inside a sentence an unnamed organisation is "the organisation" (#328).
+    const where = (id: string) => unitName(ws, id, $levels.orgThe) || id;
     return areaHints(weeks, ws)
       .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
       .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
       .map((h) => ({
         ...h,
         key: `${h.personId}/${h.areaId}`,
-        label: $t('load.hint.setHours', {
-          person: nameOf(h.personId),
-          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
-        }),
+        label: $t('load.hint.setHours', { person: nameOf(h.personId), area: where(h.areaId) }),
         text: $t(`load.hint.${h.kind}`, {
           person: nameOf(h.personId),
-          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
+          area: where(h.areaId),
           hours: hours(h.hours),
           share: formatPercent($locale, fte(h.hours, h.areaHours)),
           areaHours: weekly(h.areaHours),
         }),
       }));
   });
+  /**
+   * An organisation meeting that invites a role "from every team" can reach many people without
+   * hours there (#328): their lines are capped, the rest counted in one line.
+   */
+  const ORG_HINTS = 5;
+  const orgHints = $derived(hintItems.filter((h) => h.areaId === ORG_UNIT));
+  const shownHints = $derived.by(() => {
+    const shown = new Set(orgHints.slice(0, ORG_HINTS));
+    return hintItems.filter((h) => h.areaId !== ORG_UNIT || shown.has(h));
+  });
+  /** Hints of areas only, of the organisation only (worded for it), or of both. */
+  const hintsTitle = $derived(
+    orgHints.length === 0
+      ? $t('load.hints')
+      : orgHints.length === hintItems.length
+        ? areaText($t, $levels, ORG_UNIT)('load.hints')
+        : $t('load.hints.both'),
+  );
+  const moreOrgHints = $derived(Math.max(0, orgHints.length - ORG_HINTS));
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -306,7 +335,7 @@
     const byPerson = record<ReturnType<typeof clashes>>();
     for (const c of clashes(ws, $index, scopePeople(ws, $filter)))
       (byPerson[c.personId] ??= []).push(c);
-    const units = [...ws.areas, ...ws.teams];
+    const units = allUnits(ws);
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
     const eventName = (o: { teamId: string; eventId: string }) =>
       units.find((u) => u.id === o.teamId)?.events.find((e) => e.id === o.eventId)?.name ??
@@ -314,7 +343,9 @@
     return Object.entries(byPerson)
       .map(([personId, found]) => {
         const ids = new Set(found.flatMap((c) => [c.a.teamId, c.b.teamId]));
-        const names = units.filter((u) => ids.has(u.id)).map((u) => u.name);
+        const names = units
+          .filter((u) => ids.has(u.id))
+          .map((u) => unitName(ws, u.id, $levels.org));
         const first = found[0]!;
         const time = clashTime(first);
         const person = ws.people.find((p) => p.id === personId)?.name ?? personId;
@@ -381,7 +412,8 @@
   const share = $derived(
     teamId && !$filter.roleId ? areaShare($workspace, $index, teamId, rate) : undefined,
   );
-  const unitLabel = $derived($workspace.teams.find((x) => x.id === teamId)?.name);
+  const scopeTeam = $derived($workspace.teams.find((x) => x.id === teamId));
+  const unitLabel = $derived(scopeTeam?.name);
 
   const uid = $props.id();
 </script>
@@ -574,7 +606,11 @@
               {#if openPerson === p.person.id}
                 {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
                   <p class="note" data-set-hours>
-                    {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                    {#if p.units.every((u) => u.id === ORG_UNIT)}
+                      {$t('load.detail.setHoursOrg', { org: $t('view.org') })}
+                    {:else}
+                      {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                    {/if}
                   </p>
                 {/if}
                 {@const lines = [...p.units, ...invitedOf(p.person.id, p.units)]}
@@ -768,10 +804,15 @@
       </ul>
     {/if}
     {#if hintItems.length > 0}
-      <h4 class="hints-title">{$t('load.hints')}</h4>
-      <p class="note">{$t('load.hints.rule')}</p>
+      <h4 class="hints-title">
+        {hintsTitle}
+      </h4>
+      {#if orgHints.length < hintItems.length}<p class="note">{$t('load.hints.rule')}</p>{/if}
+      {#if orgHints.length > 0}<p class="note">
+          {$t('load.hints.ruleOrg', { org: $t('view.org') })}
+        </p>{/if}
       <ul class="hints" data-area-hints>
-        {#each hintItems as h (h.key)}
+        {#each shownHints as h (h.key)}
           <li>
             {h.text}
             {#if onOpenStructure}
@@ -787,6 +828,13 @@
               >{/if}
           </li>
         {/each}
+        {#if moreOrgHints > 0}
+          <li data-more-hints>
+            {$t(moreOrgHints === 1 ? 'load.hint.moreOrg.one' : 'load.hint.moreOrg.other', {
+              n: formatNumber($locale, moreOrgHints, 0),
+            })}
+          </li>
+        {/if}
       </ul>
     {/if}
   </section>
@@ -813,7 +861,13 @@
     </div>
     <div class="col">
       {#if costs && rate}
-        <CostCard summary={costs} {rate} areaShare={share} unitName={unitLabel} />
+        <CostCard
+          summary={costs}
+          {rate}
+          cadence={scopeTeam?.cadence}
+          areaShare={share}
+          unitName={unitLabel}
+        />
       {:else if !rate && summary.byRole.length > 0}
         <RateInvite />
       {/if}

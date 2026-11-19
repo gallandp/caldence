@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { AreaShare } from '../../core/areaCosts';
   import { costPerCadence, type CostSummary } from '../../core/cost';
-  import type { Cadence } from '../../core/model';
-  import { formatEuro, formatNumber, locale, translate as t } from '../../i18n';
+  import { unitName as nameOf, type Cadence } from '../../core/model';
+  import { formatEuro, formatNumber, levels, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
   interface Props {
@@ -21,15 +21,13 @@
   const euro = (n: number) => formatEuro($locale, n);
   const perCadence = $derived(cadence ? costPerCadence(summary.perWeek, cadence) : undefined);
   /** The area share per sprint or PI, wherever the card shows its own (#366). */
-  const shareCadence = $derived(
-    cadence && areaShare ? costPerCadence(areaShare.perWeek, cadence) : undefined,
-  );
+  // areaShare.perCadence uses the team's cadence; pass that same team's cadence as `cadence`.
+  const shareCadence = $derived(perCadence === undefined ? undefined : areaShare?.perCadence);
   const kind = $derived(cadence ? $t(`meet.kind.${cadence.kind}`) : '');
   const max = $derived(Math.max(0, ...summary.byCategory.map((c) => c.perWeek)));
   const category = (id: string) => $workspace.categories.find((c) => c.id === id);
   const roleName = (id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id;
-  const unitName = (id: string) =>
-    [...$workspace.teams, ...$workspace.areas].find((u) => u.id === id)?.name ?? id;
+  const unitName = (id: string) => nameOf($workspace, id, $levels.org) || id;
   /** Role names; with several teams in scope each with its team, since the gap is per team. */
   const unfilledRoles = $derived.by(() => {
     const several = new Set(summary.unfilled.map((u) => u.unitId)).size > 1;

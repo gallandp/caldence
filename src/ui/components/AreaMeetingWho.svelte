@@ -7,7 +7,7 @@
     type CalEvent,
   } from '../../core/model';
   import { canLinkRole } from '../../core/areaEdit';
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { areaText, formatNumber, levels, locale, translate } from '../../i18n';
   import { presenting } from '../state/present';
   import { workspace } from '../state/workspace';
   import RoleLinkDialog from './RoleLinkDialog.svelte';
@@ -18,22 +18,25 @@
    * that lacks an invited role. Shared by Meetings & cadence and the area overview.
    */
   let { area, event }: { area: Area; event: CalEvent } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area.id));
 
   const ws = $derived($workspace);
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
-  const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
+  /** A team, or in the organisation an area that lacks a role "from every area" (#328). */
+  const teamName = (id: string) => [...ws.teams, ...ws.areas].find((x) => x.id === id)?.name ?? id;
   /** " · 50 %" after a role that comes to part of the meeting; nothing at a share of 1. */
   const shareSuffix = (share: number) =>
     share >= 1
       ? ''
-      : ` · ${$t('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) })}`;
+      : ` · ${tt('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) })}`;
   const missing = $derived(missingRoles(ws, area, event));
   /**
    * A missing role the team may call differently: it is not among the team's roles, and the team
    * has roles to choose from. Its pill opens the mapping (#362).
    */
   const mappable = (teamId: string, roleId: string) =>
-    !$presenting && canLinkRole(ws, teamId, roleId);
+    !$presenting && canLinkRole(ws, area, teamId, roleId);
   let list = $state<HTMLUListElement | undefined>();
   let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
   /**
@@ -45,9 +48,17 @@
 
 <ul class="area-roles" bind:this={list} tabindex="-1">
   {#each event.participants as p, i (i)}
-    <li class="area-chip" class:from-teams={p.fromTeams} class:person={p.personId !== undefined}>
-      {#if p.fromTeams}<span class="split-dot" aria-hidden="true"></span>{$t(
-          'area.fromTeams.count',
+    <li
+      class="area-chip"
+      class:from-teams={p.fromTeams || p.fromAreas}
+      class:person={p.personId !== undefined}
+    >
+      {#if p.fromTeams || p.fromAreas}<span class="split-dot" aria-hidden="true"></span>{tt(
+          p.fromAreas && p.fromTeams
+            ? 'org.fromBoth.count'
+            : p.fromAreas
+              ? 'org.fromAreas.count'
+              : 'area.fromTeams.count',
           {
             role: participantName(ws, p),
             n: formatNumber($locale, attendees(ws, area.id, p, event).length, 0),
@@ -56,7 +67,7 @@
           class="person-icon"
           viewBox="0 0 24 24"
           aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg
-        ><span class="sr-only">{$t('meet.person.namedPrefix')}</span>{participantName(
+        ><span class="sr-only">{tt('meet.person.namedPrefix')}</span>{participantName(
           ws,
           p,
         )}{:else}{participantName(ws, p)}{/if}{shareSuffix(p.share)}
@@ -67,12 +78,12 @@
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg>
 {/snippet}
 {#each missing as m, i (i)}
-  {@const note = $t('area.missingRole', { team: teamName(m.teamId), role: roleName(m.roleId) })}
+  {@const note = tt('area.missingRole', { team: teamName(m.teamId), role: roleName(m.roleId) })}
   {#if mappable(m.teamId, m.roleId)}
     <button
       type="button"
       class="missing"
-      aria-label={$t('area.roleLink.choose', { note })}
+      aria-label={tt('area.roleLink.choose', { note })}
       onclick={(e) => (mapping = { ...m, button: e.currentTarget })}
       >{@render warning()}{note}<svg
         class="chev"
@@ -116,6 +127,11 @@
     font-size: 0.78rem;
     font-weight: 600;
   }
+  /* A long role or team name wraps anywhere instead of widening a phone's meeting card (#431). */
+  .area-chip,
+  .missing {
+    overflow-wrap: anywhere;
+  }
   /* A person invited by name (#285): outlined, with a person glyph. */
   .area-chip.person {
     background: transparent;
@@ -156,7 +172,7 @@
     font-size: 0.8rem;
     font-weight: 600;
     line-height: 1.35;
-    min-height: 2rem;
+    min-height: 2.75rem;
     padding: 6px 8px 6px 10px;
     border: 1px solid transparent;
     border-radius: 8px;

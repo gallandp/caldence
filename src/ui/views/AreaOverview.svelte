@@ -177,6 +177,12 @@
   const euro = (n: number) => formatEuro($locale, n);
   const costOf = (c: { perWeek: number; horizon: number }) =>
     period === 'week' ? c.perWeek : c.horizon;
+  /** Per week, a team with a sprint or PI also gets the area share per sprint or PI (#434). */
+  const areaShareKey = (a: { perCadence?: number }) =>
+    period === 'week' && a.perCadence !== undefined
+      ? 'overview.cost.areaShare.cadence'
+      : 'overview.cost.areaShare.' + period;
+  const kindOf = (id: string) => $t(`meet.kind.${unitOf(id).cadence.kind}`);
   /** Bars run from 0 to 1.5 × the limit, with a tick at the limit (one scale everywhere). */
   const barWidth = (share: number) =>
     maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
@@ -532,8 +538,10 @@
                 <td class="num strong cost"
                   >{euro(costOf(r.cost))}{#if r.areaShare}<span class="sr-only">, </span><small
                       data-area-share
-                      >{$t('overview.cost.areaShare.' + period, {
+                      >{$t(areaShareKey(r.areaShare), {
                         amount: euro(costOf(r.areaShare)),
+                        cadence: euro(r.areaShare.perCadence ?? 0),
+                        kind: kindOf(r.unitId),
                       })}</small
                     >{/if}</td
                 >

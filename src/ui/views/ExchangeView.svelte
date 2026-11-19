@@ -24,8 +24,8 @@
   import { zip } from '../../core/zip';
   import { xlsx } from '../../core/xlsx';
   import { structureSheets } from '../../core/structureSheets';
-  import { unitLoadIds } from '../../core/model';
-  import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { areaUnits, ORG_UNIT, orgName, unitLoadIds } from '../../core/model';
+  import { formatDisplayDate, formatNumber, levels, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
   import HolidayDrops from '../components/HolidayDrops.svelte';
   import { resolveRegion } from '../../core/regions';
@@ -142,10 +142,17 @@
     }
   }
 
+  /** Areas, and the organisation once it has meetings or people of its own (#328). */
+  const ownAreas = $derived(
+    areaUnits(ws).map((x) => ({
+      id: x.id,
+      name: x.id === ORG_UNIT ? orgName(ws, $levels.org) : x.name,
+    })),
+  );
   const choices = $derived(
     kind === 'team'
       ? // An area's calendar holds its own meetings; each team keeps its own.
-        [...ws.teams, ...ws.areas].map((x) => ({ id: x.id, name: x.name }))
+        [...ws.teams.map((x) => ({ id: x.id, name: x.name })), ...ownAreas]
       : kind === 'role'
         ? ws.roles.map((x) => ({ id: x.id, name: x.name }))
         : ws.people.map((x) => ({ id: x.id, name: x.name })),
@@ -221,7 +228,7 @@
   const filterFor = (id: string): Filter =>
     kind === 'team' ? { teamId: id } : kind === 'role' ? { roleId: id } : { personId: id };
 
-  const chosenIsArea = $derived(kind === 'team' && ws.areas.some((a) => a.id === chosen?.id));
+  const chosenIsArea = $derived(kind === 'team' && ownAreas.some((a) => a.id === chosen?.id));
   // In a file with several areas, a selected area's ZIP holds only its own calendar and its teams'.
   const zipArea = $derived(
     kind === 'team' && ws.areas.length > 1 ? ws.areas.find((a) => a.id === chosen?.id) : undefined,
@@ -534,7 +541,7 @@
         <div class="field">
           <label for="{uid}-scope-pick"
             >{$t(
-              'exchange.scope.pick.' + (kind === 'team' && ws.areas.length > 0 ? 'unit' : kind),
+              'exchange.scope.pick.' + (kind === 'team' && ownAreas.length > 0 ? 'unit' : kind),
             )}</label
           >
           <select
@@ -543,13 +550,13 @@
             value={chosen?.id ?? ''}
             onchange={(e) => (pickedId[kind] = e.currentTarget.value)}
           >
-            {#if kind === 'team' && ws.areas.length > 0}
+            {#if kind === 'team' && ownAreas.length > 0}
               <!-- Teams and areas apart, so an area is not taken for a team. -->
               <optgroup label={$t('exchange.scope.group.teams')}>
                 {#each ws.teams as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
               </optgroup>
               <optgroup label={$t('exchange.scope.group.areas')}>
-                {#each ws.areas as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
+                {#each ownAreas as x (x.id)}<option value={x.id}>{x.name}</option>{/each}
               </optgroup>
             {:else}
               {#each choices as choice (choice.id)}

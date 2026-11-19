@@ -53,7 +53,7 @@ describe('organisation level (#313)', () => {
     const w = ws();
     const teams = w.teams.map((t) => t.id);
     expect(unitTeamIds(w, ORG_UNIT)).toEqual(teams);
-    expect(unitLoadIds(w, ORG_UNIT)).toEqual([...teams, ...w.areas.map((a) => a.id)]);
+    expect(unitLoadIds(w, ORG_UNIT)).toEqual([...teams, ...w.areas.map((a) => a.id), ORG_UNIT]);
     expect(areasInScope(w, { teamId: ORG_UNIT }).map((a) => a.id)).toEqual(
       w.areas.map((a) => a.id),
     );

@@ -274,6 +274,7 @@ function checkEvent(
   cycles: Map<string, Set<string>>,
   cadenceDays: number | undefined,
   inArea: boolean,
+  inOrg: boolean,
 ): void {
   c.str(e, 'name', p);
   c.ref(e, 'categoryId', p, categoryIds);
@@ -301,6 +302,7 @@ function checkEvent(
     if (pt.personId !== undefined) {
       if (pt.roleId !== undefined) c.err(`${pp}.roleId`, 'error.participant.both');
       if (pt.fromTeams !== undefined) c.err(`${pp}.fromTeams`, 'error.participant.both');
+      if (pt.fromAreas !== undefined) c.err(`${pp}.fromAreas`, 'error.participant.both');
       c.ref(pt, 'personId', pp, personIds);
       if (isStr(pt.personId)) {
         if (named.has(pt.personId)) c.err(`${pp}.personId`, 'error.id.duplicate');
@@ -314,6 +316,11 @@ function checkEvent(
     if (pt.fromTeams !== undefined && pt.personId === undefined) {
       if (!inArea) c.err(`${pp}.fromTeams`, 'error.fromTeams.team');
       else if (typeof pt.fromTeams !== 'boolean') c.err(`${pp}.fromTeams`, 'error.type');
+    }
+    // "Role X from every area" exists only in the organisation (#328).
+    if (pt.fromAreas !== undefined && pt.personId === undefined) {
+      if (!inOrg) c.err(`${pp}.fromAreas`, 'error.fromAreas.org');
+      else if (typeof pt.fromAreas !== 'boolean') c.err(`${pp}.fromAreas`, 'error.type');
     }
   });
 }
@@ -375,6 +382,7 @@ function checkCyclesAndEvents(
   categoryIds: Set<string>,
   cadenceDays: number | undefined,
   inArea = false,
+  inOrg = false,
 ): void {
   const cycles = new Map<string, Set<string>>();
   const cycleList = c.arr(t.cycles, `${p}.cycles`, LIMITS.cyclesPerTeam) ?? [];
@@ -393,7 +401,7 @@ function checkCyclesAndEvents(
   const events = c.arr(t.events, `${p}.events`) ?? [];
   c.ids(events, `${p}.events`);
   c.each(events, `${p}.events`, (e, ep) =>
-    checkEvent(c, e, ep, categoryIds, roleIds, personIds, cycles, cadenceDays, inArea),
+    checkEvent(c, e, ep, categoryIds, roleIds, personIds, cycles, cadenceDays, inArea, inOrg),
   );
 }
 
@@ -572,9 +580,11 @@ export function validate(input: unknown): Result<Workspace> {
       0,
     );
   const teamEvents = count(teams);
-  // The limit is for teams and areas together; name the list that pushed it over.
+  // The limit is for teams, areas and the organisation together; name the list that pushed it over.
   if (teamEvents > LIMITS.events) c.err('teams', 'error.list.tooLong');
   else if (teamEvents + count(areas) > LIMITS.events) c.err('areas', 'error.list.tooLong');
+  else if (teamEvents + count(areas) + count([w.organisation]) > LIMITS.events)
+    c.err('organisation.events', 'error.list.tooLong');
   const teamIds = c.ids(teams, 'teams');
   c.each(teams, 'teams', (t, p) => checkTeam(c, t, p, roleIds, personIds, categoryIds));
 
@@ -585,10 +595,22 @@ export function validate(input: unknown): Result<Workspace> {
 
   if (w.organisation !== undefined) {
     const o = c.obj(w.organisation, 'organisation');
-    // An emptied name reads as missing; the app removes the entry instead (renameOrganisation).
+    // An emptied name reads as missing; the app removes it instead (renameOrganisation). Without
+    // a name the organisation can still hold people and meetings (#328).
     if (o && typeof o.name === 'string' && o.name.trim() === '')
       c.err('organisation.name', 'error.required');
-    else if (o) c.str(o, 'name', 'organisation');
+    else if (o && o.name !== undefined) c.str(o, 'name', 'organisation');
+    // Its people and meetings, like an area's without a cadence or cycles; each list optional.
+    if (o) {
+      const own = {
+        members: o.members ?? [],
+        memberHours: o.memberHours ?? {},
+        cycles: [],
+        events: o.events ?? [],
+      };
+      checkMembers(c, own, 'organisation', roleIds, personIds);
+      checkCyclesAndEvents(c, own, 'organisation', roleIds, personIds, categoryIds, 0, true, true);
+    }
   }
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.

@@ -2,7 +2,7 @@
   import { canLinkRole } from '../../core/areaEdit';
   import { areaHours } from '../../core/load';
   import { holders, missingRoles, teamRolesFor, type Area, type Workspace } from '../../core/model';
-  import { translate as t } from '../../i18n';
+  import { areaText, levels, translate } from '../../i18n';
   import { presenting } from '../state/present';
   import RoleLinkDialog from './RoleLinkDialog.svelte';
 
@@ -15,6 +15,7 @@
     area,
     roleId,
     fromTeams,
+    fromAreas = false,
     named = [],
     onSetHours,
   }: {
@@ -22,15 +23,19 @@
     area: Area;
     roleId: string;
     fromTeams: boolean;
+    /** In the organisation: the role from every area (#328). */
+    fromAreas?: boolean;
     /** People the meeting invites by name: they count on their own row, not here. */
     named?: string[];
     onSetHours?: (personId?: string) => void;
   } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area.id));
 
   /** Names shown before "+ n more". */
   const MAX = 6;
 
-  const participant = $derived({ roleId, share: 1, fromTeams });
+  const participant = $derived({ roleId, share: 1, fromTeams, fromAreas });
   const all = $derived(holders(ws, area.id, participant));
   const people = $derived(all.filter((id) => !named.includes(id)));
   const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
@@ -41,6 +46,11 @@
     const where = [
       ...(area.members.some((m) => m.personId === personId && m.roleId === roleId)
         ? [area.name]
+        : []),
+      ...(fromAreas
+        ? ws.areas
+            .filter((a) => a.members.some((m) => m.personId === personId && m.roleId === roleId))
+            .map((a) => a.name)
         : []),
       ...ws.teams
         .filter(
@@ -59,11 +69,11 @@
 
   const listed = $derived.by(() => {
     const names = people.slice(0, MAX).map(label);
-    if (people.length > MAX) names.push($t('area.participants.more', { n: people.length - MAX }));
+    if (people.length > MAX) names.push(tt('area.participants.more', { n: people.length - MAX }));
     return names.join(', ');
   });
   const missing = $derived(
-    fromTeams
+    fromTeams || fromAreas
       ? missingRoles(ws, area, {
           id: '',
           name: '',
@@ -76,7 +86,8 @@
         }).map((m) => m.teamId)
       : [],
   );
-  const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
+  /** A team, or in the organisation an area that lacks a role "from every area" (#328). */
+  const teamName = (id: string) => [...ws.teams, ...ws.areas].find((x) => x.id === id)?.name ?? id;
   /** A team that may call the role differently: its note opens the mapping (#433). */
   let mapping = $state<{ teamId: string; button: HTMLElement } | undefined>();
   let reach = $state<HTMLElement | undefined>();
@@ -93,12 +104,12 @@
 {/snippet}
 <div class="reach" bind:this={reach}>
   {#if all.length === 0}
-    <p class="who">{$t('area.participants.nobody')}</p>
+    <p class="who">{tt('area.participants.nobody')}</p>
   {:else if people.length === 0}
-    <p class="who">{$t('area.participants.allNamed')}</p>
-  {:else if fromTeams}
+    <p class="who">{tt('area.participants.allNamed')}</p>
+  {:else if fromTeams || fromAreas}
     <p class="who">
-      <span class="dot" aria-hidden="true"></span>{$t(
+      <span class="dot" aria-hidden="true"></span>{tt(
         people.length === 1 ? 'area.participants.resolved.one' : 'area.participants.resolved.other',
         { n: people.length, names: listed },
       )}
@@ -109,15 +120,16 @@
     </ul>
   {/if}
   {#each missing as teamId (teamId)}
-    {@const note = $t('area.missingRole', { team: teamName(teamId), role: roleName })}
-    {#if !$presenting && canLinkRole(ws, teamId, roleId)}
+    {@const note = tt('area.missingRole', { team: teamName(teamId), role: roleName })}
+    {#if !$presenting && canLinkRole(ws, area, teamId, roleId)}
       <button
         type="button"
         class="warn"
-        aria-label={$t('area.roleLink.choose', { note })}
+        aria-label={tt('area.roleLink.choose', { note })}
         onclick={(e) => (mapping = { teamId, button: e.currentTarget })}
         >{@render warning()}<span class="grow">{note}</span><svg
           class="chev"
+          data-no-print
           viewBox="0 0 24 24"
           aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
         ></button
@@ -129,7 +141,7 @@
   {#if noHours.length > 0}
     <p class="warn" role="note">
       {@render warning()}<span class="grow"
-        >{$t(
+        >{tt(
           noHours.length === 1
             ? 'area.participants.noHours.one'
             : 'area.participants.noHours.other',
@@ -141,7 +153,7 @@
           type="button"
           class="link"
           onclick={() => onSetHours(noHoursIds.length === 1 ? noHoursIds[0] : undefined)}
-          >{$t('area.participants.setHours')}</button
+          >{tt('area.participants.setHours')}</button
         >
       {/if}
     </p>

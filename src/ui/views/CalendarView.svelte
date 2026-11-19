@@ -24,7 +24,7 @@
     scopeUnits,
     type FilteredOccurrence,
   } from '../../core/views';
-  import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
+  import { formatDisplayDate, formatNumber, levels, locale, translate as t } from '../../i18n';
   import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
   import AreaIcon from '../components/AreaIcon.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
@@ -32,6 +32,8 @@
   import {
     participantName,
     units,
+    areaUnits,
+    unitName,
     type CalEvent,
     type Category,
     type Team,
@@ -150,7 +152,8 @@
   const lookup = $derived.by(() => {
     const categories = record<Category>();
     for (const c of $workspace.categories) categories[c.id] = c;
-    const areaIds = new Set($workspace.areas.map((a) => a.id));
+    // The organisation's meetings stand out like an area's (#328).
+    const areaIds = new Set(areaUnits($workspace).map((a) => a.id));
     const map = record<{ team: Team; event: CalEvent; category?: Category; area: boolean }>();
     for (const team of units($workspace))
       for (const event of team.events)
@@ -172,7 +175,7 @@
         category?.name ?? event?.categoryId,
         event && team ? ruleSummary(event.rule, team, $t, $locale) : undefined,
         // An area meeting always names its area, so it stands out from the teams' meetings.
-        area || severalTeams ? (team?.name ?? o.teamId) : undefined,
+        area || severalTeams ? unitName($workspace, o.teamId, $levels.org) || o.teamId : undefined,
       ].filter(Boolean);
       const roles = (event?.participants ?? []).map((p) => participantName($workspace, p));
       return {
