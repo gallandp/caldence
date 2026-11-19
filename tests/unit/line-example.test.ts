@@ -83,8 +83,10 @@ describe('line organisation example (#323)', () => {
   it('follows the UI language and gets a fresh id', async () => {
     const en = await lineExample('en');
     const de = await lineExample('de');
-    expect(en.organisation!.name).toBe('Velmora Group');
-    expect(de.organisation!.name).toBe('Velmora Gruppe');
+    expect(en.organisation!.name).toBe('Velmora Platforms');
+    expect(de.organisation!.name).toBe('Velmora Plattformen');
+    expect(en.lineName).toBe('Velmora Group');
+    expect(de.lineName).toBe('Velmora Gruppe');
     expect(en.skills!.map((s) => s.name)).toContain('Orvalis Warehouse');
     expect(en.teams.map((t) => t.name)).toEqual(de.teams.map((t) => t.name));
     expect(en.id).not.toBe(de.id);

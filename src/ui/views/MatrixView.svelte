@@ -8,7 +8,13 @@
     type MatrixPerson,
     type MatrixWorld,
   } from '../../core/matrix';
-  import { lineSelection, ORG_UNIT, orgName, selectedLineUnit } from '../../core/model';
+  import {
+    lineRootName,
+    lineSelection,
+    ORG_UNIT,
+    orgName,
+    selectedLineUnit,
+  } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
   import { presenting } from '../state/present';
   import { workspace } from '../state/workspace';
@@ -52,7 +58,8 @@
 
   const name = $derived.by(() => {
     const line = selectedLineUnit(selection);
-    if (selection === ORG_UNIT || line === ORG_UNIT) return orgName(ws, $levels.org);
+    if (selection === ORG_UNIT) return orgName(ws, $levels.org);
+    if (line === ORG_UNIT) return lineRootName(ws, $levels.org);
     if (line !== undefined) return ws.lineUnits?.find((u) => u.id === line)?.name ?? '';
     return [...ws.areas, ...ws.teams].find((u) => u.id === selection)?.name ?? '';
   });

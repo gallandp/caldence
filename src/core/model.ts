@@ -331,6 +331,11 @@ export interface Workspace {
    * file is one organisation; without this entry it is shown with its level name.
    */
   organisation?: Organisation;
+  /**
+   * The own name of the line's root (#417), e.g. the group its companies belong to. The product
+   * organisation may be called differently; without it the line shows the organisation's name.
+   */
+  lineName?: string;
   /** Line organisation and staffing (#315, Caldence 2); all optional, no schema bump. */
   lineUnits?: LineUnit[];
   skillFamilies?: SkillFamily[];
@@ -362,6 +367,11 @@ export function hasOrgLevel(ws: Workspace): boolean {
 /** The organisation's name, or the level's name (`fallback`) while it has none. */
 export function orgName(ws: Workspace, fallback: string): string {
   return ws.organisation?.name || fallback;
+}
+
+/** The name of the line's root (#417): its own one, or else the organisation's. */
+export function lineRootName(ws: Workspace, fallback: string): string {
+  return ws.lineName || orgName(ws, fallback);
 }
 
 export interface SavedView {

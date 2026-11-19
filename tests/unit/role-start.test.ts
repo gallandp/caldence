@@ -104,7 +104,7 @@ describe('setupStructure', () => {
 describe('setupLine', () => {
   it('creates line teams under a group and shows the group', () => {
     const r = setupLine(emptyWorkspace(today), {
-      organisation: 'Nordlicht',
+      lineName: 'Nordlicht Gruppe',
       group: 'Engineering',
       teams: ['Backend', 'Frontend'],
     });
@@ -117,7 +117,9 @@ describe('setupLine', () => {
       'Backend',
       'Frontend',
     ]);
-    expect(out.organisation).toEqual({ name: 'Nordlicht' });
+    // The line's own name, never the product organisation's (#417).
+    expect(out.lineName).toBe('Nordlicht Gruppe');
+    expect(out.organisation).toBeUndefined();
     expect(out.teams).toEqual([]);
   });
 

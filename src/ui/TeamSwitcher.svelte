@@ -6,6 +6,7 @@
     removeArea,
     removeTeam,
     renameArea,
+    renameLine,
     renameOrganisation,
     updateTeam,
   } from '../core/edit';
@@ -16,6 +17,7 @@
     linePeople,
     lineSelection,
     ORG_UNIT,
+    lineRootName,
     orgName,
     selectedLineUnit,
     type Area,
@@ -45,6 +47,8 @@
   const showOrg = $derived(hasOrgLevel($workspace));
   const activeOrg = $derived(showOrg && $activeTeamId === ORG_UNIT);
   const org = $derived({ id: ORG_UNIT, name: orgName($workspace, $levels.org) });
+  /** The line's root (#417): the organisation, under its own line name if it has one. */
+  const lineTop = $derived({ id: ORG_UNIT, name: lineRootName($workspace, $levels.org) });
   /** A line unit (#316): its own group in the list, below the organisation's tree. */
   const lineUnits = $derived($workspace.lineUnits ?? []);
   const activeLine = $derived(lineUnits.find((u) => u.id === selectedLineUnit($activeTeamId)));
@@ -57,7 +61,9 @@
    */
   const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
   const lineRoot = $derived($activeTeamId === LINE_ROOT);
-  const current = $derived(activeLine ?? (lineRoot || activeOrg ? org : (activeArea ?? active)));
+  const current = $derived(
+    activeLine ?? (lineRoot ? lineTop : activeOrg ? org : (activeArea ?? active)),
+  );
   const orgCount = $derived(
     areas.length > 0
       ? $t(areas.length === 1 ? 'org.count.areas.one' : 'org.count.areas.other', {
@@ -74,7 +80,7 @@
     });
 
   let dialog: HTMLDialogElement | undefined;
-  let mode = $state<'add' | 'rename' | 'renameArea' | 'renameOrg'>('add');
+  let mode = $state<'add' | 'rename' | 'renameArea' | 'renameOrg' | 'renameLine'>('add');
   let areaDialog: AreaDialog | undefined = $state();
   let name = $state('');
   let error = $state('');
@@ -91,7 +97,7 @@
     activeLine
       ? `${activeLine.name}\n${lineLevel(activeLine)} · ${peopleText(linePeople($workspace, activeLine.id).size)}`
       : lineRoot
-        ? `${org.name}\n${$levels.org} · ${peopleText(linePeople($workspace, ORG_UNIT).size)}`
+        ? `${lineTop.name}\n${$levels.org} · ${peopleText(linePeople($workspace, ORG_UNIT).size)}`
         : activeOrg
           ? `${org.name}\n${$t('org.meta', { count: orgCount })}`
           : activeArea
@@ -193,7 +199,7 @@
     menu?.querySelector('button')?.focus();
   }
 
-  async function openDialog(next: 'add' | 'rename' | 'renameArea' | 'renameOrg') {
+  async function openDialog(next: 'add' | 'rename' | 'renameArea' | 'renameOrg' | 'renameLine') {
     mode = next;
     name =
       next === 'rename'
@@ -202,7 +208,9 @@
           ? (activeArea?.name ?? '')
           : next === 'renameOrg'
             ? ($workspace.organisation?.name ?? '')
-            : '';
+            : next === 'renameLine'
+              ? ($workspace.lineName ?? '')
+              : '';
     error = '';
     await tick();
     dialog?.showModal();
@@ -214,15 +222,20 @@
       ? 'area.dialog.name'
       : mode === 'renameOrg'
         ? 'org.dialog.name'
-        : 'team.dialog.name',
+        : mode === 'renameLine'
+          ? 'line.dialog.name'
+          : 'team.dialog.name',
   );
 
   function submit(event: Event) {
     event.preventDefault();
     const value = name.trim();
     // An empty name gives the organisation its level's name back.
-    if (mode === 'renameOrg') {
-      const result = workspace.apply((ws) => renameOrganisation(ws, value));
+    // An empty line name gives the line the organisation's name back (#417).
+    if (mode === 'renameOrg' || mode === 'renameLine') {
+      const result = workspace.apply((ws) =>
+        mode === 'renameLine' ? renameLine(ws, value) : renameOrganisation(ws, value),
+      );
       if (!result.ok) {
         error = result.errors[0]?.key ?? 'error.type';
         return;
@@ -434,7 +447,7 @@
           onclick={() => choose(LINE_ROOT)}
         >
           <span class="avatar mini org" aria-hidden="true">{@render orgIcon()}</span>
-          <span class="opt-name-org">{org.name}</span>
+          <span class="opt-name-org">{lineTop.name}</span>
           <span class="count org-count">{peopleText(linePeople($workspace, ORG_UNIT).size)}</span>
         </button>
         <ul class="line-group" aria-label={$t('line.switcher.group')}>
@@ -533,7 +546,11 @@
         <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
           >{$t('line.unit.delete')}</button
         >
-      {:else if activeOrg || lineRoot}
+      {:else if lineRoot}
+        <button type="button" onclick={() => run(() => openDialog('renameLine'))}
+          >{$t('line.rename')}</button
+        >
+      {:else if activeOrg}
         <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
           >{$t('org.rename')}</button
         >
@@ -594,7 +611,9 @@
             ? 'team.dialog.rename'
             : mode === 'renameOrg'
               ? 'org.rename'
-              : 'area.rename',
+              : mode === 'renameLine'
+                ? 'line.rename'
+                : 'area.rename',
       )}
     </h2>
     <div class="field">
@@ -602,7 +621,11 @@
       <input
         id="{uid}-name"
         type="text"
-        placeholder={mode === 'renameOrg' ? $levels.org : undefined}
+        placeholder={mode === 'renameOrg'
+          ? $levels.org
+          : mode === 'renameLine'
+            ? orgName($workspace, $levels.org)
+            : undefined}
         bind:value={name}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? `${uid}-err` : undefined}

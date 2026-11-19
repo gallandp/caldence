@@ -866,7 +866,9 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
     teams,
     areas,
     customRegions: [],
-    organisation: { name: L(['Velmora Gruppe', 'Velmora Group']) },
+    // The product organisation is named apart from the group and its companies (#417).
+    organisation: { name: L(['Velmora Plattformen', 'Velmora Platforms']) },
+    lineName: L(['Velmora Gruppe', 'Velmora Group']),
     lineUnits,
     skillFamilies: Object.entries(FAMILIES).map(([id, n]) => ({ id, name: L(n) })),
     skills: Object.entries(SKILLS).map(([id, [n, familyId]]) => ({ id, name: L(n), familyId })),

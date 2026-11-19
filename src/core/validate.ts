@@ -823,6 +823,13 @@ export function validate(input: unknown): Result<Workspace> {
     else if (o) c.str(o, 'name', 'organisation');
   }
 
+  // The line's own root name (#417); an emptied one reads as missing, like the organisation's.
+  if (w.lineName !== undefined) {
+    if (!isStr(w.lineName)) c.err('lineName', 'error.type');
+    else if (w.lineName.trim() === '') c.err('lineName', 'error.required');
+    else if (w.lineName.length > LIMITS.textChars) c.err('lineName', 'error.text.tooLong');
+  }
+
   checkLine(c, w, { roles: roleIds, people: personIds });
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.

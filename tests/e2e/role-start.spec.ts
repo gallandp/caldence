@@ -33,7 +33,9 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(dialog.getByText('Step 1 of 2')).toBeVisible();
   await expect(dialog.getByRole('heading', { name: 'Your line teams' })).toBeFocused();
   // Fictional examples guide the first entries (placeholders, not values).
-  await expect(dialog.getByLabel('Organisation name')).toHaveAttribute(
+  // The line's own name, not the product organisation's (#417).
+  await expect(dialog.getByLabel('Organisation name')).toHaveCount(0);
+  await expect(dialog.getByLabel('Name of the line')).toHaveAttribute(
     'placeholder',
     'e.g. Velmora Group',
   );
@@ -44,7 +46,7 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(dialog.getByLabel('Line teams')).toBeFocused();
   await expect(dialog.getByText('Please enter at least one name.')).toBeVisible();
   expect((await axe(page)).violations).toEqual([]);
-  await dialog.getByLabel('Organisation name').fill('Nordlicht');
+  await dialog.getByLabel('Name of the line').fill('Nordlicht Group');
   await dialog.getByLabel('Specialist group above them').fill('Engineering');
   // Line unit names are unique, the group's too.
   await dialog.getByLabel('Line teams').fill('Backend, engineering');

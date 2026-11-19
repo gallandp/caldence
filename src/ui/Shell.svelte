@@ -8,7 +8,7 @@
   import OrgView from './views/OrgView.svelte';
   import type { ISODate } from '../core/date';
   import type { SetupMode } from '../core/setup';
-  import { LINE_ROOT, ORG_UNIT, orgName, selectedLineUnit } from '../core/model';
+  import { LINE_ROOT, ORG_UNIT, lineRootName, selectedLineUnit } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -72,7 +72,7 @@
    */
   const activeLine = $derived(
     $activeTeamId === LINE_ROOT
-      ? { id: ORG_UNIT, name: orgName($workspace, $levels.org) }
+      ? { id: ORG_UNIT, name: lineRootName($workspace, $levels.org) }
       : $workspace.lineUnits?.find((u) => u.id === selectedLineUnit($activeTeamId)),
   );
   /** The line world is shown (#393): a line unit or the line's root is selected. */

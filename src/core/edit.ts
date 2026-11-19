@@ -351,6 +351,16 @@ export function renameArea(ws: Workspace, areaId: string, name: string): Result<
   return v.ok ? { ok: true, value: out } : v;
 }
 
+/** Names the line's root (#417); an empty name removes it, so the organisation's name shows again. */
+export function renameLine(ws: Workspace, name: string): Result<Workspace> {
+  const out = structuredClone(ws);
+  const text = name.trim();
+  if (text === '') delete out.lineName;
+  else out.lineName = text;
+  const v = validate(out);
+  return v.ok ? { ok: true, value: out } : v;
+}
+
 /** Names the organisation (#313); an empty name removes it, so the level's name shows again. */
 export function renameOrganisation(ws: Workspace, name: string): Result<Workspace> {
   const out = structuredClone(ws);
