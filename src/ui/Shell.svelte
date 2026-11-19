@@ -887,9 +887,12 @@
   .skip:focus {
     transform: translateY(var(--space));
   }
+  /* From a 1280 px window the sidebar grows to 21rem at 1440 px: room for a line tree three
+     levels deep with long names (at 15.5rem they broke letter by letter). Up to 1280 px the views
+     keep their room. */
   .layout {
     display: grid;
-    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-columns: clamp(15.5rem, 55vw - 28.5rem, 21rem) minmax(0, 1fr);
     min-height: 100vh;
   }
   .sidebar {

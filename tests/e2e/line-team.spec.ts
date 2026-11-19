@@ -170,3 +170,51 @@ test('presenting hides the tabs and line staff names', async ({ page }) => {
   await expect(view).not.toContainText('Led by');
   await expect(view).not.toContainText('Alex');
 });
+
+test('a deep line tree in the sidebar keeps the words of long names whole', async ({ page }) => {
+  // Invented German names, three levels deep, whose longest words fit their level whole in the
+  // sidebar of a 1440 px window. Hyphenation is off, so browsers with and without a German
+  // dictionary render the same.
+  const ws = lineWorkspace();
+  ws.settings.locale = 'de';
+  ws.lineUnits = [
+    { id: 'lu1', name: 'Velmora Werke GmbH' },
+    { id: 'lu2', name: 'Fachgruppe Wartungsplanung', parentId: 'lu1' },
+    { id: 'lu3', name: 'Fachgruppe Lieferanten & Einkaufssteuerung', parentId: 'lu1' },
+    { id: 'lu4', name: 'Team Ersatzteilversorgung', parentId: 'lu3' },
+  ];
+  ws.people = ws.people.map((p) => ({ ...p, lineUnitId: undefined }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
+  await page.locator('.switcher .pick').click();
+  const names = page.locator('.switcher .list .opt-name-line');
+  await expect(names).toHaveCount(4);
+  await names.evaluateAll((els) => els.forEach((el) => (el.style.hyphens = 'manual')));
+
+  // The rendered lines of each name, read character by character.
+  const shown = await names.evaluateAll((els) =>
+    els.map((el) => {
+      const text = el.firstChild as Text;
+      const range = document.createRange();
+      const rows: string[] = [];
+      let row = '';
+      let top = -Infinity;
+      for (let i = 0; i < text.length; i++) {
+        range.setStart(text, i);
+        range.setEnd(text, i + 1);
+        const r = range.getBoundingClientRect();
+        if (r.width === 0) continue;
+        if (r.top > top + 2 && row) {
+          rows.push(row.trim());
+          row = '';
+        }
+        top = Math.max(top, r.top);
+        row += text.data[i];
+      }
+      rows.push(row.trim());
+      return { name: text.data, rows };
+    }),
+  );
+  // Every line ends between two words: no "Fachgru" / "ppe".
+  for (const { name, rows } of shown) expect(rows.join(' ')).toBe(name);
+});
