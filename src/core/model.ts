@@ -18,7 +18,11 @@ export interface Settings {
   hoursPerWeek: number;
   horizon: { from: ISODate; to: ISODate };
   skipHolidays: boolean;
-  thresholds: { warnFactor: number; maxFte: number };
+  /**
+   * `contextSwitch`: from this many teams a person is in, a context-switch hint shows (#321);
+   * missing means 3.
+   */
+  thresholds: { warnFactor: number; maxFte: number; contextSwitch?: number };
   /** Optional euros per person and hour; without it no costs are shown. */
   hourlyRate?: number;
   /** Names of the two levels; without it Bereich/Team (Area/Team). */
@@ -34,7 +38,17 @@ export interface Role {
   id: string;
   name: string;
   colour: string;
+  /**
+   * Marks the role as one half of an owner tandem (#331): the business ("fachlich") or technical
+   * owner of the unit whose member holds it, e.g. business Product Owner of a team.
+   */
+  owner?: OwnerHalf;
 }
+
+/** The two halves of an owner tandem (#331). */
+export type OwnerHalf = 'business' | 'technical';
+/** Which owners a unit wants: a tandem of both (the default) or deliberately only one. */
+export type OwnerMode = 'both' | OwnerHalf;
 
 export interface Person {
   id: string;
@@ -156,11 +170,19 @@ export interface Team {
   members: { personId: string; roleId: string }[];
   /** Weekly hours of a person in this team; a missing entry means settings.hoursPerWeek. */
   memberHours: Record<string, number>;
+  /**
+   * Context-switch hints that were overridden on purpose (#321), per person in this team. An
+   * entry holds while the person is in exactly `teams` teams and their membership here does not
+   * change; otherwise it is dropped (see pruneContextOverrides).
+   */
+  contextOverrides?: Record<string, ContextOverride>;
   assumptions: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
   /** What the team needs from the line (#315): a skill or only a role, and how much. */
   demands?: Demand[];
+  /** Owner set-up of the team (#331); missing means a tandem ('both'). */
+  ownerMode?: OwnerMode;
 }
 
 /** A team's need, e.g. "Java · 2.0 FTE" in the development team role. */
@@ -183,8 +205,7 @@ export interface Assignment {
   teamId: string;
   demandId: string;
   fte: number;
-  /** Set when a warning (#321) was overridden; the reason must say nothing about the person. */
-  override?: { reason?: string };
+  // An overridden context-switch hint lives on the membership (`team.contextOverrides`, #321).
 }
 
 /** A node of the line tree (at most three levels); without `parentId` it hangs under the organisation. */
@@ -213,6 +234,14 @@ export interface Company {
   name: string;
 }
 
+/** An overridden context-switch hint on one person's membership in a team (#321). */
+export interface ContextOverride {
+  /** The number of teams the person was in when the hint was overridden. */
+  teams: number;
+  /** Optional, about the product or the planning, never about the person. */
+  reason?: string;
+}
+
 /**
  * A group of teams (default name "Bereich" / "Area"), shaped like a team so that recurrence, load
  * and cost code can treat it as one more unit. A team is in at most one area; areas do not nest.
@@ -234,6 +263,8 @@ export interface Area {
   events: CalEvent[];
   /** The skill family of the platform (#315). */
   skillFamilyId?: string;
+  /** Owner set-up of the area (#331); missing means a tandem ('both'). */
+  ownerMode?: OwnerMode;
 }
 
 export interface Workspace {

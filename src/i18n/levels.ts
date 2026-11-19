@@ -14,6 +14,8 @@ export interface LevelWords {
   teamLc: string;
   teams: string;
   teamsLc: string;
+  /** The plural after "in 3 …" / "ab 3 …": "Produkten", "Teams"; own names as typed. */
+  teamsDat: string;
   /** "im Team", "in der Unit", "in the product"; own names: "auf Ebene Squad". */
   inTeam: string;
   /** "im Bereich", "in der Abteilung", "in the area"; own names: "auf Ebene Tribe". */
@@ -44,6 +46,7 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
       teamLc: team,
       teams: team,
       teamsLc: team,
+      teamsDat: team,
       inTeam,
       inArea,
       inTeamCap,
@@ -61,6 +64,7 @@ export function levelWords(names: LevelNames | undefined, locale: Locale): Level
     teamLc: lc(word('team')),
     teams: word('teams'),
     teamsLc: lc(word('teams')),
+    teamsDat: lc(word('teamsDat')),
     inTeam: word('inTeam'),
     inArea: word('inArea'),
     inTeamCap: word('inTeamCap'),
@@ -80,6 +84,7 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelTeamLc: w.teamLc,
     levelTeams: w.teams,
     levelTeamsLc: w.teamsLc,
+    levelTeamsDat: w.teamsDat,
     levelInTeam: w.inTeam,
     levelInArea: w.inArea,
     levelInTeamCap: w.inTeamCap,

@@ -4,6 +4,8 @@
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
+  import OwnerAvatars from '../components/OwnerAvatars.svelte';
+  import { hasOwnerRoles, ownerGaps } from '../../core/owners';
   import { workspace } from '../state/workspace';
 
   /**
@@ -21,6 +23,9 @@
   function peopleIn(units: { members: { personId: string }[] }[]): number {
     return new Set(units.flatMap((u) => u.members.map((m) => m.personId))).size;
   }
+  /** Missing wanted owners of a platform and its products (#331). */
+  const gapsIn = (area: Area, teams: Team[]) =>
+    [area, ...teams].reduce((n, u) => n + ownerGaps(ws, u), 0);
   const peopleText = (n: number) => $t(n === 1 ? 'org.people.one' : 'org.people.other', { n });
   const teamsText = (n: number) => $t(n === 1 ? 'area.count.one' : 'area.count.other', { n });
   const cadenceText = (c: Cadence) =>
@@ -58,6 +63,7 @@
       <span class="text">
         <span class="title">{team.name}</span>
         <span class="meta">{cadenceText(team.cadence)} · {peopleText(peopleIn([team]))}</span>
+        <OwnerAvatars unit={team} />
       </span>
     </button>
   </li>
@@ -80,12 +86,21 @@
       <ul class="columns">
         {#each ws.areas as area (area.id)}
           {@const teams = teamsOf(area.teamIds)}
+          {@const gaps = gapsIn(area, teams)}
           <li class="column">
             <button type="button" class="node area" onclick={() => onOpen(area.id)}>
               <span class="badge" aria-hidden="true"><AreaIcon /></span>
               <span class="text">
                 <span class="title">{area.name}</span>
                 <span class="meta">{areaMeta(area, teams)}</span>
+                {#if hasOwnerRoles(ws)}<span class="owners-row">
+                    <OwnerAvatars unit={area} names />
+                    {#if gaps > 0}
+                      <span class="gaps"
+                        >{$t(gaps === 1 ? 'owner.gaps.one' : 'owner.gaps.other', { n: gaps })}</span
+                      >
+                    {/if}
+                  </span>{/if}
               </span>
             </button>
             {#if teams.length > 0}
@@ -111,6 +126,21 @@
 </div>
 
 <style>
+  .owners-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.75rem;
+    margin-top: 0.35rem;
+  }
+  .gaps {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
   .org-view {
     display: flex;
     flex-direction: column;

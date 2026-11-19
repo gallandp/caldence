@@ -1,5 +1,6 @@
 import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
 import { emptyWorkspace, hasOrgLevel, ORG_UNIT, type Workspace } from '../../core/model';
+import { pruneContextOverrides } from '../../core/contextSwitch';
 import { validate, type Result } from '../../core/validate';
 import { workspaceIndex, type Filter } from '../../core/views';
 import { detectLocale } from '../../i18n';
@@ -34,7 +35,11 @@ export function createWorkspaceStore(initial: Workspace) {
     } else {
       unwrapped = raw;
     }
-    const next = Array.isArray(unwrapped) ? unwrapped[0] : unwrapped;
+    // An overridden context-switch hint ends with any change to what it was about (#321).
+    const next = pruneContextOverrides(
+      Array.isArray(unwrapped) ? unwrapped[0] : unwrapped,
+      current,
+    );
     const id = Array.isArray(unwrapped) ? unwrapped[1] : undefined;
     const checked = validate(next);
     if (!checked.ok) return checked;

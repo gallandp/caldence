@@ -24,5 +24,26 @@
       label={$t('colour.of', { name: role.name })}
       onchange={(colour) => ctx.update({ colour })}
     />
+    <!-- One half of an owner tandem (#331): business or technical owner of its unit. -->
+    <select
+      class="half"
+      aria-label={$t('owner.roleHalf.label', { name: role.name })}
+      value={role.owner ?? ''}
+      onchange={(e) => {
+        const v = e.currentTarget.value;
+        ctx.update({ owner: v === 'business' || v === 'technical' ? v : undefined });
+      }}
+    >
+      <option value="">{$t('owner.roleHalf.none')}</option>
+      <option value="business">{$t('owner.roleHalf.business')}</option>
+      <option value="technical">{$t('owner.roleHalf.technical')}</option>
+    </select>
   {/snippet}
 </ListEditor>
+
+<style>
+  .half {
+    width: auto;
+    max-width: 10rem;
+  }
+</style>

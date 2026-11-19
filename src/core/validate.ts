@@ -177,6 +177,8 @@ function checkSettings(c: Checker, v: unknown): void {
       max: LIMITS.warnFactor,
     });
     c.num(t, 'maxFte', 'settings.thresholds', { min: 0, exclusive: true, max: LIMITS.maxFte });
+    if (t.contextSwitch !== undefined)
+      c.num(t, 'contextSwitch', 'settings.thresholds', { min: 2, max: LIMITS.teams, int: true });
   }
   if (s.hourlyRate !== undefined)
     c.num(s, 'hourlyRate', p, { min: 0, exclusive: true, max: LIMITS.hourlyRate });
@@ -404,6 +406,28 @@ function checkCyclesAndEvents(
   );
 }
 
+/** Overridden context-switch hints (#321): per known person, a team count and maybe a reason. */
+function checkContextOverrides(c: Checker, t: Obj, p: string, personIds: Set<string>): void {
+  if (t.contextOverrides === undefined) return;
+  const path = `${p}.contextOverrides`;
+  const o = c.obj(t.contextOverrides, path);
+  if (!o) return;
+  for (const [personId, v] of Object.entries(o)) {
+    const op = `${path}.${personId}`;
+    if (!personIds.has(personId)) {
+      c.err(op, 'error.ref.unknown');
+      continue;
+    }
+    const entry = c.obj(v, op);
+    if (!entry) continue;
+    c.num(entry, 'teams', op, { min: 2, max: LIMITS.teams, int: true });
+    if (entry.reason !== undefined) {
+      if (typeof entry.reason !== 'string') c.err(`${op}.reason`, 'error.type');
+      else if (entry.reason.length > LIMITS.textChars) c.err(`${op}.reason`, 'error.text.tooLong');
+    }
+  }
+}
+
 function checkTeam(
   c: Checker,
   t: Obj,
@@ -418,6 +442,7 @@ function checkTeam(
 
   const cadenceDays = checkCadence(c, t.cadence, `${p}.cadence`);
   checkMembers(c, t, p, roleIds, personIds);
+  checkContextOverrides(c, t, p, personIds);
 
   const a = c.obj(t.assumptions, `${p}.assumptions`);
   if (a) {
@@ -431,6 +456,16 @@ function checkTeam(
   }
 
   checkCyclesAndEvents(c, t, p, roleIds, personIds, categoryIds, cadenceDays);
+  checkOwnerMode(c, t, p);
+}
+
+/** The owner set-up of a team or area (#331): optional, one of three words. */
+function checkOwnerMode(c: Checker, u: Obj, p: string): void {
+  if (
+    u.ownerMode !== undefined &&
+    !['both', 'business', 'technical'].includes(u.ownerMode as string)
+  )
+    c.err(`${p}.ownerMode`, 'error.type');
 }
 
 /**
@@ -536,10 +571,6 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
     const own = isStr(a.teamId) ? demands.get(a.teamId) : undefined;
     c.ref(a, 'demandId', p, new Set(own?.keys()));
     c.num(a, 'fte', p, { min: 0, max: LIMITS.maxFte });
-    if (a.override !== undefined) {
-      const ov = c.obj(a.override, `${p}.override`);
-      if (ov && ov.reason !== undefined) c.str(ov, 'reason', `${p}.override`);
-    }
     if (!isStr(a.personId) || !isStr(a.teamId)) return;
     // One assignment per person and team (v1).
     const pair = JSON.stringify([a.personId, a.teamId]);
@@ -597,6 +628,7 @@ function checkArea(
     a.cadence === undefined ? 0 : cadenceDays,
     true,
   );
+  checkOwnerMode(c, a, p);
 }
 
 /** Checks imported regions: valid shape, no built-in id, no duplicate id. */
@@ -660,6 +692,8 @@ export function validate(input: unknown): Result<Workspace> {
   c.each(roles, 'roles', (r, p) => {
     c.str(r, 'name', p);
     c.colour(r, 'colour', p);
+    if (r.owner !== undefined && r.owner !== 'business' && r.owner !== 'technical')
+      c.err(`${p}.owner`, 'error.type');
   });
 
   const people = c.arr(w.people, 'people', LIMITS.people) ?? [];

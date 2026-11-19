@@ -11,7 +11,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 | `schemaVersion` | integer | Schema version of the file (`7`). |
 | `id` | string | Stable id of the workspace (a UUID); used for stable ids in calendar exports. |
 | `settings` | object | See below. |
-| `roles` | list of `{ id, name, colour }` | Roles such as Product Owner. `colour` is `#rrggbb`. |
+| `roles` | list of `{ id, name, colour, owner? }` | Roles such as Product Owner. `colour` is `#rrggbb`. Optional `owner` (`business` or `technical`) marks the role as one half of an owner tandem: whoever holds it in a team is that team's business or technical owner (for example Product Owner), in an area the area's (for example platform owner). |
 | `people` | list of `{ id, name }` | People. A person can be a member of several teams. |
 | `categories` | list of `{ id, name, colour }` | Event categories. |
 | `customRegions` | list of regions | Region files imported into this workspace (see [region-format.md](region-format.md)). An id must not equal a built-in region id or another imported one. |
@@ -37,7 +37,7 @@ A **line unit** is `{ id, name, parentId?, managerPersonId?, skillFamilyId? }`. 
 
 A **team** may list `demands`: `{ id, skillId?, fte, roleId }`, what it needs from the line, e.g. 2.0 FTE Java in the development team role. Without `skillId` it is a role-only demand ("Scrum Master · 0.5"). Ids are unique within the team; `fte` is above 0.
 
-An **assignment** is `{ id, personId, teamId, demandId, fte, override? }`: the person is staffed on the team's demand. It is a normal team membership too: the team's `members` must hold the person in the demand's role, and their `memberHours` there are the hours; `fte` is those hours ÷ `settings.hoursPerWeek` and follows them when the hours change. At most one assignment per person and team (another role in the same team stays a plain membership). `override` `{ reason? }` records an overridden warning; the reason must say nothing about the person. Assignments have no dates: a what-if for the next quarter is a copy of the file.
+An **assignment** is `{ id, personId, teamId, demandId, fte }`: the person is staffed on the team's demand. It is a normal team membership too: the team's `members` must hold the person in the demand's role, and their `memberHours` there are the hours; `fte` is those hours ÷ `settings.hoursPerWeek` and follows them when the hours change. At most one assignment per person and team (another role in the same team stays a plain membership). An overridden context-switch hint is kept on the membership (`contextOverrides` of the team, #321), so it covers assignments too. Assignments have no dates: a what-if for the next quarter is a copy of the file.
 
 **Figures.** *Free FTE* is `contractFte` minus all of the person's hours in all teams and areas ÷ `hoursPerWeek`, whether they come from an assignment or not; below 0 the person is overbooked. With `contractFte` the weekly-hours flag uses `contractFte × hoursPerWeek` as the person's limit.
 
@@ -54,7 +54,7 @@ An **assignment** is `{ id, personId, teamId, demandId, fte, override? }`: the p
 | `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. The app also uses them as the weekly limit: a person whose hours in all teams and areas add up to more is flagged, and adding a person to one more team proposes the hours left. |
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
-| `thresholds` | `{ warnFactor, maxFte }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. |
+| `thresholds` | `{ warnFactor, maxFte, contextSwitch? }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. `contextSwitch` (optional, Caldence 2, an integer from 2 to 50, default 3): from this many teams a person gets a context-switch hint (#321). |
 | `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Meeting load show what meetings cost; without it, no costs are shown. |
 | `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty; own names may add `"organisation": "Konzern"` for the top level (non-empty; without it "Organisation"). Without it: `area`. |
 
@@ -67,9 +67,11 @@ An **assignment** is `{ id, personId, teamId, demandId, fte, override? }`: the p
 | `cadence` | `{ kind, lengthWeeks, start }` | `kind` is `sprint`, `flow` or `pi`; `lengthWeeks` is an integer from 1; `start` is a date. |
 | `members` | list of `{ personId, roleId }` | A person in a role. The same pair must not appear twice. |
 | `memberHours` | object | Weekly working hours of a person in this team, by person id, from 0 to 168. A member without an entry has `settings.hoursPerWeek`. |
+| `contextOverrides` | object, optional | Caldence 2 (#321): context-switch hints overridden on purpose, by person id, each `{ teams, reason? }`. `teams` (integer from 2) is the number of teams the person was in when the hint was overridden; `reason` (optional, at most 200 characters) is about the work or the planning, never about the person. The override is dropped as soon as the person leaves the team, their roles or hours in it change, or their number of teams changes. A change to `settings.hoursPerWeek` keeps it. Never part of a template; a template file with it is refused. |
 | `assumptions` | object of numbers | Named values (for example `Number of developers`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
+| `ownerMode` | string, optional | Which owners the team wants: `both` (a tandem of business and technical owner, the default when missing), `business` or `technical`. Only a missing wanted owner counts as a gap; an owner of the other half stays a member. |
 
 ### Area
 
@@ -84,6 +86,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `memberHours` | object | Weekly hours of a person in the area, by person id, from 0 to 168. Unlike in a team, a person without an entry has **0 hours** in the area: area time comes on top of team time and is set on purpose. |
 | `cycles` | list of `{ id, name, milestones }` | As in a team. |
 | `events` | list of events | The area's own meetings. |
+| `ownerMode` | string, optional | As in a team: which owners the area wants (`both`, `business` or `technical`). |
 
 ### Event
 

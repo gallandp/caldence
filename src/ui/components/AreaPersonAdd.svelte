@@ -32,11 +32,13 @@
     roleId === NEW || roles.some((r) => r.id === roleId) ? roleId : (roles[0]?.id ?? NEW),
   );
 
-  export async function show(from?: HTMLElement) {
+  /** Opens the form; `role` preselects a role, e.g. a missing owner's (#331). */
+  export async function show(from?: HTMLElement, role?: string) {
     trigger = from;
     name = '';
     hours = null;
     newRole = '';
+    if (role !== undefined) roleId = role;
     if (!roles.some((r) => r.id === roleId)) roleId = roles[0]?.id ?? NEW;
     clear('add');
     clear('role');
