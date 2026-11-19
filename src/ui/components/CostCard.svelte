@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { AreaShare } from '../../core/areaCosts';
   import { costPerCadence, type CostSummary } from '../../core/cost';
   import type { Cadence } from '../../core/model';
   import { formatEuro, formatNumber, locale, translate as t } from '../../i18n';
@@ -9,8 +10,12 @@
     rate: number;
     /** The team's or area's Takt: adds the cost per sprint or PI (#279). */
     cadence?: Cadence;
+    /** A team in an area: what its people also spend in the area's meetings (#336). */
+    areaShare?: AreaShare;
+    /** The team's name, for the sentence about the area share. */
+    unitName?: string;
   }
-  let { summary, rate, cadence }: Props = $props();
+  let { summary, rate, cadence, areaShare, unitName: team = '' }: Props = $props();
 
   const uid = $props.id();
   const euro = (n: number) => formatEuro($locale, n);
@@ -51,6 +56,18 @@
       <span class="value">{euro(summary.horizon)}</span> <small>{$t('cost.horizon')}</small>
     </p>
   </div>
+  {#if areaShare}
+    <p class="area-share" data-cost-area-share>
+      {$t('cost.areaShare.own', { team })}
+      <b
+        >{$t('cost.areaShare', {
+          week: euro(areaShare.perWeek),
+          horizon: euro(areaShare.horizon),
+          team,
+        })}</b
+      >
+    </p>
+  {/if}
   {#if summary.unfilled.length > 0}
     <p class="unfilled" data-cost-unfilled>
       {$t(summary.unfilled.length === 1 ? 'cost.unfilled.one' : 'cost.unfilled.other', {
@@ -107,10 +124,17 @@
     font-weight: 600;
     color: var(--text-muted);
   }
-  .unfilled {
+  .unfilled,
+  .area-share {
     margin: 0 0 1rem;
     font-size: 0.875rem;
     color: var(--text-muted);
+  }
+  .area-share b {
+    display: block;
+    font-weight: 650;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
   }
   .caption {
     margin: 0 0 0.5rem;

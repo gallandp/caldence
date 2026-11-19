@@ -2,7 +2,7 @@
   import { shortcut } from './label';
   import Rich from './Rich.svelte';
 
-  const parts = ['apply', 'import', 'export', 'people'] as const;
+  const parts = ['apply', 'import', 'export', 'people', 'mix'] as const;
 </script>
 
 {#each parts as part (part)}
@@ -23,6 +23,9 @@
         name: 'templates.export.name',
         exportButton: 'templates.export.button',
         teamView: 'view.team',
+        settingsLevels: 'settings.levels.choice',
+        chooseTeams: 'area.teams',
+        roleLinks: 'area.roleLinks.title',
       }}
       keys={{ undo: $shortcut('undo') }}
     />

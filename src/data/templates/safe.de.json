@@ -1,6 +1,6 @@
 {
   "kind": "caldence-template",
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "id": "safe",
   "name": "SAFe",
   "description": "Ein Release Train mit zehnwöchigen Program Increments und den PI-Events, darunter ein Team mit zweiwöchigen Iterationen.",

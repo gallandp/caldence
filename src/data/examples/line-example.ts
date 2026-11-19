@@ -1,4 +1,10 @@
-import type { CalEvent, Rule, Team, Workspace } from '../../core/model';
+import {
+  CURRENT_SCHEMA,
+  type CalEvent,
+  type Rule,
+  type Team,
+  type Workspace,
+} from '../../core/model';
 
 /**
  * The invented line organisation example (#323): the Velmora Group with three affiliated
@@ -17,7 +23,7 @@ import type { CalEvent, Rule, Team, Workspace } from '../../core/model';
  *   role-only demand (Scrum Master · 0.5).
  * - Partnerhafen misses its technical owner; Torwacht wants only a technical owner.
  *
- * Only type imports: the end-to-end tests import this file directly.
+ * Imports only the model: the end-to-end tests import this file directly.
  */
 
 type Locale = 'de' | 'en';
@@ -810,7 +816,7 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
   const kept = people.filter((p) => p.lineUnitId || inUnit.has(p.id));
 
   return {
-    schemaVersion: 7,
+    schemaVersion: CURRENT_SCHEMA,
     id: '6c1f0e2a-3b4d-4c5e-8f60-7a8b9c0d1e2f',
     settings: {
       locale,
