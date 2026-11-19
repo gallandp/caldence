@@ -3,12 +3,21 @@ import {
   areaMeetingHours,
   compareCadences,
   segments,
+  areaOnlyLoad,
+  areaOnlyPeople,
   stepReasons,
   teamLoad,
 } from '../../src/core/areaOverview';
-import { loadPerWeek } from '../../src/core/load';
-import { emptyWorkspace, type Area, type Cadence, type Team } from '../../src/core/model';
+import { areaHints, capacity, loadPerWeek, overMax, warnings } from '../../src/core/load';
+import {
+  emptyWorkspace,
+  type Area,
+  type Cadence,
+  type Team,
+  type Workspace,
+} from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
+import { areaWorkspace } from '../e2e/area-fixture';
 
 const noIndex = (): HolidayIndex => ({
   holidays: new Map(),
@@ -248,6 +257,129 @@ describe('teamLoad', () => {
     const t = team('alpha', sprint(2));
     const ws = workspace([t]);
     expect(teamLoad(ws, t, loadPerWeek(ws, noIndex()))[0]).toMatchObject({ share: 0, warn: false });
+  });
+});
+
+describe('areaOnlyLoad (#334)', () => {
+  /** Jordan leads the area with 8 h there and is in no team; Alex is PO in Alpha with 32 h. */
+  function setup(maxFte: number) {
+    const t = team('alpha', sprint(2), {
+      members: [{ personId: 'alex', roleId: 'po' }],
+      memberHours: { alex: 32 },
+    });
+    const a = area(['alpha']);
+    a.members = [{ personId: 'jordan', roleId: 'lead' }];
+    a.memberHours = { jordan: 8 };
+    a.events = [
+      {
+        id: 'sync',
+        name: 'Lead sync',
+        categoryId: 'c1',
+        rule: { type: 'weekly', weekday: 2 },
+        time: '10:00',
+        duration: 60,
+        participants: [{ roleId: 'lead', share: 1 }],
+        preparation: 0,
+      },
+    ];
+    const ws = workspace([t]);
+    ws.areas = [a];
+    ws.people = [
+      { id: 'alex', name: 'Alex' },
+      { id: 'jordan', name: 'Jordan' },
+    ];
+    ws.settings.thresholds.maxFte = maxFte;
+    return { ws, a, weeks: loadPerWeek(ws, noIndex()) };
+  }
+
+  it('names the people who are only in the area', () => {
+    const { ws, a } = setup(0.12);
+    expect(areaOnlyPeople(ws, a)).toEqual(['jordan']);
+  });
+
+  it('warns when someone only in the area is over the limit', () => {
+    // 1 h of 8 h is 12.5 %: over 12 %, not over 20 %.
+    const over = setup(0.12);
+    expect(areaOnlyLoad(over.ws, over.a, over.weeks)[0]).toMatchObject({
+      share: 1 / 8,
+      warn: true,
+    });
+    const fine = setup(0.2);
+    expect(areaOnlyLoad(fine.ws, fine.a, fine.weeks)[0]!.warn).toBe(false);
+  });
+});
+
+describe('one rule for over the limit on the area fixture (#307, #334)', () => {
+  /** People over the limit per week as the people table, strip and week detail judge them. */
+  function overByRule(ws: Workspace) {
+    const weeks = loadPerWeek(ws, noIndex());
+    const max = ws.settings.thresholds.maxFte;
+    return weeks.map((w) =>
+      ws.people
+        .filter((p) => overMax(w.byPerson[p.id] ?? 0, capacity(ws, p.id), max))
+        .map((p) => p.id)
+        .sort(),
+    );
+  }
+  function overByWarnings(ws: Workspace) {
+    const weeks = loadPerWeek(ws, noIndex());
+    const all = warnings(weeks, ws).filter((w) => w.kind === 'above-fte');
+    return weeks.map((w) =>
+      all
+        .filter((x) => x.monday === w.monday)
+        .map((x) => x.personId)
+        .sort(),
+    );
+  }
+
+  it.each([0.6, 0.3, 0.12])('Warnings and the people table agree at a limit of %s', (max) => {
+    const ws = areaWorkspace() as unknown as Workspace;
+    ws.settings.thresholds.maxFte = max;
+    expect(overByWarnings(ws)).toEqual(overByRule(ws));
+  });
+
+  it.each([0.6, 0.3, 0.12])('the Overview strip counts the same weeks at %s', (max) => {
+    const ws = areaWorkspace() as unknown as Workspace;
+    ws.settings.thresholds.maxFte = max;
+    const a = ws.areas[0]!;
+    const weeks = loadPerWeek(ws, noIndex());
+    const rows = [
+      ...a.teamIds.map((id) =>
+        teamLoad(
+          ws,
+          ws.teams.find((t) => t.id === id)!,
+          weeks,
+        ),
+      ),
+      areaOnlyLoad(ws, a, weeks),
+    ];
+    const stripWeeks = weeks.filter((_, i) => rows.some((r) => r[i]!.warn)).map((w) => w.monday);
+    const inArea = new Set(
+      [
+        ...a.members,
+        ...ws.teams.filter((t) => a.teamIds.includes(t.id)).flatMap((t) => t.members),
+      ].map((m) => m.personId),
+    );
+    const warned = [
+      ...new Set(
+        warnings(weeks, ws)
+          .filter((w) => w.kind === 'above-fte' && inArea.has(w.personId))
+          .map((w) => w.monday),
+      ),
+    ].sort();
+    expect(stripWeeks).toEqual(warned);
+  });
+
+  it('has missing area hours as one hint per person and area', () => {
+    const ws = areaWorkspace() as unknown as Workspace;
+    const list = areaHints(loadPerWeek(ws, noIndex()), ws);
+    const keys = list.map((h) => `${h.personId}/${h.areaId}`);
+    expect(new Set(keys).size).toBe(keys.length);
+    // POs and Scrum Masters invited from every team, without hours in Payments.
+    expect(list.filter((h) => h.kind === 'no-area-hours').map((h) => h.personId)).toEqual(
+      expect.arrayContaining(['person-sam', 'person-kim', 'person-mo']),
+    );
+    expect(list.some((h) => h.personId === 'person-ruth')).toBe(false);
   });
 });
 

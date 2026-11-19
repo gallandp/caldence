@@ -24,6 +24,8 @@
     fte: 'load.col.fte',
     room: 'load.col.free',
     warnings: 'load.warnings',
+    hints: 'load.hints',
+    areaOnly: 'area.group.areaOnly',
     warnFactor: 'settings.warnFactor',
     maxFte: 'settings.maxFte',
     thresholds: 'settings.thresholds',
