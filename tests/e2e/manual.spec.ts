@@ -236,8 +236,11 @@ test.describe('staffing help (#324)', () => {
     const named = (i: number) =>
       help.locator('[data-manual-steps] > li').nth(i).locator('.ui').allTextContents();
 
-    // 1: the sidebar's actions offer adding a line unit.
-    const [actions] = await named(0);
+    // 1: the sidebar's actions offer adding a line unit; the import sits in Import / Export.
+    const [actions, ...rest] = await named(0);
+    expect(rest).toEqual(
+      expect.arrayContaining([c['line.tab.staff'], c['view.exchange'], c['staff.open']]),
+    );
     await page.locator('.switcher').getByRole('button', { name: actions, exact: true }).click();
     await expect(
       page.locator('.switcher').getByRole('button', { name: steps[0]!.name!, exact: true }),

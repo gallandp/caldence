@@ -233,7 +233,12 @@ export const TOPICS: Topic[] = [
       {
         text: 'help.g.staffing.1',
         control: { role: 'button', name: 'line.unit.add' },
-        labels: { actions: 'team.actions', staff: 'line.tab.staff', import: 'staff.open' },
+        labels: {
+          actions: 'team.actions',
+          staff: 'line.tab.staff',
+          exchange: 'view.exchange',
+          import: 'staff.open',
+        },
       },
       {
         text: 'help.g.staffing.2',

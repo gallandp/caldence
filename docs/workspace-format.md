@@ -155,7 +155,7 @@ If a stored workspace ever keeps the app from starting, open it with `?reset` at
 
 ## Privacy
 
-A workspace file contains names of people, their working hours and your meeting plan. Caldence never uploads it. The file lives only where you save it, and a copy is kept in your browser for autosave. Share it only with people who may see this data. To share a team's structure without personal data, export it as a [template](template-format.md) instead.
+A workspace file contains names of people, their working hours and your meeting plan; with a line (Caldence 2) also their skills, contracts, companies, line units and commitments, see [privacy in the README](../README.md#privacy) for GDPR and works council notes. Caldence never uploads it. The file lives only where you save it, and a copy is kept in your browser for autosave. Share it only with people who may see this data. To share a team's structure without personal data, export it as a [template](template-format.md) instead.
 
 ## Example
 
