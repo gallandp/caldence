@@ -690,6 +690,7 @@
   "weeks.none": "Keine Woche passt zu dieser Auswahl.",
   "load.table.base": "Grundlast pro Woche",
   "load.table.person": "Personen",
+  "load.table.person.all": "Alle {n} Personen zeigen",
   "load.table.person.note": "Anteil, Grenze und Platz zählen alle Termine der Person, gemessen an all ihren Wochenstunden, in jeder Auswahl gleich. „davon {levelInTeam}“ zeigt nur die Termine hier, gemessen an den Wochenstunden hier.",
   "load.table.person.noteArea": "Anteil, Grenze und Platz zählen alle Termine der Person, gemessen an all ihren Wochenstunden, in jeder Auswahl gleich. „davon {levelInArea}“ zeigt nur die Termine in {name}, gemessen an den Wochenstunden dort.",
   "load.summary": "Überblick",

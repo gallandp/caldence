@@ -559,32 +559,35 @@
           )}</span
         ></summary
       >
-      <p class="hint">{$t('team.pool.hint', { team: team.name })}</p>
-      <div class="cards">
-        <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
-        <div class="card">
-          <ListEditor
-            kind="people"
-            items={$workspace.people}
-            heading={$t('settings.people')}
-            hint={$t('team.people.hint')}
-            addLabel={$t('settings.people.add')}
-            create={(name) => ({ name })}
-            confirmRemove={confirmPerson}
-          >
-            {#snippet extra(person)}
-              {@const over = overText(person.id)}
-              <span class="teams-of"
-                >{teamsOf(person.id)}{#if over}
-                  <span class="over" data-overbooked>{over}</span>{/if}</span
-              >
-            {/snippet}
-          </ListEditor>
+      <!-- Built only when unfolded: a pool of ~500 people costs a slow device a second (#315). -->
+      {#if poolOpen}
+        <p class="hint">{$t('team.pool.hint', { team: team.name })}</p>
+        <div class="cards">
+          <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
+          <div class="card">
+            <ListEditor
+              kind="people"
+              items={$workspace.people}
+              heading={$t('settings.people')}
+              hint={$t('team.people.hint')}
+              addLabel={$t('settings.people.add')}
+              create={(name) => ({ name })}
+              confirmRemove={confirmPerson}
+            >
+              {#snippet extra(person)}
+                {@const over = overText(person.id)}
+                <span class="teams-of"
+                  >{teamsOf(person.id)}{#if over}
+                    <span class="over" data-overbooked>{over}</span>{/if}</span
+                >
+              {/snippet}
+            </ListEditor>
+          </div>
+          <div class="card">
+            <RoleList />
+          </div>
         </div>
-        <div class="card">
-          <RoleList />
-        </div>
-      </div>
+      {/if}
     </details>
   {/if}
 </div>

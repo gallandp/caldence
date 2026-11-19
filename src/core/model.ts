@@ -347,7 +347,19 @@ const NO_CADENCE: Cadence = { kind: 'flow', lengthWeeks: 0, start: '0001-01-01' 
  * Without a cadence of its own no cadence-day rule matches; areas have no assumptions.
  */
 export function areaAsTeam(area: Area): Team {
-  return {
+  // The same object for the same area, so per-unit caches (occurrences) hit for areas too.
+  const known = asTeam.get(area);
+  if (
+    known &&
+    known.name === area.name &&
+    known.cadence === (area.cadence ?? NO_CADENCE) &&
+    known.members === area.members &&
+    known.memberHours === area.memberHours &&
+    known.cycles === area.cycles &&
+    known.events === area.events
+  )
+    return known;
+  const team: Team = {
     id: area.id,
     name: area.name,
     cadence: area.cadence ?? NO_CADENCE,
@@ -357,7 +369,10 @@ export function areaAsTeam(area: Area): Team {
     cycles: area.cycles,
     events: area.events,
   };
+  asTeam.set(area, team);
+  return team;
 }
+const asTeam = new WeakMap<Area, Team>();
 
 /** Every unit with meetings: the teams, then the areas seen as teams. */
 export function units(ws: Workspace): Team[] {
@@ -373,14 +388,31 @@ export function units(ws: Workspace): Team[] {
 export function holders(ws: Workspace, unitId: string, p: Participant): string[] {
   if (p.personId !== undefined)
     return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
+  // Views ask this thousands of times per update (#315 budget): a role's holders are kept per
+  // member list, checked against the lists' identity and length, so a replaced or grown list is
+  // read again.
+  const unitKey = `${unitId}\u0000${p.fromTeams ? 1 : 0}`;
   const area = ws.areas.find((a) => a.id === unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
   const lists = [own?.members ?? []];
   if (area && p.fromTeams)
     for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
-  const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
-  return [...new Set(ids)];
+  const known = roleHolderCache.get(lists[0]!)?.get(`${unitKey}\u0000${p.roleId}`);
+  if (known && known.lists.every((l, i) => l === lists[i] && l.length === known.lengths[i]))
+    return known.ids;
+  const ids = [
+    ...new Set(lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []))),
+  ];
+  let byRole = roleHolderCache.get(lists[0]!);
+  if (!byRole) roleHolderCache.set(lists[0]!, (byRole = new Map()));
+  byRole.set(`${unitKey}\u0000${p.roleId}`, { lists, lengths: lists.map((l) => l.length), ids });
+  return ids;
 }
+type Members = Team['members'];
+const roleHolderCache = new WeakMap<
+  Members,
+  Map<string, { lists: Members[]; lengths: number[]; ids: string[] }>
+>();
 
 /** People the meeting invites by name. */
 export function namedPeople(event: CalEvent): Set<string> {

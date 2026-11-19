@@ -250,3 +250,15 @@ describe('line model (#315)', () => {
     expect(w.people.map((p) => p.name)).toEqual(['Alex', 'Person 2']);
   });
 });
+
+describe('performance fixture (#315)', () => {
+  it('is valid and at the target scale', async () => {
+    const { perfWorkspace } = await import('../fixtures/perf-workspace');
+    const w = perfWorkspace();
+    expect(keys(w)).toEqual([]);
+    const meetings = w.teams.reduce((n, t) => n + t.events.length, 0) + w.areas.length * 5;
+    expect([w.teams.length, w.areas.length]).toEqual([61, 11]);
+    expect(w.people.length).toBeGreaterThanOrEqual(480);
+    expect(meetings).toBeGreaterThanOrEqual(600);
+  });
+});

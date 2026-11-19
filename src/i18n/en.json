@@ -690,6 +690,7 @@
   "weeks.none": "No week matches this choice.",
   "load.table.base": "Base load per week",
   "load.table.person": "People",
+  "load.table.person.all": "Show all {n} people",
   "load.table.person.note": "Share, limit and room count all of the person's meetings, measured against all their weekly hours, the same in every scope. “of which {levelInTeam}” shows only the meetings here, measured against the weekly hours here.",
   "load.table.person.noteArea": "Share, limit and room count all of the person's meetings, measured against all their weekly hours, the same in every scope. “of which {levelInArea}” shows only the meetings in {name}, measured against the weekly hours there.",
   "load.summary": "Summary",

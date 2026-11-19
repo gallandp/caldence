@@ -18,9 +18,30 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 | `teams` | list of teams | See below. |
 | `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
 | `organisation` | object, optional | The organisation the file maps, the top of the tree organisation → areas → teams: `{ "name": "Nordwind GmbH" }` (a string of at most 200 characters). One file is one organisation; without this entry the app shows the level's name ("Organisation"). Older app versions ignore it. |
+| `lineUnits` | list, optional | The line organisation (Caldence 2, #315), see below. |
+| `skillFamilies` | list of `{ id, name }`, optional | Skill families, e.g. one shared by a platform and a specialist group. Names are unique in the file (ignoring case). |
+| `skills` | list of `{ id, name, familyId }`, optional | Skills, each in one family. Names are unique in the file. |
+| `companies` | list of `{ id, name }`, optional | Affiliated companies of a group; a person attribute, not a level. With one or no company the app shows no company. Names are unique. |
+| `assignments` | list, optional | People staffed on a team's demand, see below. |
 | `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area, or `@organisation` for the organisation), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored on open (a malformed `view` does not keep the file from opening). Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
 
 All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
+
+### Line organisation (Caldence 2)
+
+These fields came with Caldence 2 (#315) without a new schema version: format 2 already keeps 1.x from opening such files. All of them are optional; files without them open unchanged.
+
+A **person** may have `lineUnitId` (the line unit they belong to), `contractFte` (0.1 to 1.0; missing means 1.0), `skillIds` (skill ids, each once), `companyId` and `pseudonymous: true` (only with `lineUnitId`: the person stands for a real person kept in a separate line file, #333). There is no personnel number and no free text about a person in the file.
+
+A **line unit** is `{ id, name, parentId?, managerPersonId?, skillFamilyId? }`. Units without `parentId` hang under the organisation; the tree has at most three levels and no cycles. A unit with sub-units is shown as a *Fachgruppe* (specialist group), one without as a *Linienteam* (line team); `settings.lineLevelNames` `{ group, team }` gives them own names. An **area** may name its skill family (`skillFamilyId`).
+
+A **team** may list `demands`: `{ id, skillId?, fte, roleId }`, what it needs from the line, e.g. 2.0 FTE Java in the development team role. Without `skillId` it is a role-only demand ("Scrum Master · 0.5"). Ids are unique within the team; `fte` is above 0.
+
+An **assignment** is `{ id, personId, teamId, demandId, fte, override? }`: the person is staffed on the team's demand. It is a normal team membership too: the team's `members` must hold the person in the demand's role, and their `memberHours` there are the hours; `fte` is those hours ÷ `settings.hoursPerWeek` and follows them when the hours change. At most one assignment per person and team (another role in the same team stays a plain membership). `override` `{ reason? }` records an overridden warning; the reason must say nothing about the person. Assignments have no dates: a what-if for the next quarter is a copy of the file.
+
+**Figures.** *Free FTE* is `contractFte` minus all of the person's hours in all teams and areas ÷ `hoursPerWeek`, whether they come from an assignment or not; below 0 the person is overbooked. With `contractFte` the weekly-hours flag uses `contractFte × hoursPerWeek` as the person's limit.
+
+**Data rules.** Presenting never shows the names of people with a line unit. Exports leave out line units, companies, contracts and skills unless *Include line data* is ticked for the Excel export; calendar files never contain them. Templates carry no people, skills, companies, demands or assignments. Deleting a demand ends its assignments; deleting a skill removes it from people and demands; deleting a family deletes its skills; deleting a company, a person or a line unit clears what refers to it (sub-units move up).
 
 ### `settings`
 
@@ -98,15 +119,17 @@ Older files (schema 1 to 6) are upgraded when they are opened: schema 2 added `i
 
 ## Limits
 
-A file that goes beyond these limits is rejected with a message naming the field. They keep a shared file from making the app unusable (every view walks the planning horizon day by day for every meeting).
+A file that goes beyond these limits is rejected with a message naming the field. They keep a shared file from making the app unusable (every view walks the planning horizon day by day for every meeting). They fit about 60 products and 500 people with headroom; a generated file at that scale (`tests/fixtures/perf-workspace.ts`) must open in under 2 s and render every view in under 1 s with the CPU throttled 4× (`tests/e2e/performance.spec.ts`).
 
 | What | Limit |
 | --- | --- |
 | File size | 5 MB |
 | Dates (all of them) | years 1900 to 2200 |
 | Planning horizon | at most 5 years (`to` at most the same date 5 years after `from`) |
-| Meetings | 500 in all teams and areas together |
-| Teams / areas / roles / categories / people | 50 / 50 / 200 / 200 / 1000 |
+| Meetings | 1500 in all teams and areas together |
+| Teams / areas / roles / categories / people | 150 / 50 / 200 / 200 / 1000 |
+| Demands per team / assignments / line units / skill families / skills / companies | 50 / 5000 / 200 / 100 / 500 / 20 |
+| Line tree depth | 3 levels |
 | Teams per area | 50 |
 | Members, cycles, milestones per cycle (teams and areas), assumptions per team | 1000, 100, 100, 50 |
 | Imported regions | 20 (each with at most 100 holidays and 500 school holidays of at most a year each) |
