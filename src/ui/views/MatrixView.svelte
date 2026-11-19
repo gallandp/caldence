@@ -43,7 +43,7 @@
 
   const uid = $props.id();
   const ws = $derived($workspace);
-  const m = $derived(buildMatrix(ws, selection, world));
+  const m = $derived(buildMatrix(ws, selection, world, lineRootName(ws, $levels.org)));
   const peopleCount = $derived(m.rows.reduce((n, r) => n + r.people.length, 0));
 
   /** null: follow "Personen zeigen"; otherwise the row's own choice. */

@@ -1,6 +1,7 @@
 import { freeFte } from './line';
 import {
   ORG_UNIT,
+  lineRootName,
   selectedLineUnit,
   lineSubtree,
   type Area,
@@ -118,7 +119,13 @@ function treeOrder(units: LineUnit[]): LineUnit[] {
   return out;
 }
 
-export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld): Matrix {
+export function buildMatrix(
+  ws: Workspace,
+  selection: string,
+  world: MatrixWorld,
+  /** The name of the line's root, for the people who sit directly there. */
+  rootName = lineRootName(ws, ''),
+): Matrix {
   const hpw = ws.settings.hoursPerWeek;
   const teams = shownTeams(ws, selection, world);
   const teamIds = new Set(teams.map((t) => t.id));
@@ -140,7 +147,9 @@ export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld
   }
 
   const units = ws.lineUnits ?? [];
-  const unitById = new Map(units.map((u) => [u.id, u]));
+  // The line's root holds the people who sit directly there (the managing director).
+  const root: LineUnit = { id: ORG_UNIT, name: rootName };
+  const unitById = new Map([...units, root].map((u) => [u.id, u]));
   const lineUnit = selectedLineUnit(selection);
   // The whole line (the organisation, or its line root `lineSelection(ORG_UNIT)`) has no limit.
   const inScope =
@@ -188,7 +197,7 @@ export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld
     return out;
   };
   const rows: MatrixRow[] = [];
-  for (const unit of treeOrder(units)) {
+  for (const unit of [root, ...treeOrder(units)]) {
     const list = byUnit.get(unit.id);
     if (!list) continue;
     // In the product world a line team shows only when someone of it works in a shown product.

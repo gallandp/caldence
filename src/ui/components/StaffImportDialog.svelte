@@ -21,6 +21,7 @@
   import { xlsx } from '../../core/xlsx';
   import { LIMITS } from '../../core/limits';
   import { validate } from '../../core/validate';
+  import { lineUnitsById } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
   import { lineLevelWord } from '../../i18n/levels';
   import { groupLineLevel, lineLevels, lowestLineLevel } from '../../core/lineLevels';
@@ -320,7 +321,8 @@
     $t(n === 1 ? `staff.count.${key}.one` : `staff.count.${key}`, { n });
   const fte = (n: number) => formatNumber($locale, n, 1);
   const unitName = (id: string | undefined) =>
-    ws.lineUnits?.find((u) => u.id === id)?.name ?? $t('staff.noUnit');
+    (id !== undefined ? lineUnitsById(ws, $levels.org).get(id)?.name : undefined) ??
+    $t('staff.noUnit');
 
   function noteText(n: Note): string {
     if (n.key === 'fte') return $t('staff.note.fte', { from: fte(n.from) });

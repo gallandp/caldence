@@ -1538,6 +1538,8 @@
   "line.person.new": "Neue Person …",
   "line.person.who.hint": "Zur Wahl stehen Personen der Datei, die noch zu keiner Linieneinheit gehören.",
   "line.person.addConfirm": "Hinzufügen",
+  "line.person.add.failed": "Die Person ließ sich nicht hinzufügen, weil die Datei an anderer Stelle nicht stimmig ist. Versuchen Sie es nach dem Neuladen noch einmal; bleibt der Fehler, melden Sie ihn bitte.",
+  "line.person.add.tooMany": "Die Datei hat schon die höchste Zahl an Personen ({max}). Entfernen Sie zuerst jemanden, den Sie nicht mehr brauchen.",
   "line.person.contract.invalid": "Der Vertrag liegt zwischen 0,1 und 1,0 FTE",
   "line.person.details": "Details zu {name}",
   "line.skills.manage": "Skills verwalten",

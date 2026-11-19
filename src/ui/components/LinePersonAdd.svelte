@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem } from '../../core/edit';
+  import { LIMITS } from '../../core/limits';
   import { updateLinePerson } from '../../core/lineEdit';
   import type { LineUnit, Workspace } from '../../core/model';
   import { translate as t } from '../../i18n';
@@ -54,7 +55,14 @@
       return updateLinePerson(next, target, fields);
     });
     if (!result.ok) {
-      error = result.errors[0]?.key ?? 'error.type';
+      // The validator's messages name a path in the file, which means nothing here: say
+      // what went wrong in words, and keep the details for a bug report.
+      console.warn('Adding a person to the line failed', result.errors);
+      const first = result.errors[0];
+      error =
+        first?.key === 'error.list.tooLong' && first.path === 'people'
+          ? 'line.person.add.tooMany'
+          : 'line.person.add.failed';
       return;
     }
     dialog?.close();
@@ -93,7 +101,7 @@
       />
     </div>
     {#if error}
-      <p class="field-error" role="alert">{$t(error, { path: $t('line.person.name') })}</p>
+      <p class="field-error" role="alert">{$t(error, { max: LIMITS.people })}</p>
     {/if}
     <div class="actions">
       <button type="submit" class="primary">{$t('line.person.addConfirm')}</button>

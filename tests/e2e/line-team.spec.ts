@@ -243,6 +243,26 @@ test('meeting load follows the line team, and its products lead into the product
   ).toHaveAttribute('aria-checked', 'true');
 });
 
+test('a person is added directly at the line root, e.g. the managing director', async ({
+  page,
+}) => {
+  const ws = lineWorkspace();
+  ws.lineName = 'Velmora GmbH';
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
+  await toWorld(page, 'Line');
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Velmora GmbH');
+  await showView(page, 'Staff');
+  const view = panel(page, 'Staff');
+  await view.getByRole('button', { name: '+ Person' }).click();
+  const add = page.getByRole('dialog', { name: 'Add a person to Velmora GmbH' });
+  await add.getByLabel('Name of the person').fill('Hanne Brix');
+  await add.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(add).toBeHidden();
+  const row = view.locator('tbody tr').filter({ hasText: 'Hanne Brix' });
+  await expect(row).toHaveCount(1);
+  await expect(row.locator('td.unit')).toHaveText('Velmora GmbH');
+});
+
 test('line units and skills are managed in place', async ({ page }) => {
   await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
   await toWorld(page, 'Line');

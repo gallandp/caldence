@@ -22,12 +22,12 @@
   import ImpactCheck from '../components/ImpactCheck.svelte';
   import ImpactTag from '../components/ImpactTag.svelte';
   import UnitChip from '../components/UnitChip.svelte';
-  import { lineSelection } from '../../core/model';
+  import { lineSelection, lineUnitsById } from '../../core/model';
   import { productMeetings } from '../../core/demand';
   import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
+  import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, index, workspace } from '../state/workspace';
@@ -43,7 +43,7 @@
   /** Members come from the line (#397): their line unit links there, while the file has a line. */
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const lineUnitOf = $derived.by(() => {
-    const units = new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u]));
+    const units = lineUnitsById($workspace, $levels.org);
     const byPerson = new Map($workspace.people.map((p) => [p.id, p.lineUnitId]));
     return (personId: string) => units.get(byPerson.get(personId) ?? '');
   });

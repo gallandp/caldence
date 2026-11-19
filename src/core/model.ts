@@ -374,6 +374,14 @@ export function lineRootName(ws: Workspace, fallback: string): string {
   return ws.lineName || orgName(ws, fallback);
 }
 
+/** Line units by id, with the line's root for the people who sit directly there. */
+export function lineUnitsById(ws: Workspace, rootName: string): Map<string, LineUnit> {
+  return new Map([
+    ...(ws.lineUnits ?? []).map((u) => [u.id, u] as const),
+    [ORG_UNIT, { id: ORG_UNIT, name: lineRootName(ws, rootName) }],
+  ]);
+}
+
 export interface SavedView {
   /** Id of the selected team or area, or ORG_UNIT. */
   unit?: string;

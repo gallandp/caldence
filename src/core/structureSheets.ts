@@ -2,6 +2,8 @@ import { personCompanyId } from './lineStaff';
 import { effectiveDuration } from './recurrence';
 import {
   areaAsTeam,
+  lineRootName,
+  ORG_UNIT,
   participantName,
   type Area,
   type CalEvent,
@@ -139,7 +141,9 @@ export function structureSheets(
           ],
           rows: ws.people.map((p) => [
             p.name,
-            ws.lineUnits?.find((u) => u.id === p.lineUnitId)?.name ?? null,
+            p.lineUnitId === ORG_UNIT
+              ? lineRootName(ws, t('level.org'))
+              : (ws.lineUnits?.find((u) => u.id === p.lineUnitId)?.name ?? null),
             ws.companies?.find((c) => c.id === personCompanyId(ws, p))?.name ?? null,
             p.contractFte ?? 1,
             (p.skillIds ?? [])

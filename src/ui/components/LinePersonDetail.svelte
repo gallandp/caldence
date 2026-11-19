@@ -3,6 +3,7 @@
   import { updateLinePerson } from '../../core/lineEdit';
   import { lineTree, personCompanyId, type StaffRow } from '../../core/lineStaff';
   import { capacity, fte as share } from '../../core/load';
+  import { lineRootName, ORG_UNIT } from '../../core/model';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
 
@@ -152,8 +153,10 @@
         onchange={(e) => set({ lineUnitId: (e.currentTarget as HTMLSelectElement).value || null })}
       >
         <option value="">{$t('line.detail.noUnit')}</option>
+        <!-- Directly at the line's root, e.g. the managing director. -->
+        <option value={ORG_UNIT}>{lineRootName(ws, $levels.org)}</option>
         {#each units as u (u.unit.id)}
-          <option value={u.unit.id}>{' '.repeat(u.depth * 3)}{u.unit.name}</option>
+          <option value={u.unit.id}>{' '.repeat((u.depth + 1) * 3)}{u.unit.name}</option>
         {/each}
       </select>
     </div>

@@ -22,6 +22,7 @@
   import {
     keyName,
     lineSelection,
+    lineUnitsById,
     selectedLineUnit,
     units as allUnits,
     unitLoadIds,
@@ -40,6 +41,7 @@
     formatDisplayDate,
     formatNumber,
     formatPercent,
+    levels,
     locale,
     translate as t,
   } from '../../i18n';
@@ -86,7 +88,7 @@
    */
   const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
-  const lineUnitById = $derived(new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u])));
+  const lineUnitById = $derived(lineUnitsById($workspace, $levels.org));
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
