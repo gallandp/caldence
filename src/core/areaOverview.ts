@@ -1,5 +1,13 @@
 import { addDays, diffDays, weekday, type ISODate } from './date';
-import { capacity, fte, occurrenceHours, occurrencesPerWeek, overMax, type WeekLoad } from './load';
+import {
+  capacity,
+  fte,
+  loadBase,
+  occurrenceHours,
+  occurrencesPerWeek,
+  overMax,
+  type WeekLoad,
+} from './load';
 import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
 import { effectiveDuration } from './recurrence';
 import { areaStructure } from './structure';
@@ -164,7 +172,7 @@ export interface LoadCell {
 /** One row of the strip: these people's meeting hours in a unit ÷ their weekly hours there. */
 function unitLoad(ws: Workspace, unitId: string, people: string[], weeks: WeekLoad[]): LoadCell[] {
   const capTotal = people.reduce((sum, p) => sum + capacity(ws, p, unitId), 0);
-  const allHours = new Map(people.map((p) => [p, capacity(ws, p)]));
+  const allHours = new Map(people.map((p) => [p, loadBase(ws, p)]));
   const { maxFte } = ws.settings.thresholds;
   return weeks.map((week) => {
     const total = people.reduce((sum, p) => sum + (week.byTeamPerson[unitId]?.[p] ?? 0), 0);

@@ -51,7 +51,7 @@ test('adding someone to a third team shows the hint and never blocks', async ({ 
   await expect(load.locator('[data-context-hints]')).toContainText(
     'Alex: in 3 teams, about 40% of the time lost to switching',
   );
-  await alex.getByRole('button', { name: 'Alex' }).click();
+  await alex.getByRole('button', { name: 'Alex', exact: true }).click();
   await expect(load.locator('[data-context-detail]')).toContainText(
     'Context switching: Alex is in 3 teams.',
   );

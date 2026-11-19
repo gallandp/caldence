@@ -41,6 +41,7 @@
     teamShare: 'overview.cost.col.share',
     avg: 'overview.avg',
     loadTile: 'overview.kpi.load',
+    areaRow: 'overview.cost.areaRow',
   };
   const parts = [
     'duration',
@@ -55,6 +56,7 @@
     'warn',
     'context',
     'cost',
+    'areaShare',
     'areas',
     'overview',
   ] as const;

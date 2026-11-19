@@ -1,5 +1,5 @@
 import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
-import { capacity, fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
+import { capacity, fte, loadBase, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
   attendees,
@@ -13,6 +13,10 @@ import {
   type Settings,
   type Team,
   type Workspace,
+  invitesRole,
+  participantRoles,
+  roleAttendees,
+  roleHeads,
 } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import { record } from './record';
@@ -121,7 +125,7 @@ function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter)
   return event.participants.map((p) =>
     personId
       ? attendees(ws, unitId, p, event).includes(personId)
-      : (!filter.roleId || p.roleId === filter.roleId) &&
+      : (!filter.roleId || invitesRole(ws, unitId, p, filter.roleId)) &&
         (!only || attendees(ws, unitId, p, event).some((id) => only.has(id))),
   );
 }
@@ -129,6 +133,46 @@ function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter)
 /** With a line unit selected and no person filter, only its people count (#316). */
 const onlyPeople = (ws: Workspace, filter: Filter): Set<string> | undefined =>
   filter.personId ? undefined : selectionPeople(ws, filter.teamId);
+
+type RoleRow = { p: Participant; heads: number; ids: string[]; empty: boolean };
+
+/**
+ * The rows of the load by role that a meeting's participants give: per participant the selected
+ * person, the person invited by name, or one row per role its people come with (its own and the
+ * team roles linked to it, #338), each with its heads and people. A role filter keeps that role's
+ * rows, so a row reads the same with and without the filter. `empty`: the role nobody holds.
+ */
+function roleRows(ws: Workspace, unitId: string, event: CalEvent, filter: Filter): RoleRow[] {
+  const personId = filter.personId;
+  if (personId)
+    return event.participants.flatMap((p) =>
+      attendees(ws, unitId, p, event).includes(personId)
+        ? [{ p, heads: 1, ids: [personId], empty: false }]
+        : [],
+    );
+  const only = onlyPeople(ws, filter);
+  const rows = event.participants.flatMap((p): RoleRow[] => {
+    if (p.personId !== undefined) {
+      if (filter.roleId) return [];
+      const ids = attendees(ws, unitId, p, event);
+      return [{ p, heads: ids.length, ids, empty: false }];
+    }
+    return participantRoles(ws, unitId, p)
+      .filter((roleId) => !filter.roleId || roleId === filter.roleId)
+      .map((roleId) => ({
+        p: { ...p, roleId },
+        heads: roleHeads(ws, unitId, p, event, roleId),
+        ids: roleAttendees(ws, unitId, p, event, roleId),
+        empty: roleId === p.roleId && nobodyHolds(ws, unitId, p),
+      }));
+  });
+  if (!only) return rows;
+  // A line unit (#316): only its own people, and a role nobody holds is not theirs.
+  return rows.flatMap((r) => {
+    const ids = r.ids.filter((id) => only.has(id));
+    return ids.length > 0 ? [{ ...r, ids, heads: ids.length, empty: false }] : [];
+  });
+}
 
 /**
  * People a counted participant stands for: everyone in the role, one if nobody holds it yet (as
@@ -143,7 +187,13 @@ function heads(
 ): number {
   if (filter.personId) return 1;
   const only = onlyPeople(ws, filter);
-  if (only) return attendees(ws, unitId, p, event).filter((id) => only.has(id)).length;
+  if (only) {
+    const ids = filter.roleId
+      ? roleAttendees(ws, unitId, p, event, filter.roleId)
+      : attendees(ws, unitId, p, event);
+    return ids.filter((id) => only.has(id)).length;
+  }
+  if (filter.roleId) return roleHeads(ws, unitId, p, event, filter.roleId);
   return nobodyHolds(ws, unitId, p) ? 1 : attendees(ws, unitId, p, event).length;
 }
 
@@ -370,31 +420,21 @@ export function loadSummary(
   const holders = record<Set<string>>();
   const unfilled = record<number>();
   const hpw = ws.settings.hoursPerWeek;
-  const only = onlyPeople(ws, filter);
   for (const unit of scopeUnits(ws, filter)) {
-    // Only the participants the filter counts, so an area's "from every team" follows the person.
+    // Only the rows the filter counts, so an area's "from every team" follows the person; a role
+    // participant gives one row per role its people come with, filtered or not (#338).
+    const empty = new Set<string>();
     const events = unit.events.map((event) => {
       seenCats.add(event.categoryId);
-      const counts = counted(ws, unit.id, event, filter);
-      const participants = event.participants
-        .filter((_, i) => counts[i])
-        .map((p) => ({ ...p, share: p.share * heads(ws, unit.id, p, event, filter) }));
-      for (const p of participants) seenRoles.add(participantKey(p));
-      return { ...event, participants };
-    });
-    // Every invitation line counts; a role nobody holds on some line is unfilled once per unit.
-    const empty = new Set<string>();
-    events.forEach((e, i) => {
-      // The saved meeting, so people invited by name leave the role rows as in `heads`.
-      const saved = unit.events[i]!;
-      for (const p of e.participants) {
-        const key = participantKey(p);
-        const all = filter.personId ? [filter.personId] : attendees(ws, unit.id, p, saved);
-        const ids = only ? all.filter((id) => only.has(id)) : all;
+      const participants = roleRows(ws, unit.id, event, filter).map((r) => {
+        const key = participantKey(r.p);
+        seenRoles.add(key);
         const set = (holders[key] ??= new Set());
-        for (const id of ids) set.add(id);
-        if (!filter.personId && !only && nobodyHolds(ws, unit.id, p)) empty.add(key);
-      }
+        for (const id of r.ids) set.add(id);
+        if (r.empty) empty.add(key);
+        return { ...r.p, share: r.p.share * r.heads };
+      });
+      return { ...event, participants };
     });
     for (const roleId of empty) unfilled[roleId] = (unfilled[roleId] ?? 0) + 1;
     const base = weeklyBaseLoad({ ...unit, events });
@@ -426,7 +466,10 @@ export function loadSummary(
         const hours = roleHours[key] ?? 0;
         const ids = [...(holders[key] ?? [])];
         const empty = unfilled[key] ?? 0;
-        const weekly = ids.reduce((sum, id) => sum + capacity(ws, id, scope), empty * hpw);
+        // A chosen person is measured like in the people table, at most the Settings hours (#342).
+        const hoursOf = (id: string) =>
+          filter.personId ? loadBase(ws, id) : capacity(ws, id, scope);
+        const weekly = ids.reduce((sum, id) => sum + hoursOf(id), empty * hpw);
         return {
           roleId: key,
           hours,

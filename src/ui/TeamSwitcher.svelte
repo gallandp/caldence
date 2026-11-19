@@ -809,8 +809,14 @@
     min-width: 0;
     overflow-wrap: anywhere;
   }
+  /* A long word like "Organisation" stays whole: its count moves to a line of its own (#338). */
+  .opt-name-org {
+    overflow-wrap: break-word;
+  }
   /* The organisation sits above the tree, set off by a hairline. */
   :global(#app) .switcher .list button.opt.org {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
     margin-bottom: 0.3rem;
     font-weight: 600;
   }

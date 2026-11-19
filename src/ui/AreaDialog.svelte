@@ -1,7 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { setRoleLinks, teamRoleIds, unmatchedRoles } from '../core/areaEdit';
   import { addArea, setAreaTeams } from '../core/edit';
-  import type { Area } from '../core/model';
+  import type { Area, RoleLink } from '../core/model';
   import { translate as t } from '../i18n';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import { areaReady } from './state/hints';
@@ -21,6 +22,9 @@
   /** Any other refusal (the area limit, a team that is gone), shown above the buttons. */
   let general = $state('');
   let confirming = $state(false);
+  /** The team role chosen for each area role a team does not have, by team and role (#338). */
+  let links = $state<Record<string, string>>({});
+  const linkKey = (teamId: string, roleId: string) => `${teamId} ${roleId}`;
 
   const teams = $derived($workspace.teams);
   /** The other area a team is in now, if any. */
@@ -34,11 +38,30 @@
     }),
   );
 
+  const roleName = (id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id;
+  /**
+   * The chosen teams that lack a role the area's meetings invite from every team, with the
+   * roles they could send instead; a team without any role has nothing to choose from.
+   */
+  const mapping = $derived(
+    area
+      ? chosen.flatMap((teamId) => {
+          const team = teams.find((x) => x.id === teamId);
+          const options = teamRoleIds($workspace, teamId);
+          const roles = unmatchedRoles($workspace, area!, teamId);
+          return team && options.length > 0 && roles.length > 0 ? [{ team, roles, options }] : [];
+        })
+      : [],
+  );
+
   /** Opens the dialog to add an area, or to choose the teams of `of`. */
   export async function show(of?: Area) {
     area = of;
     name = '';
     chosen = of ? [...of.teamIds] : [];
+    links = Object.fromEntries(
+      (of?.roleLinks ?? []).map((l) => [linkKey(l.teamId, l.roleId), l.teamRoleId]),
+    );
     error = '';
     general = '';
     await tick();
@@ -59,8 +82,17 @@
   function save() {
     const value = name.trim();
     const target = area;
+    const chosenLinks: RoleLink[] = mapping.flatMap(({ team, roles }) =>
+      roles.flatMap((roleId) => {
+        const teamRoleId = links[linkKey(team.id, roleId)];
+        return teamRoleId ? [{ teamId: team.id, roleId, teamRoleId }] : [];
+      }),
+    );
     const result = target
-      ? workspace.apply((ws) => setAreaTeams(ws, target.id, chosen))
+      ? workspace.apply((ws) => {
+          const r = setAreaTeams(ws, target.id, chosen);
+          return r.ok ? setRoleLinks(r.value, target.id, chosenLinks) : r;
+        })
       : workspace.apply((ws) => addArea(ws, value, chosen));
     if (!result.ok) {
       general = result.errors[0]?.key ?? 'error.type';
@@ -135,6 +167,38 @@
       {/if}
       <p class="hint">{$t('area.dialog.hint')}</p>
     </fieldset>
+    {#if mapping.length > 0}
+      <fieldset class="roles">
+        <legend>{$t('area.roleLinks.title')}</legend>
+        <p class="hint">{$t('area.roleLinks.hint')}</p>
+        {#each mapping as { team, roles, options } (team.id)}
+          <div class="team-roles">
+            <p class="team-name">{team.name}</p>
+            {#each roles as roleId (roleId)}
+              {@const key = linkKey(team.id, roleId)}
+              <div class="link">
+                <label for="{uid}-{key.replace(' ', '-')}"
+                  ><span class="sr-only"
+                    >{$t('area.roleLinks.label', { role: roleName(roleId), team: team.name })}</span
+                  ><span aria-hidden="true">{roleName(roleId)}</span></label
+                >
+                <span class="arrow" aria-hidden="true">→</span>
+                <select
+                  id="{uid}-{key.replace(' ', '-')}"
+                  value={links[key] ?? ''}
+                  onchange={(e) => (links = { ...links, [key]: e.currentTarget.value })}
+                >
+                  <option value="">{$t('area.roleLinks.none')}</option>
+                  {#each options as id (id)}
+                    <option value={id}>{roleName(id)}</option>
+                  {/each}
+                </select>
+              </div>
+            {/each}
+          </div>
+        {/each}
+      </fieldset>
+    {/if}
     {#if general}
       <p class="field-error" role="alert">{$t(general, { path: $t('area.dialog.teams') })}</p>
     {/if}
@@ -247,6 +311,64 @@
     margin: 0.4rem 0 0;
     font-size: 0.85rem;
     color: var(--text-muted, var(--text));
+  }
+  .roles {
+    margin-top: var(--space);
+  }
+  .roles .hint {
+    margin: 0.15rem 0 0.5rem;
+  }
+  .team-roles {
+    padding: 0.35rem 0.6rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .team-roles + .team-roles {
+    margin-top: 0.5rem;
+  }
+  .team-name {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted, var(--text));
+  }
+  .link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+  }
+  .link label {
+    overflow-wrap: break-word;
+  }
+  .arrow {
+    color: var(--text-muted, var(--text));
+  }
+  /* On phones the role sits above its choice, so the select can show whole role names. */
+  @media (max-width: 40rem) {
+    .link {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0.2rem;
+      padding: 0.2rem 0 0.35rem;
+    }
+    .arrow {
+      display: none;
+    }
+    select {
+      min-height: 2.75rem;
+    }
+  }
+  select {
+    font: inherit;
+    min-width: 0;
+    min-height: 2.25rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.4rem;
   }
   .actions {
     display: flex;

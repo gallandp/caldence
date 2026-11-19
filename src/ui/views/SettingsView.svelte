@@ -334,7 +334,11 @@
           id="set-region"
           value={settings.region}
           aria-invalid={regionError ? 'true' : undefined}
-          aria-describedby={[regionError && 'err-region', unknownRegion && 'note-region']
+          aria-describedby={[
+            regionError && 'err-region',
+            unknownRegion && 'note-region',
+            'note-region-check',
+          ]
             .filter(Boolean)
             .join(' ') || undefined}
           onchange={(e) => {
@@ -353,6 +357,8 @@
             <p class="field-error" id="err-region">{regionError}</p>
           {/if}
         </div>
+        <!-- The region is preset; holidays decide which meetings drop out (#341). -->
+        <p class="help" id="note-region-check">{$t('settings.region.check')}</p>
         {#if unknownRegion}
           <p class="help" id="note-region">
             {$t('region.unknown', { region: settings.region })}
