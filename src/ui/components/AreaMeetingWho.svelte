@@ -3,12 +3,10 @@
     attendees,
     missingRoles,
     participantName,
-    ORG_UNIT,
     type Area,
     type CalEvent,
   } from '../../core/model';
-  import { tick } from 'svelte';
-  import { teamRoleIds, unmatchedRoles } from '../../core/areaEdit';
+  import { canLinkRole } from '../../core/areaEdit';
   import { areaText, formatNumber, levels, locale, translate } from '../../i18n';
   import { presenting } from '../state/present';
   import { workspace } from '../state/workspace';
@@ -38,13 +36,14 @@
    * has roles to choose from. Its pill opens the mapping (#362).
    */
   const mappable = (teamId: string, roleId: string) =>
-    // The organisation takes its teams' links from their areas; it keeps none of its own (#328).
-    area.id !== ORG_UNIT &&
-    !$presenting &&
-    teamRoleIds(ws, teamId).length > 0 &&
-    unmatchedRoles(ws, area, teamId).includes(roleId);
+    !$presenting && canLinkRole(ws, area, teamId, roleId);
   let list = $state<HTMLUListElement | undefined>();
   let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
+  /**
+   * Once the mapping made the pill go away: the meeting's next pill or its chips, so focus never
+   * falls back to the page.
+   */
+  const next = () => list?.parentElement?.querySelector<HTMLElement>('button.missing') ?? list;
 </script>
 
 <ul class="area-roles" bind:this={list} tabindex="-1">
@@ -102,15 +101,9 @@
     {area}
     teamId={mapping.teamId}
     roleId={mapping.roleId}
-    onclose={async () => {
-      const back = mapping?.button;
-      mapping = undefined;
-      await tick();
-      // Back to the pill; once the mapping made it go away, to the meeting's next pill or its
-      // chips, so focus never falls back to the page.
-      if (back?.isConnected) back.focus();
-      else (list?.parentElement?.querySelector<HTMLElement>('button.missing') ?? list)?.focus();
-    }}
+    opener={mapping.button}
+    fallback={next}
+    onclose={() => (mapping = undefined)}
   />
 {/if}
 
@@ -179,7 +172,7 @@
     font-size: 0.8rem;
     font-weight: 600;
     line-height: 1.35;
-    min-height: 2rem;
+    min-height: 2.75rem;
     padding: 6px 8px 6px 10px;
     border: 1px solid transparent;
     border-radius: 8px;
