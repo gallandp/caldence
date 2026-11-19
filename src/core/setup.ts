@@ -1,5 +1,13 @@
 import type { ISODate } from './date';
-import { addArea, addItem, addTeam, renameArea, renameOrganisation, updateSettings } from './edit';
+import {
+  addArea,
+  addItem,
+  addTeam,
+  renameArea,
+  renameLine,
+  renameOrganisation,
+  updateSettings,
+} from './edit';
 import type { LevelNames } from './levels';
 import { addLineUnit } from './lineEdit';
 import { ORG_UNIT, type Settings, type Workspace } from './model';
@@ -179,8 +187,11 @@ export function setupStructure(ws: Workspace, input: StructureInput): Result<[Wo
 }
 
 export interface LineSetupInput {
-  /** The organisation's name, the root of the line tree too; blank keeps the current one. */
-  organisation?: string;
+  /**
+   * The line root's own name (#417), e.g. the group of the companies; blank keeps the current one.
+   * Never the product organisation's name: that may differ from every company's.
+   */
+  lineName?: string;
   /** A group above the line teams (a specialist group); blank puts them at the top. */
   group?: string;
   teams: string[];
@@ -195,9 +206,9 @@ export function setupLine(ws: Workspace, input: LineSetupInput): Result<[Workspa
   const teams = input.teams.map((t) => t.trim()).filter((t) => t !== '');
   if (teams.length === 0) return fail('lineUnits', 'error.required');
   let out = input.settings ? updateSettings(ws, input.settings) : ws;
-  const orgName = input.organisation?.trim() ?? '';
-  if (orgName !== '') {
-    const r = renameOrganisation(out, orgName);
+  const lineName = input.lineName?.trim() ?? '';
+  if (lineName !== '') {
+    const r = renameLine(out, lineName);
     if (!r.ok) return r;
     out = r.value;
   }

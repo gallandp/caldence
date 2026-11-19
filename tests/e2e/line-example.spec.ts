@@ -4,7 +4,7 @@ test('the start screen opens the line example on the organisation (#323)', async
   await page.goto('/');
   await page.getByRole('button', { name: 'Open the large line example' }).click();
   await expect(page.getByText('Untitled')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Velmora Group' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Velmora Platforms' })).toBeVisible();
   await expect(page.getByRole('tab', { selected: true })).toHaveAttribute('id', 'tab-team');
   // The organisation opens on its overview (#337); the structure lists the platforms.
   await page

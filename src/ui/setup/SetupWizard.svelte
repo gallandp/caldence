@@ -41,6 +41,8 @@
   let areaName = $state('');
   let teamsText = $state('');
   let orgName = $state('');
+  /** The line root's own name (#417), never the product organisation's. */
+  let lineName = $state('');
   let rows = $state<{ name: string; teams: string }[]>([]);
   let lineGroup = $state('');
   let lineTeams = $state('');
@@ -169,6 +171,7 @@
     areaName = '';
     teamsText = '';
     orgName = '';
+    lineName = '';
     rows = [{ name: '', teams: '' }];
     lineGroup = '';
     lineTeams = '';
@@ -353,7 +356,7 @@
       mode === 'line'
         ? workspace.apply((ws) =>
             setupLine(ws, {
-              organisation: orgName,
+              lineName,
               group: lineGroup,
               teams: splitNames(lineTeams),
               ...frame,
@@ -379,7 +382,10 @@
     }
     if (result.id) activeTeamId.set(mode === 'line' ? lineSelection(result.id) : result.id);
     close();
-    oncreated?.(mode === 'area' ? areaName.trim() : orgName.trim(), mode);
+    oncreated?.(
+      mode === 'area' ? areaName.trim() : mode === 'line' ? lineName.trim() : orgName.trim(),
+      mode,
+    );
   }
 </script>
 
@@ -678,14 +684,14 @@
     {:else if current === 'line'}
       <h3 tabindex="-1" bind:this={heading}>{$t('setup.line.heading')}</h3>
       <p class="hint">{$t('setup.line.hint')}</p>
-      {#if !$workspace.organisation?.name}
+      {#if !$workspace.lineName}
         {@render textField(
-          'line-org',
-          $t('setup.org.name'),
-          () => orgName,
-          (v) => (orgName = v),
-          $t('setup.line.org.hint'),
-          $t('setup.org.name.example'),
+          'line-name',
+          $t('setup.line.name'),
+          () => lineName,
+          (v) => (lineName = v),
+          $t('setup.line.name.hint'),
+          $t('setup.line.name.example'),
         )}
       {/if}
       {@render textField(
