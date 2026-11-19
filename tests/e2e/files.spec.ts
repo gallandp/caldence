@@ -36,7 +36,7 @@ async function storedTeams(page: Page): Promise<number> {
   return page.evaluate(
     () =>
       new Promise<number>((resolve) => {
-        const req = indexedDB.open('caldence', 1);
+        const req = indexedDB.open('caldence-v2', 1);
         req.onerror = () => resolve(-1);
         req.onsuccess = () => {
           const db = req.result;
@@ -215,7 +215,7 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
   const backupTeams = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
-        const req = indexedDB.open('caldence', 1);
+        const req = indexedDB.open('caldence-v2', 1);
         req.onsuccess = () => {
           const get = req.result.transaction('autosave').objectStore('autosave').get('current.bak');
           get.onsuccess = () =>

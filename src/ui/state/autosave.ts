@@ -70,7 +70,11 @@ export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
   };
 }
 
-export function createAutosave(kv: KV, debounceMs = 500) {
+/**
+ * @param legacy store of Caldence 1.x on the same origin (#344). Read once, when this store is
+ *   still empty, so the user finds their plan; never written.
+ */
+export function createAutosave(kv: KV, debounceMs = 500, legacy?: KV) {
   const status = writable(true);
   let available = true;
   // Set when the stored data could not be read: writing then could destroy it.
@@ -99,11 +103,23 @@ export function createAutosave(kv: KV, debounceMs = 500) {
       disable();
       return null;
     }
+    // First start of Caldence 2: take over the 1.x autosave, read only.
+    let fromLegacy = false;
+    if ((stored === undefined || stored === null) && legacy) {
+      try {
+        stored = await legacy.get(AUTOSAVE_KEY);
+        fromLegacy = true;
+      } catch {
+        return null;
+      }
+    }
     if (stored === undefined || stored === null) return null;
     const s = stored as Partial<AutosaveState>;
     const migrated = typeof stored === 'object' ? migrate(s.ws) : undefined;
     const checked = migrated?.ok ? validate(migrated.value) : undefined;
     if (!checked?.ok) {
+      // A 1.x workspace that does not load stays where it is, untouched.
+      if (fromLegacy) return null;
       // Keep what we could not load before the next write replaces it (best effort).
       try {
         await kv.set(BACKUP_KEY, stored);
@@ -191,7 +207,10 @@ export function createAutosave(kv: KV, debounceMs = 500) {
   };
 }
 
-export const autosave = createAutosave(idbStore());
+// Caldence 2 keeps its own database: 1.x runs on the same origin and must never read a format 2
+// workspace or have its own overwritten (#344). The 1.x autosave is copied once (see above).
+export const AUTOSAVE_DB = 'caldence-v2';
+export const autosave = createAutosave(idbStore(AUTOSAVE_DB), 500, idbStore('caldence'));
 
 /** True when the page address asks to start without the stored workspace (`?reset`). */
 export function wantsReset(href: string): boolean {

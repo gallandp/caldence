@@ -1,0 +1,114 @@
+name: Release v2
+
+# Pre-releases of Caldence 2 from the branch release/v2 (#344). Every push to release/v2 (a merged
+# PR, or main merged in) builds 2.0.0-alpha.N, where N counts the runs of this workflow, publishes
+# it as a GitHub pre-release (never "latest") and starts deploy.yml on main with the channel v2.
+# The deployment then waits for the maintainer's approval, as for 1.x, and lands in /v2/.
+#
+# 1.x versioning is untouched: package.json keeps the 1.x version of main, so merging main in
+# never conflicts there; only the build sets the pre-release version.
+
+on:
+  push:
+    branches: [release/v2]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-v2
+  cancel-in-progress: false
+
+jobs:
+  # Runs npm and every dependency's build code, so it gets a read-only token that is not kept
+  # on disk. The result is handed to the publish job as an artifact.
+  build:
+    if: github.ref == 'refs/heads/release/v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set the pre-release version
+        id: version
+        env:
+          RUN: ${{ github.run_number }}
+        run: |
+          version="2.0.0-alpha.$RUN"
+          npm pkg set version="$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # No dependency needs an install script.
+          npm ci --ignore-scripts
+          npm run build
+          npm run package
+          sha256sum "caldence-$VERSION.zip" > "caldence-$VERSION.zip.sha256"
+          {
+            echo "Pre-release of Caldence 2 from release/v2 ($GITHUB_SHA), for https://caldence.de/v2/."
+            echo
+            echo "Files saved with it open only in Caldence 2. Caldence 1.x stays at https://caldence.de/."
+          } > release-notes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-v2
+          path: |
+            caldence-${{ steps.version.outputs.version }}.zip
+            caldence-${{ steps.version.outputs.version }}.zip.sha256
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  # Never runs npm: attests the built ZIP, tags the commit and publishes the pre-release.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      # To start deploy.yml (see the last step).
+      actions: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-v2
+          path: ${{ runner.temp }}/release
+      - name: Check the ZIP against its checksum
+        working-directory: ${{ runner.temp }}/release
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: sha256sum -c "caldence-$VERSION.zip.sha256"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/release/caldence-${{ needs.build.outputs.version }}.zip
+      - name: Tag and publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_DIR: ${{ runner.temp }}/release
+        run: |
+          gh release create "v$VERSION" \
+            "$RELEASE_DIR/caldence-$VERSION.zip" "$RELEASE_DIR/caldence-$VERSION.zip.sha256" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "Caldence $VERSION" --notes-file "$RELEASE_DIR/release-notes.md"
+      - name: Start the deployment to /v2/
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+        # A release made with GITHUB_TOKEN starts no workflows; workflow_dispatch is the exception.
+        run: |
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            -f version="$VERSION" -f channel=v2

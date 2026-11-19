@@ -41,7 +41,7 @@ async function storedMembers(page: Page): Promise<string[]> {
   return page.evaluate(
     () =>
       new Promise<string[]>((resolve) => {
-        const req = indexedDB.open('caldence', 1);
+        const req = indexedDB.open('caldence-v2', 1);
         req.onerror = () => resolve([]);
         req.onsuccess = () => {
           const db = req.result;

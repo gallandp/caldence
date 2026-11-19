@@ -28,7 +28,7 @@
   import ExchangeView from './views/ExchangeView.svelte';
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
-  import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
+  import { LEGAL_DIR, LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
@@ -518,7 +518,7 @@
         {#if legal.length > 0}
           <nav class="legal" aria-label={$t('legal.label')}>
             {#each legal as page (page)}
-              <a href="./{page}.html">{$t('legal.' + page)}</a>
+              <a href="{LEGAL_DIR}{page}.html">{$t('legal.' + page)}</a>
             {/each}
           </nav>
         {/if}

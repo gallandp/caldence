@@ -17,8 +17,9 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       manifest: {
-        name: 'Caldence',
-        short_name: 'Caldence',
+        // Caldence 2 preview at /v2/ (#344): its own installable app next to 1.x.
+        name: 'Caldence 2 (preview)',
+        short_name: 'Caldence 2',
         description: 'Plan the recurring meetings of agile roles and export them to your calendar.',
         start_url: './',
         scope: './',
