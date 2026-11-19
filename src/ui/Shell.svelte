@@ -216,11 +216,15 @@
     drillIn(teamId, 'load');
   }
 
-  /** The Calendar's week with `date`, with the Person filter on that person (#343). */
-  function openCalendarWeek(personId: string, date: ISODate) {
+  /**
+   * The Calendar's week with `date`, with the Person filter on that person (#343). With `drill`,
+   * a drill-in from the area overview: the calendar offers one click back (#339).
+   */
+  function openCalendarWeek(personId: string, date: ISODate, options: { drill?: string } = {}) {
     filter.set({ personId });
     calendarWeek.set(date);
-    select('calendar', true);
+    if (options.drill) drillIn(options.drill, 'calendar');
+    else select('calendar', true);
   }
 
   /** A dropped meeting's date (#341): the Calendar opens that day; its details take the focus. */
@@ -685,6 +689,8 @@
                         drillIn(unitId, 'meetings');
                       }}
                       onOpenUnit={(unitId) => drillIn(unitId, 'meetings')}
+                      onOpenCalendar={(personId, date) =>
+                        openCalendarWeek(personId, date, { drill: activeArea.id })}
                     />
                   {/snippet}
                 </AreaView>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { areaShare } from '../../core/areaCosts';
   import { costSummary } from '../../core/cost';
-  import { isoWeek } from '../../core/date';
+  import { isoWeek, weekday } from '../../core/date';
   import {
     areaHints,
     areaHours,
@@ -18,7 +18,14 @@
   } from '../../core/load';
   import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
-  import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
+  import {
+    clashes,
+    clashTime,
+    loadSummary,
+    scopePeople,
+    warnedWeeks,
+    weekRows,
+  } from '../../core/views';
   import {
     formatDisplayDate,
     formatNumber,
@@ -29,7 +36,7 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
-  import { ruleSummary } from '../meetings/rules';
+  import { ruleSummary, weekdayShort } from '../meetings/rules';
   import { filter, index, workspace } from '../state/workspace';
 
   interface Props {
@@ -281,6 +288,48 @@
           .map((part, i) => (i % 2 === 1 ? links[Number(part)]! : { label: part })),
       };
     });
+  });
+
+  /**
+   * One warning per person whose meetings clash in the planning horizon (#339): how many, between
+   * which teams or areas, and the first one as an example. The calendar's overlap rule.
+   */
+  const clashItems = $derived.by(() => {
+    const ws = $workspace;
+    const byPerson = record<ReturnType<typeof clashes>>();
+    for (const c of clashes(ws, $index, scopePeople(ws, $filter)))
+      (byPerson[c.personId] ??= []).push(c);
+    const units = [...ws.areas, ...ws.teams];
+    const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
+    const eventName = (o: { teamId: string; eventId: string }) =>
+      units.find((u) => u.id === o.teamId)?.events.find((e) => e.id === o.eventId)?.name ??
+      o.eventId;
+    return Object.entries(byPerson)
+      .map(([personId, found]) => {
+        const ids = new Set(found.flatMap((c) => [c.a.teamId, c.b.teamId]));
+        const names = units.filter((u) => ids.has(u.id)).map((u) => u.name);
+        const first = found[0]!;
+        const time = clashTime(first);
+        const person = ws.people.find((p) => p.id === personId)?.name ?? personId;
+        return {
+          key: `clash/${personId}`,
+          person,
+          text: $t(names.length === 1 ? 'load.warn.clash.in' : 'load.warn.clash.between', {
+            person,
+            count: $t(found.length === 1 ? 'load.warn.clash.one' : 'load.warn.clash.other', {
+              n: formatNumber($locale, found.length, 0),
+            }),
+            units: list.format(names),
+            a: eventName(first.a),
+            b: eventName(first.b),
+            day: weekdayShort($locale, weekday(first.date)),
+            date: formatDisplayDate($locale, first.date, 'short'),
+            from: time.start,
+            to: time.end,
+          }),
+        };
+      })
+      .sort((a, b) => a.person.localeCompare(b.person, $locale));
   });
 
   // ---------- summary tiles and chart ----------
@@ -648,8 +697,8 @@
   <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
-      {#if warningItems.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length}</span
+      {#if warningItems.length + clashItems.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length + clashItems.length}</span
         >{/if}
     </h3>
     <p class="note">
@@ -658,9 +707,10 @@
         limit: formatPercent($locale, $workspace.settings.thresholds.maxFte),
       })}
     </p>
-    {#if warningItems.length === 0}
+    {#if warningItems.length + clashItems.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
-    {:else}
+    {/if}
+    {#if warningItems.length > 0}
       <ul class="warnings">
         {#each warningItems as w (w.key)}
           <li class="warning">
@@ -673,6 +723,14 @@
                   )}{:else}{part.label}{/if}{/each}</span
             >
           </li>
+        {/each}
+      </ul>
+    {/if}
+    {#if clashItems.length > 0}
+      <h4 class="hints-title">{$t('load.overlaps')}</h4>
+      <ul class="warnings overlaps">
+        {#each clashItems as w (w.key)}
+          <li class="warning" data-clash>{w.text}</li>
         {/each}
       </ul>
     {/if}
@@ -1029,6 +1087,9 @@
   .hints-title {
     margin: 1rem 0 0;
     font-size: 0.9375rem;
+  }
+  .hints-title + .overlaps {
+    margin-top: 0.5rem;
   }
   .hints {
     display: flex;
