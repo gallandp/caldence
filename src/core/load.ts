@@ -6,6 +6,7 @@ import {
   units,
   unitTeamIds,
   ORG_UNIT,
+  selectedLineUnit,
   type CalEvent,
   type Rule,
   type Team,
@@ -87,8 +88,22 @@ export function weeklyBaseLoad(team: Team): BaseLoad {
 /** Rules that do not come back every few weeks: one-offs and cycle milestones. */
 const IRREGULAR = new Set<Rule['type']>(['once', 'cycle-milestone']);
 
+/**
+ * The last result of `loadPerWeek`: the Load view and the line page (#316) ask for the same
+ * workspace. Workspaces are never changed in place, so the same object means the same answer.
+ * Callers must not change the result.
+ */
+let lastWeeks: { ws: Workspace; index: HolidayIndex; value: WeekLoad[] } | undefined;
+
 /** Hours per week for every Monday of the horizon, holidays excluded, all teams summed. */
 export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
+  if (lastWeeks?.ws === ws && lastWeeks.index === index) return lastWeeks.value;
+  const value = loadPerWeekNow(ws, index);
+  lastWeeks = { ws, index, value };
+  return value;
+}
+
+function loadPerWeekNow(ws: Workspace, index: HolidayIndex): WeekLoad[] {
   const first = mondayOf(ws.settings.horizon.from);
   const last = mondayOf(ws.settings.horizon.to);
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
@@ -178,8 +193,10 @@ export function areaHours(ws: Workspace, areaId: string, personId: string): numb
  * workspace default (#265).
  */
 export function capacity(ws: Workspace, personId: string, unitId?: string): number {
-  // The organisation is everything: the same as no unit.
-  const teamId = unitId === ORG_UNIT ? undefined : unitId;
+  // The organisation is everything: the same as no unit. So is a line unit (#316): its people
+  // are measured on all their hours, wherever they work.
+  const teamId =
+    unitId === ORG_UNIT || selectedLineUnit(unitId) !== undefined ? undefined : unitId;
   const fallback = ws.settings.hoursPerWeek;
   const scope = teamId === undefined ? undefined : new Set(unitTeamIds(ws, teamId));
   const teams = ws.teams.filter(
