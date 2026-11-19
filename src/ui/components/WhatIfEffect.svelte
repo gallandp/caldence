@@ -29,6 +29,7 @@
    * The effect box: what a change does to hours, cost, meeting load and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
    * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
+   * `extra` adds rows of its own.
    * `live` false drops the live region, where the box follows every keystroke of a form.
    * `team`: a team in an area; its own meeting load comes first, then the area's (#340). The
    * area's hours and cost follow the area's line then, so they are not read as the team's.
@@ -41,6 +42,7 @@
     note,
     compact = false,
     live = true,
+    extra = [],
     team,
   }: {
     before?: Effect;
@@ -50,6 +52,8 @@
     note?: string;
     compact?: boolean;
     live?: boolean;
+    /** More rows below the numbers, e.g. the Mindestzusage of a product (#318). */
+    extra?: { label: string; value: string }[];
     team?: { name: string; before: Effect; after: Effect };
   } = $props();
 
@@ -127,6 +131,12 @@
           </dd>
         </div>
       {/if}
+      {#each extra as row (row.label)}
+        <div>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      {/each}
     </dl>
     {#if note}<p class="note">{note}</p>{/if}
   {/if}

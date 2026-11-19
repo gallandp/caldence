@@ -12,7 +12,8 @@
   import { validate } from '../../core/validate';
   import { workspaceIndex } from '../../core/views';
   import { effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
-  import { translate as t } from '../../i18n';
+  import { defaultDemandRole, minCommitment } from '../../core/demand';
+  import { formatNumber, locale, translate as t } from '../../i18n';
   import { movedText, RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import { applyOwn } from '../state/problems.svelte';
   import { index, localToday, workspace } from '../state/workspace';
@@ -102,6 +103,28 @@
     const a = whatIfEffect(candidate.ws, candidateIndex, id);
     return b && a ? { name: unit?.name ?? '', before: b, after: a } : undefined;
   });
+  /** A product's Mindestzusage before and after (#318), for the role its demands start with. */
+  const minRow = $derived.by(() => {
+    // Only where the team page shows the demand card: the file has skills or demands.
+    const lined = !!$workspace.skills?.length || $workspace.teams.some((x) => x.demands?.length);
+    const team = lined ? $workspace.teams.find((x) => x.id === target.unitId) : undefined;
+    const role = team ? defaultDemandRole($workspace, team) : undefined;
+    if (!team || !role || !('ws' in candidate)) return [];
+    const next = candidate.ws.teams.find((x) => x.id === team.id);
+    const from = minCommitment($workspace, team, role);
+    const to = next ? minCommitment(candidate.ws, next, role) : undefined;
+    if (!from && !to) return [];
+    const fte = (m?: { fte: number }) =>
+      m ? $t('demand.fteValue', { n: formatNumber($locale, m.fte, 1) }) : '–';
+    return [
+      {
+        label: $t('whatif.effect.min', {
+          role: $workspace.roles.find((r) => r.id === role)?.name ?? role,
+        }),
+        value: $t('whatif.arrow', { from: fte(from), to: fte(to) }),
+      },
+    ];
+  });
   const scopeName = $derived(
     $workspace.areas.find((a) => a.id === scope)?.name ??
       $workspace.teams.find((x) => x.id === scope)?.name ??
@@ -177,6 +200,7 @@
       {before}
       {after}
       {scopeName}
+      extra={minRow}
       {team}
       error={'error' in candidate ? $t(candidate.error, candidate.params) : undefined}
       note={'moved' in candidate ? candidate.moved : undefined}
