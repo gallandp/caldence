@@ -3,7 +3,7 @@
   import { get } from 'svelte/store';
   import { formatDisplayDate, formatEuro, locale, translate as t } from '../i18n';
   import { emptyWorkspace, type Workspace } from '../core/model';
-  import { exampleWorkspace } from '../data/examples';
+  import { exampleWorkspace, lineExample } from '../data/examples';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import FilterBar from './FilterBar.svelte';
   import { autosave } from './state/autosave';
@@ -219,11 +219,18 @@
     if (!morePanel?.contains(target) && !moreToggle?.contains(target)) moreOpen = false;
   }
 
-  async function replaceWith(make: () => Workspace) {
+  async function replaceWith(make: () => Workspace | Promise<Workspace>) {
     if (!(await proceed())) return;
+    let ws: Workspace;
+    try {
+      ws = await make();
+    } catch {
+      // E.g. the line example's chunk did not load; the open file stays as it is.
+      error = { key: 'file.error.read', more: 0 };
+      return;
+    }
     error = null;
     files.forget();
-    const ws = make();
     ws.settings.locale = get(workspace).settings.locale;
     workspace.replace(ws, { fileName: null, dirty: false });
   }
@@ -238,6 +245,14 @@
   export function openExample(): Promise<void> {
     return exclusive(
       () => replaceWith(() => exampleWorkspace(get(workspace).settings.locale)),
+      undefined,
+    );
+  }
+
+  /** The large invented line organisation example (#323). */
+  export function openLineExample(): Promise<void> {
+    return exclusive(
+      () => replaceWith(() => lineExample(get(workspace).settings.locale)),
       undefined,
     );
   }

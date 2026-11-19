@@ -102,7 +102,6 @@
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
         /** Hours per week that still fit into meetings before the limit (none without hours). */
         free: Math.max(0, maxFte * cap - average),
-        units: unitsOf(person.id),
         peak,
       };
     }),
@@ -181,7 +180,13 @@
    */
   const PERSON_ROWS = 50;
   let allPeople = $state(false);
-  const shownPeople = $derived(allPeople ? sorted : sorted.slice(0, PERSON_ROWS));
+  // Their teams and areas only for the rows shown (#323 budget: ~650 people at the target scale).
+  const shownPeople = $derived(
+    (allPeople ? sorted : sorted.slice(0, PERSON_ROWS)).map((p) => ({
+      ...p,
+      units: unitsOf(p.person.id),
+    })),
+  );
   let openPerson = $state<string | null>(null);
   // A person who left the list (another team or filter) does not come back opened.
   $effect(() => {
