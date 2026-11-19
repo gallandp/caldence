@@ -2,16 +2,25 @@
   import { onMount, tick } from 'svelte';
   import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
   import { LEVEL_PRESETS, type LevelPreset } from '../../core/levels';
-  import { levelWords } from '../../i18n/levels';
+  import { levelWords, lineLevelWord } from '../../i18n/levels';
+  import { lineLevels } from '../../core/lineLevels';
+  import { newLineLevelId, setLineLevels } from '../../core/lineEdit';
+  import { lineKind } from '../../core/lineStaff';
   import { DEFAULT_CONTEXT_SWITCH, MIN_CONTEXT_SWITCH } from '../../core/contextSwitch';
   import { LIMITS } from '../../core/limits';
-  import type { Settings } from '../../core/model';
+  import type { LineLevel, Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
   import type { ValidationError } from '../../core/validate';
   import { schoolHolidayGap } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
   import { regionIds } from '../../data/regions';
-  import { formatDisplayDate, translate as t, locale, type Locale } from '../../i18n';
+  import {
+    formatDisplayDate,
+    levels as levelStore,
+    translate as t,
+    locale,
+    type Locale,
+  } from '../../i18n';
   import { browserFileEnv, openTextFile } from '../state/files';
   import { fieldErrors } from '../state/form';
   import { pickFile } from '../state/picker';
@@ -288,21 +297,79 @@
     commit([`levelNames.${level}`], { levelNames: next });
   }
 
-  /** The line's level names (#316), offered once the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
-  function onLineName(level: 'company' | 'group' | 'team', event: Event) {
-    const word = (k: 'company' | 'group' | 'team') => $t('line.level.' + k);
-    const text = (event.currentTarget as HTMLInputElement).value.trim();
-    const next: { group: string; team: string; company?: string } = {
-      group: settings.lineLevelNames?.group ?? word('group'),
-      team: settings.lineLevelNames?.team ?? word('team'),
-      company: settings.lineLevelNames?.company ?? word('company'),
-      [level]: text || word(level),
-    };
-    // The default words are stored as no setting, so they follow the language.
-    if (next.company === word('company')) delete next.company;
-    const plain = next.group === word('group') && next.team === word('team') && !next.company;
-    commit([`lineLevelNames.${level}`], { lineLevelNames: plain ? undefined : next });
+  /** The line's levels (#316, #408), offered once the file has a line. */
+  const hasLine = $derived(
+    ($workspace.lineUnits?.length ?? 0) > 0 || settings.lineLevels !== undefined,
+  );
+  const lineList = $derived(lineLevels(settings));
+  /** Units per level id, chosen or derived, so a level in use cannot be removed. */
+  const lineUse = $derived.by(() => {
+    const use: Record<string, number> = {};
+    for (const u of $workspace.lineUnits ?? []) {
+      const k = lineKind($workspace, u.id);
+      use[k] = (use[k] ?? 0) + 1;
+    }
+    return use;
+  });
+  let lineError = $state('');
+  let lineInputs: HTMLInputElement[] = $state([]);
+  /** The name a level shows in its field: its own, else the one of the old setting. */
+  const lineName = (l: LineLevel) =>
+    l.name ?? settings.lineLevelNames?.[l.id as 'group' | 'team' | 'company'] ?? '';
+  function setLines(next: LineLevel[]): boolean {
+    const result = workspace.apply((ws) => setLineLevels(ws, next));
+    const first = result.ok ? undefined : result.errors[0];
+    // A rule about the units (order, depth) is named as a conflict with the line, not by its path.
+    lineError = !first
+      ? ''
+      : first.path.startsWith('lineUnits')
+        ? 'settings.lineLevels.conflict'
+        : first.key;
+    return result.ok;
+  }
+  const withNames = () => lineList.map((l) => ({ ...l, name: lineName(l) || undefined }));
+  function onLineName(i: number, event: Event) {
+    const next = withNames();
+    const input = event.currentTarget as HTMLInputElement;
+    next[i] = { ...next[i]!, name: input.value.trim() };
+    // Refused (an own level without a name): the field shows the stored name again.
+    if (!setLines(next)) input.value = lineName(lineList[i]!);
+  }
+  function moveLine(i: number, by: -1 | 1) {
+    const next = withNames();
+    const [l] = next.splice(i, 1);
+    next.splice(i + by, 0, l!);
+    const id = l!.id;
+    const same = by < 0 ? 'up' : 'down';
+    const other = by < 0 ? 'down' : 'up';
+    // Focus stays on the arrow, so the level can be moved again; at the end on the other one.
+    if (setLines(next))
+      tick().then(() => {
+        const at = (dir: string) =>
+          document.querySelector<HTMLButtonElement>(`[data-move="${id}:${dir}"]:not(:disabled)`);
+        (at(same) ?? at(other))?.focus();
+      });
+  }
+  function removeLine(i: number) {
+    const next = withNames();
+    next.splice(i, 1);
+    if (setLines(next)) tick().then(() => lineInputs[Math.min(i, next.length - 1)]?.focus());
+  }
+  function addLine() {
+    const next = withNames();
+    const name = $t('settings.lineLevels.new', { n: next.length + 1 });
+    next.push({ id: newLineLevelId($workspace), name });
+    if (setLines(next))
+      tick().then(() => {
+        lineInputs[next.length - 1]?.focus();
+        lineInputs[next.length - 1]?.select();
+      });
+  }
+  function onCompanyLevel(event: Event) {
+    const next = withNames();
+    const on = (event.currentTarget as HTMLInputElement).checked;
+    next[0] = { ...next[0]!, company: on || undefined };
+    setLines(next);
   }
 
   // A setting of this browser, like the theme: switching it does not change the file (#337).
@@ -626,27 +693,176 @@
         </div>
       {/if}
       {#if hasLine}
-        <div class="grid">
-          {#each ['company', 'group', 'team'] as const as level (level)}
-            <div class="field">
-              <label for="set-line-{level}">{$t('settings.lineLevels.' + level)}</label>
-              <input
-                id="set-line-{level}"
-                type="text"
-                maxlength={LIMITS.textChars}
-                placeholder={$t('line.level.' + level)}
-                value={settings.lineLevelNames?.[level] ?? ''}
-                onchange={(e) => onLineName(level, e)}
-              />
-            </div>
-          {/each}
-        </div>
+        <section class="line-levels" aria-labelledby="line-levels-title">
+          <h3 id="line-levels-title">{$t('settings.lineLevels.title')}</h3>
+          <p class="help" id="note-line-levels">{$t('settings.lineLevels.help')}</p>
+          <ol class="levels">
+            {#each lineList as level, i (level.id)}
+              {@const used = lineUse[level.id] ?? 0}
+              <li>
+                <span class="step" aria-hidden="true">{i + 1}</span>
+                <div class="level-main">
+                  <label class="sr-only" for="set-line-{level.id}"
+                    >{$t('settings.lineLevels.name', { n: i + 1 })}</label
+                  >
+                  <input
+                    id="set-line-{level.id}"
+                    type="text"
+                    maxlength={LIMITS.textChars}
+                    placeholder={lineLevelWord($levelStore, level.id)}
+                    value={lineName(level)}
+                    bind:this={lineInputs[i]}
+                    aria-describedby="line-use-{level.id}"
+                    onchange={(e) => onLineName(i, e)}
+                  />
+                  <span class="use" id="line-use-{level.id}">
+                    {used === 0
+                      ? $t('settings.lineLevels.unused')
+                      : $t(
+                          used === 1 ? 'settings.lineLevels.used.one' : 'settings.lineLevels.used',
+                          {
+                            n: used,
+                          },
+                        )}
+                  </span>
+                  {#if i === 0}
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        checked={level.company === true}
+                        onchange={onCompanyLevel}
+                      />
+                      {$t('settings.lineLevels.company')}
+                    </label>
+                  {/if}
+                </div>
+                <div class="level-actions">
+                  <button
+                    type="button"
+                    data-move="{level.id}:up"
+                    aria-label={$t('settings.lineLevels.up', {
+                      name: lineLevelWord($levelStore, level.id),
+                    })}
+                    disabled={i === 0 || lineList[i - 1]?.company || level.company}
+                    onclick={() => moveLine(i, -1)}><span aria-hidden="true">↑</span></button
+                  >
+                  <button
+                    type="button"
+                    data-move="{level.id}:down"
+                    aria-label={$t('settings.lineLevels.down', {
+                      name: lineLevelWord($levelStore, level.id),
+                    })}
+                    disabled={i === lineList.length - 1 || level.company}
+                    onclick={() => moveLine(i, 1)}><span aria-hidden="true">↓</span></button
+                  >
+                  <button
+                    type="button"
+                    aria-label={$t('settings.lineLevels.remove', {
+                      name: lineLevelWord($levelStore, level.id),
+                    })}
+                    disabled={used > 0 || lineList.length === 1}
+                    onclick={() => removeLine(i)}><span aria-hidden="true">✕</span></button
+                  >
+                </div>
+              </li>
+            {/each}
+          </ol>
+          {#if lineError}
+            <p class="field-error" role="alert">
+              {$t(lineError, { path: $t('settings.lineLevels.title') })}
+            </p>
+          {/if}
+          <button
+            type="button"
+            class="secondary add-level"
+            disabled={lineList.length >= LIMITS.lineLevels}
+            onclick={addLine}
+            ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
+              'settings.lineLevels.add',
+            )}</button
+          >
+        </section>
       {/if}
     </fieldset>
   </section>
 </div>
 
 <style>
+  .line-levels {
+    margin-top: var(--space);
+  }
+  .levels {
+    list-style: none;
+    margin: 0 0 var(--space);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .levels li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.5rem 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  /* The level's place, top-down: the tree gets one step deeper per row. */
+  .step {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-top: 0.35rem;
+    border-radius: 50%;
+    background: var(--surface, var(--bg));
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.875rem;
+  }
+  .level-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+  .use {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .level-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
+  /* Narrow: the buttons go below the name, in line with it. */
+  @media (max-width: 40rem) {
+    .level-actions {
+      grid-column: 2;
+    }
+  }
+  .level-actions button {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+  .add-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .add-level svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
   .help {
     color: var(--text-muted);
   }

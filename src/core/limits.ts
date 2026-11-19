@@ -28,8 +28,8 @@ export const LIMITS = {
   demandsPerTeam: 50,
   assignments: 5000,
   lineUnits: 200,
-  /** Depth of the line tree. */
-  lineLevels: 3,
+  /** Number of line levels a file may define (#408); the tree is at most that deep. */
+  lineLevels: 8,
   skillFamilies: 100,
   skills: 500,
   companies: 20,

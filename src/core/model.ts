@@ -32,6 +32,22 @@ export interface Settings {
    * Gesellschaft/Fachgruppe/Linienteam (Company/Specialist group/Line team).
    */
   lineLevelNames?: { group: string; team: string; company?: string };
+  /**
+   * The line's own levels, top-down (#408). Without it the three built-in levels company, group
+   * and team (`DEFAULT_LINE_LEVELS`), named by `lineLevelNames` or the language.
+   */
+  lineLevels?: LineLevel[];
+}
+
+/**
+ * A level of the line (#408). The built-in ids `company`, `group` and `team` take their word from
+ * `lineLevelNames` or the language while `name` is empty; other levels always have a name.
+ */
+export interface LineLevel {
+  id: string;
+  name?: string;
+  /** Units on this level stand for companies (#399); only the top level can be one. */
+  company?: boolean;
 }
 
 export interface Role {
@@ -208,13 +224,16 @@ export interface Assignment {
   // An overridden context-switch hint lives on the membership (`team.contextOverrides`, #321).
 }
 
-/** A node of the line tree (at most three levels); without `parentId` it hangs under the organisation. */
+/**
+ * A node of the line tree (at most one unit per level on the way down, see `Settings.lineLevels`);
+ * without `parentId` it hangs under the organisation.
+ */
 export interface LineUnit {
   id: string;
   name: string;
   /**
-   * The unit's level (#399), chosen when it is created. Without it the level is derived as before:
-   * a unit with units below it is a group, one without a team.
+   * The id of the unit's level (#399, #408), chosen when it is created. Without it the level is
+   * derived as before: a unit with units below it is a group, one without a team (`lineKind`).
    */
   kind?: LineKind;
   /** A company unit is the company of #315 for the people below it. */
@@ -235,8 +254,11 @@ export interface Skill {
   familyId: string;
 }
 
-/** The level of a line unit (#399); a company only sits at the top, below the organisation. */
-export type LineKind = 'company' | 'group' | 'team';
+/**
+ * The id of a line level (#399, #408): one of `Settings.lineLevels`, by default 'company', 'group'
+ * or 'team'. A company level only sits at the top, below the organisation.
+ */
+export type LineKind = string;
 
 /**
  * An affiliated company of the group: a person attribute, and the company a company line unit
