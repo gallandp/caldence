@@ -742,7 +742,7 @@
   "load.warn.above-fte": "over the {limit} limit in {weeks}, up to {hours} h",
   "load.warn.span": "{count} weeks from {first} to {last}",
   "load.hints": "Hours {levelInArea}",
-  "load.hints.rule": "Not the limit, which always counts all meetings ÷ all weekly hours: these lines compare meetings {levelInArea} with the hours set there. Set the hours on the Structure page of the {levelAreaLc}; until then those meetings count against the other weekly hours.",
+  "load.hints.rule": "These lines are not the limit, which always counts all meetings ÷ all weekly hours: they compare meetings {levelInArea} with the hours set there. Set the hours on the Structure page of the {levelAreaLc}; until then those meetings count against the other weekly hours.",
   "load.hint.no-area-hours": "{person}: invited to meetings in {area} (up to {hours} h a week), but no hours are set there",
   "load.hint.area-share": "{person}: meetings in {area} take up to {hours} h a week, {share} of the {areaHours} h set there",
   "help.first.step.start": "Open {control}. Without a {levelTeamLc}, it shows {title}.",

@@ -742,7 +742,7 @@
   "load.warn.above-fte": "über der Grenze von {limit} in {weeks}, bis {hours} h",
   "load.warn.span": "{count} Wochen von {first} bis {last}",
   "load.hints": "Stunden {levelInArea}",
-  "load.hints.rule": "Nicht die Grenze, die immer alle Termine ÷ alle Wochenstunden zählt: Diese Zeilen vergleichen die Termine {levelInArea} mit den dort gesetzten Stunden. Die Stunden stehen auf der Seite Struktur der Ebene {levelArea}; bis sie gesetzt sind, zählen diese Termine gegen die übrigen Wochenstunden.",
+  "load.hints.rule": "Diese Zeilen sind nicht die Grenze, die immer alle Termine ÷ alle Wochenstunden zählt: Sie vergleichen die Termine {levelInArea} mit den dort gesetzten Stunden. Die Stunden stehen auf der Seite Struktur der Ebene {levelArea}; bis sie gesetzt sind, zählen diese Termine gegen die übrigen Wochenstunden.",
   "load.hint.no-area-hours": "{person}: zu Terminen in {area} eingeladen (bis {hours} h pro Woche), aber dort sind keine Stunden gesetzt",
   "load.hint.area-share": "{person}: Termine in {area} belegen bis {hours} h pro Woche, {share} der dort gesetzten {areaHours} h",
   "help.first.step.start": "Öffnen Sie {control}. Ohne {levelTeams} zeigt die Ansicht {title}.",

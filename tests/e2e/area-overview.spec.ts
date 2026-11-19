@@ -197,7 +197,7 @@ test('area meetings without area hours do not outline every week (#294, #307)', 
     /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there$/,
   );
   await expect(
-    warnings.getByText(/^Not the limit, which always counts all meetings/),
+    warnings.getByText(/^These lines are not the limit, which always counts all meetings/),
   ).toBeVisible();
 });
 

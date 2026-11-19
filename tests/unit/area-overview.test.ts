@@ -17,6 +17,7 @@ import {
   type Workspace,
 } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
+import example from '../../src/data/examples/example.caldence.json';
 import { areaWorkspace } from '../e2e/area-fixture';
 
 const noIndex = (): HolidayIndex => ({
@@ -332,42 +333,52 @@ describe('one rule for over the limit on the area fixture (#307, #334)', () => {
     );
   }
 
-  it.each([0.6, 0.3, 0.12])('Warnings and the people table agree at a limit of %s', (max) => {
-    const ws = areaWorkspace() as unknown as Workspace;
+  const files = {
+    'area fixture': () => areaWorkspace() as unknown as Workspace,
+    'example file': () => structuredClone(example) as unknown as Workspace,
+  };
+  const cases = Object.keys(files).flatMap((file) =>
+    [0.6, 0.3, 0.12].map((max) => [file as keyof typeof files, max] as const),
+  );
+
+  it.each(cases)('%s: Warnings and the people table agree at a limit of %s', (file, max) => {
+    const ws = files[file]();
     ws.settings.thresholds.maxFte = max;
     expect(overByWarnings(ws)).toEqual(overByRule(ws));
   });
 
-  it.each([0.6, 0.3, 0.12])('the Overview strip counts the same weeks at %s', (max) => {
-    const ws = areaWorkspace() as unknown as Workspace;
+  it.each(cases)('%s: the Overview strip counts the same weeks at %s', (file, max) => {
+    const ws = files[file]();
     ws.settings.thresholds.maxFte = max;
-    const a = ws.areas[0]!;
-    const weeks = loadPerWeek(ws, noIndex());
-    const rows = [
-      ...a.teamIds.map((id) =>
-        teamLoad(
-          ws,
-          ws.teams.find((t) => t.id === id)!,
-          weeks,
+    expect(ws.areas.length).toBeGreaterThan(0);
+    for (const a of ws.areas) {
+      const weeks = loadPerWeek(ws, noIndex());
+      const rows = [
+        ...a.teamIds.map((id) =>
+          teamLoad(
+            ws,
+            ws.teams.find((t) => t.id === id)!,
+            weeks,
+          ),
         ),
-      ),
-      areaOnlyLoad(ws, a, weeks),
-    ];
-    const stripWeeks = weeks.filter((_, i) => rows.some((r) => r[i]!.warn)).map((w) => w.monday);
-    const inArea = new Set(
-      [
-        ...a.members,
-        ...ws.teams.filter((t) => a.teamIds.includes(t.id)).flatMap((t) => t.members),
-      ].map((m) => m.personId),
-    );
-    const warned = [
-      ...new Set(
-        warnings(weeks, ws)
-          .filter((w) => w.kind === 'above-fte' && inArea.has(w.personId))
-          .map((w) => w.monday),
-      ),
-    ].sort();
-    expect(stripWeeks).toEqual(warned);
+        areaOnlyLoad(ws, a, weeks),
+      ];
+      const stripWeeks = weeks.filter((_, i) => rows.some((r) => r[i]!.warn)).map((w) => w.monday);
+      const inArea = new Set(
+        [
+          ...a.members,
+          ...ws.teams.filter((t) => a.teamIds.includes(t.id)).flatMap((t) => t.members),
+        ].map((m) => m.personId),
+      );
+      const warned = [
+        ...new Set(
+          warnings(weeks, ws)
+            .filter((w) => w.kind === 'above-fte' && inArea.has(w.personId))
+            .map((w) => w.monday),
+        ),
+      ].sort();
+      expect(stripWeeks).toEqual(warned);
+    }
   });
 
   it('has missing area hours as one hint per person and area', () => {

@@ -147,16 +147,21 @@
 
   const allWarnings = $derived(warnings(weeks, $workspace));
 
-  /** Area hours that are missing or mostly taken by area meetings: hints, not warnings (#307). */
+  /**
+   * Area hours that are missing or mostly taken by area meetings: hints, not warnings (#307).
+   * With an area chosen only that area's hints; sorted by name.
+   */
   const hintItems = $derived.by(() => {
     const ws = $workspace;
     const inScope = scopePeople(ws, $filter);
+    const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
     return areaHints(weeks, ws)
-      .filter((h) => inScope.has(h.personId))
+      .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
+      .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
       .map((h) => ({
         key: `${h.personId}/${h.areaId}`,
         text: $t(`load.hint.${h.kind}`, {
-          person: ws.people.find((p) => p.id === h.personId)?.name ?? h.personId,
+          person: nameOf(h.personId),
           area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
           hours: hours(h.hours),
           share: formatPercent($locale, fte(h.hours, h.areaHours)),
