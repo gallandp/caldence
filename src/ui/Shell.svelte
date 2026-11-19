@@ -330,7 +330,9 @@
       const hash = routeNow();
       const replace = replaceRoute;
       replaceRoute = false;
-      if (hash === location.hash) return;
+      const tagged = (history.state as { file?: string } | null)?.file === $workspace.id;
+      // Another file on the same address still takes the entry over.
+      if (hash === location.hash && (!replace || tagged)) return;
       // Presenting redirects some views: the entry stays as it was for after presenting.
       if (replace && $presenting) return;
       // Each entry knows its file: back into another file's entries keeps this file's unit.
