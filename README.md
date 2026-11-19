@@ -32,7 +32,8 @@ Status: stable, see the [latest release](https://github.com/gallandp/caldence/re
 - Installable app that works offline and asks before updating; works on phones.
 - German and English interface; light, dark or matching the system.
 - Accessible: keyboard operation, built for screen readers, targeting WCAG 2.2 AA (see the [accessibility statement](docs/accessibility.md)).
-- Private: everything stays in your browser; workspaces are files you save and open yourself.
+- **Line and staffing (Caldence 2):** a second tree for the line organisation (specialist groups and line teams with their people, contracts and skills), demands per team (a skill and FTE, or only a role), and a staffing tab that commits people to open demands and shows, before you save, how much time the team's meetings leave of the commitment and whether it meets the minimum commitment. Commitments have no dates; a what-if round is a copy of the file. Not a capacity planner: no absences, no utilisation, no skill ratings, no time tracking.
+- Private: everything stays in your browser; workspaces are files you save and open yourself. See [privacy](#privacy).
 
 ## Screenshots
 
@@ -50,6 +51,18 @@ Choose **Plan new** on the start screen, or **Open the example** to look around 
 If a workspace keeps the app from starting, add `?reset` to the address (for example `https://caldence.de/?reset`) to start with an empty one; see [limits](docs/workspace-format.md#limits).
 
 File formats: [workspace](docs/workspace-format.md), [template](docs/template-format.md) and [region](docs/region-format.md).
+
+## Privacy
+
+Caldence has no server: nothing is sent anywhere, and everything stays in your browser and in the files you save. Who may read a file is decided by where you keep it (your drive, a share, a team folder).
+
+A file with a line (Caldence 2) holds personal data: names, skills, contracts, companies, line units and commitments to teams. Treat it like other personnel data.
+
+- **Before real use in Germany:** a tool that assigns work to people by their skills very likely needs the works council's agreement (§ 87 (1) no. 6 BetrVG, Works Constitution Act) and falls under the GDPR. Check its use with your data protection officer and the works council first. This is not legal advice.
+- **What Caldence keeps to a minimum:** no personnel numbers or birth dates (the staff import does not read such columns), no free-text notes about people, skills as plain tags without levels or ratings. Presenting never shows the names of line staff. The Excel export leaves out line, company, contract and skills unless _Include line data_ is ticked; calendar files and templates never contain them.
+- **To try it out**, use the large line example on the start screen: every name in it is invented.
+
+The in-app Help has the same page under _Privacy_.
 
 ## Development
 

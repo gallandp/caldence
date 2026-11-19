@@ -12,7 +12,7 @@ column and bar uses it and shows its value ("über 60 %").
 - UI name: **Grenze** / **limit**. Settings label: "Grenze: Anteil der Wochenstunden in Terminen"
   (input in percent). Never "FTE" for this value.
 - No other share threshold (the prototype's hard-coded 25 % goes).
-- **FTE** only means capacity: meeting hours as full-time equivalents (role and total tiles in Terminlast for a {levelTeam} or {levelArea}; not shown with a person chosen). Per-person values are shown as a share in percent, so they compare with the Grenze.
+- **FTE** (1.0 = the Settings weekly hours) appears only to show what meetings leave of a commitment: a person's Vertrag, a Bedarf and a Zusage in the line (see below), and the role and total tiles in Terminlast that put meeting hours in the same unit (for a {levelTeam} or {levelArea}; not shown with a person chosen). Never a utilisation or capacity figure. Per-person values are shown as a share in percent, so they compare with the Grenze.
 - The second rule (`warnFactor`, default 1.5 × the person's usual load) is a **Lastspitze** /
   **load spike**. It is never called "Überlast" or "Grenze".
 - "Spitzenwoche" / "Peak week" stays: the week with the most hours.
@@ -45,6 +45,32 @@ column and bar uses it and shows its value ("über 60 %").
 | **+ … in Terminen {levelInArea}** | + … in meetings {levelInArea} | Under a {levelTeam}'s cost: what its people also spend in the meetings of its {levelArea}; a person in several {levelTeams} is split by their weekly hours there (#336). Informative, never added to a total | Part of the {levelTeam}'s cost |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |
 | **entfällt an Feiertagen** | left out on public holidays | A meeting on a public holiday of the region while "Feiertage auslassen" is on: counts no hours, missing from the `.ics` export (EXDATE). Meetings & cadence and the export name these meetings with their dates (#341); the day details say "Entfällt wegen eines Feiertags" | "abgesagt" (a deleted meeting sent as cancelled in a re-export) |
+
+## Line organisation and staffing (Caldence 2, #314)
+
+Caldence is not a capacity planner: these words exist only to show what meetings leave of a commitment (see [product vision](product-vision.md)). Without a line in the file, none of them appears.
+
+| DE | EN | Means | Do not use it for |
+|---|---|---|---|
+| **Linie** | line | The second tree, the one that owns people (who leads whom). Group in the unit switcher | The {levelArea}/{levelTeam} tree, "Organisation" |
+| **Linieneinheit**: **Fachgruppe** / **Linienteam** | line unit: specialist group / line team | One unit of the line. With units below it is a Fachgruppe, without a Linienteam; both names can be changed (`lineLevelNames`) | A {levelTeam} |
+| **Linienführungskraft** (UI: Führungskraft, "Führung: …") | line manager (UI: "Led by …") | Leads a line unit and decides the Zusagen in a staffing round. The persona: "Whom can I give to which {levelTeam} so that there is time left for the work?" | A people manager who only reads |
+| **Personal** | staff | The people of a line unit; tab of a line team page | Members of a {levelTeam} |
+| **Skill** | skill | A plain tag for what someone can do; no levels, no ratings | A rating, a role |
+| **Skill-Familie** | skill family | The skills a {levelArea} and a Fachgruppe share; it filters the Besetzung | A level of the tree |
+| **Gesellschaft** | company | Legal employer in a group of affiliated companies; an attribute of a person, shown only with two or more | A level of the tree |
+| **Vertrag** | contract | A person's contracted FTE (0.1 to 1.0) | Weekly hours in a {levelTeam} |
+| **Bedarf** | demand | What a {levelTeam} asks of the line: a skill (or only a role) and FTE | A Zusage |
+| **zuordnen / Zusage / zugesagt** | staff, assign / commitment / committed | Zuordnen gives a person FTE on a Bedarf; the result is a Zusage, which is a normal membership with those hours. No dates | "Planung", "Buchung" |
+| **Besetzung** | staffing | The tab of a line team where people are matched to open Bedarfe | The staffing map of the Überblick |
+| **frei / überbucht** | free / overbooked | Vertrag minus all of a person's hours in all {levelTeams} and {levelAreas}, in FTE; below 0 "überbucht" | Free time after meetings |
+| **Zeit nach Terminen** | time after meetings | The committed hours minus the role's meetings in that {levelTeam}, in a typical week. Not a productivity or performance figure | Productivity, "Kapazität" |
+| **davon in X: n % in Terminen** | in X: n % in meetings | Meeting hours in that {levelTeam} ÷ the hours committed there | "über Grenze" |
+| **Mindestzusage** | minimum commitment | The smallest Zusage at which the share in meetings in that {levelTeam} stays at or below the Grenze (meeting hours ÷ Grenze, rounded up to 0.1 FTE). A rule of thumb per {levelTeam}, its own term | The Grenze |
+| **reicht / unter Mindestzusage / deckt nur Termine** | enough / below minimum commitment / covers only meetings | The three states of a Zusage against its Mindestzusage; "deckt nur Termine" when the meetings there take all of it | "über Grenze" |
+| **Liniendaten** | line data | Line, company, contract and skills of people. Left out of exports unless "Liniendaten einschließen" is ticked | — |
+
+"über Grenze" keeps its one meaning (all meetings ÷ all hours of a person) also for line staff; "Kontextwechsel" is the same hint as above. Organisationsdatei / Liniendatei (#333) are not terms yet: that file model is still a proposal.
 
 ## Two meeting-share numbers (H2)
 

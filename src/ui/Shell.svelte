@@ -457,15 +457,11 @@
     main?.focus();
   }
 
-  /** The staff import's link to the privacy paragraph of the help (#330). */
+  /** The staff import's link to the privacy page of the help (#330, #324). */
   function openPrivacyHelp() {
-    openTopic.set('files');
+    openTopic.set('privacy');
     select('help');
-    void tick().then(() => {
-      const el = document.getElementById('help-staff-privacy');
-      el?.scrollIntoView({ block: 'center' });
-      el?.focus();
-    });
+    void tick().then(() => document.getElementById('help-topic-title')?.focus());
   }
 </script>
 

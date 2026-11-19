@@ -35,13 +35,15 @@ A **person** may have `lineUnitId` (the line unit they belong to), `contractFte`
 
 A **line unit** is `{ id, name, parentId?, managerPersonId?, skillFamilyId? }`. Units without `parentId` hang under the organisation; the tree has at most three levels and no cycles. A unit with sub-units is shown as a *Fachgruppe* (specialist group), one without as a *Linienteam* (line team); `settings.lineLevelNames` `{ group, team }` gives them own names. An **area** may name its skill family (`skillFamilyId`).
 
-A **team** may list `demands`: `{ id, skillId?, fte, roleId }`, what it needs from the line, e.g. 2.0 FTE Java in the development team role. Without `skillId` it is a role-only demand ("Scrum Master · 0.5"). Ids are unique within the team; `fte` is above 0.
+A **team** may list `demands`: `{ id, skillId?, fte, roleId }`, what it needs from the line, e.g. 2.0 FTE Java in the development team role. Without `skillId` it is a role-only demand ("Scrum Master · 0.5"). Ids are unique within the team; `fte` is above 0 and at most 100.
 
 An **assignment** is `{ id, personId, teamId, demandId, fte }`: the person is staffed on the team's demand. It is a normal team membership too: the team's `members` must hold the person in the demand's role, and their `memberHours` there are the hours; `fte` is those hours ÷ `settings.hoursPerWeek` and follows them when the hours change. At most one assignment per person and team (another role in the same team stays a plain membership). An overridden context-switch hint is kept on the membership (`contextOverrides` of the team, #321), so it covers assignments too. Assignments have no dates: a what-if for the next quarter is a copy of the file.
 
 **Figures.** *Free FTE* is `contractFte` minus all of the person's hours in all teams and areas ÷ `hoursPerWeek`, whether they come from an assignment or not; below 0 the person is overbooked. With `contractFte` the weekly-hours flag uses `contractFte × hoursPerWeek` as the person's limit.
 
 **Data rules.** Presenting never shows the names of people with a line unit. Exports leave out line units, companies, contracts and skills unless *Include line data* is ticked for the Excel export; calendar files never contain them. Templates carry no people, skills, companies, demands or assignments. Deleting a demand ends its assignments; deleting a skill removes it from people and demands; deleting a family deletes its skills; deleting a company, a person or a line unit clears what refers to it (sub-units move up).
+
+The words the UI uses for these fields are in the [glossary](glossary.md#line-organisation-and-staffing-caldence-2-314); what the file means for privacy is in the [README](../README.md#privacy) and the app's Help.
 
 ### `settings`
 
@@ -57,6 +59,7 @@ An **assignment** is `{ id, personId, teamId, demandId, fte }`: the person is st
 | `thresholds` | `{ warnFactor, maxFte, contextSwitch? }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. `contextSwitch` (optional, Caldence 2, an integer from 2 to 50, default 3): from this many teams a person gets a context-switch hint (#321). |
 | `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Meeting load show what meetings cost; without it, no costs are shown. |
 | `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty; own names may add `"organisation": "Konzern"` for the top level (non-empty; without it "Organisation"). Without it: `area`. |
+| `lineLevelNames` | `{ group, team }`, optional | Caldence 2: own names for the two kinds of line unit, a unit with sub-units (default *Fachgruppe* / specialist group) and one without (default *Linienteam* / line team). Both are non-empty strings. |
 
 ### Team
 
@@ -67,6 +70,7 @@ An **assignment** is `{ id, personId, teamId, demandId, fte }`: the person is st
 | `cadence` | `{ kind, lengthWeeks, start }` | `kind` is `sprint`, `flow` or `pi`; `lengthWeeks` is an integer from 1; `start` is a date. |
 | `members` | list of `{ personId, roleId }` | A person in a role. The same pair must not appear twice. |
 | `memberHours` | object | Weekly working hours of a person in this team, by person id, from 0 to 168. A member without an entry has `settings.hoursPerWeek`. |
+| `demands` | list, optional | Caldence 2 (#318): what the team needs from the line, see [Line organisation](#line-organisation-caldence-2). At most 50 per team. |
 | `contextOverrides` | object, optional | Caldence 2 (#321): context-switch hints overridden on purpose, by person id, each `{ teams, reason? }`. `teams` (integer from 2) is the number of teams the person was in when the hint was overridden; `reason` (optional, at most 200 characters) is about the work or the planning, never about the person. The override is dropped as soon as the person leaves the team, their roles or hours in it change, or their number of teams changes. A change to `settings.hoursPerWeek` keeps it. Never part of a template; a template file with it is refused. |
 | `assumptions` | object of numbers | Named values (for example `Number of developers`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
@@ -88,6 +92,7 @@ An area groups several teams into one unit, for example a department or a releas
 | `events` | list of events | The area's own meetings. |
 | `ownerMode` | string, optional | As in a team: which owners the area wants (`both`, `business` or `technical`). |
 | `roleLinks` | list of `{ teamId, roleId, teamRoleId }`, optional | Area roles a team calls by another name, for example SAFe's "Agile Team" held by a Scrum team's "Developers". A meeting that invites `roleId` from every team then also invites the people with `teamRoleId` in that team. `teamId` is a team of the area; one link per team and `roleId`; `teamRoleId` differs from `roleId`. A link goes when its team leaves the area. |
+| `skillFamilyId` | string, optional | Caldence 2: the skill family of the area; a demand of one of its teams offers the skills of this family first. |
 
 ### Event
 
@@ -150,7 +155,7 @@ If a stored workspace ever keeps the app from starting, open it with `?reset` at
 
 ## Privacy
 
-A workspace file contains names of people, their working hours and your meeting plan. Caldence never uploads it. The file lives only where you save it, and a copy is kept in your browser for autosave. Share it only with people who may see this data. To share a team's structure without personal data, export it as a [template](template-format.md) instead.
+A workspace file contains names of people, their working hours and your meeting plan; with a line (Caldence 2) also their skills, contracts, companies, line units and commitments, see [privacy in the README](../README.md#privacy) for GDPR and works council notes. Caldence never uploads it. The file lives only where you save it, and a copy is kept in your browser for autosave. Share it only with people who may see this data. To share a team's structure without personal data, export it as a [template](template-format.md) instead.
 
 ## Example
 
