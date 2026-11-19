@@ -448,7 +448,7 @@ describe('limits (security #41)', () => {
     const w = fixture();
     const t = w.teams[0]!;
     const e = t.events[0]!;
-    t.events = Array.from({ length: 501 }, (_, i) => ({ ...e, id: `e${i}` }));
+    t.events = Array.from({ length: 1501 }, (_, i) => ({ ...e, id: `e${i}` }));
     expect(keys(w)).toContain('teams error.list.tooLong');
     t.events.pop();
     expect(validate(w).ok).toBe(true);
@@ -456,7 +456,7 @@ describe('limits (security #41)', () => {
 
   it('rejects too long lists and names', () => {
     const w = fixture();
-    w.teams = Array.from({ length: 51 }, (_, i) => ({
+    w.teams = Array.from({ length: 151 }, (_, i) => ({
       ...structuredClone(w.teams[0]!),
       id: `t${i}`,
       events: [],

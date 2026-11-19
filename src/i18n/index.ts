@@ -31,6 +31,24 @@ export function t(locale: Locale, key: string, params?: Params, fallback?: Param
   });
 }
 
+/**
+ * Intl formatters are slow to create and big tables format thousands of values (#315 budget):
+ * one per locale and options.
+ */
+const formatters = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
+function numberFormat(locale: Locale, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `n${locale}${JSON.stringify(options)}`;
+  let f = formatters.get(key) as Intl.NumberFormat | undefined;
+  if (!f) formatters.set(key, (f = new Intl.NumberFormat(locale, options)));
+  return f;
+}
+function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `d${locale}${JSON.stringify(options)}`;
+  let f = formatters.get(key) as Intl.DateTimeFormat | undefined;
+  if (!f) formatters.set(key, (f = new Intl.DateTimeFormat(locale, options)));
+  return f;
+}
+
 export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | 'long'): string {
   const [y, m, day] = d.split('-').map(Number) as [number, number, number];
   const utc = new Date(Date.UTC(y, m - 1, day));
@@ -38,7 +56,7 @@ export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | '
     style === 'short'
       ? { year: 'numeric', month: '2-digit', day: '2-digit' }
       : { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
-  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(utc);
+  return dateFormat(locale, { ...options, timeZone: 'UTC' }).format(utc);
 }
 
 /**
@@ -57,7 +75,7 @@ export function formatHorizon(locale: Locale, horizon: { from: ISODate; to: ISOD
 }
 
 export function formatNumber(locale: Locale, n: number, digits: number): string {
-  return new Intl.NumberFormat(locale, {
+  return numberFormat(locale, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(n);
@@ -75,7 +93,7 @@ export function formatEuro(locale: Locale, n: number): string {
 
 /** Percent of a fraction (0.5 -> 50%), by default without decimals, in the locale's notation. */
 export function formatPercent(locale: Locale, fraction: number, maxDigits = 0): string {
-  return new Intl.NumberFormat(locale, {
+  return numberFormat(locale, {
     style: 'percent',
     minimumFractionDigits: 0,
     maximumFractionDigits: maxDigits,

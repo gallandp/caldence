@@ -14,6 +14,7 @@ import { duplicateTeam, removeItem, updateTeam, updateSettings } from '../../src
 import { emptyWorkspace, type Team, type Workspace } from '../../src/core/model';
 import { teamToTemplate, validateTemplate } from '../../src/core/template';
 import { validate } from '../../src/core/validate';
+import { LIMITS } from '../../src/core/limits';
 import { createWorkspaceStore } from '../../src/ui/state/workspace';
 
 function team(id: string, personIds: string[], extra: Partial<Team> = {}): Team {
@@ -167,7 +168,7 @@ describe('validation (#321)', () => {
         updateSettings(ws(), { thresholds: { warnFactor: 1.5, maxFte: 0.6, contextSwitch: 4 } }),
       ).ok,
     ).toBe(true);
-    for (const bad of [1, 2.5, 99]) {
+    for (const bad of [1, 2.5, LIMITS.teams + 1]) {
       const w = ws();
       w.settings.thresholds.contextSwitch = bad;
       expect(validate(w).ok).toBe(false);

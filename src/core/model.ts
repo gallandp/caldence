@@ -27,6 +27,11 @@ export interface Settings {
   hourlyRate?: number;
   /** Names of the two levels; without it Bereich/Team (Area/Team). */
   levelNames?: LevelNames;
+  /**
+   * Own names of the line levels (#315): a unit with sub-units, and a unit without. Without it
+   * Fachgruppe/Linienteam (Specialist group/Line team).
+   */
+  lineLevelNames?: { group: string; team: string };
 }
 
 export interface Role {
@@ -48,6 +53,17 @@ export type OwnerMode = 'both' | OwnerHalf;
 export interface Person {
   id: string;
   name: string;
+  /** The line team or specialist group the person belongs to (#315). */
+  lineUnitId?: string;
+  /** Contracted share of a full week, 0.1 to 1.0; missing means 1.0. */
+  contractFte?: number;
+  skillIds?: string[];
+  companyId?: string;
+  /**
+   * Stands for a real person kept in a line file (#333); always with `lineUnitId`. Otherwise a
+   * normal person. There is no personnel number and no free text about a person in the file.
+   */
+  pseudonymous?: true;
 }
 
 export interface Category {
@@ -163,8 +179,59 @@ export interface Team {
   assumptions: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** What the team needs from the line (#315): a skill or only a role, and how much. */
+  demands?: Demand[];
   /** Owner set-up of the team (#331); missing means a tandem ('both'). */
   ownerMode?: OwnerMode;
+}
+
+/** A team's need, e.g. "Java · 2.0 FTE" in the development team role. */
+export interface Demand {
+  id: string;
+  /** Missing for a role-only demand ("Scrum Master · 0.5"). */
+  skillId?: string;
+  fte: number;
+  roleId: string;
+}
+
+/**
+ * A person staffed on a team's demand (#315). Mirrored into the team's `members` (person + the
+ * demand's role) and `memberHours` (fte × hoursPerWeek), so every existing view keeps working.
+ * At most one per person and team. No dates: a what-if is a copy of the file.
+ */
+export interface Assignment {
+  id: string;
+  personId: string;
+  teamId: string;
+  demandId: string;
+  fte: number;
+  // An overridden context-switch hint lives on the membership (`team.contextOverrides`, #321).
+}
+
+/** A node of the line tree (at most three levels); without `parentId` it hangs under the organisation. */
+export interface LineUnit {
+  id: string;
+  name: string;
+  parentId?: string;
+  managerPersonId?: string;
+  skillFamilyId?: string;
+}
+
+export interface SkillFamily {
+  id: string;
+  name: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  familyId: string;
+}
+
+/** An affiliated company of the group; a person attribute, not a tree level. */
+export interface Company {
+  id: string;
+  name: string;
 }
 
 /** An overridden context-switch hint on one person's membership in a team (#321). */
@@ -194,6 +261,8 @@ export interface Area {
   memberHours: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** The skill family of the platform (#315). */
+  skillFamilyId?: string;
   /** Owner set-up of the area (#331); missing means a tandem ('both'). */
   ownerMode?: OwnerMode;
 }
@@ -215,6 +284,12 @@ export interface Workspace {
    * file is one organisation; without this entry it is shown with its level name.
    */
   organisation?: Organisation;
+  /** Line organisation and staffing (#315, Caldence 2); all optional, no schema bump. */
+  lineUnits?: LineUnit[];
+  skillFamilies?: SkillFamily[];
+  skills?: Skill[];
+  companies?: Company[];
+  assignments?: Assignment[];
   /**
    * Where the file was looking when it was saved, so it opens there again (persona concept Q5):
    * the selected team or area, the view and the area page. Unknown values are ignored on open.
@@ -303,7 +378,19 @@ const NO_CADENCE: Cadence = { kind: 'flow', lengthWeeks: 0, start: '0001-01-01' 
  * Without a cadence of its own no cadence-day rule matches; areas have no assumptions.
  */
 export function areaAsTeam(area: Area): Team {
-  return {
+  // The same object for the same area, so per-unit caches (occurrences) hit for areas too.
+  const known = asTeam.get(area);
+  if (
+    known &&
+    known.name === area.name &&
+    known.cadence === (area.cadence ?? NO_CADENCE) &&
+    known.members === area.members &&
+    known.memberHours === area.memberHours &&
+    known.cycles === area.cycles &&
+    known.events === area.events
+  )
+    return known;
+  const team: Team = {
     id: area.id,
     name: area.name,
     cadence: area.cadence ?? NO_CADENCE,
@@ -313,7 +400,10 @@ export function areaAsTeam(area: Area): Team {
     cycles: area.cycles,
     events: area.events,
   };
+  asTeam.set(area, team);
+  return team;
 }
+const asTeam = new WeakMap<Area, Team>();
 
 /** Every unit with meetings: the teams, then the areas seen as teams. */
 export function units(ws: Workspace): Team[] {
@@ -329,14 +419,35 @@ export function units(ws: Workspace): Team[] {
 export function holders(ws: Workspace, unitId: string, p: Participant): string[] {
   if (p.personId !== undefined)
     return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
+  // Views ask this thousands of times per update (#315 budget): a role's holders are kept per
+  // member list, checked against the lists' identity and length, so a replaced or grown list is
+  // read again.
+  const unitKey = `${unitId}\u0000${p.fromTeams ? 1 : 0}`;
   const area = ws.areas.find((a) => a.id === unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
   const lists = [own?.members ?? []];
   if (area && p.fromTeams)
     for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
-  const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
-  return [...new Set(ids)];
+  const known = roleHolderCache.get(lists[0]!)?.get(`${unitKey}\u0000${p.roleId}`);
+  if (
+    known &&
+    known.lists.length === lists.length &&
+    known.lists.every((l, i) => l === lists[i] && l.length === known.lengths[i])
+  )
+    return known.ids;
+  const ids = [
+    ...new Set(lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []))),
+  ];
+  let byRole = roleHolderCache.get(lists[0]!);
+  if (!byRole) roleHolderCache.set(lists[0]!, (byRole = new Map()));
+  byRole.set(`${unitKey}\u0000${p.roleId}`, { lists, lengths: lists.map((l) => l.length), ids });
+  return ids;
 }
+type Members = Team['members'];
+const roleHolderCache = new WeakMap<
+  Members,
+  Map<string, { lists: Members[]; lengths: number[]; ids: string[] }>
+>();
 
 /** People the meeting invites by name. */
 export function namedPeople(event: CalEvent): Set<string> {

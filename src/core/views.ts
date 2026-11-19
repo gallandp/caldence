@@ -145,46 +145,103 @@ export function warnedWeeks(
 }
 
 type Attributed = { occ: Occurrence; byRole: Record<string, number> };
+type Range = { from: ISODate; to: ISODate };
+
+/**
+ * The last result of `attributed`: the calendar, its day load and the weeks ask for the same
+ * workspace and filter in one update. Workspaces are never changed in place (every edit makes a
+ * new one), so the same object means the same answer. Callers must not change the result.
+ */
+let lastAttributed:
+  { ws: Workspace; index: HolidayIndex; filter: string; value: Attributed[] } | undefined;
 
 /** Per-occurrence hours by role, restricted by the filter (person wins over role). */
-function attributed(ws: Workspace, index: HolidayIndex, filter: Filter): Attributed[] {
+function attributed(
+  ws: Workspace,
+  index: HolidayIndex,
+  filter: Filter,
+  range?: Range,
+): Attributed[] {
+  const key = JSON.stringify([filter, range]);
+  const last = lastAttributed;
+  if (last && last.ws === ws && last.index === index && last.filter === key) return last.value;
+  const value = attributedNow(ws, index, filter, range);
+  lastAttributed = { ws, index, filter: key, value };
+  return value;
+}
+
+function attributedNow(
+  ws: Workspace,
+  index: HolidayIndex,
+  filter: Filter,
+  range?: Range,
+): Attributed[] {
   const out: Attributed[] = [];
+  let at: Attributed | undefined;
+  eachHours(ws, index, filter, range, (occ, key, hours) => {
+    if (at?.occ !== occ) out.push((at = { occ, byRole: record<number>() }));
+    at.byRole[key] = (at.byRole[key] ?? 0) + hours;
+  });
+  return out;
+}
+
+/**
+ * Calls `fn` for each counted participant of each occurrence in the filter's scope, in order,
+ * with its hours (0 on a skipped holiday). Who counts is resolved once per meeting (#315 budget).
+ */
+function eachHours(
+  ws: Workspace,
+  index: HolidayIndex,
+  filter: Filter,
+  range: Range | undefined,
+  fn: (occ: Occurrence, key: string, hours: number) => void,
+): void {
   for (const unit of scopeUnits(ws, filter)) {
     const events = new Map(unit.events.map((e) => [e.id, e]));
     const wanted = new Map(unit.events.map((e) => [e.id, counted(ws, unit.id, e, filter)]));
     if (![...wanted.values()].some((w) => w.includes(true))) continue;
-    for (const occ of occurrences(unit, ws.settings, index)) {
+    const people = new Map(
+      unit.events.map((e) => [e.id, e.participants.map((p) => heads(ws, unit.id, p, e, filter))]),
+    );
+    for (const occ of occurrences(unit, ws.settings, index, range)) {
       const event = events.get(occ.eventId);
       const counts = wanted.get(occ.eventId);
       if (!event || !counts?.includes(true)) continue;
-      const byRole = record<number>();
+      const n = people.get(occ.eventId)!;
       event.participants.forEach((p, i) => {
         if (!counts[i]) return;
         const hours = occ.skippedHoliday
           ? 0
-          : occurrenceHours(event, occ.duration, p.share) * heads(ws, unit.id, p, event, filter);
-        const key = participantKey(p);
-        byRole[key] = (byRole[key] ?? 0) + hours;
+          : occurrenceHours(event, occ.duration, p.share) * n[i]!;
+        fn(occ, participantKey(p), hours);
       });
-      out.push({ occ, byRole });
     }
   }
-  return out;
 }
 
 const sum = (r: Record<string, number>): number => Object.values(r).reduce((a, b) => a + b, 0);
 
+/** Occurrences with their hours for the filter; with `range` only the days inside it. */
 export function filteredOccurrences(
   ws: Workspace,
   index: HolidayIndex,
   filter: Filter,
+  range?: Range,
 ): FilteredOccurrence[] {
-  return attributed(ws, index, filter).map(({ occ, byRole }) => ({ ...occ, hours: sum(byRole) }));
+  return attributed(ws, index, filter, range).map(({ occ, byRole }) => ({
+    ...occ,
+    hours: sum(byRole),
+  }));
 }
 
-export function dayLoad(ws: Workspace, index: HolidayIndex, filter: Filter): Map<ISODate, number> {
+export function dayLoad(
+  ws: Workspace,
+  index: HolidayIndex,
+  filter: Filter,
+  range?: Range,
+): Map<ISODate, number> {
   const days = new Map<ISODate, number>();
-  for (const o of filteredOccurrences(ws, index, filter)) {
+  for (const o of filteredOccurrences(ws, index, filter, range)) {
     days.set(o.date, (days.get(o.date) ?? 0) + o.hours);
   }
   return days;
@@ -203,13 +260,17 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   const last = mondayOf(ws.settings.horizon.to);
   const count = Math.max(0, diffDays(last, first) / 7 + 1);
   const teams = scopeUnits(ws, filter);
+  // Days from each unit's cadence start to the first Monday, so a day's offset is plain addition.
+  const starts = teams.map((t) => diffDays(first, t.cadence.start));
   const rows: WeekRow[] = [];
   const perWeek: Record<string, number>[] = Array.from({ length: count }, () => record<number>());
-  for (const { occ, byRole } of attributed(ws, index, filter)) {
-    const bucket = perWeek[diffDays(mondayOf(occ.date), first) / 7];
-    if (!bucket) continue;
-    for (const [role, h] of Object.entries(byRole)) bucket[role] = (bucket[role] ?? 0) + h;
-  }
+  const bucketAt = new Map<ISODate, Record<string, number> | undefined>();
+  eachHours(ws, index, filter, undefined, (occ, key, hours) => {
+    if (!bucketAt.has(occ.date))
+      bucketAt.set(occ.date, perWeek[diffDays(mondayOf(occ.date), first) / 7]);
+    const bucket = bucketAt.get(occ.date);
+    if (bucket) bucket[key] = (bucket[key] ?? 0) + hours;
+  });
   for (let i = 0; i < count; i++) {
     const monday = addDays(first, i * 7);
     const days = Array.from({ length: 7 }, (_, d) => addDays(monday, d));
@@ -222,10 +283,10 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
       byRole: perWeek[i] ?? record(),
       total: sum(perWeek[i] ?? record()),
     };
-    for (const team of teams) {
+    teams.forEach((team, k) => {
       const length = team.cadence.lengthWeeks * 7;
-      for (const date of days) {
-        const diff = diffDays(date, team.cadence.start);
+      for (let d = 0; d < 7; d++) {
+        const diff = starts[k]! + i * 7 + d;
         if (length > 0 && diff >= 0 && diff % length === 0) {
           row.cadence.push({ teamId: team.id, number: diff / length + 1 });
         }
@@ -243,7 +304,7 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
           }
         }
       }
-    }
+    });
     for (const date of days) {
       const name = index.holidays.get(date);
       if (name) row.holidays.push({ date, name });

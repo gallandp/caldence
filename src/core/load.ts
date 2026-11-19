@@ -1,3 +1,4 @@
+import { weeklyLimit } from './line';
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import {
   attendees,
@@ -105,29 +106,52 @@ export function loadPerWeek(ws: Workspace, index: HolidayIndex): WeekLoad[] {
     });
   }
 
+  // Date arithmetic once per day, not once per occurrence.
+  const weekAt = new Map<ISODate, WeekLoad | undefined>();
+  const weekOf = (date: ISODate): WeekLoad | undefined => {
+    if (!weekAt.has(date)) weekAt.set(date, weeks[diffDays(mondayOf(date), first) / 7]);
+    return weekAt.get(date);
+  };
   // Teams and areas alike: an area's meetings count for the area, never for one of its teams.
   for (const team of units(ws)) {
     const events = new Map(team.events.map((e) => [e.id, e]));
+    // Who attends is the same for every occurrence: resolve it once per meeting (#315 budget).
+    const who = new Map(
+      team.events.map((e) => [e, e.participants.map((p) => attendees(ws, team.id, p, e))]),
+    );
+    // Hours per week, meeting and participant first; then once per week to the people (#315).
+    const perWeek = new Map<WeekLoad, Map<CalEvent, number[]>>();
     for (const occ of occurrences(team, ws.settings, index)) {
       if (occ.skippedHoliday) continue;
       const event = events.get(occ.eventId);
-      const week = weeks[diffDays(mondayOf(occ.date), first) / 7];
+      const week = weekOf(occ.date);
       if (!event || !week) continue;
-      const regular = !IRREGULAR.has(event.rule.type);
-      for (const p of event.participants) {
-        const hours = occurrenceHours(event, occ.duration, p.share);
-        const roles = (week.byTeamRole[team.id] ??= record());
-        const key = participantKey(p);
-        roles[key] = (roles[key] ?? 0) + hours;
-        for (const personId of attendees(ws, team.id, p, event)) {
-          week.byPerson[personId] = (week.byPerson[personId] ?? 0) + hours;
-          const inUnit = (week.byTeamPerson[team.id] ??= record());
-          inUnit[personId] = (inUnit[personId] ?? 0) + hours;
-          if (regular)
-            week.regularByPerson[personId] = (week.regularByPerson[personId] ?? 0) + hours;
-        }
-      }
+      let byEvent = perWeek.get(week);
+      if (!byEvent) perWeek.set(week, (byEvent = new Map()));
+      let sums = byEvent.get(event);
+      if (!sums) byEvent.set(event, (sums = event.participants.map(() => 0)));
+      event.participants.forEach((p, i) => {
+        sums[i]! += occurrenceHours(event, occ.duration, p.share);
+      });
     }
+    for (const [week, byEvent] of perWeek)
+      for (const [event, sums] of byEvent) {
+        const regular = !IRREGULAR.has(event.rule.type);
+        const people = who.get(event)!;
+        event.participants.forEach((p, i) => {
+          const hours = sums[i]!;
+          const roles = (week.byTeamRole[team.id] ??= record());
+          const key = participantKey(p);
+          roles[key] = (roles[key] ?? 0) + hours;
+          for (const personId of people[i]!) {
+            week.byPerson[personId] = (week.byPerson[personId] ?? 0) + hours;
+            const inUnit = (week.byTeamPerson[team.id] ??= record());
+            inUnit[personId] = (inUnit[personId] ?? 0) + hours;
+            if (regular)
+              week.regularByPerson[personId] = (week.regularByPerson[personId] ?? 0) + hours;
+          }
+        });
+      }
   }
   return weeks;
 }
@@ -192,17 +216,18 @@ export function placesOf(ws: Workspace, personId: string): string[] {
 const placed = (ws: Workspace, personId: string): boolean => placesOf(ws, personId).length > 0;
 
 /**
- * Weekly hours a person has left for one more team: the Settings weekly hours minus their hours
- * in all teams and areas, at least 0. Someone in no team has them all (#274).
+ * Weekly hours a person has left for one more team: their weekly limit (the Settings weekly hours,
+ * times their contract FTE when set, #315) minus their hours in all teams and areas, at least 0.
+ * Someone in no team has them all (#274).
  */
 export function hoursLeft(ws: Workspace, personId: string): number {
   const used = placed(ws, personId) ? capacity(ws, personId) : 0;
-  return Math.max(0, ws.settings.hoursPerWeek - used);
+  return Math.max(0, weeklyLimit(ws, personId) - used);
 }
 
-/** The person's hours in all teams and areas add up to more than the Settings weekly hours. */
+/** The person's hours in all teams and areas add up to more than their weekly limit. */
 export function overbooked(ws: Workspace, personId: string): boolean {
-  return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;
+  return placed(ws, personId) && capacity(ws, personId) > weeklyLimit(ws, personId);
 }
 
 /** A person's hours in a week in these teams. */
