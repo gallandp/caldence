@@ -15,6 +15,11 @@
       ? (['structure', 'overview', 'matrix'] as const)
       : (['structure', 'overview'] as const),
   );
+  // The line is gone (deleted, undone, another file): the matrix page falls back to the overview.
+  $effect(() => {
+    if ($areaPage === 'matrix' && !(pages as readonly string[]).includes('matrix'))
+      areaPage.set('overview');
+  });
 </script>
 
 <div class="pages" data-no-print role="group" aria-label={$t('area.view.label')} bind:this={el}>

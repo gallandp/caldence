@@ -178,3 +178,12 @@ describe('buildMatrix (#396)', () => {
     expect(ms).toBeLessThan(200);
   });
 });
+
+describe('buildMatrix edge cases (#396 review)', () => {
+  it('a membership without hours commits nothing and shows no row', () => {
+    const ws = lined();
+    ws.teams[2]!.memberHours = { p5: 0 };
+    const m = buildMatrix(ws, 't3', 'product');
+    expect(m.rows).toEqual([]);
+  });
+});

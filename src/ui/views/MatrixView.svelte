@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import {
     buildMatrix,
     cellPeople,
@@ -72,6 +73,23 @@
   let pop = $state<Pop | null>(null);
   let popEl: HTMLDivElement | undefined = $state();
   let anchor: HTMLElement | null = null;
+  /** The cell whose popover is open, for its aria-expanded. */
+  let openKey = $state<string | null>(null);
+  /** A click on the open cell closes the popover (light dismiss) and must not reopen it. */
+  let reopenBlocked = false;
+  /** Runs before light dismiss (capture on the document), so it still sees the open popover. */
+  function onDown(e: PointerEvent) {
+    reopenBlocked = !!anchor && anchor === e.target && !!popEl?.matches(':popover-open');
+  }
+
+  // The popover is a snapshot: a change of the file or of presenting closes it.
+  $effect(() => {
+    void ws;
+    void $presenting;
+    untrack(() => {
+      if (popEl?.matches(':popover-open')) popEl.hidePopover();
+    });
+  });
 
   function openPop(
     event: MouseEvent,
@@ -80,7 +98,13 @@
     col: MatrixColumn,
     line: boolean,
   ) {
-    anchor = event.currentTarget as HTMLElement;
+    const el = event.currentTarget as HTMLElement;
+    if (reopenBlocked && el === anchor) {
+      reopenBlocked = false;
+      return;
+    }
+    anchor = el;
+    openKey = `${rowName}/${col.team.id}`;
     const list = cellPeople(ws, { people }, col.team.id);
     pop = {
       title: $t('matrix.pop.title', { row: rowName, product: col.team.name }),
@@ -109,6 +133,7 @@
   function onToggle(e: ToggleEvent) {
     if (e.newState !== 'closed') return;
     pop = null;
+    openKey = null;
     anchor?.focus();
   }
 
@@ -128,12 +153,13 @@
 )}
   {#each m.columns as col (col.team.id)}
     {@const v = cells[col.team.id]}
-    {#if v !== undefined && v > 0}
+    {#if v !== undefined && v >= EPS}
       <td class="num" class:dim={col.dim}>
         <button
           type="button"
           class="cell"
           aria-haspopup="dialog"
+          aria-expanded={openKey === `${rowName}/${col.team.id}`}
           aria-label={$t('matrix.cell', { fte: fte(v), row: rowName, product: col.team.name })}
           onclick={(e) => openPop(e, rowName, people, col, line)}>{fte(v)}</button
         >
@@ -151,6 +177,8 @@
     {fte(n)}
   {/if}
 {/snippet}
+
+<svelte:document onpointerdowncapture={onDown} />
 
 <section class="matrix" aria-labelledby="{uid}-title">
   <header>
@@ -181,6 +209,10 @@
     <div class="scroll">
       <table>
         <caption class="sr-only">{$t('matrix.caption', { name })}</caption>
+        <colgroup span="1"></colgroup>
+        {#each m.groups as g (g.area?.id ?? '@loose')}<colgroup span={g.columns.length}
+          ></colgroup>{/each}
+        <colgroup span="1"></colgroup>
         <thead>
           <tr>
             <td class="corner" rowspan="2">
@@ -529,7 +561,7 @@
   /* An empty cell is a quiet dot (CSS only: thousands of cells stay cheap). */
   td.empty::after,
   .quiet-dot::after {
-    content: '·';
+    content: '·' / '';
     color: var(--text-muted);
     opacity: 0.6;
   }
@@ -537,7 +569,7 @@
     color: var(--text-muted);
   }
   .dim {
-    opacity: 0.45;
+    opacity: 0.55;
   }
   .over {
     display: inline-flex;

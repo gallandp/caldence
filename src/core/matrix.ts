@@ -129,9 +129,11 @@ export function buildMatrix(ws: Workspace, selection: string, world: MatrixWorld
       if (seen.has(m.personId)) continue;
       seen.add(m.personId);
       const hours = Object.hasOwn(t.memberHours, m.personId) ? t.memberHours[m.personId]! : hpw;
+      // A membership without hours commits nothing: no cell, and no reason to show the row.
+      if (hours <= 0 || hpw <= 0) continue;
       let cells = work.get(m.personId);
       if (!cells) work.set(m.personId, (cells = {}));
-      cells[t.id] = hpw > 0 ? round2(hours / hpw) : 0;
+      cells[t.id] = round2(hours / hpw);
     }
   }
 

@@ -55,6 +55,12 @@ test('a cell shows who is behind it and opens the product or the line (#396)', a
   await page.keyboard.press('Escape');
   await expect(pop).toBeHidden();
   await expect(cell).toBeFocused();
+  // A second click on the open cell closes it.
+  await cell.click();
+  await expect(pop).toBeVisible();
+  await expect(cell).toHaveAttribute('aria-expanded', 'true');
+  await cell.click();
+  await expect(pop).toBeHidden();
 
   await cell.click();
   await pop.getByRole('button', { name: 'Sam in the line' }).click();
