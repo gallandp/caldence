@@ -17,11 +17,19 @@
   // The UI language and the level names are workspace settings. Derived first, so that an edit
   // elsewhere in the workspace does not rebuild every translated text.
   const uiLocale = $derived($workspace.settings.locale);
-  const levelKey = $derived(JSON.stringify($workspace.settings.levelNames ?? null));
+  const levelKey = $derived(
+    JSON.stringify([
+      $workspace.settings.levelNames ?? null,
+      $workspace.settings.lineLevelNames ?? null,
+    ]),
+  );
   $effect(() => locale.set(uiLocale));
   $effect(() => {
-    const names = JSON.parse(levelKey) as Parameters<typeof levelWords>[0] | null;
-    levels.set(levelWords(names ?? undefined, uiLocale));
+    const [names, line] = JSON.parse(levelKey) as [
+      Parameters<typeof levelWords>[0] | null,
+      Parameters<typeof levelWords>[2] | null,
+    ];
+    levels.set(levelWords(names ?? undefined, uiLocale, line ?? undefined));
   });
   const horizonText = $derived(formatHorizon(uiLocale, $workspace.settings.horizon));
   $effect(() => horizonLabel.set(horizonText));

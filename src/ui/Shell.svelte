@@ -7,7 +7,7 @@
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
   import type { ISODate } from '../core/date';
-  import { hasOrgLevel, ORG_UNIT } from '../core/model';
+  import { hasOrgLevel, ORG_UNIT, selectedLineUnit } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -35,7 +35,10 @@
   import { rail, setRail } from './state/sidebar';
   import { areaPage, currentView } from './state/view';
   import { presenting, stopPresenting } from './state/present';
-  import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
+  import { AREA_ICON, LINE_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
+  import LineView from './views/LineView.svelte';
+  import LineProducts from './components/LineProducts.svelte';
+  import { isLineGroup } from '../core/lineStaff';
   import { openTopic } from './help/topics';
   import WhatIfBar from './components/WhatIfBar.svelte';
 
@@ -61,7 +64,13 @@
 
   const icons: Record<ViewId, string> = VIEW_ICONS;
   const iconOf = (id: ViewId) =>
-    id === 'team' && activeOrg ? ORG_ICON : id === 'team' && activeArea ? AREA_ICON : icons[id];
+    id === 'team' && activeLine
+      ? LINE_ICON
+      : id === 'team' && activeOrg
+        ? ORG_ICON
+        : id === 'team' && activeArea
+          ? AREA_ICON
+          : icons[id];
 
   /** Presenting: the sidebar is unfolded for the list of teams and areas. */
   let pickOpen = $state(false);
@@ -99,24 +108,45 @@
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
   /** The organisation is selected (#313): Calendar and Load show everything. */
   const activeOrg = $derived($activeTeamId === ORG_UNIT);
+  /** A line unit is selected (#316): the Team entry is its page, the views show its people. */
+  const activeLine = $derived(
+    $workspace.lineUnits?.find((u) => u.id === selectedLineUnit($activeTeamId)),
+  );
+  const lineGroup = $derived(activeLine ? isLineGroup($workspace, activeLine.id) : false);
   /** With an area selected, the Team entry is the area's page and carries the upper level name. */
   const viewKey = (id: ViewId) =>
-    id === 'team' && activeOrg
-      ? 'view.org'
-      : id === 'team' && activeArea
-        ? 'view.area'
-        : `view.${id}`;
+    id === 'team' && activeLine
+      ? lineGroup
+        ? 'view.lineGroup'
+        : 'view.lineTeam'
+      : id === 'team' && activeOrg
+        ? 'view.org'
+        : id === 'team' && activeArea
+          ? 'view.area'
+          : `view.${id}`;
   /** Views whose numbers depend on the selected team or area name it above the headline. */
   const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
   const scopeName = $derived(
     noTeams
       ? undefined
-      : activeOrg
-        ? ($workspace.organisation?.name ?? '')
-        : (activeArea ?? activeTeam)?.name,
+      : activeLine
+        ? activeLine.name
+        : activeOrg
+          ? ($workspace.organisation?.name ?? '')
+          : (activeArea ?? activeTeam)?.name,
   );
-  const level = $derived(activeOrg ? $levels.org : activeArea ? $levels.area : $levels.team);
+  const level = $derived(
+    activeLine
+      ? lineGroup
+        ? $levels.lineGroup
+        : $levels.lineTeam
+      : activeOrg
+        ? $levels.org
+        : activeArea
+          ? $levels.area
+          : $levels.team,
+  );
   /**
    * The Team / area page is about the unit itself: its name is the headline, the level sits above
    * (#312). An unnamed organisation is its level word alone.
@@ -154,11 +184,13 @@
       if (
         unit &&
         ((unit === ORG_UNIT && hasOrgLevel($workspace)) ||
+          $workspace.lineUnits?.some((u) => u.id === selectedLineUnit(unit)) ||
           [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
       )
         activeTeamId.set(unit);
-      // The organisation of the file before is not this file's: start on its first team.
-      else if ($activeTeamId === ORG_UNIT) activeTeamId.set($workspace.teams[0]?.id ?? null);
+      // The organisation or line of the file before is not this file's: start on its first team.
+      else if ($activeTeamId === ORG_UNIT || selectedLineUnit($activeTeamId) !== undefined)
+        activeTeamId.set($workspace.teams[0]?.id ?? null);
       areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
       const page = views.find((id) => id === saved?.page);
       if (page) select(page);
@@ -418,6 +450,17 @@
     event.preventDefault();
     main?.focus();
   }
+
+  /** The staff import's link to the privacy paragraph of the help (#330). */
+  function openPrivacyHelp() {
+    openTopic.set('files');
+    select('help');
+    void tick().then(() => {
+      const el = document.getElementById('help-staff-privacy');
+      el?.scrollIntoView({ block: 'center' });
+      el?.focus();
+    });
+  }
 </script>
 
 <svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} />
@@ -627,7 +670,11 @@
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
-              {#if activeOrg}
+              {#if activeLine}
+                <span class="mark line"
+                  ><svg viewBox="0 0 24 24" aria-hidden="true"><path d={LINE_ICON} /></svg></span
+                >
+              {:else if activeOrg}
                 <span class="mark org"><OrgIcon /></span>
               {:else if activeArea}
                 <span class="mark area"><AreaIcon /></span>
@@ -671,6 +718,22 @@
                   >
                 </div>
               </section>
+            {:else if id === 'team' && activeLine}
+              {#if active === id}
+                {#key activeLine.id}
+                  <LineView unit={activeLine} onOpen={(unit) => activeTeamId.set(unit)} />
+                {/key}
+              {/if}
+            {:else if id === 'meetings' && activeLine}
+              {#if active === id}
+                <LineProducts
+                  unit={activeLine}
+                  onOpen={(teamId) => {
+                    activeTeamId.set(teamId);
+                    select('meetings', true);
+                  }}
+                />
+              {/if}
             {:else if id === 'team' && activeOrg}
               {#if active === id}
                 <OrgView onOpen={(unit) => activeTeamId.set(unit)} />
@@ -758,6 +821,7 @@
                     select('help');
                     void tick().then(() => document.getElementById('help-apps-title')?.focus());
                   }}
+                  onOpenPrivacy={openPrivacyHelp}
                 />{/if}
             {:else if id === 'help'}
               {#if active === 'help'}<HelpView onOpenView={(view) => select(view, true)} />{/if}
@@ -1179,6 +1243,17 @@
   }
   .mark.org {
     color: var(--org);
+  }
+  .mark.line {
+    color: var(--line);
+  }
+  .mark.line svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linejoin: round;
   }
   /* The switcher's team badge, small; initials stay at least 10 px and widen it if needed (#215). */
   .mark.team {

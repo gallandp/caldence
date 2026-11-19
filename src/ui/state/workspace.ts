@@ -1,5 +1,11 @@
 import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
-import { emptyWorkspace, hasOrgLevel, ORG_UNIT, type Workspace } from '../../core/model';
+import {
+  emptyWorkspace,
+  hasOrgLevel,
+  ORG_UNIT,
+  selectedLineUnit,
+  type Workspace,
+} from '../../core/model';
 import { pruneContextOverrides } from '../../core/contextSwitch';
 import { validate, type Result } from '../../core/validate';
 import { workspaceIndex, type Filter } from '../../core/views';
@@ -144,8 +150,8 @@ export function createWorkspaceStore(initial: Workspace) {
 export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>;
 
 /**
- * The selected team or area (ids share one space), or the organisation (ORG_UNIT) while the
- * workspace has that level. Falls back to the first team (or null) when
+ * The selected team or area (ids share one space), the organisation (ORG_UNIT) while the
+ * workspace has that level, or a line unit (`lineSelection`, #316). Falls back to the first team (or null) when
  * the workspace no longer has it.
  */
 export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | null> {
@@ -153,6 +159,8 @@ export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | n
   ws.subscribe(($ws) => {
     const current = get(active);
     if (current === ORG_UNIT && hasOrgLevel($ws)) return;
+    const line = selectedLineUnit(current);
+    if (line !== undefined && $ws.lineUnits?.some((u) => u.id === line)) return;
     if (current !== null && [...$ws.teams, ...$ws.areas].some((u) => u.id === current)) return;
     const fallback = $ws.teams[0]?.id ?? null;
     if (fallback !== current) active.set(fallback);

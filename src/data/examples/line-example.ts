@@ -454,7 +454,10 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
   for (const n of [...reserved, ...LINE.flatMap((g) => [g.lead, ...g.teams.map((t) => t.lead)])])
     used.add(n);
 
-  const lineUnits: NonNullable<Workspace['lineUnits']> = [];
+  // The whole line under one root, so one selection shows all of it (#316).
+  const lineUnits: NonNullable<Workspace['lineUnits']> = [
+    { id: 'lv', name: L(['Velmora Verbund', 'Velmora Alliance']) },
+  ];
   /** Line staff by skill, for staffing; free FTE tracked while assigning. */
   const staff: { id: string; skills: string[]; free: number }[] = [];
   for (const g of LINE) {
@@ -462,6 +465,7 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
     lineUnits.push({
       id: g.id,
       name: L(g.name),
+      parentId: 'lv',
       managerPersonId: groupLead,
       skillFamilyId: g.family,
     });

@@ -23,7 +23,7 @@ describe('line organisation example (#323)', () => {
     const v = validate(w);
     expect(v.ok ? [] : v.errors).toEqual([]);
     const meetings = [...w.teams, ...w.areas].reduce((n, u) => n + u.events.length, 0);
-    expect([w.teams.length, w.areas.length, w.lineUnits!.length]).toEqual([61, 11, 16]);
+    expect([w.teams.length, w.areas.length, w.lineUnits!.length]).toEqual([61, 11, 17]);
     const line = w.people.filter((p) => p.lineUnitId);
     expect(line.length).toBeGreaterThanOrEqual(480);
     expect(w.people.length).toBeLessThanOrEqual(1000);

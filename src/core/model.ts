@@ -361,9 +361,79 @@ export function emptyWorkspace(today: ISODate): Workspace {
   };
 }
 
-/** The teams a selected unit stands for: all teams, an area's teams, or the team itself. */
+// ---------- a line unit as the selection (#316) ----------
+
+/**
+ * A selected line unit is `@line:` + its id: line ids have their own space and must not be
+ * mistaken for a team or area id.
+ */
+export const LINE_PREFIX = '@line:';
+export const lineSelection = (unitId: string): string => LINE_PREFIX + unitId;
+/** The line unit a selection stands for, if it is one. */
+export function selectedLineUnit(selection: string | null | undefined): string | undefined {
+  return selection?.startsWith(LINE_PREFIX) ? selection.slice(LINE_PREFIX.length) : undefined;
+}
+
+/** Per workspace object: line unit id → its people, sub-units included. Workspaces are never
+    changed in place, so the same object means the same answer. */
+const linePeopleCache = new WeakMap<Workspace, Map<string, Set<string>>>();
+
+/** The line unit and all its sub-units. */
+export function lineSubtree(ws: Workspace, unitId: string): Set<string> {
+  const out = new Set<string>([unitId]);
+  const units = ws.lineUnits ?? [];
+  // At most three levels (validated), so a few passes collect the subtree.
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const u of units)
+      if (u.parentId !== undefined && out.has(u.parentId) && !out.has(u.id)) {
+        out.add(u.id);
+        grew = true;
+      }
+  }
+  return out;
+}
+
+/** The people of a line unit and its sub-units. */
+export function linePeople(ws: Workspace, unitId: string): Set<string> {
+  let byUnit = linePeopleCache.get(ws);
+  if (!byUnit) linePeopleCache.set(ws, (byUnit = new Map()));
+  let set = byUnit.get(unitId);
+  if (!set) {
+    const units = lineSubtree(ws, unitId);
+    set = new Set(
+      ws.people.filter((p) => p.lineUnitId && units.has(p.lineUnitId)).map((p) => p.id),
+    );
+    byUnit.set(unitId, set);
+  }
+  return set;
+}
+
+/** The people a selection is limited to: a line unit's people, else undefined (no limit). */
+export function selectionPeople(
+  ws: Workspace,
+  selection: string | undefined,
+): Set<string> | undefined {
+  const line = selectedLineUnit(selection);
+  return line === undefined ? undefined : linePeople(ws, line);
+}
+
+/**
+ * The teams a selected unit stands for: all teams, an area's teams, the team itself, or for a
+ * line unit the teams its people are members of.
+ */
 export function unitTeamIds(ws: Workspace, unitId: string): string[] {
   if (unitId === ORG_UNIT) return ws.teams.map((t) => t.id);
+  const people = selectionPeople(ws, unitId);
+  // Their teams, and the teams whose meetings invite one of them by name (#285).
+  if (people)
+    return ws.teams
+      .filter(
+        (t) =>
+          t.members.some((m) => people.has(m.personId)) ||
+          t.events.some((e) => e.participants.some((p) => p.personId && people.has(p.personId))),
+      )
+      .map((t) => t.id);
   return ws.areas.find((a) => a.id === unitId)?.teamIds ?? [unitId];
 }
 
@@ -373,6 +443,9 @@ export function unitTeamIds(ws: Workspace, unitId: string): string[] {
  */
 export function unitLoadIds(ws: Workspace, unitId: string): string[] {
   if (unitId === ORG_UNIT) return [...ws.teams.map((t) => t.id), ...ws.areas.map((a) => a.id)];
+  // A line unit: its people's teams and the areas whose meetings they attend.
+  if (selectedLineUnit(unitId) !== undefined)
+    return [...unitTeamIds(ws, unitId), ...areasInScope(ws, { teamId: unitId }).map((a) => a.id)];
   const area = ws.areas.find((a) => a.id === unitId);
   return area ? [...area.teamIds, area.id] : [unitId];
 }
@@ -614,11 +687,15 @@ export function areasInScope(
   filter: { teamId?: string; personId?: string },
 ): Team[] {
   const { personId, teamId } = filter;
+  const people = personId ? undefined : selectionPeople(ws, teamId);
   return ws.areas
     .filter((a) =>
       personId
         ? a.events.some((e) => eventAttendees(ws, a.id, e).includes(personId))
-        : teamId === undefined || teamId === ORG_UNIT || a.id === teamId,
+        : people
+          ? a.members.some((m) => people.has(m.personId)) ||
+            a.events.some((e) => eventAttendees(ws, a.id, e).some((id) => people.has(id)))
+          : teamId === undefined || teamId === ORG_UNIT || a.id === teamId,
     )
     .map(areaAsTeam);
 }

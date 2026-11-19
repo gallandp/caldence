@@ -5,6 +5,7 @@ import {
   attendees,
   namedPeople,
   participantKey,
+  selectionPeople,
   unfilled as nobodyHolds,
   unitTeamIds,
   type CalEvent,
@@ -94,6 +95,17 @@ export function scopeUnits(ws: Workspace, filter: Filter): Team[] {
  */
 export function scopePeople(ws: Workspace, filter: Filter): Set<string> {
   if (filter.personId) return new Set([filter.personId]);
+  // A line unit is about its own people, not everyone in their teams (#316).
+  const line = selectionPeople(ws, filter.teamId);
+  if (line) {
+    if (!filter.roleId) return line;
+    const held = new Set(
+      scopeUnits(ws, filter).flatMap((u) =>
+        u.members.filter((m) => m.roleId === filter.roleId).map((m) => m.personId),
+      ),
+    );
+    return new Set([...line].filter((id) => held.has(id)));
+  }
   return new Set(
     scopeUnits(ws, filter).flatMap((unit) =>
       unit.members
@@ -109,12 +121,18 @@ export function scopePeople(ws: Workspace, filter: Filter): Set<string> {
  */
 function counted(ws: Workspace, unitId: string, event: CalEvent, filter: Filter): boolean[] {
   const personId = filter.personId;
+  const only = onlyPeople(ws, filter);
   return event.participants.map((p) =>
     personId
       ? attendees(ws, unitId, p, event).includes(personId)
-      : !filter.roleId || invitesRole(ws, unitId, p, filter.roleId),
+      : (!filter.roleId || invitesRole(ws, unitId, p, filter.roleId)) &&
+        (!only || attendees(ws, unitId, p, event).some((id) => only.has(id))),
   );
 }
+
+/** With a line unit selected and no person filter, only its people count (#316). */
+const onlyPeople = (ws: Workspace, filter: Filter): Set<string> | undefined =>
+  filter.personId ? undefined : selectionPeople(ws, filter.teamId);
 
 type RoleRow = { p: Participant; heads: number; ids: string[]; empty: boolean };
 
@@ -132,7 +150,8 @@ function roleRows(ws: Workspace, unitId: string, event: CalEvent, filter: Filter
         ? [{ p, heads: 1, ids: [personId], empty: false }]
         : [],
     );
-  return event.participants.flatMap((p): RoleRow[] => {
+  const only = onlyPeople(ws, filter);
+  const rows = event.participants.flatMap((p): RoleRow[] => {
     if (p.personId !== undefined) {
       if (filter.roleId) return [];
       const ids = attendees(ws, unitId, p, event);
@@ -146,6 +165,12 @@ function roleRows(ws: Workspace, unitId: string, event: CalEvent, filter: Filter
         ids: roleAttendees(ws, unitId, p, event, roleId),
         empty: roleId === p.roleId && nobodyHolds(ws, unitId, p),
       }));
+  });
+  if (!only) return rows;
+  // A line unit (#316): only its own people, and a role nobody holds is not theirs.
+  return rows.flatMap((r) => {
+    const ids = r.ids.filter((id) => only.has(id));
+    return ids.length > 0 ? [{ ...r, ids, heads: ids.length, empty: false }] : [];
   });
 }
 
@@ -161,6 +186,13 @@ function heads(
   filter: Filter,
 ): number {
   if (filter.personId) return 1;
+  const only = onlyPeople(ws, filter);
+  if (only) {
+    const ids = filter.roleId
+      ? roleAttendees(ws, unitId, p, event, filter.roleId)
+      : attendees(ws, unitId, p, event);
+    return ids.filter((id) => only.has(id)).length;
+  }
   if (filter.roleId) return roleHeads(ws, unitId, p, event, filter.roleId);
   return nobodyHolds(ws, unitId, p) ? 1 : attendees(ws, unitId, p, event).length;
 }
