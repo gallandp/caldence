@@ -29,9 +29,8 @@ async function openOverview(
   if (rate) (ws.settings as { hourlyRate?: number }).hourlyRate = rate;
   await openWorkspaceFile(page, ws);
   await pickUnit(page, 'Payments');
-  await openMenuIfNarrow(page);
   // With an area selected the Team entry is the area's page; the overview is its second page.
-  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showView(page, 'Area');
   await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
   const overview = page.locator('[data-area-overview]');
   await expect(overview).toBeVisible();
@@ -96,6 +95,31 @@ test('a load cell opens Load for that team and week', async ({ page }) => {
   await focus.getByRole('button', { name: 'Close week' }).click();
   await expect(focus).toBeHidden();
 });
+
+for (const size of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  test(`the week detail heading is not hidden behind the back button at ${size.width} (#302)`, async ({
+    page,
+  }) => {
+    const overview = await openOverview(page);
+    // The file is opened at the default size: on phones Open sits in the file bar's menu.
+    await page.setViewportSize(size);
+    await overview.locator('tr[data-team="team-alpha"] button[data-week="2027-01-18"]').click();
+    const heading = page.locator('[data-week-focus="2027-01-18"]').getByRole('heading');
+    await expect(heading).toHaveText('W3 · Team Alpha');
+    await expect(heading).toBeInViewport({ ratio: 1 });
+    const back = page.locator('button.back:visible');
+    await expect(back).toBeInViewport();
+    // Once the scroll has settled, the back button ends above the heading.
+    await expect(async () => {
+      const b = (await back.boundingBox())!;
+      const h = (await heading.boundingBox())!;
+      expect(h.y).toBeGreaterThanOrEqual(b.y + b.height);
+    }).toPass();
+  });
+}
 
 test('the strip and the week detail judge a person on all their teams (#294)', async ({ page }) => {
   // Alex is Product Owner in Alpha and Beta (16 + 16 h), the limit is 15 %. Without area meetings
@@ -423,7 +447,7 @@ function devMeeting(ws: ReturnType<typeof areaWorkspace>) {
   });
 }
 
-test('a team row and the cost card name unfilled roles that only add cost (#264)', async ({
+test('a team row and the cost card name unfilled roles, counted as one person (#264, #335)', async ({
   page,
 }) => {
   const overview = await openOverview(page, 100, devMeeting);
@@ -432,13 +456,17 @@ test('a team row and the cost card name unfilled roles that only add cost (#264)
     'incl. 1 unfilled role: Developer',
   );
   await expect(table.locator('[data-cost-row="team-delta"] [data-unfilled]')).toHaveCount(0);
+  // The hours count the Developer as one person too: hours × rate = cost (#335).
+  const gamma = table.locator('[data-cost-row="team-gamma"] td.num');
+  await expect(gamma.nth(0)).toHaveText('6.8 h');
+  await expect(gamma.nth(1)).toContainText('678');
   const axe = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
   expect(axe.violations).toEqual([]);
 
   await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
   const card = page.locator('[data-costs]');
   await expect(card.locator('[data-cost-unfilled]')).toHaveText(
-    'Includes 1 unfilled role (Developer), counted as one person. It adds cost but no hours.',
+    'Includes 1 unfilled role (Developer), counted as one person in the cost and the hours.',
   );
   const axe2 = await new AxeBuilder({ page }).include('[data-costs]').analyze();
   expect(axe2.violations).toEqual([]);

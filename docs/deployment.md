@@ -126,6 +126,15 @@ How the credentials stay private:
 
 What it does: it uploads all files, then `index.html`, `sw.js` and `manifest.webmanifest`, then the list of uploaded files (`.caldence-deploy-files`, not served from this version on). Files of the previous release that the new one no longer has stay for one more deployment, so browsers still running the previous version keep working; the deployment after that deletes them. Other files in the folder, including `imprint.html` and `privacy.html`, are never touched. A smoke test with the tests of the deployed version then checks the live site.
 
+### Two channels: 1.x and the Caldence 2 preview
+
+`deploy.yml` has the input `channel` (#344):
+
+- `stable` (default): a 1.x release from `main`, uploaded into the web folder itself, as described above.
+- `v2`: a pre-release `2.x.y-alpha.N` of Caldence 2, built and attested by `release-v2.yml` on the branch `release/v2`, uploaded into the subfolder `v2/` (created on the first deployment) and served at `https://caldence.de/v2/`. `release-v2.yml` starts it after every push to `release/v2`.
+
+Both channels run the same job from `main`, behind the same approval. Each keeps its own `.caldence-deploy-files`, so a 1.x deployment never deletes `v2/` and a v2 deployment never touches the root. They queue separately: a v2 run waiting for approval never replaces a waiting 1.x run. Caldence 2 finds `imprint.html` and `privacy.html` one folder up.
+
 ### Setting it up
 
 1. Create a key pair just for deploying, without passphrase:

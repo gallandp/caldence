@@ -1,5 +1,5 @@
 import { randomId } from './id';
-import { CURRENT_SCHEMA } from './model';
+import { CURRENT_SCHEMA, FORMAT2_SCHEMA_BASE } from './model';
 import { record } from './record';
 import { isBuiltinRegion } from './regions';
 
@@ -53,7 +53,8 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
 };
 
 export type MigrateResult =
-  { ok: true; value: unknown } | { ok: false; key: 'error.schema.newer' | 'error.schema.unknown' };
+  | { ok: true; value: unknown }
+  | { ok: false; key: 'error.schema.newer' | 'error.schema.unknown' | 'error.schema.v2' };
 
 export function migrate(input: unknown): MigrateResult {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
@@ -63,6 +64,7 @@ export function migrate(input: unknown): MigrateResult {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
     return { ok: false, key: 'error.schema.unknown' };
   }
+  if (version >= FORMAT2_SCHEMA_BASE) return { ok: false, key: 'error.schema.v2' };
   if (version > CURRENT_SCHEMA) return { ok: false, key: 'error.schema.newer' };
 
   let value: unknown = structuredClone(input);
