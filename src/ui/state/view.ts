@@ -25,6 +25,18 @@ export const currentView = {
 /** The area's page. An area opens on its overview (#337); only a new area starts on the structure. */
 export const areaPage = writable<'structure' | 'overview'>('overview');
 
+/** The pages an area or the organisation can show, for the address (#401). */
+export const AREA_PAGES: readonly string[] = ['structure', 'overview'];
+
+/** A unit this workspace can select: a team, an area, the organisation or a line unit. */
+export function knownUnit(ws: Workspace, unit: string | undefined): boolean {
+  return (
+    (unit === ORG_UNIT && hasOrgLevel(ws)) ||
+    (unit !== undefined && !!ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
+    [...ws.teams, ...ws.areas].some((u) => u.id === unit)
+  );
+}
+
 /**
  * Where a replaced workspace opens (#337). An `opened` file lands on an answer, never on an
  * editor: the first area's page, otherwise the Calendar. The autosave after a reload comes back
@@ -36,10 +48,7 @@ export function openingPlace(
   views: readonly string[],
 ): { unit?: string; page?: string } {
   const saved = ws.view;
-  const known = (unit: string | undefined) =>
-    (unit === ORG_UNIT && hasOrgLevel(ws)) ||
-    (unit !== undefined && ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
-    [...ws.teams, ...ws.areas].some((u) => u.id === unit);
+  const known = (unit: string | undefined) => knownUnit(ws, unit);
   if (!opened)
     return {
       unit: known(saved?.unit) ? saved?.unit : undefined,
