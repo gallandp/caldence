@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { areaCosts, areaShare, costliest, meetingCosts } from '../../src/core/areaCosts';
-import { teamLoad } from '../../src/core/areaOverview';
-import { costSummary, unitCostSummary } from '../../src/core/cost';
+import { areaMeetingHours, teamLoad } from '../../src/core/areaOverview';
+import { costPerCadence, costSummary, unitCostSummary } from '../../src/core/cost';
 import { loadPerWeek } from '../../src/core/load';
 import { loadSummary } from '../../src/core/views';
 import { areaAsTeam, attendees, type Workspace } from '../../src/core/model';
@@ -180,6 +180,16 @@ describe('areaShare (#336)', () => {
     expect(c.total.cost!.perWeek).toBeCloseTo(
       [...c.teams, c.area].reduce((s, r) => s + r.cost!.perWeek, 0),
     );
+  });
+
+  it('has a value per sprint or PI like the cost card, none in flow (#366)', () => {
+    const w = ws();
+    const team = (id: string) => w.teams.find((t) => t.id === id)!;
+    const gamma = areaShare(w, noIndex(), 'team-gamma', 100)!;
+    // Gamma runs 3-week sprints: Kim's 1 h forum and Lou's 0.5 h sync, €150 a week.
+    expect(gamma.perWeek).toBeCloseTo(150);
+    expect(costPerCadence(gamma.perWeek, team('team-gamma').cadence)).toBeCloseTo(450);
+    expect(costPerCadence(1, team('team-delta').cadence)).toBeUndefined();
   });
 
   it('is undefined for a team without an area and without a rate', () => {
@@ -396,6 +406,36 @@ describe('unfilled roles (#264)', () => {
     expect(row.capacity).toBe(40 + hpw);
     expect(row.share).toBeCloseTo(row.hours / (40 + hpw));
     expect(c.total.share).toBeCloseTo(c.total.hours / c.total.capacity);
+  });
+
+  it('the strip counts an unfilled role like the cost table, persons alone warn (#360)', () => {
+    const w = ws();
+    for (const t of w.teams) t.events = t.events.filter((e) => e.rule.type === 'weekly');
+    const gamma = w.teams.find((t) => t.id === 'team-gamma')!;
+    const weeks = () => loadPerWeek(w, noIndex()).slice(1, -1);
+    const warnBefore = teamLoad(w, gamma, weeks()).map((c) => c.warn);
+    devMeeting(w, 'team-gamma');
+    const row = areaCosts(w, noIndex(), w.areas[0]!).teams.find((r) => r.unitId === gamma.id)!;
+    const cells = teamLoad(w, gamma, weeks());
+    expect(row.capacity).toBe(40 + w.settings.hoursPerWeek);
+    for (const c of cells) expect(c.share).toBeCloseTo(row.share, 6);
+    // Nobody holds the role, so no person's hours and no warning change.
+    expect(cells.map((c) => c.warn)).toEqual(warnBefore);
+  });
+
+  it('the steering list counts an unfilled area role like the area row (#360)', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    area.events.push({
+      ...structuredClone(area.events[0]!),
+      id: 'ev-dev-area',
+      rule: { type: 'weekly', weekday: 3 },
+      participants: [{ roleId: 'role-dev', share: 1 }],
+    });
+    const meetings = areaMeetingHours(w, area);
+    const steering = meetings.reduce((s, m) => s + m.perWeek, 0);
+    expect(steering).toBeCloseTo(areaCosts(w, noIndex(), area).area.hours);
+    expect(meetings.find((m) => m.eventId === 'ev-dev-area')!.attendees).toEqual([[]]);
   });
 
   it('a one-off meeting adds cost only in the horizon, and the note says so', () => {

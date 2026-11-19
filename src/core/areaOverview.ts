@@ -1,3 +1,4 @@
+import { headCount } from './cost';
 import { addDays, diffDays, weekday, type ISODate } from './date';
 import {
   capacity,
@@ -8,7 +9,15 @@ import {
   overMax,
   type WeekLoad,
 } from './load';
-import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
+import {
+  areaAsTeam,
+  attendees,
+  unfilled,
+  type Area,
+  type Cadence,
+  type Team,
+  type Workspace,
+} from './model';
 import { effectiveDuration } from './recurrence';
 import { areaStructure } from './structure';
 
@@ -169,13 +178,23 @@ export interface LoadCell {
   warn: boolean;
 }
 
-/** One row of the strip: these people's meeting hours in a unit ÷ their weekly hours there. */
-function unitLoad(ws: Workspace, unitId: string, people: string[], weeks: WeekLoad[]): LoadCell[] {
-  const capTotal = people.reduce((sum, p) => sum + capacity(ws, p, unitId), 0);
+/** One row of the strip: meeting hours in a unit ÷ weekly hours there (people, unfilled roles). */
+function unitLoad(
+  ws: Workspace,
+  unitId: string,
+  people: string[],
+  weeks: WeekLoad[],
+  roles: string[] = [],
+): LoadCell[] {
+  const capTotal =
+    people.reduce((sum, p) => sum + capacity(ws, p, unitId), 0) +
+    roles.length * ws.settings.hoursPerWeek;
   const allHours = new Map(people.map((p) => [p, loadBase(ws, p)]));
   const { maxFte } = ws.settings.thresholds;
   return weeks.map((week) => {
-    const total = people.reduce((sum, p) => sum + (week.byTeamPerson[unitId]?.[p] ?? 0), 0);
+    const total =
+      people.reduce((sum, p) => sum + (week.byTeamPerson[unitId]?.[p] ?? 0), 0) +
+      roles.reduce((sum, r) => sum + (week.byTeamRole[unitId]?.[r] ?? 0), 0);
     const warn = people.some((p) => overMax(week.byPerson[p] ?? 0, allHours.get(p) ?? 0, maxFte));
     const share = capTotal > 0 ? fte(total, capTotal) : total > 0 ? 1 : 0;
     return { monday: week.monday, share, warn };
@@ -184,11 +203,20 @@ function unitLoad(ws: Workspace, unitId: string, people: string[], weeks: WeekLo
 
 /**
  * A team's load in each week, pooled like the cost table: the members' meeting hours in the team
- * ÷ their weekly hours there. Meetings without any weekly hours to measure them against count as
- * full. `warn` is per person, on all their teams and areas (#294).
+ * ÷ their weekly hours there; a role nobody holds counts as one person with the default weekly
+ * hours (#360). Meetings without any weekly hours to measure them against count as full. `warn`
+ * is per person, on all their teams and areas (#294), so never from an unfilled role.
  */
 export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell[] {
-  return unitLoad(ws, team.id, [...new Set(team.members.map((m) => m.personId))], weeks);
+  const roles = new Set(
+    team.events.flatMap((e) =>
+      e.participants.flatMap((p) =>
+        p.roleId !== undefined && unfilled(ws, team.id, p) ? [p.roleId] : [],
+      ),
+    ),
+  );
+  const people = [...new Set(team.members.map((m) => m.personId))];
+  return unitLoad(ws, team.id, people, weeks, [...roles]);
 }
 
 /** People of the area in none of its teams, such as the head of area (the "only in" group). */
@@ -208,7 +236,7 @@ export function areaOnlyLoad(ws: Workspace, area: Area, weeks: WeekLoad[]): Load
 
 export interface AreaMeetingHours {
   eventId: string;
-  /** Hours per week of all attendees together; 0 for one-off and milestone meetings. */
+  /** Hours per week of all attendees together (a role nobody holds as one); 0 if not recurring. */
   perWeek: number;
   /** Whether the meeting comes back on its own (it has a weekly average). */
   recurring: boolean;
@@ -223,8 +251,10 @@ export function areaMeetingHours(ws: Workspace, area: Area): AreaMeetingHours[] 
     const perWeek = occurrencesPerWeek(event.rule, unit);
     const minutes = effectiveDuration(event, unit);
     const lists = event.participants.map((p) => attendees(ws, area.id, p, event));
+    // A role nobody holds counts as one person, like the area row of the cost table (#360).
     const hours = event.participants.reduce(
-      (sum, p, i) => sum + perWeek * occurrenceHours(event, minutes, p.share) * lists[i]!.length,
+      (sum, p) =>
+        sum + perWeek * occurrenceHours(event, minutes, p.share) * headCount(ws, area.id, p, event),
       0,
     );
     return {

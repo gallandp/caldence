@@ -486,7 +486,8 @@ test('each team row and its cost card add what its people spend in area meetings
   await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
   const card = page.locator('[data-costs] [data-cost-area-share]');
   await expect(card).toContainText('These figures count only the meetings of Team Gamma itself.');
-  await expect(card).toContainText('+ €150 / week and €');
+  // Gamma runs 3-week sprints, so the line also names the sprint, like the card above it (#366).
+  await expect(card).toContainText('+ €150 / week, €450 / sprint and €');
   await expect(card).toContainText('in meetings in the area for the people of Team Gamma.');
   // Meeting load for the team shows the same card line.
   await showView(page, 'Meeting load');
