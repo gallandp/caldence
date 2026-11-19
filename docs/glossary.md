@@ -40,7 +40,9 @@ column and bar uses it and shows its value ("über 60 %").
 | **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
 | **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
 | **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
+| **+ … in Terminen {levelInArea}** | + … in meetings {levelInArea} | Under a {levelTeam}'s cost: what its people also spend in the meetings of its {levelArea}; a person in several {levelTeams} is split by their weekly hours there (#336). Informative, never added to a total | Part of the {levelTeam}'s cost |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |
+| **entfällt an Feiertagen** | left out on public holidays | A meeting on a public holiday of the region while "Feiertage auslassen" is on: counts no hours, missing from the `.ics` export (EXDATE). Meetings & cadence and the export name these meetings with their dates (#341); the day details say "Entfällt wegen eines Feiertags" | "abgesagt" (a deleted meeting sent as cancelled in a re-export) |
 
 ## Two meeting-share numbers (H2)
 

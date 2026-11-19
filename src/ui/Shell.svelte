@@ -11,7 +11,7 @@
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
-  import { loadWeek } from './state/focus';
+  import { calendarDay, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -213,6 +213,12 @@
     filter.set({ teamId });
     loadWeek.set({ teamId, monday });
     drillIn(teamId, 'load');
+  }
+
+  /** A dropped meeting's date (#341): the Calendar opens that day; its details take the focus. */
+  function openDay(date: string) {
+    calendarDay.set(date);
+    select('calendar');
   }
 
   // Picking another area opens its overview. Presenting, the area page and an empty meeting list
@@ -709,6 +715,7 @@
                   onShown={() => (showRequest = undefined)}
                   onSetHours={activeArea ? () => select('team', true) : undefined}
                   onExport={() => select('exchange', true)}
+                  onOpenDay={openDay}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}
@@ -732,6 +739,7 @@
             {:else if id === 'exchange'}
               {#if active === 'exchange'}<ExchangeView
                   onOpenMeetings={() => select('meetings', true)}
+                  onOpenDay={openDay}
                   onOpenHelp={() => {
                     openTopic.set('calendar');
                     select('help');

@@ -166,6 +166,8 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await expect(
     dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
   ).toBeFocused();
+  // The region is preset, not chosen: the wizard asks to check it (#341).
+  await expect(dialog.getByLabel('Region (holidays)')).toHaveAccessibleDescription(/Please check/);
   await dialog.getByLabel('Time zone').selectOption('Europe/Vienna');
   await dialog.getByLabel('Horizon to').fill('2027-03-01');
   await dialog.getByRole('button', { name: 'Create team' }).click();
