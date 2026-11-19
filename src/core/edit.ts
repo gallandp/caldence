@@ -182,6 +182,7 @@ export function removeItem(
       t.members = uniqueBy(t.members, (m) => `${m.personId}\u0000${m.roleId}`);
       const hours = Object.hasOwn(t.memberHours, id) ? t.memberHours[id] : undefined;
       delete t.memberHours[id];
+      if ('contextOverrides' in t) delete t.contextOverrides?.[id];
       if (replacementId && hours !== undefined && !wasMember)
         t.memberHours = Object.assign(record<number>(), t.memberHours, { [replacementId]: hours });
       // Meetings that invite the person by name invite the replacement, or no longer them.

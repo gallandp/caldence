@@ -330,6 +330,7 @@ export function teamToTemplate(
   delete rest.id;
   delete rest.members;
   delete rest.memberHours;
+  delete rest.contextOverrides;
   delete rest.templateId;
   const template: Template = {
     kind: 'caldence-template',

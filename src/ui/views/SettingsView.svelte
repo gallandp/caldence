@@ -3,6 +3,7 @@
   import { addCustomRegion, removeCustomRegion, updateSettings } from '../../core/edit';
   import { LEVEL_PRESETS, type LevelPreset } from '../../core/levels';
   import { levelWords } from '../../i18n/levels';
+  import { DEFAULT_CONTEXT_SWITCH, MIN_CONTEXT_SWITCH } from '../../core/contextSwitch';
   import { LIMITS } from '../../core/limits';
   import type { Settings } from '../../core/model';
   import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
@@ -65,6 +66,16 @@
     if (!Number.isFinite(n) || input.value.trim() === '') return fail(path);
     const value = key === 'maxFte' ? n / 100 : n;
     commit([path], { thresholds: { ...settings.thresholds, [key]: value } });
+  }
+
+  /** A whole number of teams from 2 on; the hint itself never blocks anything (#321). */
+  function onContextSwitch(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const n = Number(input.value);
+    const path = 'thresholds.contextSwitch';
+    if (input.value.trim() === '' || !Number.isInteger(n) || n < MIN_CONTEXT_SWITCH)
+      return fail(path);
+    commit([path], { thresholds: { ...settings.thresholds, contextSwitch: n } });
   }
 
   /** An empty rate turns costs off. */
@@ -494,6 +505,30 @@
           </span>
           {@render err('thresholds.maxFte', $t('settings.maxFte'))}
         </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>{$t('settings.context')}</legend>
+      <div class="field">
+        <label for="set-context">{$t('settings.contextSwitch')}</label>
+        <span class="rate-row">
+          <input
+            id="set-context"
+            type="number"
+            min={MIN_CONTEXT_SWITCH}
+            step="1"
+            value={settings.thresholds.contextSwitch ?? DEFAULT_CONTEXT_SWITCH}
+            aria-invalid={errors['thresholds.contextSwitch'] ? 'true' : undefined}
+            aria-describedby={['set-context-hint', describe('thresholds.contextSwitch')]
+              .filter(Boolean)
+              .join(' ')}
+            onchange={onContextSwitch}
+          />
+          <span>{$t('settings.contextSwitch.unit')}</span>
+        </span>
+        {@render err('thresholds.contextSwitch', $t('settings.contextSwitch'))}
+        <p class="help" id="set-context-hint">{$t('settings.contextSwitch.hint')}</p>
       </div>
     </fieldset>
 

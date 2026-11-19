@@ -1,12 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { contextHintIfAdded, setContextOverride } from '../../core/contextSwitch';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
   import { areaHours, capacity, hoursLeft, overbooked, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
+  import ContextNote from '../components/ContextNote.svelte';
+  import { LIMITS } from '../../core/limits';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { Problems } from '../state/problems.svelte';
   import { activeTeamId, workspace } from '../state/workspace';
@@ -74,6 +77,21 @@
     };
   });
 
+  /** Adding the typed person here would put them in too many teams (#321): a hint, never a stop. */
+  const addHint = $derived.by(() => {
+    if (!team) return null;
+    const key = addName.trim().toLowerCase();
+    const person = others.find((p) => p.name.trim().toLowerCase() === key);
+    const hint = contextHintIfAdded($workspace, person?.id, team.id);
+    return hint && person ? { ...hint, name: person.name } : null;
+  });
+  let addOverride = $state(false);
+  let addReason = $state('');
+  // Another name, or one below the threshold, starts without an override.
+  $effect(() => {
+    if (!addHint) addOverride = false;
+  });
+
   function withHours(hours: Record<string, number>, personId: string, h: number) {
     return Object.assign(record<number>(), hours, { [personId]: h });
   }
@@ -96,14 +114,20 @@
       let next = ws;
       let personId = known?.id;
       if (personId === undefined) [next, personId] = addItem(next, 'people', { name });
-      return updateTeam(next, id, {
+      const added = updateTeam(next, id, {
         members: [...members, { personId, roleId: roleChoice }],
         memberHours: hours === null ? memberHours : withHours(memberHours, personId, hours),
       });
+      // The override is stored on this new membership, together with it.
+      return added.ok && addHint && addOverride
+        ? { ok: true, value: setContextOverride(added.value, id, personId, addReason) }
+        : added;
     });
     if (done) {
       addName = '';
       addHours = null;
+      addOverride = false;
+      addReason = '';
       void focusSoon('[data-member-add]');
     }
   }
@@ -366,6 +390,9 @@
                     {/if}
                   </span>
                   {@render err(`hours-${member.personId}`)}
+                  {#if !$presenting}
+                    <ContextNote personId={member.personId} teamId={team.id} {name} />
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -442,6 +469,45 @@
                 })}
                 {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
               </p>
+            {/if}
+            {#if addHint}
+              <div class="context-callout" data-no-present data-context-add>
+                <span class="mark" aria-hidden="true">!</span>
+                <div class="body">
+                  <p>
+                    <strong
+                      >{$t('context.titleIfAdded', {
+                        person: addHint.name,
+                        team: team.name,
+                        count: addHint.teams,
+                      })}</strong
+                    >
+                    {$t('context.rule', {
+                      count: addHint.teams,
+                      loss: formatPercent($locale, addHint.loss),
+                    })}
+                  </p>
+                  <label class="check">
+                    <input type="checkbox" bind:checked={addOverride} />
+                    <span>{$t('context.override')}</span>
+                  </label>
+                  {#if addOverride}
+                    <div class="field">
+                      <label for="{uid}-add-reason">{$t('context.reason')}</label>
+                      <input
+                        id="{uid}-add-reason"
+                        maxlength={LIMITS.textChars}
+                        autocomplete="off"
+                        bind:value={addReason}
+                        aria-describedby="{uid}-add-reason-hint"
+                      />
+                      <p class="reason-hint" id="{uid}-add-reason-hint">
+                        {$t('context.reason.hint')}
+                      </p>
+                    </div>
+                  {/if}
+                </div>
+              </div>
             {/if}
             {@render err('member-add')}
           {/if}
@@ -753,6 +819,47 @@
   .members li :global(.field-error) {
     flex-basis: 100%;
     margin: 0;
+  }
+  /* The context-switch hint before adding someone (#321), as in the staffing dialog design. */
+  .context-callout {
+    display: flex;
+    gap: 0.7rem;
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius);
+    background: var(--warn-soft);
+    color: var(--text);
+  }
+  .context-callout .mark {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--warn);
+    font-weight: 800;
+    font-size: 0.85rem;
+  }
+  .context-callout .body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .context-callout p {
+    margin: 0;
+  }
+  .context-callout .check {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+  .context-callout .reason-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
   }
   .row {
     display: flex;

@@ -177,6 +177,8 @@ function checkSettings(c: Checker, v: unknown): void {
       max: LIMITS.warnFactor,
     });
     c.num(t, 'maxFte', 'settings.thresholds', { min: 0, exclusive: true, max: LIMITS.maxFte });
+    if (t.contextSwitch !== undefined)
+      c.num(t, 'contextSwitch', 'settings.thresholds', { min: 2, max: LIMITS.teams, int: true });
   }
   if (s.hourlyRate !== undefined)
     c.num(s, 'hourlyRate', p, { min: 0, exclusive: true, max: LIMITS.hourlyRate });
@@ -397,6 +399,28 @@ function checkCyclesAndEvents(
   );
 }
 
+/** Overridden context-switch hints (#321): per known person, a team count and maybe a reason. */
+function checkContextOverrides(c: Checker, t: Obj, p: string, personIds: Set<string>): void {
+  if (t.contextOverrides === undefined) return;
+  const path = `${p}.contextOverrides`;
+  const o = c.obj(t.contextOverrides, path);
+  if (!o) return;
+  for (const [personId, v] of Object.entries(o)) {
+    const op = `${path}.${personId}`;
+    if (!personIds.has(personId)) {
+      c.err(op, 'error.ref.unknown');
+      continue;
+    }
+    const entry = c.obj(v, op);
+    if (!entry) continue;
+    c.num(entry, 'teams', op, { min: 2, max: LIMITS.teams, int: true });
+    if (entry.reason !== undefined) {
+      if (typeof entry.reason !== 'string') c.err(`${op}.reason`, 'error.type');
+      else if (entry.reason.length > LIMITS.textChars) c.err(`${op}.reason`, 'error.text.tooLong');
+    }
+  }
+}
+
 function checkTeam(
   c: Checker,
   t: Obj,
@@ -411,6 +435,7 @@ function checkTeam(
 
   const cadenceDays = checkCadence(c, t.cadence, `${p}.cadence`);
   checkMembers(c, t, p, roleIds, personIds);
+  checkContextOverrides(c, t, p, personIds);
 
   const a = c.obj(t.assumptions, `${p}.assumptions`);
   if (a) {

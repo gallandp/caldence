@@ -12,6 +12,7 @@
     overMax,
     warnings,
   } from '../../core/load';
+  import { contextHint, contextHints, contextThreshold } from '../../core/contextSwitch';
   import { keyName, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
@@ -25,6 +26,7 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
+  import { presenting } from '../state/present';
   import { filter, index, workspace } from '../state/workspace';
 
   const summary = $derived(loadSummary($workspace, $filter));
@@ -169,6 +171,23 @@
         }),
       }));
   });
+
+  /**
+   * People in too many teams at once (#321): Weinberg's estimate, a hint next to the limit and
+   * never part of it. While presenting only their number shows, without names.
+   */
+  const contextItems = $derived.by(() => {
+    const ws = $workspace;
+    const inScope = scopePeople(ws, $filter);
+    return contextHints(ws)
+      .filter((h) => inScope.has(h.personId))
+      .map((h) => ({
+        ...h,
+        name: ws.people.find((p) => p.id === h.personId)?.name ?? h.personId,
+      }))
+      .sort((a, b) => b.teams - a.teams || a.name.localeCompare(b.name, $locale));
+  });
+  const contextFrom = $derived(contextThreshold($workspace));
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -345,6 +364,12 @@
               >{p.person.name}</button
             >
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
+            {#if !$presenting}
+              {@const ctx = contextHint($workspace, p.person.id)}
+              {#if ctx}<span class="context-tag" class:muted={ctx.overriddenIn} data-context-tag
+                  >{$t('context.tag')}</span
+                >{/if}
+            {/if}
             {#if overbooked($workspace, p.person.id)}
               {@const total = weekly(p.cap)}
               <span class="overbooked" data-overbooked
@@ -406,6 +431,24 @@
               {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
                 <p class="note" data-set-hours>
                   {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                </p>
+              {/if}
+              {@const ctx = $presenting ? null : contextHint($workspace, p.person.id)}
+              {#if ctx}
+                <p class="note context-detail" data-context-detail>
+                  <strong>{$t('context.title', { person: p.person.name, count: ctx.teams })}</strong
+                  >
+                  {$t('context.rule', {
+                    count: ctx.teams,
+                    loss: formatPercent($locale, ctx.loss),
+                  })}
+                  {#if ctx.overriddenIn}<span class="pill"
+                      >{$t('context.overriddenIn', {
+                        team:
+                          $workspace.teams.find((x) => x.id === ctx.overriddenIn)?.name ??
+                          ctx.overriddenIn,
+                      })}</span
+                    >{/if}
                 </p>
               {/if}
               {#if p.units.length === 0}
@@ -540,6 +583,30 @@
           <li class="warning">{w.text}</li>
         {/each}
       </ul>
+    {/if}
+    {#if contextItems.length > 0}
+      <h4 class="hints-title">{$t('load.context')}</h4>
+      <p class="note">{$t('load.context.rule', { from: contextFrom })}</p>
+      {#if $presenting}
+        <p class="context-anon" data-context-hints>
+          {$t(contextItems.length === 1 ? 'load.context.anon.one' : 'load.context.anon.other', {
+            n: formatNumber($locale, contextItems.length, 0),
+            from: contextFrom,
+          })}
+        </p>
+      {:else}
+        <ul class="hints" data-context-hints>
+          {#each contextItems as c (c.personId)}
+            <li class:muted={c.overriddenIn}>
+              {$t('load.context.item', {
+                person: c.name,
+                count: c.teams,
+                loss: formatPercent($locale, c.loss),
+              })}{#if c.overriddenIn}<span class="pill">{$t('context.overridden')}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
     {/if}
     {#if hintItems.length > 0}
       <h4 class="hints-title">{$t('load.hints')}</h4>
@@ -888,6 +955,33 @@
   .hints-title {
     margin: 1rem 0 0;
     font-size: 0.9375rem;
+  }
+  /* Context switching (#321): a hint, outlined so it never reads as the limit's warning. */
+  .context-tag {
+    margin-left: 0.4rem;
+    padding: 0 0.45rem;
+    border: 1px solid currentColor;
+    border-radius: 99px;
+    color: var(--warn);
+    font-size: 0.75rem;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .context-tag.muted,
+  li.muted {
+    color: var(--text-muted);
+  }
+  .pill {
+    margin-left: 0.4rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 99px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .context-anon {
+    margin: 0;
   }
   .hints {
     display: flex;
