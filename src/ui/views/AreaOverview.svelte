@@ -99,8 +99,13 @@
     mondays.filter((m) => cells.some((c) => c.monday === m && c.warn)),
   );
   const areaHours = $derived(meetings.reduce((sum, m) => sum + m.perWeek, 0));
+  /** Everyone in the recurring area meetings; a role nobody holds counts once (#360). */
   const areaPeople = $derived(
-    new Set(meetings.filter((m) => m.perWeek > 0).flatMap((m) => m.attendees.flat())).size,
+    new Set(
+      meetings
+        .filter((m) => m.perWeek > 0)
+        .flatMap((m) => [...m.attendees.flat(), ...m.unfilled.map((r) => `role:${r}`)]),
+    ).size,
   );
   const personIds = $derived(
     new Set([
