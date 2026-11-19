@@ -4,6 +4,8 @@
   import { areaHours, capacity, hoursLeft, overbooked, placesOf } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
+  import OwnerCard from '../components/OwnerCard.svelte';
+  import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
   import { formatNumber, locale, translate as t } from '../../i18n';
@@ -294,6 +296,17 @@
   {:else}
     <!-- Members first, then the people and roles they are made of, then the assumptions. -->
     <div class="cards">
+      {#if hasOwnerRoles($workspace)}
+        <!-- The product's owner set-up (#331); a missing owner is added in the members form. -->
+        <OwnerCard
+          unit={team}
+          level="team"
+          onAssign={(roleId) => {
+            addRole = roleId;
+            void focusSoon('[data-member-add]');
+          }}
+        />
+      {/if}
       {#key epoch}
         <section class="card" aria-labelledby="{uid}-members-h">
           <h3 id="{uid}-members-h">{$t('team.members')}</h3>

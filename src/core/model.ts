@@ -29,7 +29,17 @@ export interface Role {
   id: string;
   name: string;
   colour: string;
+  /**
+   * Marks the role as one half of an owner tandem (#331): the business ("fachlich") or technical
+   * owner of the unit whose member holds it, e.g. business Product Owner of a team.
+   */
+  owner?: OwnerHalf;
 }
+
+/** The two halves of an owner tandem (#331). */
+export type OwnerHalf = 'business' | 'technical';
+/** Which owners a unit wants: a tandem of both (the default) or deliberately only one. */
+export type OwnerMode = 'both' | OwnerHalf;
 
 export interface Person {
   id: string;
@@ -143,6 +153,8 @@ export interface Team {
   assumptions: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** Owner set-up of the team (#331); missing means a tandem ('both'). */
+  ownerMode?: OwnerMode;
 }
 
 /**
@@ -164,6 +176,8 @@ export interface Area {
   memberHours: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** Owner set-up of the area (#331); missing means a tandem ('both'). */
+  ownerMode?: OwnerMode;
 }
 
 export interface Workspace {
