@@ -59,9 +59,10 @@ test('the area overview compares cadences, shows load and the area steering', as
     /^PI 2, /,
   ]);
 
-  // One row of twelve week cells per team.
+  // One row of twelve week cells per team, and one for the people only in the area (#334).
   const load = overview.locator('[data-load]');
-  await expect(load.locator('tbody tr')).toHaveCount(4);
+  await expect(load.locator('tbody tr')).toHaveCount(5);
+  await expect(load.locator('tr[data-team="area-payments"] th')).toHaveText('Only in the area');
   await expect(load.locator('tr[data-team="team-alpha"] button')).toHaveCount(12);
 
   // Steering: area roles with hours, and area meetings with "every team" chips.
@@ -165,13 +166,18 @@ test('the strip and the week detail judge a person on all their teams (#294)', a
   );
 });
 
-test('area meetings without area hours do not outline every week (#294)', async ({ page }) => {
+test('area meetings without area hours do not outline every week (#294, #307)', async ({
+  page,
+}) => {
   // The unchanged fixture: area meetings invite people "from every team" who have no area hours
-  // yet. Load warns about that; the strip and the week detail judge only the total (limit 60 %).
+  // yet. Load names that once per person; the strip and the week detail judge only the total
+  // (limit 60 %).
   const overview = await openOverview(page);
-  const cells = overview.locator('[data-load] tbody button[data-week]');
+  const cells = overview.locator('[data-load] tbody tr[data-team^="team-"] button[data-week]');
   await expect(cells).toHaveCount(48);
-  await expect(overview.locator('[data-load] tbody button[data-week].warn')).toHaveCount(0);
+  await expect(
+    overview.locator('[data-load] tbody tr[data-team^="team-"] button[data-week].warn'),
+  ).toHaveCount(0);
   await overview.locator('tr[data-team="team-alpha"] button[data-week="2027-01-11"]').click();
   const focus = page.locator('[data-week-focus="2027-01-11"]');
   await expect(focus.locator('tbody tr')).toHaveCount(2);
@@ -180,6 +186,47 @@ test('area meetings without area hours do not outline every week (#294)', async 
     const percent = Number(share.match(/^(\d+)%/)![1]);
     if (percent <= 60) await expect(row).not.toContainText('over the limit');
   }
+  // Warnings in Meeting load agree: nobody from a team is over the limit, and each person
+  // without hours in Payments gets one hint instead of a warning per week.
+  await focus.getByRole('button', { name: 'Close week' }).click();
+  const warnings = page.getByRole('region', { name: 'Warnings', exact: true });
+  await expect(warnings.locator('li.warning', { hasText: /^Sam: .*limit/ })).toHaveCount(0);
+  const hints = warnings.locator('[data-area-hints] li');
+  await expect(hints.filter({ hasText: /^Sam: / })).toHaveCount(1);
+  await expect(hints.filter({ hasText: /^Sam: / })).toHaveText(
+    /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there$/,
+  );
+  await expect(
+    warnings.getByText(/^These lines are not the limit, which always counts all meetings/),
+  ).toBeVisible();
+});
+
+test('people only in the area count on the Overview, like in Meeting load (#334)', async ({
+  page,
+}) => {
+  // Limit 12 %: Pia (only in the area, 8 h there) spends 1 h a week in the PO forum, 12.5 %.
+  const overview = await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  const row = overview.locator('[data-load] tr[data-team="area-payments"]');
+  await expect(row.locator('button.warn')).toHaveCount(12);
+  await expect(row.locator('button').first()).toHaveAccessibleName(
+    /^Only in the area, W1: \d+% in meetings, at least one person over the limit \(12%\)/,
+  );
+  await expect(overview.locator('[data-kpi="warn"] b')).toHaveText('12');
+  await row.locator('button[data-week="2027-01-11"]').click();
+  const focus = page.locator('[data-week-focus="2027-01-11"]');
+  await expect(focus.locator('tr[data-person="person-pia"]')).toContainText('over the limit (12%)');
+  await focus.getByRole('button', { name: 'Close week' }).click();
+  const warnings = page.getByRole('region', { name: 'Warnings', exact: true });
+  await expect(
+    warnings.locator('li.warning', { hasText: /^Pia: .*over the 12% limit/ }),
+  ).toHaveCount(1);
+  // Her 1 h of the 8 h in the area is a hint of its own, not worded as over the limit.
+  await expect(warnings.locator('[data-area-hints] li')).toContainText([
+    'Pia: meetings in Payments take up to 1.0 h a week, 13% of the 8 h set there',
+  ]);
 });
 
 test('an area meeting opens in Meetings & cadence', async ({ page }) => {

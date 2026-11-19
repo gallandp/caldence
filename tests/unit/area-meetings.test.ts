@@ -3,6 +3,7 @@ import { costSummary, meetingCost, unitCostSummary } from '../../src/core/cost';
 import { removeItem } from '../../src/core/edit';
 import { exportIcs, scopeHasEvents } from '../../src/core/ics';
 import {
+  areaHints,
   areaHours,
   capacity,
   loadPerWeek,
@@ -202,7 +203,7 @@ describe('area hours', () => {
   });
 });
 
-describe('the FTE check for area meetings', () => {
+describe('the limit and area meetings (#307, #334)', () => {
   const fteWarned = (ws: Workspace) =>
     [
       ...new Set(
@@ -211,16 +212,39 @@ describe('the FTE check for area meetings', () => {
           .map((w) => w.personId),
       ),
     ].sort();
+  const hints = (ws: Workspace) => areaHints(loadPerWeek(ws, noIndex()), ws);
 
-  it('flags people invited from every team without area hours, whatever their team hours', () => {
+  it('judges people invited from every team on all meetings ÷ all hours, not on 0 h in the area', () => {
     const ws = workspace();
-    expect(fteWarned(ws)).toEqual(['alex', 'bo']);
+    // Alex: 1 h of 38 h, Bo: 1 h of 40 h; their 0 h in the area do not make them over the limit.
+    expect(fteWarned(ws)).toEqual([]);
   });
 
-  it('is quiet once they have area hours', () => {
+  it('gives one hint per person and area for missing area hours, not one per week', () => {
+    const ws = workspace();
+    expect(hints(ws)).toEqual([
+      { personId: 'alex', areaId: 'area', kind: 'no-area-hours', hours: 1, areaHours: 0 },
+      { personId: 'bo', areaId: 'area', kind: 'no-area-hours', hours: 1, areaHours: 0 },
+    ]);
+  });
+
+  it('names a large share of the area hours as a hint, never as over the limit', () => {
+    const ws = workspace();
+    ws.areas[0]!.memberHours = { hana: 10, alex: 4, bo: 2 };
+    ws.settings.thresholds.maxFte = 0.2;
+    // Bo: 1 h of 2 h in the area is 50 %, but 1 h of 42 h over everything is not over 20 %.
+    expect(fteWarned(ws)).toEqual([]);
+    expect(hints(ws)).toEqual([
+      { personId: 'alex', areaId: 'area', kind: 'area-share', hours: 1, areaHours: 4 },
+      { personId: 'bo', areaId: 'area', kind: 'area-share', hours: 1, areaHours: 2 },
+    ]);
+  });
+
+  it('is quiet once the area hours cover the area meetings', () => {
     const ws = workspace();
     ws.areas[0]!.memberHours = { hana: 10, alex: 4, bo: 2 };
     expect(fteWarned(ws)).toEqual([]);
+    expect(hints(ws)).toEqual([]);
   });
 
   it('a PO forum does not raise the load of a team', () => {
