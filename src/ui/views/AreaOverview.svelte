@@ -453,7 +453,8 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
-                  >{euro(costOf(r.cost))}{#if r.areaShare}{' '}<small data-area-share
+                  >{euro(costOf(r.cost))}{#if r.areaShare}<span class="sr-only">, </span><small
+                      data-area-share
                       >{$t('overview.cost.areaShare.' + period, {
                         amount: euro(costOf(r.areaShare)),
                       })}</small
