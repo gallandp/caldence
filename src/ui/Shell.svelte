@@ -404,6 +404,17 @@
     event.preventDefault();
     main?.focus();
   }
+
+  /** The staff import's link to the privacy paragraph of the help (#330). */
+  function openPrivacyHelp() {
+    openTopic.set('files');
+    select('help');
+    void tick().then(() => {
+      const el = document.getElementById('help-staff-privacy');
+      el?.scrollIntoView({ block: 'center' });
+      el?.focus();
+    });
+  }
 </script>
 
 <svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} />
@@ -741,6 +752,7 @@
                     select('help');
                     void tick().then(() => document.getElementById('help-apps-title')?.focus());
                   }}
+                  onOpenPrivacy={openPrivacyHelp}
                 />{/if}
             {:else if id === 'help'}
               {#if active === 'help'}<HelpView onOpenView={(view) => select(view, true)} />{/if}

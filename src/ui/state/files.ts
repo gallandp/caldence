@@ -261,7 +261,9 @@ export function browserFileEnv(pickFile: (accept?: string) => Promise<File | nul
           ? 'application/zip'
           : name.endsWith('.xlsx')
             ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            : 'application/json';
+            : name.endsWith('.csv')
+              ? 'text/csv'
+              : 'application/json';
       const url = URL.createObjectURL(new Blob([data], { type }));
       const a = document.createElement('a');
       a.href = url;

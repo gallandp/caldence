@@ -41,8 +41,13 @@
     type ExportKind,
   } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
+  import StaffImportDialog from '../components/StaffImportDialog.svelte';
 
-  let { onOpenMeetings, onOpenHelp }: { onOpenMeetings?: () => void; onOpenHelp?: () => void } =
+  let {
+    onOpenMeetings,
+    onOpenHelp,
+    onOpenPrivacy,
+  }: { onOpenMeetings?: () => void; onOpenHelp?: () => void; onOpenPrivacy?: () => void } =
     $props();
 
   const uid = $props.id();
@@ -69,6 +74,11 @@
   let workbook = $state<string | null>(null);
   let imported = $state<{ n: number; team: string } | null>(null);
   let exportEmpty = $state(false);
+  /** The staff import (#330): how many people, and the state right after it, for its undo. */
+  let staffDone = $state.raw<{ n: number; after: unknown } | null>(null);
+  let staffUndone = $state(false);
+  let staffOpen = $state(false);
+  let staffButton = $state<HTMLButtonElement | undefined>();
 
   /** Drops the outcome of an earlier export or import: the form changed or an error came up. */
   function clearStatus() {
@@ -77,6 +87,8 @@
     workbook = null;
     imported = null;
     exportEmpty = false;
+    staffDone = null;
+    staffUndone = false;
   }
   function fail(key: string, path?: string) {
     clearStatus();
@@ -351,6 +363,24 @@
     }
   }
 
+  // ---------- staff import (#330) ----------
+
+  function staffImported(n: number) {
+    staffOpen = false;
+    clearStatus();
+    problem = null;
+    staffDone = { n, after: get(workspace) };
+    void tick().then(() => staffButton?.focus());
+  }
+
+  function undoStaff() {
+    if (!staffDone || get(workspace) !== staffDone.after) return;
+    workspace.undo();
+    clearStatus();
+    staffUndone = true;
+    staffButton?.focus();
+  }
+
   // ---------- import ----------
 
   let fileName = $state('');
@@ -447,7 +477,14 @@
   <p class="help">{$t('exchange.help')}</p>
 
   <div role="status" class="notice">
-    {#if imported}
+    {#if staffDone}
+      <span>{$t(staffDone.n === 1 ? 'staff.done.one' : 'staff.done', { n: staffDone.n })}</span>
+      {#if $workspace === staffDone.after}
+        <button type="button" onclick={undoStaff}>{$t('staff.undo')}</button>
+      {/if}
+    {:else if staffUndone}
+      {$t('staff.undone')}
+    {:else if imported}
       <span>{$t('exchange.imported', { n: imported.n, team: imported.team })}</span>
       <button type="button" bind:this={openButton} onclick={() => onOpenMeetings?.()}
         >{$t('exchange.open')}</button
@@ -646,6 +683,27 @@
       aria-describedby="{uid}-xlsx-help"
       onclick={exportWorkbook}>{$t('exchange.xlsx.button')}</button
     >
+  </section>
+
+  <section aria-labelledby="{uid}-staff-h">
+    <h3 id="{uid}-staff-h">{$t('staff.section')}</h3>
+    <p class="help" id="{uid}-staff-help">{$t('staff.section.help')}</p>
+    <button
+      type="button"
+      bind:this={staffButton}
+      aria-describedby="{uid}-staff-help"
+      data-staff-import
+      onclick={() => (staffOpen = true)}>{$t('staff.open')}</button
+    >
+    <StaffImportDialog
+      open={staffOpen}
+      onclose={() => {
+        staffOpen = false;
+        staffButton?.focus();
+      }}
+      ondone={staffImported}
+      onprivacy={() => onOpenPrivacy?.()}
+    />
   </section>
 
   <section aria-labelledby="{uid}-import-h">
