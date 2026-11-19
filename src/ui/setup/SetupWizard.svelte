@@ -420,7 +420,7 @@
   </div>
 {/snippet}
 
-{#snippet teamsField(field: string, read: () => string, write: (v: string) => void)}
+{#snippet teamsField(field: string, read: () => string, write: (v: string) => void, example = true)}
   {@const wrong = structError?.field === field}
   <div class="field">
     <label for="{uid}-{field}">{$t('setup.area.teams', { teams: words.teams })}</label>
@@ -428,7 +428,7 @@
       id="{uid}-{field}"
       rows="3"
       value={read()}
-      placeholder={$t('setup.area.teams.example')}
+      placeholder={example ? $t('setup.area.teams.example') : undefined}
       aria-invalid={wrong ? 'true' : undefined}
       aria-describedby="{uid}-{field}-hint{wrong ? ` ${uid}-${field}-err` : ''}"
       oninput={(e) => {
@@ -631,12 +631,13 @@
               () => row.name,
               (v) => (row.name = v),
               undefined,
-              $t('setup.area.name.example'),
+              i === 0 ? $t('setup.area.name.example') : undefined,
             )}
             {@render teamsField(
               `row-${i}-teams`,
               () => row.teams,
               (v) => (row.teams = v),
+              i === 0,
             )}
             {#if rows.length > 1}
               <button type="button" class="link" onclick={() => removeRow(i)}
