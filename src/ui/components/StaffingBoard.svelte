@@ -769,16 +769,21 @@
     font-size: 0.8rem;
     font-weight: 650;
   }
+  /* One column grid for all rows of a platform, so skill and amounts line up (subgrid). */
   .rows {
     list-style: none;
     margin: 0;
     padding: 0;
+    display: grid;
+    grid-template-columns: minmax(7rem, 1fr) max-content max-content minmax(
+        0,
+        max-content
+      ) max-content;
   }
   .row {
     display: grid;
-    grid-template-columns:
-      minmax(9rem, 1.4fr) minmax(7rem, 1fr) minmax(8rem, 1fr) minmax(2rem, auto)
-      auto;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
     gap: 0.4rem 0.9rem;
     align-items: center;
     padding: 0.65rem 0.9rem;
@@ -798,6 +803,9 @@
     outline-offset: -3px;
   }
   @media (max-width: 40rem) {
+    .rows {
+      display: block;
+    }
     .row {
       grid-template-columns: minmax(0, 1fr) auto;
     }
@@ -837,6 +845,7 @@
   }
   .skill {
     justify-self: start;
+    max-width: 14rem;
     padding: 0.15rem 0.6rem;
     border-radius: 0.8rem;
     background: var(--surface);
