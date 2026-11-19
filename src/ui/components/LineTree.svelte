@@ -1,7 +1,6 @@
 <script lang="ts">
   import { loadPerWeek } from '../../core/load';
   import {
-    childUnits,
     overLimitPeople,
     staffRows,
     unitStats,
@@ -20,12 +19,19 @@
    * `root` on top, its sub-units as columns, deeper units nested below. Every node shows its
    * people, free FTE and hints; a click opens that unit. Self-contained (it only needs a root
    * unit), so it can stand on any page; `rows` saves recomputing them when the page has them.
+   * On the root's own page (`rootIsPage`) the root is a plain heading card, elsewhere it opens too.
    */
   let {
     root,
     rows,
     onOpen,
-  }: { root: LineUnit; rows?: StaffRow[]; onOpen: (selection: string) => void } = $props();
+    rootIsPage = true,
+  }: {
+    root: LineUnit;
+    rows?: StaffRow[];
+    onOpen: (selection: string) => void;
+    rootIsPage?: boolean;
+  } = $props();
 
   const ws = $derived($workspace);
   const allRows = $derived.by(() => {
@@ -34,7 +40,13 @@
     return staffRows(ws, root.id, weeks, overLimitPeople(weeks, ws));
   });
   const byPerson = $derived(new Map(allRows.map((r) => [r.person.id, r])));
-  const kids = (id: string) => childUnits(ws, id);
+  /** Sub-units per parent, built once per workspace. */
+  const children = $derived.by(() => {
+    const out: Record<string, LineUnit[]> = {};
+    for (const u of ws.lineUnits ?? []) if (u.parentId) (out[u.parentId] ??= []).push(u);
+    return out;
+  });
+  const kids = (id: string): LineUnit[] => children[id] ?? [];
 
   /** A unit's figures over all its people, sub-units included. */
   function stats(id: string): UnitStats {
@@ -52,28 +64,18 @@
     $t(n === 1 ? 'line.tree.units.one' : 'line.tree.units.other', { n });
   const managerOf = (u: LineUnit) =>
     $presenting ? undefined : ws.people.find((p) => p.id === u.managerPersonId)?.name;
-  const meta = (u: LineUnit, group: boolean) => {
+  /** Line units below a unit, at any depth. */
+  const countBelow = (id: string): number => kids(id).reduce((n, k) => n + 1 + countBelow(k.id), 0);
+  const meta = (u: LineUnit, group: boolean, withCount = false) => {
     const manager = managerOf(u);
     return [
       group ? $levels.lineGroup : $levels.lineTeam,
+      withCount && group ? unitsText(countBelow(u.id)) : '',
       manager ? $t('line.tile.manager', { name: manager }) : '',
     ]
       .filter(Boolean)
       .join(' · ');
   };
-  /** Line units below the root, at any depth. */
-  const below = $derived.by(() => {
-    let n = 0;
-    const walk = (id: string) => {
-      for (const k of kids(id)) {
-        n++;
-        walk(k.id);
-      }
-    };
-    walk(root.id);
-    return n;
-  });
-  const rootStats = $derived(stats(root.id));
 </script>
 
 {#snippet figures(s: UnitStats)}
@@ -90,32 +92,39 @@
   </span>
 {/snippet}
 
-{#snippet node(u: LineUnit)}
-  {@const group = kids(u.id).length > 0}
-  <button
-    type="button"
-    class="node"
-    class:group
-    data-line-node={u.id}
-    onclick={() => onOpen(lineSelection(u.id))}
-  >
-    <span class="badge" aria-hidden="true">
-      {#if group}<svg viewBox="0 0 24 24"><path d={LINE_ICON} /></svg>{:else}{initials(u.name)}{/if}
-    </span>
-    <span class="text">
-      <span class="title">{u.name}</span>
-      <span class="meta">{meta(u, group)}</span>
-      {@render figures(stats(u.id))}
-    </span>
-  </button>
+{#snippet content(u: LineUnit, group: boolean, isRoot: boolean)}
+  <span class="badge" aria-hidden="true">
+    {#if group}<svg viewBox="0 0 24 24"><path d={LINE_ICON} /></svg>{:else}{initials(u.name)}{/if}
+  </span>
+  <span class="text">
+    <span class="title">{u.name}</span>
+    <span class="meta">{meta(u, group, isRoot)}</span>
+    {@render figures(stats(u.id))}
+  </span>
 {/snippet}
 
-{#snippet branch(id: string)}
-  <ul class="kids">
+{#snippet node(u: LineUnit, isRoot = false)}
+  {@const group = kids(u.id).length > 0}
+  {#if isRoot && rootIsPage}
+    <div class="node root" class:group>{@render content(u, group, true)}</div>
+  {:else}
+    <button
+      type="button"
+      class="node"
+      class:root={isRoot}
+      class:group
+      data-line-node={u.id}
+      onclick={() => onOpen(lineSelection(u.id))}>{@render content(u, group, isRoot)}</button
+    >
+  {/if}
+{/snippet}
+
+{#snippet branch(id: string, cls: string)}
+  <ul class={cls}>
     {#each kids(id) as k (k.id)}
-      <li>
+      <li class:column={cls === 'columns'}>
         {@render node(k)}
-        {#if kids(k.id).length > 0}{@render branch(k.id)}{/if}
+        {#if kids(k.id).length > 0}{@render branch(k.id, 'kids')}{/if}
       </li>
     {/each}
   </ul>
@@ -123,28 +132,8 @@
 
 <ul class="tree" aria-label={$t('line.tree.label', { name: root.name })}>
   <li class="root-item">
-    <div class="node root">
-      <span class="badge" aria-hidden="true"
-        ><svg viewBox="0 0 24 24"><path d={LINE_ICON} /></svg></span
-      >
-      <span class="text">
-        <span class="title">{root.name}</span>
-        <span class="meta"
-          >{[$levels.lineGroup, unitsText(below)].join(' · ')}{managerOf(root)
-            ? ' · ' + $t('line.tile.manager', { name: managerOf(root) ?? '' })
-            : ''}</span
-        >
-        {@render figures(rootStats)}
-      </span>
-    </div>
-    <ul class="columns">
-      {#each kids(root.id) as k (k.id)}
-        <li class="column">
-          {@render node(k)}
-          {#if kids(k.id).length > 0}{@render branch(k.id)}{/if}
-        </li>
-      {/each}
-    </ul>
+    {@render node(root, true)}
+    {#if kids(root.id).length > 0}{@render branch(root.id, 'columns')}{/if}
   </li>
 </ul>
 
@@ -171,7 +160,7 @@
     border-color: color-mix(in srgb, var(--line) 45%, var(--border));
     background: linear-gradient(180deg, var(--line-soft), var(--surface) 140%);
   }
-  .node.root::after {
+  .node.root:not(:last-child)::after {
     content: '';
     position: absolute;
     left: 50%;
