@@ -84,12 +84,13 @@ export function updateDemand(
         .filter((a) => a.teamId === teamId && a.demandId === demandId)
         .map((a) => a.personId),
     );
-    // Someone who already holds the new role keeps that one membership.
-    team.members = team.members.flatMap((m) => {
-      if (m.roleId !== from || !staffed.has(m.personId)) return [m];
-      const holds = team.members.some((x) => x.personId === m.personId && x.roleId === to);
-      return holds ? [] : [{ ...m, roleId: to }];
-    });
+    // Someone staffed who already holds the new role: the assignment would take over a membership
+    // it did not add, and ending it would remove that one (as `assign` refuses).
+    if (team.members.some((m) => m.roleId === to && staffed.has(m.personId)))
+      return fail(`teams.${teamId}.demands`, 'error.demand.roleHeld');
+    team.members = team.members.map((m) =>
+      m.roleId === from && staffed.has(m.personId) ? { ...m, roleId: to } : m,
+    );
     demand.roleId = to;
   }
   if (patch.fte !== undefined) demand.fte = patch.fte;

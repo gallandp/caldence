@@ -11,6 +11,7 @@
   import { removeDemand } from '../../core/line';
   import type { Demand, Team } from '../../core/model';
   import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
+  import { tick, untrack } from 'svelte';
   import { Problems } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
   import ConfirmDialog, { type Choice } from './ConfirmDialog.svelte';
@@ -44,13 +45,27 @@
   const total = $derived(rows.reduce((s, r) => s + r.demand.fte, 0));
   const committed = $derived(rows.reduce((s, r) => s + r.committed, 0));
 
+  /** At least 0.1 FTE: less shows as "0,0 FTE". */
+  const validFte = (n: number | null): n is number => n !== null && Number.isFinite(n) && n >= 0.1;
+
+  let root: HTMLElement | undefined = $state();
+  async function focusSoon(selector: string) {
+    await tick();
+    root?.querySelector<HTMLElement>(selector)?.focus();
+  }
+
   // ---------- the add form ----------
 
   /** '' is "without a skill, only a role". */
   let addSkill = $state<string | null>(null);
   let addFte = $state<number | null>(null);
   let addRole = $state('');
-  const skillChoice = $derived(addSkill ?? choices.own[0]?.id ?? choices.other[0]?.id ?? '');
+  // A skill removed meanwhile (undo, another view) falls back to the first one.
+  const skillChoice = $derived(
+    addSkill !== null && (addSkill === '' || ws.skills?.some((s) => s.id === addSkill))
+      ? addSkill
+      : (choices.own[0]?.id ?? choices.other[0]?.id ?? ''),
+  );
   const roleOnly = $derived(skillChoice === '');
   const roleChoice = $derived(
     roleOnly && ws.roles.some((r) => r.id === addRole) ? addRole : (defaultRole ?? ''),
@@ -58,9 +73,8 @@
 
   function add(event: Event) {
     event.preventDefault();
-    if (roleChoice === '') return;
-    if (addFte === null || !Number.isFinite(addFte) || addFte <= 0)
-      return fail('add', 'error.number.invalid', $t('demand.fte'));
+    if (roleChoice === '') return fail('add', 'error.required', $t('demand.role'));
+    if (!validFte(addFte)) return fail('add', 'error.number.invalid', $t('demand.fte'));
     const data: Omit<Demand, 'id'> = { fte: addFte, roleId: roleChoice };
     if (!roleOnly) data.skillId = skillChoice;
     const done = commit('add', $t('demand.fte'), (w) => {
@@ -78,21 +92,28 @@
   function edit(d: Demand) {
     clear('edit');
     editing = { id: d.id, skillId: d.skillId ?? '', fte: d.fte, roleId: d.roleId };
+    void focusSoon(`#${CSS.escape(uid)}-e-skill`);
   }
   function save(event: Event) {
     event.preventDefault();
     const e = editing;
     if (!e) return;
-    if (e.fte === null || !Number.isFinite(e.fte) || e.fte <= 0)
-      return fail('edit', 'error.number.invalid', $t('demand.fte'));
-    const done = commit('edit', $t('demand.fte'), (w) =>
+    const n = e.fte;
+    if (!validFte(n)) return fail('edit', 'error.number.invalid', $t('demand.fte'));
+    const done = commit('edit', $t('demand.role'), (w) =>
       updateDemand(w, team.id, e.id, {
-        fte: e.fte!,
+        fte: n,
         roleId: e.roleId,
         skillId: e.skillId === '' ? undefined : e.skillId,
       }),
     );
-    if (done) editing = null;
+    if (done) stopEditing();
+  }
+  function stopEditing() {
+    const id = editing?.id;
+    editing = null;
+    clear('edit');
+    if (id) void focusSoon(`[data-demand="${CSS.escape(id)}"] [data-edit]`);
   }
 
   /** A staffed demand is deleted only after a yes: its people leave the product. */
@@ -107,8 +128,22 @@
     if (choice === 'save' && pending) remove(pending.demand.id);
   }
   function remove(id: string) {
-    commit('row', '', (w) => ({ ok: true, value: removeDemand(w, team.id, id) }));
+    if (commit('row', '', (w) => ({ ok: true, value: removeDemand(w, team.id, id) })))
+      void focusSoon(`#${CSS.escape(uid)}-skill`);
   }
+
+  // Another team, undo or a change elsewhere: drafts and an open row editor start afresh (demand
+  // ids repeat across teams).
+  $effect(() => {
+    void problems.epoch;
+    untrack(() => {
+      editing = null;
+      deleting = null;
+      addSkill = null;
+      addRole = '';
+      addFte = null;
+    });
+  });
 
   // ---------- Mindestzusage and the meetings behind it ----------
 
@@ -150,7 +185,7 @@
   {/each}
 {/snippet}
 
-<section class="card demand" aria-labelledby="{uid}-h" data-demand-card>
+<section class="card demand" aria-labelledby="{uid}-h" data-demand-card bind:this={root}>
   <div class="head">
     <h3 id="{uid}-h">{$t('demand.heading')}</h3>
     {#if rows.length > 0}
@@ -211,9 +246,7 @@
                   </select>
                 </div>
                 <div class="actions">
-                  <button type="button" onclick={() => (editing = null)}
-                    >{$t('dialog.cancel')}</button
-                  >
+                  <button type="button" onclick={stopEditing}>{$t('dialog.cancel')}</button>
                   <button type="submit" class="primary">{$t('demand.save')}</button>
                 </div>
                 <FieldError {problems} id="edit" />
@@ -261,6 +294,7 @@
                 <button
                   type="button"
                   class="icon-button"
+                  data-edit
                   aria-label={$t('demand.edit', { name })}
                   onclick={() => edit(d)}
                   ><svg viewBox="0 0 24 24" aria-hidden="true"

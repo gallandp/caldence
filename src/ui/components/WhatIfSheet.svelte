@@ -96,7 +96,9 @@
   });
   /** A product's Mindestzusage before and after (#318), for the role its demands start with. */
   const minRow = $derived.by(() => {
-    const team = $workspace.teams.find((x) => x.id === target.unitId);
+    // Only where the team page shows the demand card: the file has skills or demands.
+    const lined = !!$workspace.skills?.length || $workspace.teams.some((x) => x.demands?.length);
+    const team = lined ? $workspace.teams.find((x) => x.id === target.unitId) : undefined;
     const role = team ? defaultDemandRole($workspace, team) : undefined;
     if (!team || !role || !('ws' in candidate)) return [];
     const next = candidate.ws.teams.find((x) => x.id === team.id);

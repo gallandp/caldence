@@ -159,3 +159,14 @@ describe('demand defaults (#318)', () => {
     expect(skillChoices(w, 't1').own).toEqual([]);
   });
 });
+
+describe('demand role change (#318)', () => {
+  it('is refused when a staffed person already holds the new role', () => {
+    const [first, d] = ok(addDemand(product(), 't1', { skillId: 's1', fte: 1, roleId: 'r1' }));
+    const [w] = ok(assign(first, { personId: 'p2', teamId: 't1', demandId: d, fte: 0.5 }));
+    w.teams[0]!.members.push({ personId: 'p2', roleId: 'sm' });
+    const r = updateDemand(w, 't1', d, { roleId: 'sm' });
+    expect(r.ok).toBe(false);
+    expect(r.ok ? [] : r.errors.map((e) => e.key)).toEqual(['error.demand.roleHeld']);
+  });
+});

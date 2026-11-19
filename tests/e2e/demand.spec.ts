@@ -19,7 +19,7 @@ test('product demand: request skills and roles, see the Mindestzusage (#318)', a
   // Committed FTE and who, from the assignments.
   await expect(card.locator('[data-demand-sum]')).toHaveText('0.7 of 2.0 FTE committed');
   await expect(rows.locator('[data-demand="d1"]')).toContainText('Ledgerline Booking');
-  await expect(rows.locator('[data-demand="d1"]')).toContainText('Robin 0.2, Jordan 0.5');
+  await expect(rows.locator('[data-demand="d1"]')).toContainText('Robin 0.2 FTE, Jordan 0.5 FTE');
   await expect(rows.locator('[data-demand="d2"]')).toContainText('Scrum Master');
   await expect(rows.locator('[data-demand="d2"]')).toContainText('nobody yet');
 
@@ -50,8 +50,10 @@ test('product demand: request skills and roles, see the Mindestzusage (#318)', a
 
   // Edit: the role of a staffed demand moves its people along.
   await card.getByRole('button', { name: 'Edit demand Ledgerline Booking' }).click();
+  await expect(card.locator('form.edit').getByLabel('Skill')).toBeFocused();
   await card.locator('form.edit').getByLabel('Role').selectOption({ label: 'Scrum Master' });
   await card.locator('form.edit').getByRole('button', { name: 'Save' }).click();
+  await expect(card.getByRole('button', { name: 'Edit demand Ledgerline Booking' })).toBeFocused();
   await expect(rows.locator('[data-demand="d1"]')).toContainText('as Scrum Master');
   await expect(page.getByRole('list', { name: 'Members of Team Delta' })).toContainText(
     'Scrum Master',
