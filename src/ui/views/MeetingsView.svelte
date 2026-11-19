@@ -491,12 +491,7 @@
           {$t('meet.print.filter', { query: query.trim() })}
         </p>
       {/if}
-      <HolidayDrops
-        {drops}
-        lead={$t('holidayDrops.meetings', { region: regionName })}
-        {horizon}
-        {onOpenDay}
-      />
+      <HolidayDrops {drops} kind="meetings" region={regionName} {horizon} {onOpenDay} />
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
       {/if}
