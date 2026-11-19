@@ -188,7 +188,7 @@ const PLATFORMS: [string, string, string, boolean, string[], string[]][] = [
     'Zahlwerk',
     'kern',
     true,
-    ['Kontenkern', 'Belegfabrik', 'Spesenpilot', 'Abschlussturm', 'Budgetkompass', 'Wertregister'],
+    ['Kontenkern', 'Belegfabrik', 'Spesenwiege', 'Abschlussturm', 'Budgetkompass', 'Wertregister'],
     ['kon', 'skr', 'bet'],
   ],
   [
@@ -235,7 +235,7 @@ const PLATFORMS: [string, string, string, boolean, string[], string[]][] = [
     'Kundentür',
     'sw',
     true,
-    ['Selbstservice-App', 'Anliegenbox', 'Kundenkonto', 'Ladenzeile', 'Plauderbot'],
+    ['Selbstservice-App', 'Anliegenbox', 'Kundenkonto', 'Schaufenstermeile', 'Plauderbot'],
     ['kl', 'ob', 'pa', 'nf'],
   ],
   [
@@ -248,7 +248,7 @@ const PLATFORMS: [string, string, string, boolean, string[], string[]][] = [
   ],
   [
     'dh',
-    'Datenhafen',
+    'Datenbucht',
     'sw',
     true,
     [
@@ -403,6 +403,7 @@ const MEETING: Record<string, Text> = {
   demo: ['Systemdemo', 'System demo'],
   platformRound: ['Plattform-Runde', 'Platform round'],
   quarter: ['Quartalsplanung', 'Quarterly planning'],
+  ops: ['Betriebsübergabe', 'Operations handover'],
 };
 
 const START = '2027-01-04';
@@ -525,6 +526,14 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
   const shared = (): CalEvent[] => [
     ev('e-daily', 'Daily', { type: 'weekdays', weekdays: [1, 2, 3, 4, 5] }, 15, ['dev', 'sm']),
     ev(
+      'e-ops',
+      L(MEETING.ops!),
+      { type: 'monthly-nth-weekday', weekday: 3, nth: 2 },
+      30,
+      ['dev', 'tpo'],
+      'c-align',
+    ),
+    ev(
       'e-stake',
       L(MEETING.stakeholder!),
       { type: 'monthly-nth-weekday', weekday: 2, nth: 1 },
@@ -642,7 +651,7 @@ export function lineExampleWorkspace(locale: Locale = 'de'): Workspace {
       teams.push({
         id,
         name: productName,
-        cadence: SYSTEMS[sys]!.cadence,
+        cadence: { ...SYSTEMS[sys]!.cadence },
         members,
         memberHours: { [sm]: 20 },
         assumptions: {},

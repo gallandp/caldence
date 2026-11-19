@@ -221,9 +221,16 @@
 
   async function replaceWith(make: () => Workspace | Promise<Workspace>) {
     if (!(await proceed())) return;
+    let ws: Workspace;
+    try {
+      ws = await make();
+    } catch {
+      // E.g. the line example's chunk did not load; the open file stays as it is.
+      error = { key: 'file.error.read', more: 0 };
+      return;
+    }
     error = null;
     files.forget();
-    const ws = await make();
     ws.settings.locale = get(workspace).settings.locale;
     workspace.replace(ws, { fileName: null, dirty: false });
   }

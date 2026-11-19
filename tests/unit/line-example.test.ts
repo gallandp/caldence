@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Workspace } from '../../src/core/model';
 import { validate } from '../../src/core/validate';
-import { freeFte } from '../../src/core/line';
+import { freeFte, syncAssignments } from '../../src/core/line';
+import { contextHintIfAdded } from '../../src/core/contextSwitch';
 import { ownerGaps } from '../../src/core/owners';
 import { lineExample } from '../../src/data/examples';
 import { lineExampleWorkspace } from '../../src/data/examples/line-example';
@@ -26,7 +27,7 @@ describe('line organisation example (#323)', () => {
     const line = w.people.filter((p) => p.lineUnitId);
     expect(line.length).toBeGreaterThanOrEqual(480);
     expect(w.people.length).toBeLessThanOrEqual(1000);
-    expect(meetings).toBeGreaterThanOrEqual(550);
+    expect(meetings).toBeGreaterThanOrEqual(600);
     expect(w.companies).toHaveLength(3);
     // Every person is in the line or in a unit.
     const inUnit = new Set(
@@ -51,6 +52,7 @@ describe('line organisation example (#323)', () => {
     expect(teamsOf(w, ben.id)).toEqual(['Lagerlicht', 'Partnerhafen']);
     expect(ben.skillIds).toContain('han');
     expect(team(w, 'Routenwerk').demands![0]).toMatchObject({ skillId: 'han', fte: 0.5 });
+    expect(contextHintIfAdded(w, ben.id, team(w, 'Routenwerk').id)).toMatchObject({ teams: 3 });
 
     expect(freeFte(w, byName(w, 'Kim Lehmann').id)).toBe(0);
 
@@ -64,6 +66,10 @@ describe('line organisation example (#323)', () => {
     expect(ownerGaps(w, team(w, 'Partnerhafen'))).toBe(1);
     expect(team(w, 'Torwacht').ownerMode).toBe('technical');
     expect(ownerGaps(w, team(w, 'Torwacht'))).toBe(0);
+  });
+
+  it('keeps assignments in line with the members', () => {
+    expect(syncAssignments(structuredClone(w)).assignments).toEqual(w.assignments);
   });
 
   it('has both open and fully staffed demands', () => {
