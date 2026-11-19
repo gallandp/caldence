@@ -26,13 +26,31 @@
   const teamName = $derived(ws.teams.find((x) => x.id === teamId)?.name ?? teamId);
   const options = $derived(teamRoleIds(ws, teamId));
   const linked = $derived(area.roleLinks?.find((l) => l.teamId === teamId && l.roleId === roleId));
-  const suggested = $derived(
-    matchingRole(
-      roleName(roleId),
-      options.map((id) => ({ id, name: roleName(id) })),
+  /**
+   * The obvious match among the team's roles that no other area role is linked to yet, the roles
+   * its people hold first.
+   */
+  const suggested = $derived.by(() => {
+    const taken = new Set(
+      (area.roleLinks ?? []).flatMap((l) =>
+        l.teamId === teamId && l.roleId !== roleId ? [l.teamRoleId] : [],
+      ),
+    );
+    const free = options.filter((id) => !taken.has(id));
+    const held = new Set(ws.teams.find((x) => x.id === teamId)?.members.map((m) => m.roleId));
+    const pick = (ids: string[]) =>
+      matchingRole(
+        roleName(roleId),
+        ids.map((id) => ({ id, name: roleName(id) })),
+      );
+    return pick(free.filter((id) => held.has(id))) ?? pick(free);
+  });
+  /** The stored link, if its role is still one of the team's; otherwise the suggestion. */
+  let value = $state(
+    untrack(() =>
+      linked ? (options.includes(linked.teamRoleId) ? linked.teamRoleId : '') : (suggested ?? ''),
     ),
   );
-  let value = $state(untrack(() => linked?.teamRoleId ?? suggested ?? ''));
 
   onMount(() => dialog?.showModal());
 

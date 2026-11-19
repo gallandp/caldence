@@ -101,30 +101,42 @@ export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): strin
 
 const words = (name: string) =>
   name
+    .normalize('NFC')
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w !== '');
+const key = (name: string) => words(name).join(' ');
+/** The parts of a combined role name, e.g. "Scrum Master" and "Team Coach". */
+const parts = (name: string) => name.split('/').map(key);
+
+/**
+ * Whether two role names are alike (#362): one is a "/" part of the other ("Scrum Master" in
+ * "Scrum Master/Team Coach"), or all words of the shorter one, at least two, appear in the
+ * longer one ("Delivery Manager" in "Service Delivery Manager"). A single generic word such as
+ * "Team" or "Engineer" is never enough.
+ */
+function alike(a: string, b: string): boolean {
+  if (parts(a).includes(key(b)) || parts(b).includes(key(a))) return true;
+  const [short, long] = [words(a), words(b)].sort((x, y) => x.length - y.length) as [
+    string[],
+    string[],
+  ];
+  return short.length >= 2 && short.every((w) => long.includes(w));
+}
 
 /**
  * The team role that obviously stands for an area role (#362): the one with the same name
- * (ignoring case, spaces and punctuation), otherwise the only one whose words all appear in the
- * area role's name or the other way round, e.g. "Scrum Master" for "Scrum Master/Team Coach".
+ * (ignoring case, spaces and punctuation), otherwise the only one whose name is alike.
  * Nothing when no role or several roles match; the coach still confirms.
  */
 export function matchingRole(
   name: string,
   candidates: readonly { id: string; name: string }[],
 ): string | undefined {
-  const own = words(name);
-  if (own.length === 0) return undefined;
-  const key = own.join(' ');
-  const same = candidates.filter((c) => words(c.name).join(' ') === key);
+  if (key(name) === '') return undefined;
+  const same = candidates.filter((c) => key(c.name) === key(name));
   if (same.length > 0) return same.length === 1 ? same[0]!.id : undefined;
-  const set = new Set(own);
-  const partial = candidates.filter((c) => {
-    const w = words(c.name);
-    return w.length > 0 && (w.every((x) => set.has(x)) || own.every((x) => w.includes(x)));
-  });
+  const partial = candidates.filter((c) => key(c.name) !== '' && alike(name, c.name));
   return partial.length === 1 ? partial[0]!.id : undefined;
 }
 

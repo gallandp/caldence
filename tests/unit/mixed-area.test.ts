@@ -272,9 +272,37 @@ describe('matchingRole (#362)', () => {
     expect(matchingRole(' product  owner', roles)).toBe('po');
   });
 
-  it('suggests the one team role whose words all appear in the area role, or the other way round', () => {
+  it('suggests the one team role that is a "/" part of the area role, or shares two or more words', () => {
     expect(matchingRole('Scrum Master/Team Coach', roles)).toBe('sm');
-    expect(matchingRole('master', roles)).toBe('sm');
+    expect(
+      matchingRole('Delivery Manager', [{ id: 'sdm', name: 'Service Delivery Manager' }]),
+    ).toBe('sdm');
+    // One word alone is too generic.
+    expect(matchingRole('master', roles)).toBeUndefined();
+  });
+
+  it('never suggests a generic one-word role between the built-in Kanban, Scrum and SAFe roles', () => {
+    const names = (t: { roles?: { name: string }[] }) => (t.roles ?? []).map((r) => r.name);
+    const kanban = names(BUILTIN_TEMPLATES.kanban.en).map((name) => ({ id: name, name }));
+    const scrum = names(BUILTIN_TEMPLATES.scrum.en).map((name) => ({ id: name, name }));
+    const safe = Object.fromEntries(
+      names(BUILTIN_TEMPLATES.safe.en).map((n) => [n, matchingRole(n, kanban)]),
+    );
+    expect(safe).toEqual({
+      'Product Owner': undefined,
+      'Scrum Master/Team Coach': undefined,
+      'Agile Team': undefined,
+      'Product Management': undefined,
+      'Release Train Engineer': undefined,
+    });
+    expect(matchingRole('Scrum Master/Team Coach', scrum)).toBe('Scrum Master');
+    expect(matchingRole('Product Owner', scrum)).toBe('Product Owner');
+    expect(matchingRole('Agile Team', scrum)).toBeUndefined();
+    expect(matchingRole('Release Train Engineer', [{ id: 'e', name: 'Engineer' }])).toBeUndefined();
+  });
+
+  it('compares names in one Unicode form', () => {
+    expect(matchingRole('Qualität', [{ id: 'q', name: 'Qualität' }])).toBe('q');
   });
 
   it('prefers the same name over a match of words', () => {

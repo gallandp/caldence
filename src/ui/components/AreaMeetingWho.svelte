@@ -6,6 +6,7 @@
     type Area,
     type CalEvent,
   } from '../../core/model';
+  import { tick } from 'svelte';
   import { teamRoleIds, unmatchedRoles } from '../../core/areaEdit';
   import { formatNumber, locale, translate as t } from '../../i18n';
   import { presenting } from '../state/present';
@@ -36,10 +37,11 @@
     !$presenting &&
     teamRoleIds(ws, teamId).length > 0 &&
     unmatchedRoles(ws, area, teamId).includes(roleId);
+  let list = $state<HTMLUListElement | undefined>();
   let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
 </script>
 
-<ul class="area-roles">
+<ul class="area-roles" bind:this={list} tabindex="-1">
   {#each event.participants as p, i (i)}
     <li class="area-chip" class:from-teams={p.fromTeams} class:person={p.personId !== undefined}>
       {#if p.fromTeams}<span class="split-dot" aria-hidden="true"></span>{$t(
@@ -86,11 +88,14 @@
     {area}
     teamId={mapping.teamId}
     roleId={mapping.roleId}
-    onclose={() => {
+    onclose={async () => {
       const back = mapping?.button;
       mapping = undefined;
-      // Back to the pill, unless the mapping made it go away.
+      await tick();
+      // Back to the pill; once the mapping made it go away, to the meeting's next pill or its
+      // chips, so focus never falls back to the page.
       if (back?.isConnected) back.focus();
+      else (list?.parentElement?.querySelector<HTMLElement>('button.missing') ?? list)?.focus();
     }}
   />
 {/if}
