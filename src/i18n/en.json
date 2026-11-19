@@ -1538,6 +1538,8 @@
   "line.person.new": "New person …",
   "line.person.who.hint": "You can pick people of the file who are in no line unit yet.",
   "line.person.addConfirm": "Add",
+  "line.person.add.failed": "The person could not be added because something else in the file does not fit together. Reload and try again; if it keeps happening, please report it.",
+  "line.person.add.tooMany": "The file already holds the most people it can ({max}). Remove someone you no longer need first.",
   "line.person.contract.invalid": "The contract is between 0.1 and 1.0 FTE",
   "line.person.details": "Details of {name}",
   "line.skills.manage": "Manage skills",

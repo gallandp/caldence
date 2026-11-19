@@ -3,7 +3,7 @@ import { LEVEL_PRESETS } from './levels';
 import { BUILT_IN_LINE_LEVELS, DEFAULT_LINE_LEVELS } from './lineLevels';
 import { inYearRange, latestHorizonEnd, LIMITS } from './limits';
 import { migrate } from './migrate';
-import { CURRENT_SCHEMA, FORMAT2_SCHEMA_BASE, type Workspace } from './model';
+import { CURRENT_SCHEMA, FORMAT2_SCHEMA_BASE, ORG_UNIT, type Workspace } from './model';
 import { validateRegion } from './regionFile';
 import { isBuiltinRegion } from './regions';
 
@@ -587,7 +587,8 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
   (Array.isArray(w.people) ? w.people : []).forEach((o, i) => {
     if (!isObj(o)) return;
     const p = `people.${i}`;
-    optRef(o, 'lineUnitId', p, units);
+    // Someone can sit directly at the line's root, e.g. the managing director.
+    if (o.lineUnitId !== ORG_UNIT) optRef(o, 'lineUnitId', p, units);
     optRef(o, 'companyId', p, companies);
     if (o.contractFte !== undefined) c.num(o, 'contractFte', p, { min: 0.1, max: 1 });
     if (o.pseudonymous !== undefined) {

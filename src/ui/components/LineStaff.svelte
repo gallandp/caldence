@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { hasHint, personCompanyId, type StaffRow } from '../../core/lineStaff';
-  import { units, type LineUnit } from '../../core/model';
+  import { lineRootName, ORG_UNIT, units, type LineUnit } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
   import { initials } from '../avatar';
   import { workspace } from '../state/workspace';
@@ -27,7 +27,12 @@
   const skillName = $derived(new Map((ws.skills ?? []).map((s) => [s.id, s.name])));
   const companies = $derived(ws.companies ?? []);
   const companyName = $derived(new Map(companies.map((c) => [c.id, c.name])));
-  const unitName = $derived(new Map((ws.lineUnits ?? []).map((u) => [u.id, u.name])));
+  const unitName = $derived(
+    new Map([
+      [ORG_UNIT, lineRootName(ws, $levels.org)],
+      ...(ws.lineUnits ?? []).map((u) => [u.id, u.name] as const),
+    ]),
+  );
   /** The company filter and column only when the file has several companies. */
   const several = $derived(companies.length > 1);
 
