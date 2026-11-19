@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { levels, translate as t } from '../i18n';
-  import { ORG_UNIT } from '../core/model';
+  import { ORG_UNIT, selectionPeople } from '../core/model';
   import { activeTeamId, filter, workspace } from './state/workspace';
 
   const uid = $props.id();
@@ -19,13 +19,18 @@
   const areaTeams = $derived(
     area ? $workspace.teams.filter((team) => area.teamIds.includes(team.id)) : [],
   );
+  /** With a line unit selected only its people can be picked (#316). */
+  const people = $derived.by(() => {
+    const only = selectionPeople($workspace, $activeTeamId ?? undefined);
+    return only ? $workspace.people.filter((p) => only.has(p.id)) : $workspace.people;
+  });
   /** The units the Team filter offers: the area's teams, or every area and team. */
   const choices = $derived(org ? [...$workspace.areas, ...$workspace.teams] : areaTeams);
 
   // A filter must not point at something that was deleted or replaced by an undo or an opened file.
   $effect(() => {
     if (roleId !== '' && !$workspace.roles.some((r) => r.id === roleId)) roleId = '';
-    if (personId !== '' && !$workspace.people.some((p) => p.id === personId)) personId = '';
+    if (personId !== '' && !people.some((p) => p.id === personId)) personId = '';
     // Also when another team or area is picked, or the team leaves the area.
     if (teamId !== '' && !choices.some((unit) => unit.id === teamId)) teamId = '';
   });
@@ -101,7 +106,7 @@
     <label for="{uid}-person">{$t('filter.person')}</label>
     <select id="{uid}-person" bind:value={personId}>
       <option value="">{$t('filter.all')}</option>
-      {#each $workspace.people as person (person.id)}
+      {#each people as person (person.id)}
         <option value={person.id}>{person.name}</option>
       {/each}
     </select>

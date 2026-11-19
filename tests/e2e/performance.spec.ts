@@ -61,6 +61,19 @@ test('a file at the target scale opens and renders within budget', async ({ page
   await all('platform');
   await pickUnit(page, ws.teams[0]!.name);
   await all('product');
+  // A line team of about a dozen people and the whole line of ~500 (#316).
+  const line = async (name: string) => {
+    await page.locator('.switcher .pick').click();
+    await page
+      .locator('.switcher .list button.line')
+      .filter({ has: page.locator('.opt-name-line', { hasText: new RegExp(`^${name}$`) }) })
+      .click();
+    await expect(page.locator('.switcher .pick .label')).toHaveText(name);
+  };
+  await line(ws.lineUnits!.find((u) => u.parentId?.startsWith('g'))!.name);
+  await all('lineTeam');
+  await line('Velmora Verbund');
+  await all('line');
   console.log(JSON.stringify(times));
 
   expect(opened, 'open').toBeLessThan(OPEN_MS);

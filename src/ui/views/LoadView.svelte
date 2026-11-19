@@ -18,7 +18,7 @@
     type PersonMeeting,
   } from '../../core/load';
   import { contextHint, contextHints, contextThreshold } from '../../core/contextSwitch';
-  import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
+  import { keyName, selectedLineUnit, units as allUnits, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -60,6 +60,11 @@
   /** With a team or area filter the person table shows its members and their hours in it. */
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
   const area = $derived($workspace.areas.find((a) => a.id === teamId));
+  /**
+   * The unit whose part the table shows in its own column. A line unit (#316) has none: its
+   * people's meetings everywhere are its part, the same as the share column.
+   */
+  const hereId = $derived(selectedLineUnit(teamId) === undefined ? teamId : undefined);
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
@@ -432,7 +437,7 @@
               >{/if}{#if sortBy === 'share'}<span aria-hidden="true"> ↓</span>{/if}</button
           >
         </th>
-        {#if teamId}
+        {#if hereId}
           <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
         {/if}
         <th scope="col" class="num" aria-sort={sortBy === 'free' ? 'descending' : undefined}>
@@ -505,7 +510,7 @@
               >
             </span>
           </td>
-          {#if teamId}
+          {#if hereId}
             <td class="num nowrap"
               >{$t('load.here', {
                 hours: hours(p.here.hours),
@@ -536,7 +541,7 @@
           </td>
         </tr>
         <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
-          <td colspan={teamId ? 7 : 6}>
+          <td colspan={hereId ? 7 : 6}>
             <!-- Stays in the visible part of a table that scrolls sideways (phones). -->
             <div class="detail-in">
               {#if openPerson === p.person.id}
@@ -786,7 +791,7 @@
         {#if !$filter.personId}
           {area
             ? $t('load.table.person.noteArea', { name: area.name })
-            : teamId
+            : hereId
               ? $t('load.table.person.note')
               : ''}
         {/if}

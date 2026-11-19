@@ -46,9 +46,15 @@ export function perfWorkspace(): Workspace {
     { id: 'co2', name: 'Velmora Süd' },
     { id: 'co3', name: 'Velmora Digital' },
   ];
-  const lineUnits: NonNullable<Workspace['lineUnits']> = [];
+  // The whole line under one root, so one selection shows all ~500 people (#316).
+  const lineUnits: NonNullable<Workspace['lineUnits']> = [{ id: 'v', name: 'Velmora Verbund' }];
   for (let g = 0; g < 10; g++) {
-    lineUnits.push({ id: `g${g}`, name: `Fachgruppe ${word(g + 80)}`, skillFamilyId: `f${g % 6}` });
+    lineUnits.push({
+      id: `g${g}`,
+      name: `Fachgruppe ${word(g + 80)}`,
+      parentId: 'v',
+      skillFamilyId: `f${g % 6}`,
+    });
     for (let l = 0; l < 4; l++)
       lineUnits.push({
         id: `l${g}-${l}`,
@@ -57,7 +63,7 @@ export function perfWorkspace(): Workspace {
         managerPersonId: person({ lineUnitId: `g${g}`, companyId: companies[g % 3]!.id }),
       });
   }
-  const lineTeams = lineUnits.filter((u) => u.parentId !== undefined);
+  const lineTeams = lineUnits.filter((u) => u.parentId !== undefined && u.parentId !== 'v');
 
   const ev = (
     id: string,

@@ -31,12 +31,15 @@
   import WeeksView from './WeeksView.svelte';
   import {
     participantName,
+    selectedLineUnit,
+    unitLoadIds,
     units,
     type CalEvent,
     type Category,
     type Team,
   } from '../../core/model';
   import { record } from '../../core/record';
+  import { productColourOf } from '../productColours';
   import { ruleSummary } from '../meetings/rules';
   import { calendarDay, calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
@@ -148,6 +151,20 @@
   });
 
   const severalTeams = $derived($workspace.teams.length > 1);
+  /**
+   * A line unit (#316) shows meetings of many products: each gets its own colour, so the eye can
+   * tell them apart; the legend then lists products, and the category is in the details.
+   */
+  const productColour = $derived.by(() => {
+    if (selectedLineUnit($filter.teamId) === undefined || $filter.personId) return null;
+    const ids = new Set(unitLoadIds($workspace, $filter.teamId!));
+    return new Map(
+      units($workspace).flatMap((u) =>
+        ids.has(u.id) ? [[u.id, productColourOf($workspace, u.id)] as const] : [],
+      ),
+    );
+  });
+  const colourOf = (teamId: string, category?: string) => productColour?.get(teamId) ?? category;
 
   /** Team or area, meeting and category of every meeting, by `teamId/eventId`. */
   const lookup = $derived.by(() => {
@@ -188,7 +205,7 @@
         name: event?.name ?? o.eventId,
         about: about.join(' · '),
         roles: roles.join($t('cal.list.sep')),
-        colour: category?.colour,
+        colour: colourOf(o.teamId, category?.colour),
         area: area === true,
         hours: o.hours,
         skipped: o.skippedHoliday !== undefined,
@@ -210,19 +227,26 @@
     if (person) return person.name;
     const role = $filter.roleId && $workspace.roles.find((r) => r.id === $filter.roleId);
     if (role) return $t('cal.legend.role', { role: role.name });
+    // A line unit counts only its own people (#316).
+    if (productColour) return $t('cal.legend.line');
     return $t('cal.legend.all');
   }
 
   /** Categories of the meetings shown in the month, in the order of the category list. */
   const legend = $derived.by(() => {
     const used: Record<string, true> = {};
+    const byProduct = productColour !== null;
     for (const days of weeks)
       for (const date of days)
         if (inHorizon(date))
           for (const o of byDate[date] ?? []) {
-            const id = infoOf(o)?.event.categoryId;
+            const id = byProduct ? o.teamId : infoOf(o)?.event.categoryId;
             if (!o.skippedHoliday && id) used[id] = true;
           }
+    if (productColour)
+      return units($workspace)
+        .filter((u) => used[u.id])
+        .map((u) => ({ id: u.id, name: u.name, colour: productColour.get(u.id)! }));
     return $workspace.categories.filter((c) => used[c.id]);
   });
 
@@ -278,7 +302,7 @@
       .filter((o) => !o.skippedHoliday)
       .map((o) => {
         const info = infoOf(o);
-        const colour = info?.category?.colour ?? '#64748b';
+        const colour = colourOf(o.teamId, info?.category?.colour) ?? '#64748b';
         return {
           key: `${o.teamId}/${o.eventId}`,
           start: o.start,
