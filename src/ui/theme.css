@@ -614,8 +614,9 @@ body {
   }
 }
 
-/* Example placeholders in fields (e.g. the setup wizard): muted, but readable (WCAG 4.5:1). */
+/* Placeholders (examples, defaults of a blank field): a tertiary label colour, clearly dimmer than an
+   entered value in both themes, but still readable (WCAG 1.4.3, at least 4.5:1). */
 #app ::placeholder {
-  color: var(--text-muted);
+  color: var(--text-placeholder);
   opacity: 1;
 }
