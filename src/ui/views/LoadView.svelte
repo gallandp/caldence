@@ -10,9 +10,11 @@
     loadPerWeek,
     overbooked,
     overMax,
+    personMeetings,
     warnings,
+    type PersonMeeting,
   } from '../../core/load';
-  import { keyName, unitLoadIds } from '../../core/model';
+  import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
   import { record } from '../../core/record';
   import { loadSummary, scopePeople, warnedWeeks, weekRows } from '../../core/views';
   import {
@@ -25,7 +27,14 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
+  import { ruleSummary } from '../meetings/rules';
   import { filter, index, workspace } from '../state/workspace';
+
+  interface Props {
+    /** Opens a week in the Calendar with the Person filter on that person (#343). */
+    onOpenWeek?: (personId: string, monday: string) => void;
+  }
+  let { onOpenWeek }: Props = $props();
 
   const summary = $derived(loadSummary($workspace, $filter));
   const weeks = $derived(loadPerWeek($workspace, $index));
@@ -138,6 +147,21 @@
     if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
       openPerson = null;
   });
+  /** The meetings of the opened person, by team or area, with their repeat rule (#343). */
+  const openMeetings = $derived.by(() => {
+    const out = record<(PersonMeeting & { name: string; rule: string })[]>();
+    if (openPerson === null) return out;
+    const byUnit = personMeetings($workspace, $index, openPerson);
+    for (const unit of allUnits($workspace)) {
+      const list = byUnit[unit.id];
+      if (!list) continue;
+      out[unit.id] = list.map((m) => {
+        const event = unit.events.find((e) => e.id === m.eventId)!;
+        return { ...m, name: event.name, rule: ruleSummary(event.rule, unit, $t, $locale) };
+      });
+    }
+    return out;
+  });
   /** Meetings without weekly hours to measure them against come first: always over the limit. */
   const noHours = (p: { average: number; cap: number }) => p.average > 0 && p.cap <= 0;
   const shareKey = (p: { average: number; cap: number; fte: number }) =>
@@ -185,6 +209,8 @@
     }
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
     const { warnFactor, maxFte } = $workspace.settings.thresholds;
+    /** Each named week becomes a link: a marker in the text, split out again below. */
+    const mark = (i: number): string => `\uE000${i}\uE000`;
     const label = (mondays: string[]): string[] => {
       // Week numbers repeat on horizons longer than a year: then the Mondays are named instead.
       const labels = mondays.map(weekLabel);
@@ -193,6 +219,11 @@
         : mondays.map((m) => formatDisplayDate($locale, m, 'short'));
     };
     return Object.values(groups).map((g) => {
+      const links: { monday: string; label: string }[] = [];
+      const link = (monday: string, text: string): string => {
+        links.push({ monday, label: text });
+        return mark(links.length - 1);
+      };
       const parts = (['above-usual', 'above-fte'] as const)
         .filter((kind) => g.kinds[kind])
         .map((kind) => {
@@ -207,19 +238,21 @@
               named.length > NAMED_WEEKS
                 ? $t('load.warn.span', {
                     count: formatNumber($locale, named.length, 0),
-                    first: named[0]!,
-                    last: named[named.length - 1]!,
+                    first: link(mondays[0]!, named[0]!),
+                    last: link(mondays[mondays.length - 1]!, named[named.length - 1]!),
                   })
-                : list.format(named),
+                : list.format(named.map((n, i) => link(mondays[i]!, n))),
             hours: hours(most),
           });
         });
+      const person = $workspace.people.find((p) => p.id === g.personId)?.name ?? g.personId;
+      const text = $t('load.warn.person', { person, parts: parts.join('; ') });
       return {
         key: g.personId,
-        text: $t('load.warn.person', {
-          person: $workspace.people.find((p) => p.id === g.personId)?.name ?? g.personId,
-          parts: parts.join('; '),
-        }),
+        person,
+        segments: text
+          .split(/\uE000(\d+)\uE000/)
+          .map((part, i) => (i % 2 === 1 ? links[Number(part)]! : { label: part })),
       };
     });
   });
@@ -272,6 +305,28 @@
         {@render body()}
       </table>
     </div>
+  {/snippet}
+
+  {#snippet weekLink(personId: string, person: string, monday: string, label: string)}
+    {#if onOpenWeek}<button
+        type="button"
+        class="week-link"
+        aria-label={$t('load.openWeek', { week: label, person })}
+        title={$t('load.openWeek', { week: label, person })}
+        onclick={() => onOpenWeek(personId, monday)}>{label}</button
+      >{:else}{label}{/if}
+  {/snippet}
+
+  {#snippet unitLine(u: ReturnType<typeof unitsOf>[number])}
+    <span class="unit-name">{u.name}</span>
+    <span class="muted"
+      >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(' · ')}</span
+    >
+    <span class="num"
+      >{u.meetings > 0
+        ? $t('load.detail.meetings', { hours: hours(u.meetings) })
+        : $t('load.detail.noMeetings')}</span
+    >
   {/snippet}
 
   {#snippet baseBody()}
@@ -394,7 +449,16 @@
           <td class="num nowrap">{$t('load.freeHours', { hours: hours(p.free) })}</td>
           <td class="num nowrap">
             {#if p.peak}
-              {$t('load.peak', { week: weekLabel(p.peak.monday), hours: hours(p.peak.hours) })}
+              {@const [before, after] = $t('load.peak', {
+                week: '\uE000',
+                hours: hours(p.peak.hours),
+              }).split('\uE000')}
+              {before}{@render weekLink(
+                p.person.id,
+                p.person.name,
+                p.peak.monday,
+                weekLabel(p.peak.monday),
+              )}{after}
             {:else}
               {$t('load.none')}
             {/if}
@@ -402,34 +466,54 @@
         </tr>
         <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
           <td colspan={teamId ? 7 : 6}>
-            {#if openPerson === p.person.id}
-              {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
-                <p class="note" data-set-hours>
-                  {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
-                </p>
+            <!-- Stays in the visible part of a table that scrolls sideways (phones). -->
+            <div class="detail-in">
+              {#if openPerson === p.person.id}
+                {#if noHours(p) && p.units.length > 0 && p.units.every((u) => u.area)}
+                  <p class="note" data-set-hours>
+                    {$t('load.detail.setHours', { structure: $t('area.view.structure') })}
+                  </p>
+                {/if}
+                {#if p.units.length === 0}
+                  <p class="note">{$t('load.detail.none')}</p>
+                {:else}
+                  <ul class="split">
+                    {#each p.units as u (u.id)}
+                      {@const list = openMeetings[u.id]}
+                      <li>
+                        {#if list}
+                          <!-- Collapsed per team or area: people in many of them keep a short list. -->
+                          <details>
+                            <summary class="line">{@render unitLine(u)}</summary>
+                            <ul class="meetings">
+                              {#each list as m (m.eventId)}
+                                <li>
+                                  <span>{m.name}</span>
+                                  <span class="muted"
+                                    >{m.rule}{#if m.oneOff}<span class="once"
+                                        >{$t('load.detail.oneOff')}</span
+                                      >{/if}</span
+                                  >
+                                  <span class="num nowrap"
+                                    >{m.oneOff
+                                      ? $t('load.detail.oneOffHours', { hours: hours(m.hours) })
+                                      : $t('load.detail.perWeek', {
+                                          hours: hours(m.hoursPerWeek),
+                                        })}</span
+                                  >
+                                </li>
+                              {/each}
+                            </ul>
+                          </details>
+                        {:else}
+                          <div class="line">{@render unitLine(u)}</div>
+                        {/if}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
               {/if}
-              {#if p.units.length === 0}
-                <p class="note">{$t('load.detail.none')}</p>
-              {:else}
-                <ul class="split">
-                  {#each p.units as u (u.id)}
-                    <li>
-                      <span class="unit-name">{u.name}</span>
-                      <span class="muted"
-                        >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(
-                          ' · ',
-                        )}</span
-                      >
-                      <span class="num"
-                        >{u.meetings > 0
-                          ? $t('load.detail.meetings', { hours: hours(u.meetings) })
-                          : $t('load.detail.noMeetings')}</span
-                      >
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            {/if}
+            </div>
           </td>
         </tr>
       {/each}
@@ -537,7 +621,16 @@
     {:else}
       <ul class="warnings">
         {#each warningItems as w (w.key)}
-          <li class="warning">{w.text}</li>
+          <li class="warning">
+            <span
+              >{#each w.segments as part, i (i)}{#if 'monday' in part}{@render weekLink(
+                    w.key,
+                    w.person,
+                    part.monday,
+                    part.label,
+                  )}{:else}{part.label}{/if}{/each}</span
+            >
+          </li>
         {/each}
       </ul>
     {/if}
@@ -766,6 +859,12 @@
   .scroll {
     position: relative;
     overflow-x: auto;
+    container-type: inline-size;
+  }
+  .detail-in {
+    position: sticky;
+    left: 0;
+    max-width: calc(100cqi - 1.5rem);
   }
   table {
     width: 100%;
@@ -940,11 +1039,94 @@
     padding: 0;
     list-style: none;
   }
-  .split li {
+  /* The chevron column keeps lines with and without a meeting list aligned. */
+  .line,
+  .meetings li {
     display: grid;
-    grid-template-columns: minmax(8rem, 14rem) 1fr auto;
+    grid-template-columns: 1rem minmax(7rem, 13rem) 1fr auto;
     gap: 0.75rem;
     align-items: baseline;
+  }
+  .line > :first-child,
+  .meetings li > :first-child {
+    grid-column: 2;
+  }
+  summary.line {
+    min-height: 1.75rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary.line::-webkit-details-marker {
+    display: none;
+  }
+  summary.line::before {
+    content: '';
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    align-self: center;
+    width: 0.4em;
+    height: 0.4em;
+    border: solid var(--text-muted);
+    border-width: 0 2px 2px 0;
+    transform: rotate(-45deg);
+  }
+  details[open] > summary.line::before {
+    transform: rotate(45deg);
+  }
+  summary.line:hover .unit-name {
+    text-decoration: underline;
+  }
+  .meetings {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0.25rem 0 0.5rem;
+    padding: 0;
+    list-style: none;
+    font-size: 0.875rem;
+  }
+  .once {
+    margin-left: 0.4rem;
+    padding: 0 0.4rem;
+    border-radius: 99px;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px var(--border);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  :global(#app) .week-link {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+  /* Phones: the meeting's rule goes under its name, the hours stay on the right. */
+  @media (max-width: 600px) {
+    .line,
+    .meetings li {
+      grid-template-columns: 1rem 1fr auto;
+      column-gap: 0.5rem;
+      row-gap: 0;
+    }
+    .line > .muted,
+    .meetings li > .muted {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    .line > .num,
+    .meetings li > .num {
+      grid-column: 3;
+      grid-row: 1;
+    }
   }
   .unit-name {
     font-weight: 600;

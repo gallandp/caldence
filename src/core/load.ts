@@ -294,3 +294,54 @@ export function weeklyHoursByPerson(ws: Workspace, unitId: string): Record<strin
   }
   return out;
 }
+
+export interface PersonMeeting {
+  eventId: string;
+  /** Hours per week, Ø in the planning horizon: the same count as the people table. */
+  hoursPerWeek: number;
+  /** Hours in the whole planning horizon. */
+  hours: number;
+  /** A one-off meeting or a cycle milestone: it does not come back with a rhythm. */
+  oneOff: boolean;
+}
+
+/**
+ * The meetings a person attends, by team or area, in the order of each unit's meetings (#343).
+ * Counted like `loadPerWeek`, so a unit's lines add up to the person's meeting hours there.
+ */
+export function personMeetings(
+  ws: Workspace,
+  index: HolidayIndex,
+  personId: string,
+): Record<string, PersonMeeting[]> {
+  const first = mondayOf(ws.settings.horizon.from);
+  const count = Math.max(0, diffDays(mondayOf(ws.settings.horizon.to), first) / 7 + 1);
+  const out = record<PersonMeeting[]>();
+  if (count === 0) return out;
+  for (const team of units(ws)) {
+    const hours = new Map<string, number>();
+    const events = new Map(team.events.map((e) => [e.id, e]));
+    for (const occ of occurrences(team, ws.settings, index)) {
+      if (occ.skippedHoliday) continue;
+      const event = events.get(occ.eventId);
+      const week = diffDays(mondayOf(occ.date), first) / 7;
+      if (!event || week < 0 || week >= count) continue;
+      for (const p of event.participants)
+        if (attendees(ws, team.id, p, event).includes(personId))
+          hours.set(
+            event.id,
+            (hours.get(event.id) ?? 0) + occurrenceHours(event, occ.duration, p.share),
+          );
+    }
+    const list = team.events
+      .filter((e) => (hours.get(e.id) ?? 0) > 0)
+      .map((e) => ({
+        eventId: e.id,
+        hoursPerWeek: hours.get(e.id)! / count,
+        hours: hours.get(e.id)!,
+        oneOff: IRREGULAR.has(e.rule.type),
+      }));
+    if (list.length > 0) out[team.id] = list;
+  }
+  return out;
+}

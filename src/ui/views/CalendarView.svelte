@@ -38,6 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
+  import { calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -352,6 +353,20 @@
       ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
       ?.focus({ preventScroll: next === 'range' });
   }
+
+  // A week Meeting load links to (#343): shown on the week level.
+  $effect(() => {
+    const monday = $calendarWeek;
+    if (monday === null || !shown) return;
+    calendarWeek.set(null);
+    const { from } = horizon;
+    // A week that starts before the horizon is shown from the horizon's first day.
+    const day = monday < from && addDays(monday, 6) >= from ? from : monday;
+    if (!inHorizon(day)) return;
+    mode = lastMode = 'week';
+    selected = null;
+    cursor = day;
+  });
 
   function edit(item: DayItem) {
     onEditMeeting?.(item.teamId, item.eventId);

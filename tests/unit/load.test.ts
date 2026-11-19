@@ -5,6 +5,7 @@ import {
   hoursLeft,
   loadPerWeek,
   overbooked,
+  personMeetings,
   warnings,
   weeklyBaseLoad,
 } from '../../src/core/load';
@@ -375,5 +376,30 @@ describe('ids that name Object.prototype members (security #40)', () => {
     expect(Object.getOwnPropertyDescriptor(w.byPerson, id)?.value).toBe(1);
     expect(Object.getOwnPropertyDescriptor(w.byTeamRole[id] as object, id)?.value).toBe(1);
     expect(warnings(weeks, ws).every((x) => x.personId === id)).toBe(true);
+  });
+});
+
+describe('personMeetings (#343)', () => {
+  it('lists the meetings of a person per unit, Ø per week in the horizon, one-offs marked', () => {
+    const weekly = event({ type: 'weekly', weekday: 1 }, { id: 'daily', name: 'Daily' });
+    const kickoff = event(
+      { type: 'once', date: '2027-01-12' },
+      { id: 'kick', name: 'Kick-off', duration: 480 },
+    );
+    const other = event(
+      { type: 'weekly', weekday: 2 },
+      { id: 'other', name: 'Other', participants: [{ roleId: 'r2', share: 1 }] },
+    );
+    const ws = workspace([team([weekly, kickoff, other])]);
+    const list = personMeetings(ws, noIndex(), 'p1');
+    // Three weeks: 3 × 1 h weekly, 8 h once.
+    expect(list.t1).toEqual([
+      { eventId: 'daily', hoursPerWeek: 1, hours: 3, oneOff: false },
+      { eventId: 'kick', hoursPerWeek: 8 / 3, hours: 8, oneOff: true },
+    ]);
+    const weeks = loadPerWeek(ws, noIndex());
+    const avg = weeks.reduce((s, w) => s + (w.byTeamPerson.t1?.p1 ?? 0), 0) / weeks.length;
+    expect(list.t1!.reduce((s, m) => s + m.hoursPerWeek, 0)).toBeCloseTo(avg);
+    expect(personMeetings(ws, noIndex(), 'p2')).toEqual({});
   });
 });

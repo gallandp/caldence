@@ -79,6 +79,8 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     hpw: 'settings.hoursPerWeek',
     person: 'load.table.person',
     warnings: 'load.warnings',
+    peak: 'load.col.peak',
+    personFilter: 'filter.person',
     costs: 'cost.title',
     calc: topicLink('calc'),
   },
