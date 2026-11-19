@@ -72,13 +72,14 @@ test('select first and drag create the same assignment; undo removes it', async 
   await dialog.locator('[data-assign-save]').click();
   await expect(dialog).toHaveCount(0);
   const toast = board.locator('.toast');
-  await expect(toast).toContainText('Kim → Team Alpha: 0.3 FTE assigned.');
+  await expect(toast.getByRole('status')).toHaveText('Kim → Team Alpha: 0.3 FTE assigned.');
   await expect(target).toContainText('0.2');
   await expect(target.getByRole('img', { name: 'Assigned: Kim' })).toBeVisible();
   const afterSelect = await target.innerText();
 
   await toast.getByRole('button', { name: 'Undo' }).click();
   await expect(toast).toContainText('Assignment undone.');
+  await expect(kim).toBeFocused();
   await expect(target).toContainText('0.5');
   await expect(target.getByRole('img', { name: 'Assigned: Kim' })).toHaveCount(0);
 
@@ -101,6 +102,16 @@ test('dropping on a demand without the skill is allowed with a hint', async ({ p
     'Kim does not have the skill Orvalis Lager. Assigning is still possible.',
   );
   await expect(dialog.locator('[data-assign-save]')).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+  // Kim is already in Gamma: no dialog that would pick someone else, a hint instead.
+  await board
+    .locator('button.person[data-person="person-kim"]')
+    .dragTo(row(board, 'team-gamma/d1'));
+  await expect(dialog).toHaveCount(0);
+  await expect(board.locator('.toast').getByRole('status')).toHaveText(
+    'Kim is already in Team Gamma.',
+  );
 });
 
 test('a fully staffed demand leaves the list', async ({ page }) => {

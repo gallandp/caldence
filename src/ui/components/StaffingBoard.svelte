@@ -33,7 +33,8 @@
   const family = $derived(ws.skillFamilies?.find((f) => f.id === familyId));
   const skillName = $derived(new Map((ws.skills ?? []).map((s) => [s.id, s.name])));
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
-  const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+  const names = $derived(new Map(ws.people.map((p) => [p.id, p.name])));
+  const personName = (id: string) => names.get(id) ?? id;
   const what = (row: OpenDemand) =>
     row.demand.skillId !== undefined
       ? (skillName.get(row.demand.skillId) ?? '')
@@ -55,11 +56,13 @@
   const withFree = $derived(people.filter((p) => p.free > 0));
   const shownPeople = $derived.by(() => {
     const q = personQuery.trim().toLocaleLowerCase($locale);
+    // The selected person stays visible, also once their free time is used up.
     return people.filter(
       (p) =>
-        (!freeOnly || p.free > 0) &&
-        (skillFilter === null || (p.person.skillIds ?? []).includes(skillFilter)) &&
-        (q === '' || p.person.name.toLocaleLowerCase($locale).includes(q)),
+        p.person.id === selectedId ||
+        ((!freeOnly || p.free > 0) &&
+          (skillFilter === null || (p.person.skillIds ?? []).includes(skillFilter)) &&
+          (q === '' || p.person.name.toLocaleLowerCase($locale).includes(q))),
     );
   });
 
@@ -74,6 +77,8 @@
   let productQuery = $state('');
   const groups = $derived(openDemands(ws, { family: familyId, query: productQuery }));
   const demandCount = $derived(groups.reduce((s, g) => s + g.rows.length, 0));
+  /** Platforms among the groups; the group of products without one does not count. */
+  const areaCount = $derived(groups.filter((g) => g.area).length);
   const matchCount = (g: PlatformGroup, p: Person | undefined) =>
     p ? g.rows.filter((r) => fits(p, r.demand)).length : 0;
   const totalMatches = $derived(groups.reduce((s, g) => s + matchCount(g, selected), 0));
@@ -85,15 +90,18 @@
   const groupKey = (g: PlatformGroup) => g.area?.id ?? '';
   /** Platforms opened by hand; undefined means the default: only the first one is open. */
   let opened = $state<string[] | undefined>(undefined);
+  /** A product search opens every platform it finds; otherwise the hand-opened ones. */
   const isOpen = (g: PlatformGroup, i: number) =>
-    opened === undefined ? i === 0 || productQuery.trim() !== '' : opened.includes(groupKey(g));
+    productQuery.trim() !== '' || (opened === undefined ? i === 0 : opened.includes(groupKey(g)));
   function toggleGroup(g: PlatformGroup, i: number) {
+    if (productQuery.trim() !== '') productQuery = '';
     const now = opened ?? groups.filter((x, j) => isOpen(x, j)).map(groupKey);
     opened = isOpen(g, i) ? now.filter((k) => k !== groupKey(g)) : [...now, groupKey(g)];
   }
 
   /** Selecting a person opens only the platforms with a matching demand. */
   function select(id: string | null) {
+    refused = '';
     selectedId = selectedId === id ? null : id;
     const p = ws.people.find((x) => x.id === selectedId);
     if (!p) return;
@@ -109,7 +117,13 @@
   /** The person shown highlighted against the rows: the dragged one, else the selected one. */
   const lens = $derived(dragging !== null ? ws.people.find((p) => p.id === dragging) : selected);
 
-  let dialogFor = $state<{ teamId: string; demandId: string; personId?: string } | null>(null);
+  let dialogFor = $state<{
+    teamId: string;
+    demandId: string;
+    personId?: string;
+    /** Open FTE when the dialog opened, to tell a full assignment from a partial one. */
+    open: number;
+  } | null>(null);
   const dialogTeam = $derived(
     dialogFor ? ws.teams.find((x) => x.id === dialogFor!.teamId) : undefined,
   );
@@ -118,7 +132,7 @@
 
   function openDialog(row: OpenDemand, personId: string | undefined, from: HTMLElement | null) {
     returnTo = from;
-    dialogFor = { teamId: row.team.id, demandId: row.demand.id, personId };
+    dialogFor = { teamId: row.team.id, demandId: row.demand.id, personId, open: row.open };
   }
 
   const isMember = (team: Team, personId: string) =>
@@ -127,16 +141,17 @@
   let done = $state.raw<{ text: string; after: unknown } | null>(null);
   let undone = $state(false);
   let undoButton: HTMLButtonElement | undefined = $state();
+  let root: HTMLElement | undefined = $state();
+  let productSearch: HTMLInputElement | undefined = $state();
+  /** A person dropped on a product they are already in: said here instead of opening the dialog. */
+  let refused = $state('');
 
   async function assigned(personId: string, n: number) {
     const team = dialogTeam;
-    const demandId = dialogFor?.demandId;
-    if (!team || !demandId) return;
-    const row = groups
-      .flatMap((g) => g.rows)
-      .find((r) => r.team.id === team.id && r.demand.id === demandId);
-    const full = row === undefined || n >= row.open - 1e-9;
+    if (!team || !dialogFor) return;
+    const full = n >= dialogFor.open - 1e-9;
     undone = false;
+    refused = '';
     done = {
       text: $t(full ? 'board.done.full' : 'board.done', {
         name: personName(personId),
@@ -165,6 +180,12 @@
     workspace.undo();
     done = null;
     undone = true;
+    // The undo button is gone: continue at the selected person, else at the product search.
+    void tick().then(() =>
+      (
+        root?.querySelector<HTMLElement>(`button.person[aria-pressed="true"]`) ?? productSearch
+      )?.focus(),
+    );
   }
 
   // ---------- drag ----------
@@ -189,6 +210,11 @@
     e.preventDefault();
     const id = dragging;
     dragEnd();
+    if (isMember(row.team, id)) {
+      refused = $t('board.drop.member', { name: personName(id), team: row.team.name });
+      return;
+    }
+    refused = '';
     selectedId = id;
     openDialog(row, id, e.currentTarget as HTMLElement);
   }
@@ -206,12 +232,14 @@
         : $t(
             demandCount === 1
               ? 'board.summary.family.one'
-              : groups.length === 1
-                ? 'board.summary.family.oneArea'
-                : 'board.summary.family',
+              : areaCount === 0
+                ? 'board.summary.family.noArea'
+                : areaCount === 1
+                  ? 'board.summary.family.oneArea'
+                  : 'board.summary.family',
             {
               n: demandCount,
-              m: groups.length,
+              m: areaCount,
               family: family.name,
             },
           );
@@ -220,12 +248,14 @@
       : $t(
           demandCount === 1
             ? 'board.summary.all.one'
-            : groups.length === 1
-              ? 'board.summary.all.oneArea'
-              : 'board.summary.all',
+            : areaCount === 0
+              ? 'board.summary.all.noArea'
+              : areaCount === 1
+                ? 'board.summary.all.oneArea'
+                : 'board.summary.all',
           {
             n: demandCount,
-            m: groups.length,
+            m: areaCount,
           },
         );
   });
@@ -243,7 +273,7 @@
     n === 1 ? $t('board.person.products.one') : $t('board.person.products.other', { n });
 </script>
 
-<div class="board" class:dragging={dragging !== null}>
+<div class="board" class:dragging={dragging !== null} bind:this={root}>
   <p class="lead">{$t('board.lead', { name: unit.name })}</p>
 
   <div class="columns">
@@ -344,6 +374,7 @@
         id="{uid}-dq"
         type="search"
         placeholder={$t('board.searchProduct')}
+        bind:this={productSearch}
         bind:value={productQuery}
       />
       <div class="summary">
@@ -482,14 +513,12 @@
     </section>
   </div>
 
-  <div class="toast" role="status">
-    {#if done}
-      <span>{done.text}</span>
-      {#if $workspace === done.after}
-        <button type="button" bind:this={undoButton} onclick={undo}>{$t('board.undo')}</button>
-      {/if}
-    {:else if undone}
-      <span>{$t('board.undone')}</span>
+  <div class="toast" class:show={done !== null || undone || refused !== ''}>
+    <span role="status"
+      >{refused !== '' ? refused : done ? done.text : undone ? $t('board.undone') : ''}</span
+    >
+    {#if done && refused === '' && $workspace === done.after}
+      <button type="button" bind:this={undoButton} onclick={undo}>{$t('board.undo')}</button>
     {/if}
   </div>
 </div>
@@ -775,10 +804,9 @@
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: minmax(7rem, 1fr) max-content max-content minmax(
-        0,
-        max-content
-      ) max-content;
+    grid-template-columns:
+      minmax(7rem, 1fr) max-content max-content minmax(0, max-content)
+      max-content;
   }
   .row {
     display: grid;
@@ -887,7 +915,7 @@
   .action {
     justify-self: end;
   }
-  .toast:empty {
+  .toast:not(.show) {
     display: none;
   }
   .toast {

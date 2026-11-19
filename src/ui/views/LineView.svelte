@@ -188,7 +188,7 @@
       </div>
     {:else}
       <div role="tabpanel" id="line-panel-board" aria-labelledby="line-tab-board">
-        <StaffingBoard {unit} />
+        {#key unit.id}<StaffingBoard {unit} />{/key}
       </div>
     {/if}
   {:else if group && showStaff && rows.length > 0}
