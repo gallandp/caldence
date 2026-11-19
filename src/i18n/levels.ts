@@ -27,6 +27,9 @@ export interface LevelWords {
   lineTeam: string;
   lineGroupLc: string;
   lineTeamLc: string;
+  /** The line's company level (#399). */
+  lineCompany: string;
+  lineCompanyLc: string;
 }
 
 /**
@@ -36,10 +39,11 @@ export interface LevelWords {
 export function levelWords(
   names: LevelNames | undefined,
   locale: Locale,
-  line?: { group: string; team: string },
+  line?: { group: string; team: string; company?: string },
 ): LevelWords {
   const lineGroup = line?.group.trim() || t(locale, 'line.level.group');
   const lineTeam = line?.team.trim() || t(locale, 'line.level.team');
+  const lineCompany = line?.company?.trim() || t(locale, 'line.level.company');
   // Own names stay as typed; the default English words are lower case inside a sentence.
   const lineLc = (own: string | undefined, word: string) =>
     own?.trim() || locale !== 'en' ? word : word.toLowerCase();
@@ -48,6 +52,8 @@ export function levelWords(
     lineTeam,
     lineGroupLc: lineLc(line?.group, lineGroup),
     lineTeamLc: lineLc(line?.team, lineTeam),
+    lineCompany,
+    lineCompanyLc: lineLc(line?.company, lineCompany),
   };
   const lc = (s: string) => (locale === 'en' ? s.toLowerCase() : s);
   if (names && !('preset' in names)) {
@@ -114,5 +120,11 @@ export function levelParams(w: LevelWords): Record<string, string> {
     levelLineTeam: w.lineTeam,
     levelLineGroupLc: w.lineGroupLc,
     levelLineTeamLc: w.lineTeamLc,
+    levelLineCompany: w.lineCompany,
+    levelLineCompanyLc: w.lineCompanyLc,
   };
 }
+
+/** The word for a line unit's level (#399). */
+export const lineLevelWord = (w: LevelWords, kind: 'company' | 'group' | 'team'): string =>
+  kind === 'company' ? w.lineCompany : kind === 'group' ? w.lineGroup : w.lineTeam;

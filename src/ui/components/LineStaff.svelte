@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { hasHint, type StaffRow } from '../../core/lineStaff';
+  import { hasHint, personCompanyId, type StaffRow } from '../../core/lineStaff';
   import { units, type LineUnit } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
   import { initials } from '../avatar';
@@ -39,7 +39,7 @@
   const filtered = $derived.by(() => {
     const q = query.trim().toLocaleLowerCase($locale);
     return rows.filter((r) => {
-      if (company && r.person.companyId !== company) return false;
+      if (company && personCompanyId(ws, r.person) !== company) return false;
       if (!q) return true;
       if (r.person.name.toLocaleLowerCase($locale).includes(q)) return true;
       return (r.person.skillIds ?? []).some((id) =>
@@ -172,8 +172,8 @@
                 <span class="avatar" aria-hidden="true">{initials(r.person.name)}</span>
                 <span class="who">
                   <span class="name">{r.person.name}</span>
-                  {#if several && r.person.companyId}
-                    <span class="company">{companyName.get(r.person.companyId)}</span>
+                  {#if several && personCompanyId(ws, r.person)}
+                    <span class="company">{companyName.get(personCompanyId(ws, r.person)!)}</span>
                   {/if}
                 </span>
               </span>
