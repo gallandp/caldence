@@ -7,6 +7,7 @@
   import AreaTeams from '../components/AreaTeams.svelte';
   import RoleList from '../components/RoleList.svelte';
   import OwnerCard from '../components/OwnerCard.svelte';
+  import PageTabs from '../components/PageTabs.svelte';
   import { hasOwnerRoles } from '../../core/owners';
   import { areaReady } from '../state/hints';
   import { workspace } from '../state/workspace';
@@ -59,19 +60,7 @@
       onClose={closeCard}
     />
   {/if}
-  <div
-    class="pages"
-    data-no-print
-    role="group"
-    aria-label={$t('area.view.label')}
-    bind:this={pages}
-  >
-    {#each ['structure', 'overview'] as const as p (p)}
-      <button type="button" aria-pressed={page === p} onclick={() => areaPage.set(p)}
-        >{$t(`area.view.${p}`)}</button
-      >
-    {/each}
-  </div>
+  <PageTabs bind:el={pages} />
   {#if page === 'structure'}
     <!-- Where people build: the way into a team to assign people and roles (#277). -->
     {#if area.teamIds.length > 0}
@@ -117,37 +106,5 @@
   .subtitle {
     margin: -0.5rem 0 0;
     color: var(--text-muted);
-  }
-  /* Tabs, not a segmented pill, so the page switch never looks like Tree | Table. */
-  .pages {
-    display: flex;
-    gap: 0.25rem;
-    border-bottom: 1px solid var(--border);
-  }
-  :global(#app) .pages button {
-    min-height: 2.75rem;
-    margin-bottom: -1px;
-    padding: 0.4rem 1rem;
-    border: 0;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-  :global(#app) .pages button:hover {
-    color: var(--text);
-    background: none;
-  }
-  :global(#app) .pages button[aria-pressed='true'] {
-    border-bottom-color: var(--accent);
-    color: var(--text);
-  }
-  @media (forced-colors: active) {
-    :global(#app) .pages button[aria-pressed='true'] {
-      border-bottom-color: Highlight;
-      text-decoration: underline;
-    }
   }
 </style>
