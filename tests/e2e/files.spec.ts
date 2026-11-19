@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { setLanguage } from './helpers';
+import { changeHours, setLanguage } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -25,10 +25,9 @@ async function openExample(page: Page) {
   await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
 }
 
-/** Two edits through the language switch (a workspace setting): de, then back to en. */
+/** Two edits in Settings: the default hours per week 39, then 38. */
 async function makeChange(page: Page) {
-  await setLanguage(page, 'de');
-  await setLanguage(page, 'en');
+  await changeHours(page, '39', '38');
   await expect(page.getByText('● Unsaved changes')).toBeVisible();
 }
 
@@ -54,13 +53,14 @@ async function storedTeams(page: Page): Promise<number> {
 
 test('autosave restores the changed data and the unsaved marker after reload', async ({ page }) => {
   await openExample(page);
-  await setLanguage(page, 'de');
+  await changeHours(page, '39');
   await expect.poll(() => storedTeams(page)).toBe(4);
   await page.reload();
-  // The changed value (language de) survived, and so did the dirty flag and the example.
-  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Das Beispiel öffnen' })).toHaveCount(0);
+  // The changed value survived, and so did the dirty flag and the example.
+  await expect(page.getByText('● Unsaved changes')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('#set-hours')).toHaveValue('39');
 });
 
 test('save as downloads workspace.caldence.json and clears the marker', async ({ page }) => {
@@ -94,8 +94,9 @@ test('opening an invalid file shows an error and keeps the workspace', async ({ 
   // The example is still loaded and the earlier edits are still undoable.
   await expect(page.getByRole('button', { name: 'Open the example' })).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await expect(page.getByText('● Ungespeicherte Änderungen')).toBeVisible();
+  await expect(page.getByText('● Unsaved changes')).toBeVisible();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(page.locator('#set-hours')).toHaveValue('39');
 });
 
 test('opening a template file with Open says to apply it in Templates', async ({ page }) => {
@@ -205,7 +206,7 @@ test('?reset starts empty, keeps the stored workspace as backup and drops the pa
   page,
 }) => {
   await openExample(page);
-  await setLanguage(page, 'de');
+  await changeHours(page, '39');
   await expect.poll(() => storedTeams(page)).toBe(4);
   await page.goto('/?reset');
   await expect(

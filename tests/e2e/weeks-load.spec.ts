@@ -304,6 +304,8 @@ test('the Total names a role without people, counted as one person (#272)', asyn
   await page.goto('/');
   await openWorkspaceFile(page, ws);
   await setLanguage(page, 'en');
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
   await showView(page, 'Meeting load');
   const total = page.getByRole('tabpanel', { name: 'Meeting load' }).locator('[data-total]');
   await expect(total.locator('[data-unfilled]')).toHaveText(

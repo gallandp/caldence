@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
-import { openWorkspaceFile, useFileFallback } from './helpers';
+import { openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -27,6 +27,9 @@ test('two cycles with the same milestone name, id and day render in calendar and
   await page.clock.setFixedTime(new Date('2027-01-11T12:00:00'));
   await page.goto('/');
   await openWorkspaceFile(page, ws);
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
 
   const calendar = page.getByRole('tabpanel', { name: 'Calendar' });
   await expect(calendar.locator('td[data-date="2027-01-13"] .milestone')).toHaveCount(2);

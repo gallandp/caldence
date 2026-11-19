@@ -166,3 +166,33 @@ export async function setLanguage(page: Page, locale: 'de' | 'en') {
   // On narrow screens the menu stays open, as it was when the switch sat in it.
   await openMenuIfNarrow(page);
 }
+
+/**
+ * Changes the file in Settings: the default hours per week, to each of `hours` in turn (one edit
+ * each), then returns to the view that was open before. The language is no file change (#337).
+ */
+export async function changeHours(page: Page, ...hours: string[]) {
+  const before = await page.locator('[role="tab"][aria-selected="true"]').getAttribute('id');
+  const phone = (page.viewportSize()?.width ?? Infinity) <= 640;
+  const open = (id: string) =>
+    phone ? page.locator(`#${id}`).dispatchEvent('click') : page.locator(`#${id}`).click();
+  await openMenuIfNarrow(page);
+  await open('tab-settings');
+  const field = page.locator('#set-hours');
+  for (const h of hours) {
+    await field.fill(h);
+    await field.press('Tab');
+    await expect(field).toHaveValue(h);
+  }
+  if (before && before !== 'tab-settings') {
+    await openMenuIfNarrow(page);
+    await open(before);
+  }
+}
+
+/** On the area page, shows Structure or Overview (an area opens on its overview, #337). */
+export async function showAreaPage(page: Page, name: 'Structure' | 'Overview') {
+  const button = page.getByRole('group', { name: 'Page' }).getByRole('button', { name });
+  await button.click();
+  await expect(button).toHaveAttribute('aria-pressed', 'true');
+}

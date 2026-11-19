@@ -7,6 +7,7 @@ import {
   openExample,
   openWorkspaceFile,
   pickUnit,
+  showAreaPage,
   showView,
   unitNames,
   useFileFallback,
@@ -61,6 +62,7 @@ test('the start screen mentions areas, and the example opens with its area', asy
   await expect(hint(page)).toHaveCount(0);
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
+  await showAreaPage(page, 'Structure');
   const area = panel(page, 'Area');
   // Three groups of people: only in the area, in a team and the area, only in a team.
   await expect(area.getByText('Jordan').first()).toBeVisible();
@@ -177,6 +179,7 @@ test('the areas guide names controls the area page has', async ({ page }) => {
 
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
+  await showAreaPage(page, 'Structure');
   const area = panel(page, 'Area');
   for (const c of AREA_CONTROLS)
     await expect(area.getByRole(c.role, { name: en(c.name), exact: true })).toBeVisible();

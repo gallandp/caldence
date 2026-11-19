@@ -6,7 +6,7 @@
   import AreaIcon from './components/AreaIcon.svelte';
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
-  import { hasOrgLevel, ORG_UNIT } from '../core/model';
+  import { ORG_UNIT } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
@@ -32,7 +32,7 @@
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
-  import { areaPage, currentView } from './state/view';
+  import { areaPage, currentView, openingPlace } from './state/view';
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import { openTopic } from './help/topics';
@@ -144,22 +144,17 @@
   $effect(() => {
     currentView.set({ unit: $activeTeamId ?? undefined, page: active });
   });
-  // ... and a file (or the autosave) opens there again. Unknown values are ignored.
+  // ... and a reload comes back there; an opened file lands on an answer instead (#337).
+  const { opened } = workspace;
   $effect(() => {
     void $version;
     untrack(() => {
-      const saved = $workspace.view;
-      const unit = saved?.unit;
-      if (
-        unit &&
-        ((unit === ORG_UNIT && hasOrgLevel($workspace)) ||
-          [...$workspace.teams, ...$workspace.areas].some((u) => u.id === unit))
-      )
-        activeTeamId.set(unit);
+      const place = openingPlace($workspace, $opened, views);
+      if (place.unit) activeTeamId.set(place.unit);
       // The organisation of the file before is not this file's: start on its first team.
       else if ($activeTeamId === ORG_UNIT) activeTeamId.set($workspace.teams[0]?.id ?? null);
-      areaPage.set(saved?.areaPage === 'overview' ? 'overview' : 'structure');
-      const page = views.find((id) => id === saved?.page);
+      areaPage.set('overview');
+      const page = views.find((id) => id === place.page);
       if (page) select(page);
     });
   });
@@ -220,20 +215,21 @@
     drillIn(teamId, 'load');
   }
 
-  // Presenting: picking an area after a team opens its overview, not an empty view of the area.
+  // Picking another area opens its overview. Presenting, the area page and an empty meeting list
+  // of the area also move on to it, so it is never an empty view.
   let lastUnit = untrack(() => $activeTeamId);
   $effect(() => {
     const unit = $activeTeamId;
     if (unit === lastUnit) return;
     lastUnit = unit;
     const area = $workspace.areas.find((a) => a.id === unit);
-    if (!area || !untrack(() => $presenting)) return;
-    // Calendar and Load show the area too; the area page and an empty meeting list move on.
+    if (!area) return;
+    // Another area opens on its overview (#337); a new one stays on its structure for the card.
+    if (untrack(() => $areaReady) !== area.id) areaPage.set('overview');
+    if (!untrack(() => $presenting)) return;
+    // Calendar and Load show the area too.
     const now = untrack(() => active);
-    if (now === 'team' || (now === 'meetings' && area.events.length === 0)) {
-      areaPage.set('overview');
-      select('team');
-    }
+    if (now === 'team' || (now === 'meetings' && area.events.length === 0)) select('team');
   });
 
   /** The tab bar's buttons (phones). */

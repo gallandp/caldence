@@ -114,6 +114,8 @@ test('a meeting that cannot fit into a shorter cadence is refused inline', async
   alpha.events.find((e) => e.name === 'Sprint Review')!.rule = { type: 'cadence-day', day: 9 };
   await page.goto('/');
   await openWorkspaceFile(page, ws);
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await editCadence(page);
   const length = cadence(page).getByLabel('Length (weeks)');

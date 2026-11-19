@@ -243,6 +243,9 @@ test('teams without meetings show a hint that leads to the Meetings view', async
     buffer: Buffer.from(JSON.stringify(ws)),
   });
   await expect(page.getByText('empty.caldence.json')).toBeVisible();
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(panel(page).getByText('There are no meetings yet')).toBeVisible();
   await expect(panel(page).getByRole('grid')).toBeVisible();
   await panel(page).getByRole('button', { name: 'Go to Meetings' }).click();

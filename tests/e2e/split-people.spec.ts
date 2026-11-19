@@ -4,6 +4,7 @@ import {
   openPeoplePool,
   openTeamView,
   pickUnit,
+  showAreaPage,
   teamAction,
   useFileFallback,
 } from './helpers';
@@ -129,6 +130,7 @@ test('adding a person from another team fills in the hours left and flags too ma
   // The Structure card of the area says the same.
   await pickUnit(page, 'Commerce');
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Structure');
   await page.locator('.team').getByRole('button', { name: /Alex/ }).first().click();
   await expect(
     page.getByRole('dialog', { name: 'Alex' }).getByText('52 h – more than 40 h a week'),
