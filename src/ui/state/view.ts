@@ -25,8 +25,7 @@ export const AREA_PAGES: readonly string[] = ['structure', 'overview'];
 /** A unit this workspace can select: a team, an area, the organisation or a line unit. */
 export function knownUnit(ws: Workspace, unit: string | undefined): boolean {
   return (
-    (unit === ORG_UNIT && hasOrgLevel(ws)) ||
-    [...ws.teams, ...ws.areas].some((u) => u.id === unit)
+    (unit === ORG_UNIT && hasOrgLevel(ws)) || [...ws.teams, ...ws.areas].some((u) => u.id === unit)
   );
 }
 
