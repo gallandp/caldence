@@ -6,12 +6,13 @@
   import AreaIcon from './components/AreaIcon.svelte';
   import OrgIcon from './components/OrgIcon.svelte';
   import OrgView from './views/OrgView.svelte';
+  import type { ISODate } from '../core/date';
   import { hasOrgLevel, ORG_UNIT } from '../core/model';
   import AreaTeams from './components/AreaTeams.svelte';
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
-  import { calendarDay, loadWeek } from './state/focus';
+  import { calendarDay, calendarWeek, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -218,6 +219,13 @@
     filter.set({ teamId });
     loadWeek.set({ teamId, monday });
     drillIn(teamId, 'load');
+  }
+
+  /** The Calendar's week with `date`, with the Person filter on that person (#343). */
+  function openCalendarWeek(personId: string, date: ISODate) {
+    filter.set({ personId });
+    calendarWeek.set(date);
+    select('calendar', true);
   }
 
   /** A dropped meeting's date (#341): the Calendar opens that day; its details take the focus. */
@@ -710,7 +718,7 @@
                 />
               {/key}
             {:else if id === 'load'}
-              {#if active === 'load'}<LoadView />{/if}
+              {#if active === 'load'}<LoadView onOpenWeek={openCalendarWeek} />{/if}
             {:else if id === 'meetings'}
               {#if active === 'meetings'}<MeetingsView
                   edit={editRequest}

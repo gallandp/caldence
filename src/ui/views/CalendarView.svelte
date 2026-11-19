@@ -38,7 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
-  import { calendarDay } from '../state/focus';
+  import { calendarDay, calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -365,6 +365,20 @@
       ?.querySelector<HTMLElement>('.levels [aria-pressed="true"]')
       ?.focus({ preventScroll: next === 'range' });
   }
+
+  // A week another view links to (#343, #339): shown on the week level.
+  $effect(() => {
+    const date = $calendarWeek;
+    if (date === null || !shown) return;
+    calendarWeek.set(null);
+    const { from } = horizon;
+    // A week that starts before the horizon is shown from the horizon's first day.
+    const day = date < from && addDays(mondayOf(date), 6) >= from ? from : date;
+    if (!inHorizon(day)) return;
+    mode = lastMode = 'week';
+    selected = null;
+    cursor = day;
+  });
 
   // A day another view links to (#341): opened with its details, as if chosen in the grid.
   $effect(() => {
