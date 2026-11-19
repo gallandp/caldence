@@ -95,7 +95,7 @@ test('a sprint ending on a holiday shows the dropped meetings in the export', as
   // Each date opens that day in the Calendar.
   await drops
     .getByRole('button', {
-      name: 'Sprint Review, Sprint Retrospective, 03/26/2027, show in the calendar',
+      name: 'Sprint Review, Sprint Retrospective, Fri, 03/26/2027, show in the calendar',
     })
     .click();
   await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveAttribute(
@@ -116,7 +116,7 @@ test('Meetings & cadence lists the dropped meetings of the planning horizon', as
   await open(drops);
   await expect(drops.getByRole('listitem')).toHaveText(ROWS);
   await drops
-    .getByRole('button', { name: 'Sprint Planning, 03/29/2027, show in the calendar' })
+    .getByRole('button', { name: 'Sprint Planning, Mon, 03/29/2027, show in the calendar' })
     .click();
   const details = panel(page, 'Calendar').getByRole('region', { name: /March 29, 2027/ });
   await expect(details).toContainText('Sprint Planning');

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { HolidayDrop } from '../../core/ics';
-  import { formatDisplayDate, locale, translate as t } from '../../i18n';
+  import { locale, translate as t } from '../../i18n';
 
   /**
    * A quiet one-line note on the meetings that public holidays leave out of the .ics export
@@ -33,15 +33,18 @@
   );
 
   /** "Fr., 25.12.2026": the weekday tells a Friday holiday from a Monday one at a glance. */
-  const chip = (d: string) => {
-    const [y, m, day] = d.split('-').map(Number) as [number, number, number];
-    return new Intl.DateTimeFormat($locale, {
+  const chipFormat = $derived(
+    new Intl.DateTimeFormat($locale, {
       weekday: 'short',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       timeZone: 'UTC',
-    }).format(new Date(Date.UTC(y, m - 1, day)));
+    }),
+  );
+  const chip = (d: string) => {
+    const [y, m, day] = d.split('-').map(Number) as [number, number, number];
+    return chipFormat.format(new Date(Date.UTC(y, m - 1, day)));
   };
 </script>
 
@@ -67,10 +70,7 @@
                 <button
                   type="button"
                   class="chip"
-                  aria-label={$t('holidayDrops.show', {
-                    name,
-                    date: formatDisplayDate($locale, date, 'short'),
-                  })}
+                  aria-label={$t('holidayDrops.show', { name, date: chip(date) })}
                   onclick={(e) => {
                     // Not a click outside the day details this opens in the Calendar.
                     e.stopPropagation();
@@ -149,7 +149,7 @@
   /* Names in one column, so the date chips of every row start at the same edge. */
   ul {
     display: grid;
-    grid-template-columns: max-content 1fr;
+    grid-template-columns: fit-content(50%) 1fr;
     gap: 0.5rem 1rem;
     margin: 0.25rem 0 0.75rem;
     padding: 0 0 0 1.55rem;
@@ -168,10 +168,8 @@
   @media (max-width: 40rem) {
     ul {
       grid-template-columns: 1fr;
-      padding-left: 0;
-    }
-    ul {
       gap: 0.85rem;
+      padding-left: 0;
     }
     li {
       grid-column: auto;
@@ -218,9 +216,10 @@
     }
   }
   @media (forced-colors: active) {
-    .chip,
+    /* Only the chips that open a day look like buttons. */
     :global(#app) .holiday-drops button.chip {
-      border: 1px solid CanvasText;
+      border: 1px solid ButtonBorder;
+      color: ButtonText;
     }
   }
   /* Paper has no disclosure: the dates print, open or closed. */
@@ -231,9 +230,6 @@
     .holiday-drops::details-content {
       content-visibility: visible;
       display: block;
-    }
-    ul {
-      display: grid;
     }
   }
 </style>
