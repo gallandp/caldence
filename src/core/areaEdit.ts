@@ -107,6 +107,19 @@ export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): strin
   return [...new Set(invited)].filter((id) => !own.has(id));
 }
 
+/**
+ * Whether a "No X in team" note can offer the role mapping (#362, #433): a saved meeting of the
+ * area invites X from every team, the team does not have X, and it has roles to choose from. The
+ * organisation takes its teams' links from their areas; it keeps none of its own (#328).
+ */
+export function canLinkRole(ws: Workspace, area: Area, teamId: string, roleId: string): boolean {
+  return (
+    area.id !== ORG_UNIT &&
+    teamRoleIds(ws, teamId).length > 0 &&
+    unmatchedRoles(ws, area, teamId).includes(roleId)
+  );
+}
+
 const words = (name: string) =>
   name
     .normalize('NFC')

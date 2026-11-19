@@ -1,21 +1,32 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import { matchingRole, setRoleLinks, teamRoleIds } from '../../core/areaEdit';
   import type { Area } from '../../core/model';
   import { translate as t } from '../../i18n';
+  import { applyOwn } from '../state/problems.svelte';
   import { workspace } from '../state/workspace';
 
   /**
    * Maps one area role that a team lacks to one of the team's roles, right from the "No X in
-   * team" chip of an area meeting (#362); the same link as in "Choose teams …" (#338). An obvious
-   * match is preselected, the coach confirms it.
+   * team" note of an area meeting, the structure tree or the meeting form (#362, #433); the same
+   * link as in "Choose teams …" (#338). An obvious match is preselected, the coach confirms it.
+   * On closing, focus goes back to the note, or, once the mapping made it go away, to `fallback`.
    */
   let {
     area,
     teamId,
     roleId,
+    opener,
+    fallback,
     onclose,
-  }: { area: Area; teamId: string; roleId: string; onclose: () => void } = $props();
+  }: {
+    area: Area;
+    teamId: string;
+    roleId: string;
+    opener: HTMLElement;
+    fallback?: () => HTMLElement | null | undefined;
+    onclose: () => void;
+  } = $props();
   const uid = $props.id();
 
   let dialog: HTMLDialogElement | undefined;
@@ -54,13 +65,25 @@
 
   onMount(() => dialog?.showModal());
 
+  async function closed() {
+    // Read before closing: the props are gone once the dialog is.
+    const [back, next] = [opener, fallback];
+    onclose();
+    await tick();
+    if (back.isConnected) back.focus();
+    else next?.()?.focus();
+  }
+
   function save(event: Event) {
     event.preventDefault();
+    // The dialog may sit inside another form (the meeting form): that one is not submitted.
+    event.stopPropagation();
     const rest = (area.roleLinks ?? []).filter(
       (l) => !(l.teamId === teamId && l.roleId === roleId),
     );
     const links = value ? [...rest, { teamId, roleId, teamRoleId: value }] : rest;
-    const result = workspace.apply((w) => setRoleLinks(w, area.id, links));
+    // A change from the open view: an open meeting form keeps its draft.
+    const result = applyOwn((w) => setRoleLinks(w, area.id, links));
     if (!result.ok) {
       general = result.errors[0]?.key ?? 'error.type';
       return;
@@ -69,7 +92,17 @@
   }
 </script>
 
-<dialog bind:this={dialog} aria-labelledby="{uid}-title" {onclose}>
+<!-- Nor does it see this dialog's edits, or its Escape, as its own. -->
+<dialog
+  bind:this={dialog}
+  aria-labelledby="{uid}-title"
+  onclose={closed}
+  oninput={(e) => e.stopPropagation()}
+  onchange={(e) => e.stopPropagation()}
+  onkeydown={(e) => {
+    if (e.key === 'Escape') e.stopPropagation();
+  }}
+>
   <form onsubmit={save}>
     <h2 id="{uid}-title">{$t('area.missingRole', { team: teamName, role: roleName(roleId) })}</h2>
     <p class="hint">

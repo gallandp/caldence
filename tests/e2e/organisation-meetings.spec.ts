@@ -175,5 +175,23 @@ test('presenting the organisation shows the what-if effect across all teams and 
   await expect(bar).toContainText('What if · 1 change');
   await expect(bar.getByText(/^Meeting load Northwind: /)).toBeVisible();
   // Half an hour less for five people at €100.
-  await expect(bar).toContainText(/Cost −€250 per week/);
+  await expect(bar).toContainText(/Cost, Northwind: −€250 per week/);
+});
+
+test('a missing-role hint in an organisation meeting form stays plain text (#433)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const ws = orgWorkspace();
+  // The managing director from every team: no team has one, and the organisation maps nothing.
+  const org = ws.organisation as { events: { participants: unknown[] }[] };
+  org.events[0]!.participants[0] = { roleId: 'role-md', share: 1, fromTeams: true };
+  await openWorkspaceFile(page, ws);
+  await pickOrg(page);
+  await showView(page, 'Meetings & cadence');
+  const panel = page.locator('#panel-meetings');
+  await panel.getByRole('button', { name: 'Edit Portfolio Sync' }).click();
+  const form = panel.locator('.eventform');
+  await expect(form.getByText('No Managing director in Team Alpha')).toBeVisible();
+  await expect(form.getByRole('button', { name: /^No Managing director in/ })).toHaveCount(0);
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { matchingRole, setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
+import {
+  canLinkRole,
+  matchingRole,
+  setRoleLinks,
+  teamRoleIds,
+  unmatchedRoles,
+} from '../../src/core/areaEdit';
 import { costSummary, meetingCost } from '../../src/core/cost';
 import { exportIcs } from '../../src/core/ics';
 import { loadSummary } from '../../src/core/views';
@@ -19,6 +25,7 @@ import {
   holders,
   invitesRole,
   missingRoles,
+  ORG_UNIT,
   roleAttendees,
 } from '../../src/core/model';
 import { applyTemplate } from '../../src/core/template';
@@ -89,6 +96,19 @@ describe('role links of an area (#338)', () => {
     ]);
     expect(unmatchedRoles(ws, area, star)).toEqual([]);
     expect(names(teamRoleIds(ws, north))).toEqual(['Product Owner', 'Scrum Master', 'Developers']);
+  });
+
+  it('offers the mapping only for a role an area meeting invites that the team lacks (#433)', () => {
+    const { ws, north, areaId } = mixed();
+    const area = ws.areas.find((a) => a.id === areaId)!;
+    expect(canLinkRole(ws, area, north, roleId(ws, 'Agile Team'))).toBe(true);
+    expect(canLinkRole(ws, area, north, roleId(ws, 'Scrum Master'))).toBe(false);
+    expect(canLinkRole(ws, area, 'gone', roleId(ws, 'Agile Team'))).toBe(false);
+    // Not yet invited by a saved meeting: no link would be visible anywhere.
+    const fresh = { ...area, events: [] };
+    expect(canLinkRole(ws, fresh, north, roleId(ws, 'Agile Team'))).toBe(false);
+    // The organisation keeps no links of its own (#328).
+    expect(canLinkRole(ws, { ...area, id: ORG_UNIT }, north, roleId(ws, 'Agile Team'))).toBe(false);
   });
 
   it('after mapping, the area meetings invite and count the mapped people', () => {
