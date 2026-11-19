@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
-import { meetingCost } from '../../src/core/cost';
+import { costSummary, meetingCost } from '../../src/core/cost';
 import { exportIcs } from '../../src/core/ics';
 import { loadSummary } from '../../src/core/views';
 import {
@@ -205,6 +205,27 @@ describe('role filter with role links (#338)', () => {
     const agileRows = loadSummary(ws, { teamId: areaId, roleId: agile }).byRole;
     // The unfilled Agile Team counts one person, not Cleo and Dan.
     expect(agileRows.map((r) => [r.roleId, r.people])).toEqual([[agile, 1]]);
+  });
+
+  it('each row of the load by role is the same with and without the role filter', () => {
+    const { ws, areaId } = linked();
+    const all = loadSummary(ws, { teamId: areaId }).byRole;
+    expect(all.length).toBeGreaterThan(0);
+    for (const row of all) {
+      const one = loadSummary(ws, { teamId: areaId, roleId: row.roleId }).byRole;
+      expect(one).toEqual([row]);
+    }
+  });
+
+  it('the cost of a role includes its linked area meetings, and the roles add up', () => {
+    const { ws, areaId, dev } = linked();
+    const { ws: before } = mixed();
+    const index = { holidays: new Map(), schoolHolidays: new Map(), beyondKnown: false };
+    const cost = (w: typeof ws, roleId?: string) =>
+      costSummary(w, index, { teamId: areaId, ...(roleId ? { roleId } : {}) }, 100).perWeek;
+    expect(cost(ws, dev)).toBeGreaterThan(cost(before, dev));
+    const sum = ws.roles.reduce((n, r) => n + cost(ws, r.id), 0);
+    expect(sum).toBeCloseTo(cost(ws));
   });
 
   it('the calendar of a role includes the linked area meetings', () => {
