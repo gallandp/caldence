@@ -365,9 +365,23 @@ export function invitesRole(
 }
 
 /**
- * The attendees of a participant who come with `roleId` (#338): with the participant's own role,
- * or "from every team" with a team role linked to it. A linked team role's people are listed under
- * their own role, never under the area's.
+ * The roles a role participant's people come with (#338): its own role and, "from every team" in
+ * an area, the team roles linked to it. Each is a row of its own in the load by role.
+ */
+export function participantRoles(ws: Workspace, unitId: string, p: Participant): string[] {
+  if (p.personId !== undefined) return [];
+  if (!p.fromTeams) return [p.roleId];
+  const area = ws.areas.find((a) => a.id === unitId);
+  const linked = (area?.roleLinks ?? []).flatMap((l) =>
+    l.roleId === p.roleId && area!.teamIds.includes(l.teamId) ? [l.teamRoleId] : [],
+  );
+  return [...new Set([p.roleId, ...linked])];
+}
+
+/**
+ * The attendees of a participant who hold `roleId` where it reaches them (#338): with the
+ * participant's own role, or "from every team" with a team role linked to it. So the people of a
+ * linked team role count under that team role, never under the area's role.
  */
 export function roleAttendees(
   ws: Workspace,
