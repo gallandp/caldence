@@ -514,7 +514,11 @@ test('each team row and its cost card add what its people spend in area meetings
   const table = overview.locator('[data-area-costs]');
   // Kim (PO) attends the PO forum, 1 h, and Lou (SM) the Scrum of Scrums, 0.5 h, each week.
   const share = table.locator('[data-cost-row="team-gamma"] [data-area-share]');
-  await expect(share).toHaveText('+ €150 / week in meetings in the area');
+  // Gamma runs 3-week sprints, so per week the line also names the sprint (#434); Delta is in flow.
+  await expect(share).toHaveText('+ €150 / week, €450 / sprint in meetings in the area');
+  await expect(table.locator('[data-cost-row="team-delta"] [data-area-share]')).toHaveText(
+    /^\+ €[\d,]+ \/ week in meetings in the area$/,
+  );
   await table.getByRole('button', { name: 'in the planning horizon (2027, 52\u00a0wks)' }).click();
   await expect(share).toHaveText(/^\+ €[\d,]+ in meetings in the area$/);
 
@@ -524,9 +528,12 @@ test('each team row and its cost card add what its people spend in area meetings
   // Gamma runs 3-week sprints, so the line also names the sprint, like the card above it (#366).
   await expect(card).toContainText('+ €150 / week, €450 / sprint and €');
   await expect(card).toContainText('in meetings in the area for the people of Team Gamma.');
-  // Meeting load for the team shows the same card line.
+  // Meeting load for the team shows the same card line, per sprint too (#434).
   await showView(page, 'Meeting load');
-  await expect(page.locator('[data-costs] [data-cost-area-share]')).toContainText('+ €150 / week');
+  await expect(page.locator('[data-costs] [data-cost-area-share]')).toContainText(
+    '+ €150 / week, €450 / sprint and €',
+  );
+  await expect(page.locator('[data-costs] [data-cost-cadence]')).toBeVisible();
 });
 
 test('a team without an area shows no area share in its cost card (#336)', async ({ page }) => {

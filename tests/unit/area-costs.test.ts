@@ -192,6 +192,22 @@ describe('areaShare (#336)', () => {
     expect(costPerCadence(1, team('team-delta').cadence)).toBeUndefined();
   });
 
+  it('carries that value per sprint or PI to the cost table, none in flow (#434)', () => {
+    const w = ws();
+    const rows = areaCosts(w, noIndex(), w.areas[0]!, 100).teams;
+    const row = (id: string) => rows.find((r) => r.unitId === id)!.areaShare!;
+    expect(row('team-gamma').perCadence).toBeCloseTo(450);
+    expect(areaShare(w, noIndex(), 'team-gamma', 100)!.perCadence).toBeCloseTo(450);
+    expect(row('team-delta').perCadence).toBeUndefined();
+    // A 10-week PI: ten weeks of the same €150.
+    w.teams.find((t) => t.id === 'team-gamma')!.cadence = {
+      kind: 'pi',
+      lengthWeeks: 10,
+      start: '2027-01-04',
+    };
+    expect(areaShare(w, noIndex(), 'team-gamma', 100)!.perCadence).toBeCloseTo(1500);
+  });
+
   it('is undefined for a team without an area and without a rate', () => {
     const w = ws();
     w.areas[0]!.teamIds = w.areas[0]!.teamIds.filter((id) => id !== 'team-delta');

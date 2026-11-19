@@ -1,4 +1,4 @@
-import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
+import { costPerCadence, unitCostSummary, meetingCost, type UnfilledRole } from './cost';
 import { capacity, occurrencesPerWeek } from './load';
 import {
   areaAsTeam,
@@ -48,6 +48,8 @@ export interface UnitRow {
 export interface AreaShare {
   perWeek: number;
   horizon: number;
+  /** Per sprint or PI of the team's cadence; undefined in flow (#366, #434). */
+  perCadence?: number;
 }
 
 export interface AreaCosts {
@@ -141,7 +143,9 @@ export function areaShare(
   const heads = (p: Participant, e: CalEvent) =>
     unfilled(ws, area.id, p) ? 0 : sum(attendees(ws, area.id, p, e).map(weight));
   const s = unitCostSummary(ws, index, areaAsTeam(area), rate, heads);
-  return { perWeek: s.perWeek, horizon: s.horizon };
+  const cadence = ws.teams.find((t) => t.id === teamId)?.cadence;
+  const perCadence = cadence && costPerCadence(s.perWeek, cadence);
+  return { perWeek: s.perWeek, horizon: s.horizon, perCadence };
 }
 
 export function areaCosts(
