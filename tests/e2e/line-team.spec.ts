@@ -175,6 +175,7 @@ test('a skill family is deleted after a warning and comes back with Ctrl+Z (#389
   await confirm.getByRole('button', { name: 'Delete family' }).click();
   await expect(confirm).toBeHidden();
   await expect(skills).toContainText('No skill family yet');
+  await expect(skills.getByLabel('New skill family')).toBeFocused();
   await skills.getByRole('button', { name: 'Done' }).click();
   await expect(view.locator('tbody')).not.toContainText('Orvalis Lager');
 

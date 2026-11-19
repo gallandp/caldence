@@ -31,7 +31,6 @@
   let error = $state('');
   let deleting = $state<string | null>(null);
   let deletingFamily = $state<string | null>(null);
-  let familyButton: HTMLButtonElement | undefined = $state();
 
   const families = $derived($workspace.skillFamilies ?? []);
   const family = $derived(families.find((f) => f.id === familyId));
@@ -79,12 +78,15 @@
     deleting = null;
     if (choice === 'save' && id) apply((ws) => ({ ok: true, value: removeSkill(ws, id) }));
   }
-  function onConfirmFamily(choice: Choice) {
+  async function onConfirmFamily(choice: Choice) {
     const id = deletingFamily;
     deletingFamily = null;
-    if (choice !== 'save' || !id) return familyButton?.focus();
+    if (choice !== 'save' || !id) return;
     if (!apply((ws) => ({ ok: true, value: removeSkillFamily(ws, id) })).ok) return;
     familyId = families.find((f) => f.id !== id)?.id ?? '';
+    // The button left with the family: keep the keyboard in the dialog once the prompt closed.
+    await tick();
+    document.getElementById(familyId ? `${uid}-family` : `${uid}-new-family`)?.focus();
   }
   const familyName = (id: string | null) => families.find((f) => f.id === id)?.name ?? '';
   const familyMessage = (id: string) => {
@@ -154,7 +156,6 @@
         <button
           type="button"
           class="danger"
-          bind:this={familyButton}
           aria-label={$t('line.skills.deleteFamily.label', { family: family.name })}
           onclick={() => (deletingFamily = family?.id ?? null)}
           >{$t('line.skills.deleteFamily')}</button

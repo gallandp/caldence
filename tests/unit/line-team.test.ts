@@ -237,10 +237,9 @@ describe('editing the line (#316)', () => {
     ws.teams[0]!.demands = [{ id: 'd1', skillId: 's2', fte: 1, roleId: 'r1' }];
     ws.lineUnits![0]!.skillFamilyId = fam;
     const n = ws.skills!.filter((s) => s.familyId === fam).length;
-    const people = ws.people.filter((p) => p.skillIds?.length).length;
     expect(familyUsage(ws, fam)).toEqual({
       skills: n,
-      people,
+      people: 1,
       demands: 1,
       areas: 0,
       lineUnits: 1,
