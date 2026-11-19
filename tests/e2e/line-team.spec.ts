@@ -174,6 +174,33 @@ test('line units and skills are managed in place', async ({ page }) => {
   await skills.getByRole('button', { name: 'Done' }).click();
 });
 
+test('a skill family is deleted after a warning and comes back with Ctrl+Z (#389)', async ({
+  page,
+}) => {
+  await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
+  await pickLine(page, 'Orvalis Ware');
+  await showView(page, 'Line team');
+  const view = panel(page, 'Line team');
+  await view.getByRole('button', { name: 'Manage skills' }).click();
+  const skills = page.getByRole('dialog', { name: 'Manage skills' });
+  await skills.getByRole('button', { name: 'Delete skill family Orvalis' }).click();
+
+  // The warning names the skills, the people holding them and the line unit naming the family.
+  const confirm = page.getByRole('dialog', { name: 'Delete the skill family “Orvalis”?' });
+  await expect(confirm).toContainText('3 skills · 4 people · Line units: 1');
+  await confirm.getByRole('button', { name: 'Delete family' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(skills).toContainText('No skill family yet');
+  await expect(skills.getByLabel('New skill family')).toBeFocused();
+  await skills.getByRole('button', { name: 'Done' }).click();
+  await expect(view.locator('tbody')).not.toContainText('Orvalis Lager');
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(view.locator('tbody')).toContainText('Orvalis Lager');
+  await view.getByRole('button', { name: 'Manage skills' }).click();
+  await expect(skills.getByLabel('Name of the skill family')).toHaveValue('Orvalis');
+});
+
 test('presenting hides the tabs and line staff names', async ({ page }) => {
   await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
   await pickLine(page, 'Orvalis Ware');

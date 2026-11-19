@@ -25,12 +25,14 @@ import {
   addLineUnit,
   addSkill,
   addSkillFamily,
+  familyUsage,
   mergeSkill,
   renameSkill,
   skillUsage,
   updateLinePerson,
   updateLineUnit,
 } from '../../src/core/lineEdit';
+import { removeSkillFamily } from '../../src/core/line';
 import type { HolidayIndex } from '../../src/core/regions';
 
 const noIndex = (): HolidayIndex => ({
@@ -227,6 +229,31 @@ describe('editing the line (#316)', () => {
     expect(w4.skills!.map((s) => s.id)).toEqual(['s1', sk]);
     expect(w4.people[2]!.skillIds).toEqual(['s1']);
     expect(w4.teams[0]!.demands![0]!.skillId).toBe('s1');
+  });
+
+  it('counts what deleting a skill family touches, and deletes it (#389)', () => {
+    const ws = lined();
+    const fam = ws.skills![0]!.familyId;
+    ws.teams[0]!.demands = [{ id: 'd1', skillId: 's2', fte: 1, roleId: 'r1' }];
+    ws.lineUnits![0]!.skillFamilyId = fam;
+    const n = ws.skills!.filter((s) => s.familyId === fam).length;
+    expect(familyUsage(ws, fam)).toEqual({
+      skills: n,
+      people: 1,
+      demands: 1,
+      areas: 0,
+      lineUnits: 1,
+    });
+    const out = removeSkillFamily(ws, fam);
+    expect(out.skillFamilies!.some((f) => f.id === fam)).toBe(false);
+    expect(familyUsage(out, fam)).toEqual({
+      skills: 0,
+      people: 0,
+      demands: 0,
+      areas: 0,
+      lineUnits: 0,
+    });
+    expect(out.teams[0]!.demands![0]).toEqual({ id: 'd1', fte: 1, roleId: 'r1' });
   });
 
   it("sets a person's line fields", () => {

@@ -545,7 +545,7 @@ for (const lang of ['de', 'en'] as const) {
       await page.setViewportSize({ width, height: 900 });
       await page.clock.setFixedTime(new Date('2027-03-17T12:00:00'));
       await page.goto('/');
-      await page.getByRole('button', { name: 'Product Owner', exact: true }).first().click();
+      await page.getByRole('button', { name: 'Product ownership' }).first().click();
       const dialog = page.getByRole('dialog', { name: 'Plan new' });
       await dialog.getByRole('radio', { name: 'Scrum', exact: true }).check();
       await dialog.getByRole('button', { name: 'Next' }).click();

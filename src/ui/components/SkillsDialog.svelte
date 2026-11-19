@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { removeSkill } from '../../core/line';
+  import { removeSkill, removeSkillFamily } from '../../core/line';
   import {
     addSkill,
     addSkillFamily,
+    familyUsage,
     mergeSkill,
     renameSkill,
     renameSkillFamily,
@@ -17,7 +18,8 @@
 
   /**
    * Skills per skill family (#316): add, rename, merge two names of the same thing, and delete
-   * with a count of who uses it. Skills are plain tags (epic #314), so there are no levels.
+   * with a count of who uses it. A whole family can be deleted too (#389), after a warning that
+   * names what hangs on it. Skills are plain tags (epic #314), so there are no levels.
    */
   let { returnFocus }: { returnFocus?: () => void } = $props();
   const uid = $props.id();
@@ -28,6 +30,7 @@
   let newSkill = $state('');
   let error = $state('');
   let deleting = $state<string | null>(null);
+  let deletingFamily = $state<string | null>(null);
 
   const families = $derived($workspace.skillFamilies ?? []);
   const family = $derived(families.find((f) => f.id === familyId));
@@ -75,6 +78,38 @@
     deleting = null;
     if (choice === 'save' && id) apply((ws) => ({ ok: true, value: removeSkill(ws, id) }));
   }
+  async function onConfirmFamily(choice: Choice) {
+    const id = deletingFamily;
+    deletingFamily = null;
+    if (choice !== 'save' || !id) return;
+    if (!apply((ws) => ({ ok: true, value: removeSkillFamily(ws, id) })).ok) return;
+    familyId = families.find((f) => f.id !== id)?.id ?? '';
+    // The button left with the family: keep the keyboard in the dialog once the prompt closed.
+    await tick();
+    document.getElementById(familyId ? `${uid}-family` : `${uid}-new-family`)?.focus();
+  }
+  const familyName = (id: string | null) => families.find((f) => f.id === id)?.name ?? '';
+  const familyMessage = (id: string) => {
+    const u = familyUsage($workspace, id);
+    const parts = [
+      u.skills > 0
+        ? $t(u.skills === 1 ? 'line.skills.count.one' : 'line.skills.count.other', { n: u.skills })
+        : '',
+      u.people > 0
+        ? $t(u.people === 1 ? 'org.people.one' : 'org.people.other', { n: u.people })
+        : '',
+      u.demands > 0
+        ? $t(u.demands === 1 ? 'line.skills.demands.one' : 'line.skills.demands.other', {
+            n: u.demands,
+          })
+        : '',
+      u.areas > 0 ? $t('line.skills.usage.areas', { n: u.areas }) : '',
+      u.lineUnits > 0 ? $t('line.skills.usage.lineUnits', { n: u.lineUnits }) : '',
+    ].filter(Boolean);
+    return parts.length === 0
+      ? $t('line.skills.deleteFamily.unused')
+      : $t('line.skills.deleteFamily.message', { usage: parts.join(' · ') });
+  };
   const usageText = (id: string) => {
     const u = skillUsage($workspace, id);
     return [
@@ -118,6 +153,13 @@
             }}
           />
         </div>
+        <button
+          type="button"
+          class="danger"
+          aria-label={$t('line.skills.deleteFamily.label', { family: family.name })}
+          onclick={() => (deletingFamily = family?.id ?? null)}
+          >{$t('line.skills.deleteFamily')}</button
+        >
       {/if}
     </div>
 
@@ -195,6 +237,15 @@
   onchoose={onConfirmDelete}
 />
 
+<ConfirmDialog
+  open={deletingFamily !== null}
+  title={$t('line.skills.deleteFamily.title', { family: familyName(deletingFamily) })}
+  message={deletingFamily ? familyMessage(deletingFamily) : ''}
+  confirmLabel={$t('line.skills.deleteFamily')}
+  discard={false}
+  onchoose={onConfirmFamily}
+/>
+
 <style>
   dialog {
     width: min(40rem, calc(100vw - 2 * var(--space)));
@@ -264,6 +315,10 @@
   }
   .skills select {
     max-width: 12rem;
+  }
+  /* Deleting reads as destructive before the confirmation (#389). */
+  :global(#app) dialog button.danger {
+    color: var(--danger);
   }
   .actions {
     display: flex;
