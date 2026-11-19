@@ -196,9 +196,21 @@ test('a wheel over a focused number field scrolls and leaves the value alone', a
   const before = await field.inputValue();
   await field.focus();
   await field.hover();
+  const scrolled = () =>
+    page.evaluate(() =>
+      Math.max(
+        scrollY,
+        ...[...document.querySelectorAll('*')].map((el) =>
+          getComputedStyle(el).overflowY === 'auto' ? el.scrollTop : 0,
+        ),
+      ),
+    );
+  const top = await scrolled();
   await page.mouse.wheel(0, 200);
   await page.mouse.wheel(0, -100);
   await page.mouse.wheel(0, 200);
   await expect(field).toHaveValue(before);
+  // The page scrolled on instead.
+  await expect.poll(scrolled).toBeGreaterThan(top);
   await expect(page.getByText('✓ Saved')).toBeVisible();
 });
