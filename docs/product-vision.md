@@ -6,7 +6,7 @@ This page is the yardstick for every change proposal. Words follow the [glossary
 
 Caldence lets an Agile Coach build the meeting system of teams and areas in minutes and show everyone the same picture of it: when people meet, how much of their time it takes and what it costs, before anyone argues about it.
 
-Where line managers staff products, Caldence shows at the moment of staffing what a product's meetings leave of a commitment, so nobody commits time that the meetings already take. It goes into staffing only as far as that needs (#314).
+Where line managers staff products, Caldence shows at the moment of staffing what a product's meetings leave of a commitment, so nobody commits time that the meetings already take. It goes into staffing only as far as that needs.
 
 ## Target users
 
