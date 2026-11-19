@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { areaOf, orgName, ORG_UNIT, type Area, type Cadence, type Team } from '../../core/model';
+  import { areaOf, orgName, type Area, type Cadence, type Team } from '../../core/model';
   import { levels, translate as t } from '../../i18n';
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
