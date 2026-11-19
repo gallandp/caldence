@@ -261,7 +261,20 @@
                     class="link unit-name"
                     onclick={() => onOpen(lineSelection(row.unit.id))}>{row.unit.name}</button
                   >
-                  {#if row.group}<span class="group-name">{row.group.name}</span>{/if}
+                  {#if row.path.length > 0}
+                    <!-- The line above; beyond two units only the direct one, the full path on
+                         hover and for screen readers (#408). -->
+                    {@const full = row.path.map((u) => u.name).join(' › ')}
+                    {#if row.path.length > 2}
+                      <span class="group-name" title={full}
+                        ><span aria-hidden="true">… › {row.path.at(-1)!.name}</span><span
+                          class="sr-only">{full}</span
+                        ></span
+                      >
+                    {:else}
+                      <span class="group-name">{full}</span>
+                    {/if}
+                  {/if}
                 </span>
               </th>
               {@render cells(row.unit.name, row.cells, row.people, true)}

@@ -12,6 +12,7 @@ import {
   parseFte,
   reviewStaff,
   staffTable,
+  levelColumns,
   staffTemplateCsv,
   staffTemplateSheets,
   type Choice,
@@ -486,5 +487,77 @@ describe('template', () => {
   it('CSV template is the header line', () => {
     expect(staffTemplateCsv(t, ';')).toBe(HEAD.join(';') + '\r\n');
     expect(staffTable(parseCsv(staffTemplateCsv(t, ','))).missing).toEqual([]);
+  });
+});
+
+describe('own line levels (#408)', () => {
+  /** Levels company · Sparte · group · Staffel · team; the existing units store their levels. */
+  function leveled(): Workspace {
+    const w = lined();
+    w.settings.lineLevels = [
+      { id: 'company', company: true },
+      { id: 'll1', name: 'Sparte' },
+      { id: 'group' },
+      { id: 'll2', name: 'Staffel' },
+      { id: 'team' },
+    ];
+    w.lineUnits![0]!.kind = 'group';
+    w.lineUnits![1]!.kind = 'team';
+    return w;
+  }
+  const cols = levelColumns(leveled().settings, (id) => ({ ll1: 'Sparte', ll2: 'Staffel' })[id]!);
+  const head = ['Name', 'Linienteam', 'Vertrag FTE', 'Skills', 'Sparte', 'Fachgruppe', 'Staffel'];
+  const runLevels = (ws: Workspace, rows: (string | number | null)[][]) =>
+    reviewStaff(ws, staffTable([head, ...rows], {}, cols), {}, names);
+
+  it('has a column for each own level but the lowest, the group and a company level', () => {
+    expect(cols.map((c) => c.id)).toEqual(['ll1', 'll2']);
+    expect(levelColumns(lined().settings, (id) => id)).toEqual([]);
+  });
+
+  it('builds the whole path top-down, each unit on its level', () => {
+    const r = runLevels(leveled(), [
+      ['Mira Holt', 'Blau Eins', 1, '', 'Nord', 'Fachgruppe Handel', 'Staffel Blau'],
+      ['Jon Reh', 'Blau Zwei', 1, '', 'Nord', 'Fachgruppe Handel', 'Staffel Blau'],
+    ]);
+    expect(r.rows.map((x) => x.status)).toEqual(['new', 'new']);
+    const units = r.ws.lineUnits!;
+    const by = (n: string) => units.find((u) => u.name === n)!;
+    // The existing group is found anywhere; Sparte "Nord" is the first step, the group below it is
+    // a new one there, then the squad and the teams.
+    expect(by('Nord')).toMatchObject({ kind: 'll1' });
+    expect(by('Staffel Blau')).toMatchObject({ kind: 'll2' });
+    expect(by('Blau Eins')).toMatchObject({ kind: 'team', parentId: by('Staffel Blau').id });
+    expect(by('Blau Zwei').parentId).toBe(by('Staffel Blau').id);
+    expect(units.filter((u) => u.name === 'Staffel Blau')).toHaveLength(1);
+    expect(keys(r.ws)).toEqual([]);
+  });
+
+  it('places a team below an existing group without further columns', () => {
+    const r = runLevels(leveled(), [
+      ['Mira Holt', 'Orvalis Ware', 1, '', '', 'Fachgruppe Handel', ''],
+    ]);
+    expect(r.rows[0]!.status).toBe('new');
+    expect(r.ws.people.find((p) => p.name === 'Mira Holt')!.lineUnitId).toBe('l1');
+  });
+
+  it('writes the own levels into the template where the group column stands', () => {
+    const t = staffTemplateCsv(
+      {
+        headers: {
+          name: 'Name',
+          team: 'Linienteam',
+          fte: 'Vertrag FTE',
+          skills: 'Skills',
+          group: 'Fachgruppe',
+          company: 'Gesellschaft',
+        },
+        sheet: 'Personal',
+        exampleSheet: 'Beispiel',
+        line: [{ header: 'Sparte' }, { header: 'Fachgruppe', group: true }, { header: 'Staffel' }],
+      },
+      ';',
+    );
+    expect(t).toBe('Name;Linienteam;Vertrag FTE;Skills;Sparte;Fachgruppe;Staffel;Gesellschaft\r\n');
   });
 });
