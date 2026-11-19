@@ -157,11 +157,19 @@ export function removeSkillFamily(ws: Workspace, familyId: string): Workspace {
   return out;
 }
 
-/** Deletes a company; its people stay, without a company. */
+/**
+ * Deletes a company; its people stay, without a company. A company unit for it (#399) stays as a
+ * unit whose level is derived again.
+ */
 export function removeCompany(ws: Workspace, companyId: string): Workspace {
   const out = structuredClone(ws);
   out.companies = out.companies?.filter((c) => c.id !== companyId);
   for (const p of out.people) if (p.companyId === companyId) delete p.companyId;
+  for (const u of out.lineUnits ?? [])
+    if (u.companyId === companyId) {
+      delete u.companyId;
+      delete u.kind;
+    }
   return out;
 }
 

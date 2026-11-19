@@ -19,6 +19,8 @@
   let name = $state('');
   let parentId = $state('');
   let kind = $state<LineKind>('team');
+  /** The level as shown when the dialog opened: only a level the user changes is stored. */
+  let shownKind: LineKind = 'team';
   const KINDS: readonly LineKind[] = ['company', 'group', 'team'];
   let managerId = $state('');
   let familyId = $state('');
@@ -39,7 +41,10 @@
     // A unit on the lowest level offers no place below it: then the new one starts at the top.
     const offered = parentChoices($workspace, of?.id).some((u) => u.id === under);
     parentId = of?.parentId ?? (offered ? under! : '');
+    // New units and units of older files show their derived level; it is only stored once the
+    // user picks another one, so a unit without a stored level can still get units below it.
     kind = of ? lineKind($workspace, of.id) : 'team';
+    shownKind = kind;
     managerId = of?.managerPersonId ?? '';
     familyId =
       of?.skillFamilyId ??
@@ -60,7 +65,7 @@
     }
     const target = unit;
     const patch = {
-      kind,
+      ...(kind !== shownKind || unit?.kind !== undefined ? { kind } : {}),
       // A company always sits at the top (#399).
       parentId: (kind === 'company' ? '' : parentId) || null,
       managerPersonId: managerId || null,
@@ -106,7 +111,11 @@
     </div>
     <div class="field">
       <label for="{uid}-kind">{$t('line.unit.kind')}</label>
-      <select id="{uid}-kind" bind:value={kind} aria-describedby="{uid}-kind-hint">
+      <select
+        id="{uid}-kind"
+        bind:value={kind}
+        aria-describedby={kind === 'company' ? `${uid}-kind-hint` : undefined}
+      >
         {#each KINDS as k (k)}
           <option value={k}>{lineLevelWord($levels, k)}</option>
         {/each}
@@ -153,7 +162,9 @@
       </select>
     </div>
     {#if general}
-      <p class="field-error" role="alert">{$t(general, { path: $t('line.unit.parent') })}</p>
+      <p class="field-error" role="alert">
+        {$t(general, { path: name.trim() || $t('line.unit.parent') })}
+      </p>
     {/if}
     <div class="actions">
       <button type="submit" class="primary"
