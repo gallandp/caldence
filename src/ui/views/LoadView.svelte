@@ -2,6 +2,7 @@
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import {
+    areaHints,
     areaHours,
     capacity,
     fte,
@@ -145,6 +146,29 @@
     maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
 
   const allWarnings = $derived(warnings(weeks, $workspace));
+
+  /**
+   * Area hours that are missing or mostly taken by area meetings: hints, not warnings (#307).
+   * With an area chosen only that area's hints; sorted by name.
+   */
+  const hintItems = $derived.by(() => {
+    const ws = $workspace;
+    const inScope = scopePeople(ws, $filter);
+    const nameOf = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+    return areaHints(weeks, ws)
+      .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
+      .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
+      .map((h) => ({
+        key: `${h.personId}/${h.areaId}`,
+        text: $t(`load.hint.${h.kind}`, {
+          person: nameOf(h.personId),
+          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
+          hours: hours(h.hours),
+          share: formatPercent($locale, fte(h.hours, h.areaHours)),
+          areaHours: weekly(h.areaHours),
+        }),
+      }));
+  });
 
   /** Up to this many weeks are named; more are summed up as a span. */
   const NAMED_WEEKS = 4;
@@ -517,6 +541,15 @@
         {/each}
       </ul>
     {/if}
+    {#if hintItems.length > 0}
+      <h4 class="hints-title">{$t('load.hints')}</h4>
+      <p class="note">{$t('load.hints.rule')}</p>
+      <ul class="hints" data-area-hints>
+        {#each hintItems as h (h.key)}
+          <li>{h.text}</li>
+        {/each}
+      </ul>
+    {/if}
   </section>
 
   {#if $workspace.people.length > 0}
@@ -851,6 +884,17 @@
   .num.over {
     color: var(--warn);
     font-weight: 700;
+  }
+  .hints-title {
+    margin: 1rem 0 0;
+    font-size: 0.9375rem;
+  }
+  .hints {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+    padding-left: 1.1rem;
   }
   .bar {
     position: relative;

@@ -2,6 +2,8 @@
 
 A Caldence workspace is one JSON file, usually named like `plan.caldence.json`. It holds everything you plan: settings, roles, people, categories, teams, areas and their meetings. The current schema version is `7`.
 
+Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes *format 2*: `schemaVersion` is 1000 plus the schema it is based on (for example `1007`). Caldence 1.x does not open such a file and says that it belongs to Caldence 2, so the new data is never dropped on save. Caldence 2 opens files of both formats.
+
 ## Fields
 
 | Field | Type | Meaning |
