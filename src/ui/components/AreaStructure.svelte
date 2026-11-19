@@ -9,6 +9,7 @@
   import AreaIcon from './AreaIcon.svelte';
   import AreaPersonAdd from './AreaPersonAdd.svelte';
   import AreaPersonCard from './AreaPersonCard.svelte';
+  import OwnerAvatars from './OwnerAvatars.svelte';
   import { workspace } from '../state/workspace';
   import { presenting } from '../state/present';
 
@@ -127,9 +128,9 @@
     teamsDialog?.show(area);
   }
 
-  /** Opens "+ Person" for the area (the "area is ready" card). */
-  export function addPerson() {
-    adder?.show(addButton);
+  /** Opens "+ Person" for the area (the "area is ready" card, a missing owner with its role). */
+  export function addPerson(roleId?: string) {
+    adder?.show(addButton, roleId);
   }
 
   function pick(personId: string, event: Event, focusHours = false) {
@@ -324,6 +325,7 @@
           <div class="areatitle">
             <h3 id="areanode-name">{area.name}</h3>
             <small>{areaMeta}</small>
+            <div class="ownline"><OwnerAvatars unit={area} names /></div>
           </div>
           <div class="tot">
             <b>{h(s.areaHours)}</b>
@@ -460,6 +462,7 @@
               <div>
                 <h4 id="team-{st.teamId}">{team.name}</h4>
                 <small>{teamMeta(team)}</small>
+                <div class="ownline"><OwnerAvatars unit={team} names /></div>
               </div>
             </div>
             <div class="tboth">
@@ -1045,6 +1048,12 @@
     gap: 0.625rem;
     padding: 0.75rem 0.75rem 0.625rem;
     border-top: 3px solid var(--accent);
+  }
+  .ownline {
+    margin-top: 0.3rem;
+  }
+  .ownline:empty {
+    display: none;
   }
   .thead h4 {
     margin: 0;
