@@ -8,6 +8,7 @@ import { exampleWorkspace } from '../../src/data/examples';
 import {
   DEFAULT_FILE_NAME,
   createFileService,
+  v2FileName,
   exportTextFile,
   isActivationError,
   openTextFile,
@@ -59,6 +60,36 @@ describe('file service with pickers', () => {
     expect(await svc.save(ws, 'a.json')).toBe('a.json');
     expect(writes).toEqual([serialize(ws)]);
     expect(showSaveFilePicker).not.toHaveBeenCalled();
+  });
+
+  it('never overwrites an opened 1.x file: the first save asks, with a v2 name (#344)', async () => {
+    const old = fakeHandle('plan.caldence.json', JSON.stringify({ ...ws, schemaVersion: 7 }));
+    const target = fakeHandle('plan-v2.caldence.json');
+    const showSaveFilePicker = vi.fn(async () => target.handle);
+    const svc = createFileService({
+      showOpenFilePicker: async () => [old.handle],
+      showSaveFilePicker,
+      download: vi.fn(),
+      pickFile: async () => null,
+    });
+    const opened = await svc.open();
+    expect(opened?.ok && opened.value.name).toBe('plan.caldence.json');
+    await svc.save(ws, 'plan.caldence.json');
+    expect(old.writes).toEqual([]);
+    expect(showSaveFilePicker).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestedName: 'plan-v2.caldence.json' }),
+    );
+    expect(target.writes).toEqual([serialize(ws)]);
+  });
+
+  it.each([
+    ['plan.json', 'plan-v2.json'],
+    ['plan.caldence.json', 'plan-v2.caldence.json'],
+    ['PLAN.JSON', 'PLAN-v2.JSON'],
+    ['plan-v2.json', 'plan-v2.json'],
+    ['plan', 'plan-v2'],
+  ])('v2FileName(%s) is %s', (name, expected) => {
+    expect(v2FileName(name)).toBe(expected);
   });
 
   it('save without a handle asks for a location and keeps the handle', async () => {

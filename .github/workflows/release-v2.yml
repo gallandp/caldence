@@ -52,6 +52,10 @@ jobs:
         run: |
           # No dependency needs an install script.
           npm ci --ignore-scripts
+          # A push to release/v2 may also come without a PR (main merged in): test before release.
+          npm run lint
+          npm run check
+          npm test
           npm run build
           npm run package
           sha256sum "caldence-$VERSION.zip" > "caldence-$VERSION.zip.sha256"
@@ -99,7 +103,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
           RELEASE_DIR: ${{ runner.temp }}/release
+        # A re-run after a failed dispatch finds the release already there and keeps it.
         run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v$VERSION is already published."
+            exit 0
+          fi
           gh release create "v$VERSION" \
             "$RELEASE_DIR/caldence-$VERSION.zip" "$RELEASE_DIR/caldence-$VERSION.zip.sha256" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \

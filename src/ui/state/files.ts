@@ -1,4 +1,4 @@
-import type { Workspace } from '../../core/model';
+import { FORMAT2_SCHEMA_BASE, type Workspace } from '../../core/model';
 import { loadWorkspace, type Result } from '../../core/validate';
 import { toFile } from '../../core/migrate';
 
@@ -32,6 +32,23 @@ export interface FileEnv {
   download(name: string, data: string | Uint8Array<ArrayBuffer>): void;
   /** `accept` is the value for the file input's accept attribute. */
   pickFile(accept?: string): Promise<File | null>;
+}
+
+/** True when the text is a format 2 file (Caldence 2, `schemaVersion` 1000 + n). */
+function isFormat2(text: string): boolean {
+  try {
+    const v = (JSON.parse(text) as { schemaVersion?: unknown }).schemaVersion;
+    return typeof v === 'number' && v >= FORMAT2_SCHEMA_BASE;
+  } catch {
+    return false;
+  }
+}
+
+/** The name Caldence 2 suggests for the copy of a 1.x file: `plan.json` → `plan-v2.json`. */
+export function v2FileName(name: string): string {
+  if (/-v2(\.caldence)?\.json$/i.test(name)) return name;
+  const m = /^(.*?)((\.caldence)?\.json)$/i.exec(name);
+  return m ? `${m[1]}-v2${m[2]}` : `${name}-v2`;
 }
 
 export function serialize(ws: Workspace): string {
@@ -160,6 +177,7 @@ export async function exportTextFile(
 
 export function createFileService(env: FileEnv) {
   let handle: FileHandleLike | null = null;
+  let fromFormat1 = false;
 
   async function open(): Promise<Result<{ ws: Workspace; name: string }> | null> {
     let text: string;
@@ -185,7 +203,10 @@ export function createFileService(env: FileEnv) {
     }
     const loaded = loadWorkspace(text);
     if (!loaded.ok) return loaded;
-    handle = picked; // replaces any earlier handle (null in the fallback path)
+    // A 1.x file (format 1) is never overwritten with format 2, which 1.x cannot open (#344):
+    // the first save asks for a place and suggests a name of its own.
+    fromFormat1 = !isFormat2(text);
+    handle = fromFormat1 ? null : picked; // replaces any earlier handle (null in the fallback path)
     return { ok: true, value: { ws: loaded.value, name } };
   }
 
@@ -197,12 +218,13 @@ export function createFileService(env: FileEnv) {
   }
 
   async function saveAs(ws: Workspace, name: string | null): Promise<string | null> {
-    const suggested = name ?? DEFAULT_FILE_NAME;
+    const suggested = fromFormat1 && name ? v2FileName(name) : (name ?? DEFAULT_FILE_NAME);
     if (env.showSaveFilePicker) {
       try {
         const target = await env.showSaveFilePicker({ suggestedName: suggested, types: jsonTypes });
         const saved = await write(target, ws);
         handle = target;
+        fromFormat1 = false;
         return saved;
       } catch (error) {
         if (isAbort(error)) return null;
@@ -210,6 +232,7 @@ export function createFileService(env: FileEnv) {
       }
     }
     env.download(suggested, serialize(ws));
+    fromFormat1 = false;
     return suggested;
   }
 
@@ -221,6 +244,7 @@ export function createFileService(env: FileEnv) {
   /** Drops the remembered handle, e.g. when the workspace was replaced by another one. */
   function forget(): void {
     handle = null;
+    fromFormat1 = false;
   }
 
   return { open, save, saveAs, forget };

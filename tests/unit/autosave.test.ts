@@ -227,7 +227,7 @@ describe('autosave of Caldence 2 next to 1.x (#344)', () => {
     legacy.data.set('current', { ws, fileName: 'plan.json', dirty: true });
     const before = structuredClone(legacy.data.get('current'));
     const a = createAutosave(own, 0, legacy);
-    expect(await a.restore()).toEqual({ ws, fileName: 'plan.json', dirty: true });
+    expect(await a.restore()).toEqual({ ws, fileName: 'plan-v2.json', dirty: true });
     a.schedule(
       { ws: { ...ws, id: 'changed' }, fileName: 'plan.json', dirty: true },
       { immediate: true },
