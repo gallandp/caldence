@@ -21,6 +21,7 @@
   const euro = (n: number) => formatEuro($locale, n);
   const perCadence = $derived(cadence ? costPerCadence(summary.perWeek, cadence) : undefined);
   /** The area share per sprint or PI, wherever the card shows its own (#366). */
+  // areaShare.perCadence uses the team's cadence; pass that same team's cadence as `cadence`.
   const shareCadence = $derived(perCadence === undefined ? undefined : areaShare?.perCadence);
   const kind = $derived(cadence ? $t(`meet.kind.${cadence.kind}`) : '');
   const max = $derived(Math.max(0, ...summary.byCategory.map((c) => c.perWeek)));
