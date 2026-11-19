@@ -69,6 +69,17 @@ test('a file at the target scale opens and renders within budget', async ({ page
       }),
     );
     await expect(page.locator('[data-staffing-map]')).toBeVisible();
+    // The matrix page (#396): line teams × products, people folded at this scale.
+    times[`${scope}/matrix`] = Math.round(
+      await page.evaluate(async () => {
+        const tab = document.querySelectorAll<HTMLButtonElement>('.pages button')[2]!;
+        const t0 = performance.now();
+        tab.click();
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        return performance.now() - t0;
+      }),
+    );
+    await expect(page.locator('.matrix table')).toBeVisible();
     await page.locator('.pages button').first().click();
   };
   await all('org');

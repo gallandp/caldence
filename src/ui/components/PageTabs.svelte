@@ -1,16 +1,24 @@
 <script lang="ts">
   import { translate as t } from '../../i18n';
   import { areaPage } from '../state/view';
+  import { workspace } from '../state/workspace';
 
   /**
    * "Structure | Overview" above the page of an area or of the organisation (#322). Tabs, not a
    * segmented pill, so the page switch never looks like Tree | Table.
    */
   let { el = $bindable() }: { el?: HTMLDivElement } = $props();
+
+  /** The matrix (#396) only once the file has a line to show in its rows. */
+  const pages = $derived(
+    ($workspace.lineUnits?.length ?? 0) > 0
+      ? (['structure', 'overview', 'matrix'] as const)
+      : (['structure', 'overview'] as const),
+  );
 </script>
 
 <div class="pages" data-no-print role="group" aria-label={$t('area.view.label')} bind:this={el}>
-  {#each ['structure', 'overview'] as const as p (p)}
+  {#each pages as p (p)}
     <button type="button" aria-pressed={$areaPage === p} onclick={() => areaPage.set(p)}
       >{$t(`area.view.${p}`)}</button
     >
