@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { perfWorkspace } from '../fixtures/perf-workspace';
+import { lineExampleWorkspace } from '../../src/data/examples/line-example';
 import { pickUnit, useFileFallback } from './helpers';
 
 /**
@@ -16,7 +16,7 @@ const VIEWS = ['calendar', 'load', 'meetings', 'team', 'templates', 'settings', 
 
 test('a file at the target scale opens and renders within budget', async ({ page }) => {
   test.setTimeout(120_000);
-  const ws = perfWorkspace();
+  const ws = lineExampleWorkspace('en');
   ws.view = { unit: '@organisation', page: 'help' };
   await useFileFallback(page);
   await page.goto('/');
@@ -87,9 +87,11 @@ test('a file at the target scale opens and renders within budget', async ({ page
       .click();
     await expect(page.locator('.switcher .pick .label')).toHaveText(name);
   };
-  await line(ws.lineUnits!.find((u) => u.parentId?.startsWith('g'))!.name);
+  const root = ws.lineUnits!.find((u) => !u.parentId)!;
+  const group = ws.lineUnits!.find((u) => u.parentId === root.id)!;
+  await line(ws.lineUnits!.find((u) => u.parentId === group.id)!.name);
   await all('lineTeam');
-  await line('Velmora Verbund');
+  await line(root.name);
   await all('line');
   console.log(JSON.stringify(times));
 

@@ -698,6 +698,7 @@
               <StartView
                 onOpenFile={() => fromEmptyState(bar?.open())}
                 onOpenExample={() => fromEmptyState(bar?.openExample())}
+                onOpenLineExample={() => fromEmptyState(bar?.openLineExample())}
                 onManual={() => {
                   openTopic.set('start');
                   select('help', true);

@@ -336,9 +336,9 @@ export function weekRows(ws: Workspace, index: HolidayIndex, filter: Filter): We
   const perWeek: Record<string, number>[] = Array.from({ length: count }, () => record<number>());
   const bucketAt = new Map<ISODate, Record<string, number> | undefined>();
   eachHours(ws, index, filter, undefined, (occ, key, hours) => {
-    if (!bucketAt.has(occ.date))
-      bucketAt.set(occ.date, perWeek[diffDays(mondayOf(occ.date), first) / 7]);
-    const bucket = bucketAt.get(occ.date);
+    let bucket = bucketAt.get(occ.date);
+    if (bucket === undefined && !bucketAt.has(occ.date))
+      bucketAt.set(occ.date, (bucket = perWeek[diffDays(mondayOf(occ.date), first) / 7]));
     if (bucket) bucket[key] = (bucket[key] ?? 0) + hours;
   });
   for (let i = 0; i < count; i++) {

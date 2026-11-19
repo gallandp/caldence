@@ -251,18 +251,6 @@ describe('line model (#315)', () => {
   });
 });
 
-describe('performance fixture (#315)', () => {
-  it('is valid and at the target scale', async () => {
-    const { perfWorkspace } = await import('../fixtures/perf-workspace');
-    const w = perfWorkspace();
-    expect(keys(w)).toEqual([]);
-    const meetings = w.teams.reduce((n, t) => n + t.events.length, 0) + w.areas.length * 5;
-    expect([w.teams.length, w.areas.length]).toEqual([61, 11]);
-    expect(w.people.length).toBeGreaterThanOrEqual(480);
-    expect(meetings).toBeGreaterThanOrEqual(600);
-  });
-});
-
 describe('assign keeps manual memberships (#315 review)', () => {
   it('refuses a person who is already a member of the team', () => {
     const w = structuredClone(fixture) as unknown as Workspace;

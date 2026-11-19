@@ -104,6 +104,8 @@
   "start.or": "Or",
   "start.file.hint": "Continue a saved plan",
   "start.example.hint": "Explore a ready-made example with several teams",
+  "start.lineExample": "Open the large line example",
+  "start.lineExample.hint": "An invented group with 61 products, about 500 people in the line, skills and staffing",
   "start.private": "Everything stays in your browser.",
   "setup.open": "Plan new",
   "setup.title": "Plan new",
