@@ -252,6 +252,11 @@ export const TOPICS: Topic[] = [
       },
       { text: 'help.g.staffing.4', control: { role: 'button', name: 'assign.start' } },
       { text: 'help.g.staffing.5', control: { role: 'button', name: 'assign.save' } },
+      {
+        text: 'help.g.staffing.6',
+        control: { role: 'button', name: 'area.view.overview' },
+        labels: { org: 'view.org', map: 'map.title' },
+      },
     ],
   },
   {

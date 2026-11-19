@@ -1301,6 +1301,7 @@
   "help.g.staffing.3": "At the top of the sidebar, choose a {lineTeam} unit under {line} and open {control}. It shows its people next to the open demands of their skill family (without a skill family: all open demands).",
   "help.g.staffing.4": "Drag a person onto a demand, or open {control} on the demand.",
   "help.g.staffing.5": "Set the FTE. Before you save, you see how much time is left after meetings and whether the minimum commitment is met. {control} adds the person as a member.",
+  "help.g.staffing.6": "On the {org} page, {control} shows in its {map} section how far the {levelTeamsLc} are staffed and what meetings leave of the commitments. A tile opens its page.",
   "help.g.settings.1": "Open {control}.",
   "help.g.settings.2": "{region} decides the public and school holidays.",
   "help.g.settings.3": "{hpw}, {workdays} and {horizon} set the frame.",

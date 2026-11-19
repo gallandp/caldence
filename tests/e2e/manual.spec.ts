@@ -230,11 +230,14 @@ test.describe('staffing help (#324)', () => {
     const help = panel(page, c['view.help']!);
     await help.locator('[data-topic="staffing"]').click();
     const steps = await readSteps(help);
-    expect(steps).toHaveLength(5);
+    expect(steps).toHaveLength(6);
     for (const step of steps) if (step.name) expect(step.text).toContain(step.name);
     /** The labels a step names besides its control, in the order of the text. */
     const named = (i: number) =>
       help.locator('[data-manual-steps] > li').nth(i).locator('.ui').allTextContents();
+
+    // Read now: the guide is gone once another view opens.
+    const [org, , map] = await named(5);
 
     // 1: the sidebar's actions offer adding a line unit; the import sits in Import / Export.
     const [actions, ...rest] = await named(0);
@@ -270,6 +273,16 @@ test.describe('staffing help (#324)', () => {
       .click();
     await expect(
       page.getByRole('dialog').getByRole('button', { name: steps[4]!.name!, exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // 6: the organisation's Overview holds the staffing map (#322).
+    await page.locator('.switcher .pick').click();
+    await page.locator('.switcher .list button.org').click();
+    await showView(page, org!);
+    await page.getByRole('button', { name: steps[5]!.name!, exact: true }).click();
+    await expect(
+      page.locator('[data-staffing-map]').getByRole('heading', { name: map, exact: true }),
     ).toBeVisible();
   });
 

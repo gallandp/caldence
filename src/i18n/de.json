@@ -1301,6 +1301,7 @@
   "help.g.staffing.3": "Wählen Sie oben in der Seitenleiste unter {line} eine Einheit der Ebene {lineTeam} und öffnen Sie {control}. Dort stehen ihre Personen neben den offenen Bedarfen ihrer Skill-Familie (ohne Skill-Familie: allen offenen Bedarfen).",
   "help.g.staffing.4": "Ziehen Sie eine Person auf einen Bedarf, oder öffnen Sie {control} am Bedarf.",
   "help.g.staffing.5": "Stellen Sie die FTE ein. Vor dem Speichern sehen Sie, wie viel Zeit nach den Terminen bleibt und ob die Zusage die Mindestzusage erreicht. {control} trägt die Person als Mitglied ein.",
+  "help.g.staffing.6": "Auf der Seite {org} zeigt {control} im Abschnitt {map}, wie weit die {levelTeams} besetzt sind und was die Termine von den Zusagen übrig lassen. Eine Kachel öffnet die Seite dazu.",
   "help.g.settings.1": "Öffnen Sie {control}.",
   "help.g.settings.2": "{region} bestimmt Feiertage und Schulferien.",
   "help.g.settings.3": "{hpw}, {workdays} und {horizon} setzen den Rahmen.",
