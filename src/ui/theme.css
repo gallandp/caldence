@@ -613,3 +613,9 @@ body {
     gap: 20px 0.75rem;
   }
 }
+
+/* Example placeholders in fields (e.g. the setup wizard): muted, but readable (WCAG 4.5:1). */
+#app ::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}

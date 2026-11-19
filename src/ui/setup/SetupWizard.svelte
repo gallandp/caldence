@@ -396,6 +396,7 @@
   read: () => string,
   write: (v: string) => void,
   hint?: string,
+  placeholder?: string,
 )}
   {@const wrong = structError?.field === field}
   <div class="field">
@@ -404,6 +405,7 @@
       id="{uid}-{field}"
       type="text"
       value={read()}
+      {placeholder}
       aria-invalid={wrong ? 'true' : undefined}
       aria-describedby={[hint ? `${uid}-${field}-hint` : '', wrong ? `${uid}-${field}-err` : '']
         .filter(Boolean)
@@ -426,6 +428,7 @@
       id="{uid}-{field}"
       rows="3"
       value={read()}
+      placeholder={$t('setup.area.teams.example')}
       aria-invalid={wrong ? 'true' : undefined}
       aria-describedby="{uid}-{field}-hint{wrong ? ` ${uid}-${field}-err` : ''}"
       oninput={(e) => {
@@ -506,6 +509,7 @@
           type="text"
           bind:this={nameInput}
           bind:value={name}
+          placeholder={$t('setup.team.name.example')}
           aria-invalid={nameError ? 'true' : undefined}
           aria-describedby={nameError ? `${uid}-name-err` : undefined}
           oninput={() => (nameError = false)}
@@ -524,13 +528,14 @@
           {$t('setup.people.hint')}
           {#if known.length > 0}{$t('setup.people.known', { names: known.join(', ') })}{/if}
         </p>
-        {#each roles as role (role.id)}
+        {#each roles as role, i (role.id)}
           <div class="field">
             <label for="{uid}-role-{role.id}">{role.name}</label>
             <input
               id="{uid}-role-{role.id}"
               type="text"
               aria-describedby="{uid}-people-hint"
+              placeholder={i === 0 ? $t('setup.people.example') : undefined}
               bind:value={names[role.id]}
             />
           </div>
@@ -573,7 +578,12 @@
             <div class="row">
               <div class="field">
                 <label for="{uid}-me-name">{$t('setup.me.name')}</label>
-                <input id="{uid}-me-name" type="text" bind:value={myName} />
+                <input
+                  id="{uid}-me-name"
+                  type="text"
+                  bind:value={myName}
+                  placeholder={$t('setup.me.name.example')}
+                />
               </div>
               <div class="field">
                 <label for="{uid}-me-role">{$t('setup.me.role')}</label>
@@ -609,6 +619,8 @@
           $t('setup.org.name'),
           () => orgName,
           (v) => (orgName = v),
+          undefined,
+          $t('setup.org.name.example'),
         )}
         {#each rows as row, i (i)}
           <fieldset class="unit">
@@ -618,6 +630,8 @@
               $t('setup.area.name', { area: words.area }),
               () => row.name,
               (v) => (row.name = v),
+              undefined,
+              $t('setup.area.name.example'),
             )}
             {@render teamsField(
               `row-${i}-teams`,
@@ -640,6 +654,8 @@
           $t('setup.area.name', { area: words.area }),
           () => areaName,
           (v) => (areaName = v),
+          undefined,
+          $t('setup.area.name.example'),
         )}
         {@render teamsField(
           'area-teams',
@@ -658,6 +674,7 @@
           () => orgName,
           (v) => (orgName = v),
           $t('setup.line.org.hint'),
+          $t('setup.org.name.example'),
         )}
       {/if}
       {@render textField(
@@ -666,6 +683,7 @@
         () => lineGroup,
         (v) => (lineGroup = v),
         $t('setup.line.group.hint'),
+        $t('setup.line.group.example'),
       )}
       <div class="field">
         <label for="{uid}-line-teams">{$t('setup.line.teams')}</label>
@@ -673,6 +691,7 @@
           id="{uid}-line-teams"
           rows="4"
           bind:value={lineTeams}
+          placeholder={$t('setup.line.teams.example')}
           aria-invalid={structError?.field === 'line-teams' ? 'true' : undefined}
           aria-describedby="{uid}-line-teams-hint{structError?.field === 'line-teams'
             ? ` ${uid}-line-teams-err`
