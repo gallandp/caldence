@@ -7,7 +7,7 @@
     type StaffRow,
     type UnitStats,
   } from '../../core/lineStaff';
-  import { lineSelection, linePeople, type LineUnit } from '../../core/model';
+  import { ORG_UNIT, lineSelection, linePeople, type LineUnit } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
   import { lineLevelWord } from '../../i18n/levels';
   import { initials } from '../avatar';
@@ -41,10 +41,10 @@
     return staffRows(ws, root.id, weeks, overLimitPeople(weeks, ws));
   });
   const byPerson = $derived(new Map(allRows.map((r) => [r.person.id, r])));
-  /** Sub-units per parent, built once per workspace. */
+  /** Sub-units per parent, built once per workspace; top units sit below the organisation (#395). */
   const children = $derived.by(() => {
     const out: Record<string, LineUnit[]> = {};
-    for (const u of ws.lineUnits ?? []) if (u.parentId) (out[u.parentId] ??= []).push(u);
+    for (const u of ws.lineUnits ?? []) (out[u.parentId ?? ORG_UNIT] ??= []).push(u);
     return out;
   });
   const kids = (id: string): LineUnit[] => children[id] ?? [];
@@ -71,7 +71,7 @@
     const manager = managerOf(u);
     return [
       // The level chosen for the unit (#399), else derived from whether it has units below.
-      lineLevelWord($levels, u.kind ?? (group ? 'group' : 'team')),
+      lineLevelWord($levels, u.id === ORG_UNIT ? 'org' : (u.kind ?? (group ? 'group' : 'team'))),
       withCount && group ? unitsText(countBelow(u.id)) : '',
       manager ? $t('line.tile.manager', { name: manager }) : '',
     ]

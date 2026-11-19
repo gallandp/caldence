@@ -11,15 +11,17 @@ test.beforeEach(async ({ page }) => {
 
 async function openBoard(page: Page) {
   await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
+  await page
+    .getByRole('radiogroup', { name: 'World' })
+    .getByRole('radio', { name: 'Line' })
+    .click();
   await page.locator('.switcher .pick').click();
   await page
     .locator('.switcher .list button.line')
     .filter({ has: page.locator('.opt-name-line', { hasText: /^Orvalis Ware$/ }) })
     .click();
-  await showView(page, 'Line team');
-  const view = page.getByRole('tabpanel', { name: 'Line team' });
-  await view.getByRole('tab', { name: 'Staffing' }).click();
-  return view.getByRole('tabpanel', { name: 'Staffing' });
+  await showView(page, 'Staffing');
+  return page.getByRole('tabpanel', { name: 'Staffing' });
 }
 
 const row = (board: ReturnType<Page['locator']>, key: string) =>
@@ -129,7 +131,7 @@ test('a fully staffed demand leaves the list', async ({ page }) => {
   await expect(board.locator('.toast').getByRole('button', { name: 'Undo' })).toBeFocused();
 });
 
-test('presenting hides the tabs', async ({ page }) => {
+test('presenting hides the staffing page', async ({ page }) => {
   await openBoard(page);
   await page.getByRole('button', { name: 'Present', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'Staffing' })).toHaveCount(0);

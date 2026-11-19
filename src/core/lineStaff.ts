@@ -2,6 +2,7 @@ import { contextHint, type ContextHint } from './contextSwitch';
 import { contractFte, freeFte } from './line';
 import { capacity, warnings, type WeekLoad } from './load';
 import {
+  ORG_UNIT,
   linePeople,
   lineSubtree,
   type LineKind,
@@ -151,6 +152,8 @@ export function unitStats(rows: StaffRow[]): UnitStats {
 
 /** The direct sub-units of a line unit, or the top units for none. */
 export function childUnits(ws: Workspace, parentId?: string): LineUnit[] {
+  // The organisation is the root of the line (#395): its children are the top units.
+  if (parentId === ORG_UNIT) parentId = undefined;
   return (ws.lineUnits ?? []).filter((u) => u.parentId === parentId);
 }
 
@@ -162,7 +165,8 @@ export const isLineGroup = (ws: Workspace, unitId: string): boolean =>
  * The level of a line unit (#399): the one chosen for it, else derived as before (a unit with
  * units below it is a group, one without a team).
  */
-export function lineKind(ws: Workspace, unitId: string): LineKind {
+export function lineKind(ws: Workspace, unitId: string): LineKind | 'org' {
+  if (unitId === ORG_UNIT) return 'org';
   const unit = ws.lineUnits?.find((u) => u.id === unitId);
   return unit?.kind ?? (isLineGroup(ws, unitId) ? 'group' : 'team');
 }

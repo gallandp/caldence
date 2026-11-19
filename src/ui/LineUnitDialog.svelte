@@ -43,7 +43,7 @@
     parentId = of?.parentId ?? (offered ? under! : '');
     // New units and units of older files show their derived level; it is only stored once the
     // user picks another one, so a unit without a stored level can still get units below it.
-    kind = of ? lineKind($workspace, of.id) : 'team';
+    kind = of ? (lineKind($workspace, of.id) as LineKind) : 'team';
     shownKind = kind;
     managerId = of?.managerPersonId ?? '';
     familyId =

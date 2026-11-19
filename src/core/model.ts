@@ -391,10 +391,17 @@ export function selectedLineUnit(selection: string | null | undefined): string |
     changed in place, so the same object means the same answer. */
 const linePeopleCache = new WeakMap<Workspace, Map<string, Set<string>>>();
 
-/** The line unit and all its sub-units. */
+/**
+ * The whole line below the organisation (#395): the root of the line world, as the organisation
+ * is the root of the product world.
+ */
+export const LINE_ROOT = lineSelection(ORG_UNIT);
+
+/** The line unit and all its sub-units; for the organisation every line unit. */
 export function lineSubtree(ws: Workspace, unitId: string): Set<string> {
   const out = new Set<string>([unitId]);
   const units = ws.lineUnits ?? [];
+  if (unitId === ORG_UNIT) for (const u of units) out.add(u.id);
   // At most three levels (validated), so a few passes collect the subtree.
   for (let grew = true; grew;) {
     grew = false;

@@ -12,7 +12,20 @@ const VIEW_MS = 1000;
 // A shared runner is noisy: the budget must hold in one of three runs, not in every one.
 test.describe.configure({ retries: 2 });
 
-const VIEWS = ['calendar', 'load', 'meetings', 'team', 'templates', 'settings', 'exchange', 'help'];
+// Each world shows its own views (#394); a view missing in the current world is skipped.
+const VIEWS = [
+  'calendar',
+  'load',
+  'meetings',
+  'team',
+  'people',
+  'staffing',
+  'matrix',
+  'templates',
+  'settings',
+  'exchange',
+  'help',
+];
 
 test('a file at the target scale opens and renders within budget', async ({ page }) => {
   test.setTimeout(120_000);
@@ -69,17 +82,6 @@ test('a file at the target scale opens and renders within budget', async ({ page
       }),
     );
     await expect(page.locator('[data-staffing-map]')).toBeVisible();
-    // The matrix page (#396): line teams × products, people folded at this scale.
-    times[`${scope}/matrix`] = Math.round(
-      await page.evaluate(async () => {
-        const tab = document.querySelectorAll<HTMLButtonElement>('.pages button')[2]!;
-        const t0 = performance.now();
-        tab.click();
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        return performance.now() - t0;
-      }),
-    );
-    await expect(page.locator('.matrix table')).toBeVisible();
     await page.locator('.pages button').first().click();
   };
   await all('org');
@@ -91,6 +93,10 @@ test('a file at the target scale opens and renders within budget', async ({ page
   await all('product');
   // A line team of about a dozen people and the whole line of ~500 (#316).
   const line = async (name: string) => {
+    await page
+      .getByRole('radiogroup', { name: 'World' })
+      .getByRole('radio', { name: 'Line' })
+      .click();
     await page.locator('.switcher .pick').click();
     await page
       .locator('.switcher .list button.line')

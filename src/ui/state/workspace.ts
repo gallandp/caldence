@@ -2,6 +2,7 @@ import { derived, get, writable, type Readable, type Writable } from 'svelte/sto
 import {
   emptyWorkspace,
   hasOrgLevel,
+  LINE_ROOT,
   ORG_UNIT,
   lineSelection,
   selectedLineUnit,
@@ -169,10 +170,17 @@ export function createActiveTeamId(ws: Readable<Workspace>): Writable<string | n
     if (current === ORG_UNIT && hasOrgLevel($ws)) return;
     const line = selectedLineUnit(current);
     if (line !== undefined && $ws.lineUnits?.some((u) => u.id === line)) return;
+    // The root of the line world (#395), while the file has a line.
+    if (current === LINE_ROOT && ($ws.lineUnits?.length ?? 0) > 0) return;
     if (current !== null && [...$ws.teams, ...$ws.areas].some((u) => u.id === current)) return;
-    // Line teams without products (#387) still have a page to show.
+    // A line unit that is gone gives way to the line's root, so the world stays (#393); line teams
+    // without products (#387) still have a page to show.
+    const lineLeft = ($ws.lineUnits?.length ?? 0) > 0;
     const firstLine = $ws.lineUnits?.[0]?.id;
-    const fallback = $ws.teams[0]?.id ?? (firstLine ? lineSelection(firstLine) : null);
+    const fallback =
+      line !== undefined && lineLeft
+        ? LINE_ROOT
+        : ($ws.teams[0]?.id ?? (firstLine ? lineSelection(firstLine) : null));
     if (fallback !== current) active.set(fallback);
   });
   return active;
