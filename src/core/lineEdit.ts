@@ -1,6 +1,6 @@
 import { newId } from './edit';
 import { removeSkill } from './line';
-import type { LineUnit, Person, Workspace } from './model';
+import type { LineKind, LineUnit, Person, Workspace } from './model';
 import { validate, type Result } from './validate';
 
 /**
@@ -44,6 +44,8 @@ export function updateLineUnit(
     parentId?: string | null;
     managerPersonId?: string | null;
     skillFamilyId?: string | null;
+    /** The level (#399); `null` goes back to deriving it. */
+    kind?: LineKind | null;
   },
 ): Result<Workspace> {
   const out = structuredClone(ws);
@@ -55,13 +57,39 @@ export function updateLineUnit(
     if (!n.ok) return n;
     unit.name = n.value;
   }
-  for (const key of ['parentId', 'managerPersonId', 'skillFamilyId'] as const) {
+  for (const key of ['parentId', 'managerPersonId', 'skillFamilyId', 'kind'] as const) {
     const value = patch[key];
     if (value === undefined) continue;
     if (value === null) delete unit[key];
-    else unit[key] = value;
+    else (unit as Record<typeof key, string>)[key] = value;
   }
+  linkCompany(out, unit);
   return checked(out, out);
+}
+
+/**
+ * A company unit stands for a company of the file (#399): one of the same name, else a new one;
+ * renaming the unit renames its company. Any other level drops the link, the company stays.
+ */
+function linkCompany(ws: Workspace, unit: LineUnit): void {
+  if (unit.kind !== 'company') {
+    delete unit.companyId;
+    return;
+  }
+  const companies = (ws.companies ??= []);
+  const key = unit.name.trim().toLowerCase();
+  const same = companies.find((c) => c.name.trim().toLowerCase() === key);
+  const linked = companies.find((c) => c.id === unit.companyId);
+  if (same) unit.companyId = same.id;
+  else if (linked) linked.name = unit.name;
+  else {
+    const id = newId(
+      'co',
+      companies.map((c) => c.id),
+    );
+    companies.push({ id, name: unit.name });
+    unit.companyId = id;
+  }
 }
 
 export function addSkillFamily(ws: Workspace, name: string): Result<[Workspace, string]> {

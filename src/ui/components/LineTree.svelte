@@ -9,6 +9,7 @@
   } from '../../core/lineStaff';
   import { lineSelection, linePeople, type LineUnit } from '../../core/model';
   import { formatNumber, levels, locale, translate as t } from '../../i18n';
+  import { lineLevelWord } from '../../i18n/levels';
   import { initials } from '../avatar';
   import { presenting } from '../state/present';
   import { index, workspace } from '../state/workspace';
@@ -69,7 +70,8 @@
   const meta = (u: LineUnit, group: boolean, withCount = false) => {
     const manager = managerOf(u);
     return [
-      group ? $levels.lineGroup : $levels.lineTeam,
+      // The level chosen for the unit (#399), else derived from whether it has units below.
+      lineLevelWord($levels, u.kind ?? (group ? 'group' : 'team')),
       withCount && group ? unitsText(countBelow(u.id)) : '',
       manager ? $t('line.tile.manager', { name: manager }) : '',
     ]

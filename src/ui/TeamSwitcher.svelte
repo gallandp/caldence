@@ -21,11 +21,12 @@
     type LineUnit,
   } from '../core/model';
   import { removeLineUnit } from '../core/line';
-  import { childUnits, isLineGroup } from '../core/lineStaff';
+  import { childUnits, lineKind } from '../core/lineStaff';
   import LineUnitDialog from './LineUnitDialog.svelte';
   import { LINE_ICON } from './viewIcons';
   import { initials as nameInitials } from './avatar';
   import { levels, translate as t } from '../i18n';
+  import { lineLevelWord } from '../i18n/levels';
   import AreaDialog from './AreaDialog.svelte';
   import ConfirmDialog, { type Choice } from './components/ConfirmDialog.svelte';
   import { activeTeamId, localToday, workspace } from './state/workspace';
@@ -46,8 +47,7 @@
   /** A line unit (#316): its own group in the list, below the organisation's tree. */
   const lineUnits = $derived($workspace.lineUnits ?? []);
   const activeLine = $derived(lineUnits.find((u) => u.id === selectedLineUnit($activeTeamId)));
-  const lineLevel = (u: LineUnit) =>
-    isLineGroup($workspace, u.id) ? $levels.lineGroup : $levels.lineTeam;
+  const lineLevel = (u: LineUnit) => lineLevelWord($levels, lineKind($workspace, u.id));
   const peopleText = (n: number) => $t(n === 1 ? 'org.people.one' : 'org.people.other', { n });
   let lineDialog: LineUnitDialog | undefined = $state();
   const current = $derived(activeLine ?? (activeOrg ? org : (activeArea ?? active)));

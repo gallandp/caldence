@@ -1,3 +1,4 @@
+import { personCompanyId } from './lineStaff';
 import { effectiveDuration } from './recurrence';
 import {
   areaAsTeam,
@@ -139,7 +140,7 @@ export function structureSheets(
           rows: ws.people.map((p) => [
             p.name,
             ws.lineUnits?.find((u) => u.id === p.lineUnitId)?.name ?? null,
-            ws.companies?.find((c) => c.id === p.companyId)?.name ?? null,
+            ws.companies?.find((c) => c.id === personCompanyId(ws, p))?.name ?? null,
             p.contractFte ?? 1,
             (p.skillIds ?? [])
               .map((id) => ws.skills?.find((s) => s.id === id)?.name ?? id)

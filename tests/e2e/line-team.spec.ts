@@ -142,8 +142,8 @@ test('calendar, meeting load and meetings follow the line team', async ({ page }
 test('line units and skills are managed in place', async ({ page }) => {
   await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
   await page.getByRole('button', { name: 'Team actions' }).click();
-  await page.locator('.switcher').getByRole('button', { name: 'Add line team' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add line team' });
+  await page.locator('.switcher').getByRole('button', { name: 'Add line unit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add line unit' });
   await dialog.getByLabel('Name of the line unit').fill('Orvalis Markt');
   await dialog.getByLabel('Belongs to').selectOption({ label: 'Orvalis' });
   await dialog.getByLabel('Line manager').selectOption({ label: 'Ruth' });
@@ -260,4 +260,29 @@ test('a deep line tree in the sidebar keeps the words of long names whole', asyn
   );
   // Every line ends between two words: no "Fachgru" / "ppe".
   for (const { name, rows } of shown) expect(rows.join(' ')).toBe(name);
+});
+
+test('a company is chosen as level and gives its people their company (#399)', async ({ page }) => {
+  await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
+  await page.getByRole('button', { name: 'Team actions' }).click();
+  await page.locator('.switcher').getByRole('button', { name: 'Add line unit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add line unit' });
+  await dialog.getByLabel('Name of the line unit').fill('Nordwerk GmbH');
+  await dialog.getByLabel('Level', { exact: true }).selectOption({ label: 'Company' });
+  await expect(dialog.getByLabel('Belongs to')).toBeDisabled();
+  await expect(dialog).toContainText('People below get “Nordwerk GmbH” as their company');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Nordwerk GmbH');
+  await expect(page.locator('.switcher .pick')).toContainText('Company');
+  await expect(page.getByRole('tab', { name: 'Company' })).toBeVisible();
+
+  // The specialist group moves below the company and stays a specialist group.
+  await pickLine(page, 'Orvalis');
+  await page.getByRole('button', { name: 'Team actions' }).click();
+  await page.locator('.switcher').getByRole('button', { name: 'Edit …' }).click();
+  const edit = page.getByRole('dialog', { name: 'Edit Orvalis' });
+  await expect(edit.getByLabel('Level', { exact: true })).toHaveValue('group');
+  await edit.getByLabel('Belongs to').selectOption({ label: 'Nordwerk GmbH' });
+  await edit.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('.switcher .pick')).toContainText('Specialist group');
 });

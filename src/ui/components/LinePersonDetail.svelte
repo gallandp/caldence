@@ -1,7 +1,7 @@
 <script lang="ts">
   import { contextLoss } from '../../core/contextSwitch';
   import { updateLinePerson } from '../../core/lineEdit';
-  import { lineTree, type StaffRow } from '../../core/lineStaff';
+  import { lineTree, personCompanyId, type StaffRow } from '../../core/lineStaff';
   import { capacity, fte as share } from '../../core/load';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { workspace } from '../state/workspace';
@@ -57,6 +57,11 @@
   const removeSkill = (id: string) =>
     set({ skillIds: (row.person.skillIds ?? []).filter((x) => x !== id) });
   const skillName = (id: string) => ws.skills?.find((s) => s.id === id)?.name ?? id;
+  /** The company of the company unit above the person (#399), shown as the empty choice. */
+  const inherited = $derived.by(() => {
+    const id = personCompanyId(ws, { ...row.person, companyId: undefined });
+    return ws.companies?.find((c) => c.id === id)?.name;
+  });
 </script>
 
 <div class="detail">
@@ -128,7 +133,11 @@
           value={row.person.companyId ?? ''}
           onchange={(e) => set({ companyId: (e.currentTarget as HTMLSelectElement).value || null })}
         >
-          <option value="">{$t('line.company.none')}</option>
+          <option value=""
+            >{inherited
+              ? $t('line.company.inherited', { name: inherited })
+              : $t('line.company.none')}</option
+          >
           {#each ws.companies ?? [] as c (c.id)}
             <option value={c.id}>{c.name}</option>
           {/each}
