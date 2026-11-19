@@ -55,7 +55,7 @@
       return updateLinePerson(next, target, fields);
     });
     if (!result.ok) {
-      // The validator's messages name a path in the file, which means nothing here ): say
+      // The validator's messages name a path in the file, which means nothing here: say
       // what went wrong in words, and keep the details for a bug report.
       console.warn('Adding a person to the line failed', result.errors);
       const first = result.errors[0];

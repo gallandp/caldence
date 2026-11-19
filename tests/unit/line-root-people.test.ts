@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import valid from '../fixtures/valid-workspace.json';
 import { addItem } from '../../src/core/edit';
 import { addLineUnit, updateLineUnit, updateLinePerson } from '../../src/core/lineEdit';
-import { LINE_ROOT, linePeople, ORG_UNIT, type Workspace } from '../../src/core/model';
+import {
+  LINE_ROOT,
+  lineSelection,
+  linePeople,
+  lineUnitsById,
+  ORG_UNIT,
+  type Workspace,
+} from '../../src/core/model';
 import { staffRows } from '../../src/core/lineStaff';
 import { buildMatrix } from '../../src/core/matrix';
+import { structureSheets } from '../../src/core/structureSheets';
 import { validate } from '../../src/core/validate';
 
 const base = (): Workspace => ({ ...(valid as unknown as Workspace), lineName: 'Nice IT GmbH' });
@@ -53,5 +61,24 @@ describe('people directly at the line root', () => {
     expect(validate({ ...ws, people: [{ ...ws.people[0]!, lineUnitId: 'lu-gone' }] }).ok).toBe(
       false,
     );
+  });
+
+  it('names the root as their line unit in the Excel export and in line chips', () => {
+    const { result } = addNew(base(), 'Hans Peter', ORG_UNIT);
+    if (!result.ok) throw new Error('not added');
+    const text = { t: (k: string) => k, repeats: () => '', percent: (s: number) => `${s}` };
+    const sheet = structureSheets(result.value, text, { lineData: true }).at(-1)!;
+    expect(sheet.rows).toContainEqual(['Hans Peter', 'Nice IT GmbH', null, 1, '']);
+    expect(lineUnitsById(result.value, 'Org').get(ORG_UNIT)?.name).toBe('Nice IT GmbH');
+  });
+
+  it("leaves the root row out of a sub-unit's matrix", () => {
+    const made = addLineUnit(base(), 'Backend');
+    if (!made.ok) throw new Error('no unit');
+    const [ws1, unitId] = made.value;
+    const { result } = addNew(ws1, 'Hans Peter', ORG_UNIT);
+    if (!result.ok) throw new Error('not added');
+    const m = buildMatrix(result.value, lineSelection(unitId), 'line', 'Nice IT GmbH');
+    expect(m.rows.some((r) => r.unit.id === ORG_UNIT)).toBe(false);
   });
 });
