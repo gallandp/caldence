@@ -62,7 +62,16 @@ test('Meeting load lists one overlap line per person', async ({ page }) => {
     `Alex: ${ALEX_CLASHES} overlaps between Team Alpha and Team Beta, e.g. Sprint Planning and Replenishment on Thu 01/07/2027, 11:00–12:00`,
     /^Sam: \d+ overlaps between Team Alpha and Team Beta, e\.g\. /,
   ]);
-  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Alex' });
+  // The example's date opens its week for that person; back returns to Meeting load (#375).
+  await clashes
+    .first()
+    .getByRole('button', { name: 'Show W1, 01/07/2027 for Alex in the Calendar' })
+    .click();
+  const calendar = page.getByRole('tabpanel', { name: 'Calendar' });
+  await expect(calendar.locator('[aria-live="polite"]')).toContainText('Week 1');
+  await expect(page.getByLabel('Person', { exact: true })).toHaveValue('person-alex');
+  await page.goBack();
+  await expect(panel).toBeVisible();
   await expect(clashes).toHaveCount(1);
   await setLanguage(page, 'de');
   await expect(page.locator('li[data-clash]')).toHaveText(

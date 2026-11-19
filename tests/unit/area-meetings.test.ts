@@ -240,6 +240,16 @@ describe('the limit and area meetings (#307, #334)', () => {
     ]);
   });
 
+  it('says when a person has no weekly hours anywhere (#361)', () => {
+    const ws = workspace();
+    // Bo has 0 h in Gamma and none in the area: there are no other weekly hours to count against.
+    ws.teams[2]!.memberHours = { bo: 0 };
+    expect(hints(ws)).toEqual([
+      { personId: 'alex', areaId: 'area', kind: 'no-area-hours', hours: 1, areaHours: 0 },
+      { personId: 'bo', areaId: 'area', kind: 'no-hours', hours: 1, areaHours: 0 },
+    ]);
+  });
+
   it('is quiet once the area hours cover the area meetings', () => {
     const ws = workspace();
     ws.areas[0]!.memberHours = { hana: 10, alex: 4, bo: 2 };

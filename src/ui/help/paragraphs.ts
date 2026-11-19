@@ -134,6 +134,8 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
   },
   'help.templates.people': { teamView: 'view.team' },
   'help.views.settings': {
+    browser: 'settings.browser',
+    likeFile: { key: 'lang.file', params: { language: '…' } },
     general: 'settings.general',
     language: 'lang.label',
     appearance: 'theme.label',

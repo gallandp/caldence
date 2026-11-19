@@ -19,6 +19,11 @@ export const currentView = {
 /** The area's page. An area opens on its overview (#337); only a new area starts on the structure. */
 export const areaPage = writable<'structure' | 'overview'>('overview');
 
+/** The person whose card an area's structure opens, set by a link to it (#361). */
+export const structurePerson = writable<{ areaId: string; personId: string } | undefined>(
+  undefined,
+);
+
 /** The pages an area can show, for the address (#401). */
 export const AREA_PAGES: readonly string[] = ['structure', 'overview'];
 

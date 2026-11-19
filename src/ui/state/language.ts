@@ -23,11 +23,17 @@ export function loadLanguage(storage?: Pick<Storage, 'getItem'>): Locale | undef
 /** This browser's language, or undefined to follow the file. */
 export const language = writable<Locale | undefined>(loadLanguage());
 
-/** Uses and remembers the choice. Storage errors only mean it is not remembered. */
-export function setLanguage(value: Locale, storage?: Pick<Storage, 'setItem'>): void {
+/** Uses and remembers the choice; undefined follows the file again (#363). Storage errors only
+ * mean it is not remembered. public/theme-init.js applies the saved one before the first paint. */
+export function setLanguage(
+  value: Locale | undefined,
+  storage?: Pick<Storage, 'setItem' | 'removeItem'>,
+): void {
   language.set(value);
   try {
-    (storage ?? local())?.setItem(KEY, value);
+    const target = storage ?? local();
+    if (value === undefined) target?.removeItem(KEY);
+    else target?.setItem(KEY, value);
   } catch {
     // Private mode or blocked storage: the choice lasts until the page is closed.
   }

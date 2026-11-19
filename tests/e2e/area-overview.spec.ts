@@ -194,11 +194,28 @@ test('area meetings without area hours do not outline every week (#294, #307)', 
   const hints = warnings.locator('[data-area-hints] li');
   await expect(hints.filter({ hasText: /^Sam: / })).toHaveCount(1);
   await expect(hints.filter({ hasText: /^Sam: / })).toHaveText(
-    /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there$/,
+    /^Sam: invited to meetings in Payments \(up to \d+\.\d h a week\), but no hours are set there\s+·\s+Set hours$/,
   );
   await expect(
     warnings.getByText(/^These lines are not the limit, which always counts all meetings/),
   ).toBeVisible();
+});
+
+test('a hint about hours in the area opens the Structure page at that person (#361)', async ({
+  page,
+}) => {
+  await openOverview(page);
+  await showView(page, 'Meeting load');
+  const warnings = page.getByRole('region', { name: 'Warnings', exact: true });
+  await warnings
+    .locator('[data-area-hints] li', { hasText: /^Sam: / })
+    .getByRole('button', { name: 'Set hours for Sam in Payments' })
+    .click();
+  await expect(
+    page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Structure' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  const card = page.getByRole('dialog', { name: 'Sam' });
+  await expect(card.getByRole('spinbutton', { name: 'Hours in the area' })).toBeFocused();
 });
 
 test('people only in the area count on the Overview, like in Meeting load (#334)', async ({
@@ -381,6 +398,24 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
+test('an area meeting for a role nobody holds counts one person in the area tile (#360)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { events: object[] };
+    area.events = [
+      {
+        ...structuredClone(area.events[0]!),
+        rule: { type: 'weekly', weekday: 3 },
+        participants: [{ roleId: 'role-dev', share: 1 }],
+      },
+    ];
+  });
+  const tile = overview.locator('[data-kpi="area"]');
+  await expect(tile.locator('b')).not.toHaveText('0 h');
+  await expect(tile).toContainText('per week, 1 person');
+});
+
 test('without a rate the overview shows time per team and invites a rate', async ({ page }) => {
   const overview = await openOverview(page);
   const table = overview.locator('[data-area-costs]');
@@ -486,7 +521,8 @@ test('each team row and its cost card add what its people spend in area meetings
   await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
   const card = page.locator('[data-costs] [data-cost-area-share]');
   await expect(card).toContainText('These figures count only the meetings of Team Gamma itself.');
-  await expect(card).toContainText('+ €150 / week and €');
+  // Gamma runs 3-week sprints, so the line also names the sprint, like the card above it (#366).
+  await expect(card).toContainText('+ €150 / week, €450 / sprint and €');
   await expect(card).toContainText('in meetings in the area for the people of Team Gamma.');
   // Meeting load for the team shows the same card line.
   await showView(page, 'Meeting load');

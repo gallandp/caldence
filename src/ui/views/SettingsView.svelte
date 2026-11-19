@@ -17,7 +17,7 @@
   import { FALLBACK_ZONES, supportedZones } from '../state/zones';
   import { index, workspace } from '../state/workspace';
   import ThemeSwitch from '../ThemeSwitch.svelte';
-  import { setLanguage } from '../state/language';
+  import { language, setLanguage } from '../state/language';
 
   const settings = $derived($workspace.settings);
 
@@ -273,8 +273,11 @@
   }
 
   // A setting of this browser, like the theme: switching it does not change the file (#337).
+  // The empty value follows the file's language again (#363).
   const lang = (event: Event) =>
-    setLanguage((event.currentTarget as HTMLSelectElement).value as Locale);
+    setLanguage(
+      ((event.currentTarget as HTMLSelectElement).value || undefined) as Locale | undefined,
+    );
 </script>
 
 {#snippet err(key: string, label: string)}
@@ -284,22 +287,37 @@
 {/snippet}
 
 <div class="settings">
+  <!-- This browser's settings, apart from the file's, like a section in iOS Settings (#363). -->
+  <section class="browser" aria-labelledby="set-browser">
+    <h3 id="set-browser">{$t('settings.browser')}</h3>
+    <div class="grid">
+      <div class="field">
+        <label for="set-lang">{$t('lang.label')}</label>
+        <select
+          id="set-lang"
+          value={$language ?? ''}
+          onchange={lang}
+          aria-describedby="note-browser"
+        >
+          <option value=""
+            >{$t('lang.file', { language: $t('lang.name.' + settings.locale) })}</option
+          >
+          {#each ['de', 'en'] as option (option)}
+            <option value={option} lang={option}>{$t('lang.name.' + option)}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="wide"><ThemeSwitch describedby="note-browser" /></div>
+    </div>
+    <p class="help" id="note-browser">{$t('lang.browser')}</p>
+  </section>
+
   <p class="help">{$t('settings.help.team')}</p>
 
   <section aria-labelledby="set-general">
     <h3 id="set-general">{$t('settings.general')}</h3>
 
     <div class="grid">
-      <div class="field">
-        <label for="set-lang">{$t('lang.label')}</label>
-        <select id="set-lang" value={$locale} onchange={lang} aria-describedby="note-lang">
-          {#each ['de', 'en'] as option (option)}
-            <option value={option} lang={option}>{$t('lang.name.' + option)}</option>
-          {/each}
-        </select>
-        <p class="help" id="note-lang">{$t('lang.browser')}</p>
-      </div>
-
       <div class="field">
         <label for="set-region">{$t('settings.region')}</label>
         <select
@@ -402,8 +420,6 @@
         />
         {@render err('hoursPerWeek', $t('settings.hoursPerWeek'))}
       </div>
-
-      <div class="wide"><ThemeSwitch /></div>
     </div>
 
     <fieldset aria-describedby={describe('workdays')}>
@@ -572,6 +588,22 @@
 <style>
   .help {
     color: var(--text-muted);
+  }
+  /* A small grouped section with its note below, like one section of iOS Settings. */
+  /* --surface, so the appearance switch's --surface-2 track stands out. */
+  .browser {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem var(--space);
+    margin-bottom: calc(var(--space) * 1.5);
+  }
+  .browser .grid {
+    margin-bottom: 0.75rem;
+  }
+  .browser .help {
+    margin: 0;
+    font-size: 0.85rem;
   }
   h3 {
     margin-bottom: 0.5rem;

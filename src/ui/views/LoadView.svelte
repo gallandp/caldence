@@ -51,8 +51,10 @@
   interface Props {
     /** Opens a week in the Calendar with the Person filter on that person (#343). */
     onOpenWeek?: (personId: string, monday: string) => void;
+    /** Opens an area's Structure page at a person, to set their hours there (#361). */
+    onOpenStructure?: (areaId: string, personId: string) => void;
   }
-  let { onOpenWeek }: Props = $props();
+  let { onOpenWeek, onOpenStructure }: Props = $props();
 
   const summary = $derived(loadSummary($workspace, $filter));
   const weeks = $derived(loadPerWeek($workspace, $index));
@@ -225,7 +227,12 @@
       .filter((h) => inScope.has(h.personId) && (!area || h.areaId === area.id))
       .sort((a, b) => nameOf(a.personId).localeCompare(nameOf(b.personId), $locale))
       .map((h) => ({
+        ...h,
         key: `${h.personId}/${h.areaId}`,
+        label: $t('load.hint.setHours', {
+          person: nameOf(h.personId),
+          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
+        }),
         text: $t(`load.hint.${h.kind}`, {
           person: nameOf(h.personId),
           area: unitName(ws, h.areaId, $levels.org) || h.areaId,
@@ -323,10 +330,10 @@
         const first = found[0]!;
         const time = clashTime(first);
         const person = ws.people.find((p) => p.id === personId)?.name ?? personId;
-        return {
-          key: `clash/${personId}`,
-          person,
-          text: $t(names.length === 1 ? 'load.warn.clash.in' : 'load.warn.clash.between', {
+        // The example's date links to its week (#375): a marker in the text, split out below.
+        const [before = '', after = ''] = $t(
+          names.length === 1 ? 'load.warn.clash.in' : 'load.warn.clash.between',
+          {
             person,
             count: $t(found.length === 1 ? 'load.warn.clash.one' : 'load.warn.clash.other', {
               n: formatNumber($locale, found.length, 0),
@@ -335,10 +342,19 @@
             a: eventName(first.a),
             b: eventName(first.b),
             day: weekdayShort($locale, weekday(first.date)),
-            date: formatDisplayDate($locale, first.date, 'short'),
+            date: '\uE000',
             from: time.start,
             to: time.end,
-          }),
+          },
+        ).split('\uE000');
+        return {
+          key: `clash/${personId}`,
+          personId,
+          person,
+          before,
+          after,
+          date: first.date,
+          label: formatDisplayDate($locale, first.date, 'short'),
         };
       })
       .sort((a, b) => a.person.localeCompare(b.person, $locale));
@@ -399,12 +415,19 @@
     </div>
   {/snippet}
 
-  {#snippet weekLink(personId: string, person: string, monday: string, label: string)}
+  <!-- `week` names the week when `label` is a date and contains that date, so the visible text stays part of the name (#375). -->
+  {#snippet weekLink(
+    personId: string,
+    person: string,
+    monday: string,
+    label: string,
+    week: string = label,
+  )}
     {#if onOpenWeek}<button
         type="button"
         class="week-link"
-        aria-label={$t('load.openWeek', { week: label, person })}
-        title={$t('load.openWeek', { week: label, person })}
+        aria-label={$t('load.openWeek', { week, person })}
+        title={$t('load.openWeek', { week, person })}
         onclick={() => onOpenWeek(personId, monday)}>{label}</button
       >{:else}{label}{/if}
   {/snippet}
@@ -742,7 +765,17 @@
       <h4 class="hints-title">{$t('load.overlaps')}</h4>
       <ul class="warnings overlaps">
         {#each clashItems as w (w.key)}
-          <li class="warning" data-clash>{w.text}</li>
+          <li class="warning" data-clash>
+            <span
+              >{w.before}{@render weekLink(
+                w.personId,
+                w.person,
+                w.date,
+                w.label,
+                `${weekLabel(w.date)}, ${w.label}`,
+              )}{w.after}</span
+            >
+          </li>
         {/each}
       </ul>
     {/if}
@@ -751,7 +784,20 @@
       <p class="note">{$t('load.hints.rule')}</p>
       <ul class="hints" data-area-hints>
         {#each hintItems as h (h.key)}
-          <li>{h.text}</li>
+          <li>
+            {h.text}
+            {#if onOpenStructure}
+              <span data-no-print data-no-present
+                >·
+                <button
+                  type="button"
+                  class="week-link"
+                  aria-label={h.label}
+                  onclick={() => onOpenStructure(h.areaId, h.personId)}
+                  >{$t('area.participants.setHours')}</button
+                ></span
+              >{/if}
+          </li>
         {/each}
       </ul>
     {/if}

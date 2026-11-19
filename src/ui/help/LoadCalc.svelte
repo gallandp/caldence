@@ -25,6 +25,8 @@
     room: 'load.col.free',
     warnings: 'load.warnings',
     hints: 'load.hints',
+    setHours: 'area.participants.setHours',
+    structure: 'area.view.structure',
     areaOnly: 'area.group.areaOnly',
     warnFactor: 'settings.warnFactor',
     maxFte: 'settings.maxFte',
