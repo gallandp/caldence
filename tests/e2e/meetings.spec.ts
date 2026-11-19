@@ -189,6 +189,16 @@ test('the table shows when, the next date and the participants with their share'
   await expect(refinement).toHaveText(['PO Product Owner', 'SM 50% Scrum Master · 50%']);
 });
 
+test('placeholders are dimmer than entered text in dark mode', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openMeetings(page);
+  const filter = panel(page).getByRole('searchbox', { name: 'Filter meetings' });
+  // --text-placeholder (dark #868ca8, about 5:1) instead of a colour close to entered text.
+  const placeholder = await filter.evaluate((el) => getComputedStyle(el, '::placeholder').color);
+  expect(placeholder).toBe('rgb(134, 140, 168)');
+  expect(await filter.evaluate((el) => getComputedStyle(el).color)).not.toBe(placeholder);
+});
+
 test('the filter narrows the rows and says when nothing matches', async ({ page }) => {
   await openMeetings(page);
   const filter = panel(page).getByRole('searchbox', { name: 'Filter meetings' });
