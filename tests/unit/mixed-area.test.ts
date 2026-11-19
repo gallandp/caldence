@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
+import { matchingRole, setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
 import { costSummary, meetingCost } from '../../src/core/cost';
 import { exportIcs } from '../../src/core/ics';
 import { loadSummary } from '../../src/core/views';
@@ -258,5 +258,74 @@ describe('role filter with role links (#338)', () => {
       },
     );
     expect(plain).not.toContain('SUMMARY:PI Planning day 1');
+  });
+});
+
+describe('matchingRole (#362)', () => {
+  const roles = [
+    { id: 'po', name: 'Product Owner' },
+    { id: 'sm', name: 'Scrum Master' },
+    { id: 'dev', name: 'Developers' },
+  ];
+
+  it('suggests a team role with the same name, ignoring case and spaces', () => {
+    expect(matchingRole(' product  owner', roles)).toBe('po');
+  });
+
+  it('suggests the one team role that is a "/" part of the area role, or shares two or more words', () => {
+    expect(matchingRole('Scrum Master/Team Coach', roles)).toBe('sm');
+    expect(
+      matchingRole('Delivery Manager', [{ id: 'sdm', name: 'Service Delivery Manager' }]),
+    ).toBe('sdm');
+    // One word alone is too generic.
+    expect(matchingRole('master', roles)).toBeUndefined();
+  });
+
+  it('never suggests a generic one-word role between the built-in Kanban, Scrum and SAFe roles', () => {
+    const names = (t: { roles?: { name: string }[] }) => (t.roles ?? []).map((r) => r.name);
+    const kanban = names(BUILTIN_TEMPLATES.kanban.en).map((name) => ({ id: name, name }));
+    const scrum = names(BUILTIN_TEMPLATES.scrum.en).map((name) => ({ id: name, name }));
+    const safe = Object.fromEntries(
+      names(BUILTIN_TEMPLATES.safe.en).map((n) => [n, matchingRole(n, kanban)]),
+    );
+    expect(safe).toEqual({
+      'Product Owner': undefined,
+      'Scrum Master/Team Coach': undefined,
+      'Agile Team': undefined,
+      'Product Management': undefined,
+      'Release Train Engineer': undefined,
+    });
+    expect(matchingRole('Scrum Master/Team Coach', scrum)).toBe('Scrum Master');
+    expect(matchingRole('Product Owner', scrum)).toBe('Product Owner');
+    expect(matchingRole('Agile Team', scrum)).toBeUndefined();
+    expect(matchingRole('Release Train Engineer', [{ id: 'e', name: 'Engineer' }])).toBeUndefined();
+  });
+
+  it('compares names in one Unicode form', () => {
+    expect(matchingRole('Qualität', [{ id: 'q', name: 'Qualität' }])).toBe('q');
+  });
+
+  it('prefers the same name over a match of words', () => {
+    expect(
+      matchingRole('Scrum Master', [
+        { id: 'a', name: 'Scrum Master/Team Coach' },
+        { id: 'b', name: 'scrum master' },
+      ]),
+    ).toBe('b');
+  });
+
+  it('suggests nothing without a match or when several roles match', () => {
+    expect(matchingRole('Agile Team', roles)).toBeUndefined();
+    expect(
+      matchingRole('Scrum Master/Product Owner', [
+        { id: 'sm', name: 'Scrum Master' },
+        { id: 'po', name: 'Product Owner' },
+      ]),
+    ).toBeUndefined();
+    expect(matchingRole('', roles)).toBeUndefined();
+  });
+
+  it('splits words at punctuation, so "Entwickler:innen" matches "Entwickler/innen"', () => {
+    expect(matchingRole('Entwickler:innen', [{ id: 'd', name: 'Entwickler/innen' }])).toBe('d');
   });
 });
