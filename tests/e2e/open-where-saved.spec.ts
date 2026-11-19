@@ -123,6 +123,15 @@ test('a reload comes back to the view; the area page on its overview', async ({ 
   await showView(page, 'Area');
   await pageSwitch(page).getByRole('button', { name: 'Structure' }).click();
   await autosaved(page, '"areaPage":"structure"');
+  // The address names the page, so a reload stays there (#401) ...
+  await page.reload();
+  await expect(currentUnit(page)).toHaveText('Payments');
+  await expect(pageSwitch(page).getByRole('button', { name: 'Structure' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  // ... and opening the app without one shows the area on its overview.
+  await page.goto('/');
   await page.reload();
   await expect(currentUnit(page)).toHaveText('Payments');
   await expect(page.locator('[data-area-overview]')).toBeVisible();
