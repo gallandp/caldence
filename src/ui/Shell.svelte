@@ -33,7 +33,8 @@
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
-  import { areaPage, currentView, openingPlace } from './state/view';
+  import { AREA_PAGES, areaPage, currentView, knownUnit, openingPlace } from './state/view';
+  import { formatRoute, parseRoute } from './state/route';
   import { presenting, stopPresenting } from './state/present';
   import { AREA_ICON, ORG_ICON, VIEW_ICONS } from './viewIcons';
   import { openTopic } from './help/topics';
@@ -147,9 +148,18 @@
   });
   // ... and a reload comes back there; an opened file lands on an answer instead (#337).
   const { opened } = workspace;
+  /** The first opening follows a deep link in the address (#401); later ones are another file. */
+  let firstOpening = true;
   $effect(() => {
     void $version;
     untrack(() => {
+      // Another file: back must not lead into units of the file before.
+      replaceRoute = true;
+      queueRoute();
+      if (firstOpening) {
+        firstOpening = false;
+        if (applyRoute(location.hash)) return;
+      }
       const place = openingPlace($workspace, $opened, views);
       if (place.unit) activeTeamId.set(place.unit);
       // The organisation of the file before is not this file's: start on its first team.
@@ -249,6 +259,58 @@
     const now = untrack(() => active);
     if (now === 'team' || (now === 'meetings' && area.events.length === 0)) select('team');
   });
+
+  /**
+   * The address follows the place (#401): view, unit and area page. A change by the person adds a
+   * history entry; the first one, another file and corrections after back/forward replace it, so
+   * back never loops. Written once after all effects settled, so a redirect is no extra entry.
+   */
+  let replaceRoute = true;
+  let routeQueued = false;
+  function routeNow(): string {
+    const unit = $activeTeamId ?? undefined;
+    const paged =
+      active === 'team' && (unit === ORG_UNIT || $workspace.areas.some((a) => a.id === unit));
+    return formatRoute({ view: active, unit, page: paged ? $areaPage : undefined });
+  }
+  $effect(() => {
+    void routeNow();
+    queueRoute();
+  });
+  function queueRoute() {
+    if (routeQueued) return;
+    routeQueued = true;
+    setTimeout(() => {
+      routeQueued = false;
+      const hash = routeNow();
+      const replace = replaceRoute;
+      replaceRoute = false;
+      if (hash === location.hash) return;
+      if (replace) history.replaceState(history.state, '', hash);
+      else history.pushState(null, '', hash);
+    });
+  }
+
+  /** Goes to the place in `hash`; false when it names no view. Unknown units and pages are left out. */
+  function applyRoute(hash: string): boolean {
+    const route = parseRoute(hash, views);
+    if (!route) return false;
+    const ws = untrack(() => $workspace);
+    if (knownUnit(ws, route.unit)) activeTeamId.set(route.unit!);
+    select(route.view as ViewId);
+    const page = route.page;
+    // After the unit's own effect, which opens another area on its overview.
+    if (page && AREA_PAGES.includes(page))
+      void tick().then(() => areaPage.set(page as 'structure' | 'overview'));
+    return true;
+  }
+
+  function onPopState() {
+    // What the app makes of the entry (an unknown unit, say) corrects it without a new one.
+    replaceRoute = true;
+    applyRoute(location.hash);
+    queueRoute();
+  }
 
   /** The tab bar's buttons (phones). */
   let barTabs: Partial<Record<ViewId, HTMLButtonElement>> = {};
@@ -420,7 +482,7 @@
   }
 </script>
 
-<svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} />
+<svelte:window onkeydown={onShortcut} onbeforeunload={onBeforeUnload} onpopstate={onPopState} />
 
 <a class="skip" href="#main" onclick={skip}>{$t('skip.link')}</a>
 
