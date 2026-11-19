@@ -620,7 +620,8 @@
       </fieldset>
       <HolidayDrops
         {drops}
-        lead={$t('holidayDrops.export', { region: regionName })}
+        kind="export"
+        region={regionName}
         horizon={ws.settings.horizon}
         {onOpenDay}
       />

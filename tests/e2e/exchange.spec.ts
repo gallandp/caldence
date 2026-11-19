@@ -143,7 +143,7 @@ test('the Outlook sample lists six rows and the left-out items', async ({ page }
   await expect(panel(page).getByRole('checkbox', { name: /Import Daily/ })).toBeChecked();
   await expect(panel(page).getByRole('button', { name: 'Import 5 meetings' })).toBeEnabled();
   await panel(page).getByText('Left out items').click();
-  const details = panel(page).locator('details');
+  const details = panel(page).locator('details:not(.holiday-drops)');
   await expect(details).toContainText('Betriebsausflug: All-day item');
   await expect(details).toContainText('Abgesagt: Lieferantentermin: Cancelled event');
   await expect(details).toContainText('Architektur-Runde: Changed single instance');
@@ -241,7 +241,7 @@ for (const locale of ['de', 'en'] as const) {
     await setLanguage(page, locale);
     await chooseIcs(page, OUTLOOK, 'outlook-sample.ics');
     await expect(rowsOf(page)).toHaveCount(6);
-    await panel(page).locator('details summary').click();
+    await panel(page).locator('details:not(.holiday-drops) summary').click();
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();

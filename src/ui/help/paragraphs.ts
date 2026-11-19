@@ -189,6 +189,7 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     export: 'exchange.export',
     meetings: 'view.meetings',
     settings: 'view.settings',
+    toggle: 'holidayDrops.toggle',
   },
   'help.ics.note': {},
   'help.files.present': {

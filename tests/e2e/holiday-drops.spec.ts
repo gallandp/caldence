@@ -55,9 +55,17 @@ function sprintFile() {
 }
 
 const panel = (page: Page, name: string) => page.getByRole('tabpanel', { name });
+/** One quiet line; the meetings and their dates unfold under "Dates". */
+const open = async (drops: ReturnType<Page['locator']>) => {
+  await drops.getByText('Dates', { exact: true }).click();
+  await expect(drops).toHaveAttribute('open', '');
+};
 // Cadence-bound meetings first; meetings on the same dates share one entry.
-const LINE =
-  'Sprint Review, Sprint Retrospective 01/01/2027, 03/26/2027; Sprint Planning 03/29/2027; Daily 12/25/2026, 01/01/2027, 03/26/2027, 03/29/2027';
+const ROWS = [
+  'Sprint Review, Sprint Retrospective Fri, 01/01/2027 Fri, 03/26/2027',
+  'Sprint Planning Mon, 03/29/2027',
+  'Daily Fri, 12/25/2026 Fri, 01/01/2027 Fri, 03/26/2027 Mon, 03/29/2027',
+];
 
 test('a sprint ending on a holiday shows the dropped meetings in the export', async ({ page }) => {
   await page.goto('/');
@@ -66,19 +74,28 @@ test('a sprint ending on a holiday shows the dropped meetings in the export', as
   await showView(page, 'Import / Export');
   const exchange = panel(page, 'Import / Export');
   const drops = exchange.locator('.holiday-drops');
-  await expect(drops).toContainText('Left out on public holidays (Saxony)');
-  await expect(drops).toContainText(LINE);
+  await expect(drops.locator('summary')).toHaveText(
+    '4 meetings are skipped on 4 public holidays (Saxony) and missing from the file. Dates',
+  );
+  await expect(drops.getByRole('listitem')).toBeHidden();
+  await open(drops);
+  await expect(drops.getByRole('listitem')).toHaveText(ROWS);
 
-  // A shorter period lists only its own dates.
+  // A shorter period counts and lists only its own dates.
   await exchange.getByLabel('To', { exact: true }).fill('2027-02-28');
-  await expect(drops).toContainText('Sprint Review, Sprint Retrospective 01/01/2027;');
+  await expect(drops.locator('summary')).toContainText(
+    '3 meetings are skipped on 2 public holidays (Saxony)',
+  );
+  await expect(drops.getByRole('listitem').first()).toHaveText(
+    'Sprint Review, Sprint Retrospective Fri, 01/01/2027',
+  );
   await expect(drops).not.toContainText('03/26/2027');
   await exchange.getByLabel('To', { exact: true }).fill('2027-04-30');
 
   // Each date opens that day in the Calendar.
   await drops
     .getByRole('button', {
-      name: 'Sprint Review, Sprint Retrospective, 03/26/2027, show in the calendar',
+      name: 'Sprint Review, Sprint Retrospective, Fri, 03/26/2027, show in the calendar',
     })
     .click();
   await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveAttribute(
@@ -95,9 +112,11 @@ test('Meetings & cadence lists the dropped meetings of the planning horizon', as
   await openWorkspaceFile(page, sprintFile());
   await showView(page, 'Meetings & cadence');
   const drops = panel(page, 'Meetings & cadence').locator('.holiday-drops');
-  await expect(drops).toContainText(LINE);
+  await expect(drops.locator('summary')).toContainText('missing from the .ics export');
+  await open(drops);
+  await expect(drops.getByRole('listitem')).toHaveText(ROWS);
   await drops
-    .getByRole('button', { name: 'Sprint Planning, 03/29/2027, show in the calendar' })
+    .getByRole('button', { name: 'Sprint Planning, Mon, 03/29/2027, show in the calendar' })
     .click();
   const details = panel(page, 'Calendar').getByRole('region', { name: /March 29, 2027/ });
   await expect(details).toContainText('Sprint Planning');
