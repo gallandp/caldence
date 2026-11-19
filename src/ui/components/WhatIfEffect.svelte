@@ -6,6 +6,7 @@
    * The "Wirkung" box: what a change does to hours, cost, Terminlast and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
    * `compact` shows the numbers as one line below 600 px (the meeting form on a phone).
+   * `extra` adds rows of its own.
    * `live` false drops the live region, where the box follows every keystroke of a form.
    */
   let {
@@ -16,6 +17,7 @@
     note,
     compact = false,
     live = true,
+    extra = [],
   }: {
     before?: Effect;
     after?: Effect;
@@ -24,6 +26,8 @@
     note?: string;
     compact?: boolean;
     live?: boolean;
+    /** More rows below the numbers, e.g. the Mindestzusage of a product (#318). */
+    extra?: { label: string; value: string }[];
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -86,6 +90,12 @@
           </dd>
         </div>
       {/if}
+      {#each extra as row (row.label)}
+        <div>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      {/each}
     </dl>
     {#if note}<p class="note">{note}</p>{/if}
   {/if}

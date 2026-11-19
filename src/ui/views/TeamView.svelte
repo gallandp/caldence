@@ -10,6 +10,7 @@
   import ContextNote from '../components/ContextNote.svelte';
   import { LIMITS } from '../../core/limits';
   import OwnerCard from '../components/OwnerCard.svelte';
+  import DemandCard from '../components/DemandCard.svelte';
   import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
@@ -353,6 +354,10 @@
             void focusSoon('[data-member-add]');
           }}
         />
+      {/if}
+      <!-- What the product needs from the line and its Mindestzusage (#318), once the file has skills or demands. -->
+      {#if $workspace.skills?.length || $workspace.teams.some((x) => x.demands?.length)}
+        <DemandCard {team} />
       {/if}
       {#key epoch}
         <section class="card" aria-labelledby="{uid}-members-h">
