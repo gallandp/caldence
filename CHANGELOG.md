@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 1.49.0 – 2026-11-19
+
+### Added
+
+- Meeting load: each "Hours in the area" hint has a "Set hours" button that opens the area's Structure page at that person's hours. (#427)
+- Meeting load: the date in each overlap example opens that week in the Calendar for the person. (#427)
+- A "No … in team" note on an area meeting now maps the role right there: one select, with a team role of the same or a similar name (for example "Scrum Master" for "Scrum Master/Team Coach") already selected for you to confirm (#362) (#428)
+- The organisation can have its own people, with their hours at organisation level, and its own meetings. A meeting can invite a role from all areas or from every team. Calendar, Meeting load and costs count these meetings when the organisation is selected and for everyone who attends them. While presenting with the organisation selected, the what-if bar shows the change in meeting load and cost across all teams and areas. (#430)
+- The Organisation page lists who attends its meetings without hours there, each with a link to set their hours. (#440)
+
+### Changed
+
+- The area Overview heat map, the steering list and the "Meetings in the area" tile now count a role nobody holds as one person (with the default weekly hours), as the cost table does. (#422)
+- On a team's cost card, the line "+ … in meetings in the area" also shows the value per sprint or PI. (#422)
+- Settings shows language and appearance in their own group "This browser", apart from the file's settings. (#423)
+- The language picker offers "Match the file" to go back to the file's language. (#423)
+- Placeholders in fields are clearly dimmer than entered values, also in dark mode. (#425)
+- Meeting load: a person with no weekly hours anywhere gets their own wording in the "Hours in the area" hints. (#427)
+- The what-if box names whose hours and cost it shows (for example "Hours in meetings, Payments"), and on a phone its one line shows the team's own change and, for a team in an area, the area's meeting load (#364) (#428)
+- Meeting load shows a team's cost and its share of the area's meetings per sprint or PI, as Meetings & cadence does. In the area overview's cost table, a team with a sprint or PI also shows the area share per sprint or PI next to the weekly figure. (#437)
+- While presenting, the what-if bar names whose cost it shows, for example "Cost, Payments". (#439)
+- The "No X in team" note in an area's structure tree and in the meeting form now opens the role mapping too, with a matching role already selected, as it already does on area meetings. (#439)
+- With the organisation selected, Meeting load no longer shows the "of which here" column, which equalled the total. (#440)
+
+### Fixed
+
+- A language picked in this browser now applies from the first paint, also to the loading text. (#423)
+- The "No hours left" hint in the Team view and the setup wizard no longer says that meetings there count as over the limit. (#427)
+- On phones, an area's meeting cards wrap long role names instead of scrolling sideways, and the "Who" choice in the meeting form shows its full text. (#438)
+- On phones, the Appearance switch in Settings fits one row. (#438)
+- Meeting load names people who work only at organisation level "only in the organisation" instead of "only in the area". (#440)
+- People invited to an area meeting by name without hours there show as "hours not set" in the area's structure. (#440)
+
 ## 1.48.0 – 2026-11-19
 
 ### Added
