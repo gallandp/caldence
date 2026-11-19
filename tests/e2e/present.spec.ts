@@ -150,6 +150,10 @@ test('a what-if in a team of an area shows the team first, then the area (#340)'
     'Meeting load · Team Alpha 5.6 h → 5.2 h · 16% → 14%',
     'Meeting load · Payments 25.0 h → 24.5 h · 13% → 13%',
   ]);
+  // The area's hours follow its line and match its rounded figures.
+  await expect(sheet.locator('.effect dl > div').nth(2)).toHaveText(
+    'Hours in meetings, everyone −0.5 h per week',
+  );
   await sheet.getByRole('button', { name: 'Apply' }).click();
   await expect(sheet).toBeHidden();
   // The banner keeps the team's hours, then the area's line.

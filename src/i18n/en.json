@@ -1160,7 +1160,7 @@
   "whatif.bar.empty": "While presenting, you can change duration, rhythm and cadence. The effect shows here.",
   "whatif.bar.count.one": "What if · 1 change",
   "whatif.bar.count.other": "What if · {n} changes",
-  "whatif.bar.share": "Meeting load {name}: {fromHours} h → {toHours} h · {from} → {to}",
+  "whatif.bar.share": "Meeting load {name}: {value}",
   "whatif.bar.cost": "Cost {value} per week · {horizonValue} in the planning horizon ({planningHorizon})",
   "whatif.bar.inStep": "Aligned {from} → {to} of {of}",
   "whatif.bar.discarded": "discarded when presenting ends",

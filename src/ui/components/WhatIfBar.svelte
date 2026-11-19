@@ -1,9 +1,10 @@
 <script lang="ts">
   import { workspaceIndex } from '../../core/views';
   import { countChanges, effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
-  import { formatEuro, formatNumber, formatPercent, locale, translate as t } from '../../i18n';
+  import { formatEuro, locale, translate as t } from '../../i18n';
   import { resetWhatIf } from '../state/present';
   import { activeTeamId, index, workspace } from '../state/workspace';
+  import { loadValue } from './WhatIfEffect.svelte';
 
   /** Above every view while presenting: what the what-ifs changed so far, with a reset (M1). */
   const { presentBase } = workspace;
@@ -35,17 +36,9 @@
     const name = $workspace.teams.find((x) => x.id === id)?.name ?? '';
     return b && a ? { name, before: b, after: a } : undefined;
   });
-  const pct = (n: number) => formatPercent($locale, n);
-  const hours = (n: number) => formatNumber($locale, n, 1);
-  /** "Meeting load Team Alpha: 5.6 h → 5.2 h · 16 % → 14 %"; "24.5 h" never wraps. */
+  /** "Meeting load Team Alpha: 5.6 h → 5.2 h · 16 % → 14 %" */
   const load = (name: string, b: Effect, a: Effect) =>
-    $t('whatif.bar.share', {
-      name,
-      fromHours: hours(b.hours),
-      toHours: hours(a.hours),
-      from: pct(b.share),
-      to: pct(a.share),
-    }).replace(/(\d) h/g, '$1\u00a0h');
+    $t('whatif.bar.share', { name, value: loadValue($t, $locale, b, a) });
   const signedEuro = (n: number) =>
     (n > 0.004 ? '+' : n < -0.004 ? '−' : '±') + formatEuro($locale, Math.abs(n));
 </script>
