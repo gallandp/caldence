@@ -112,14 +112,17 @@ const withArea = (page$) => async (page, l) => {
 };
 
 /** The invented line example (#323) in the line world (#393), on one of its pages by tab id. */
-const withLine = (tab, world = 'line') => async (page, l) => {
-  await page.getByRole('button', { name: lineExample[l] }).click();
-  await page.locator('#tab-team').waitFor();
-  if (world === 'line') await page.getByRole('radio', { name: lineWorld[l], exact: true }).click();
-  await page.locator(`#tab-${tab}`).click();
-  await page.locator(`#panel-${tab} h2`).first().waitFor();
-  await page.waitForLoadState('networkidle');
-};
+const withLine =
+  (tab, world = 'line') =>
+  async (page, l) => {
+    await page.getByRole('button', { name: lineExample[l] }).click();
+    await page.locator('#tab-team').waitFor();
+    if (world === 'line')
+      await page.getByRole('radio', { name: lineWorld[l], exact: true }).click();
+    await page.locator(`#tab-${tab}`).click();
+    await page.locator(`#panel-${tab} h2`).first().waitFor();
+    await page.waitForLoadState('networkidle');
+  };
 
 const shots = [
   {
