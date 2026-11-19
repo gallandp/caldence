@@ -5,6 +5,7 @@
   import {
     attendsUnitMeetings,
     exportIcsWithCounts,
+    holidayDrops,
     scopeHasEvents,
     type IcsExport,
   } from '../../core/ics';
@@ -27,6 +28,8 @@
   import { unitLoadIds } from '../../core/model';
   import { formatDisplayDate, formatNumber, locale, translate as t } from '../../i18n';
   import { ruleSummary } from '../meetings/rules';
+  import HolidayDrops from '../components/HolidayDrops.svelte';
+  import { resolveRegion } from '../../core/regions';
   import {
     browserFileEnv,
     exportTextFile,
@@ -46,9 +49,16 @@
   let {
     onOpenMeetings,
     onOpenHelp,
+    onOpenDay,
     onOpenPrivacy,
-  }: { onOpenMeetings?: () => void; onOpenHelp?: () => void; onOpenPrivacy?: () => void } =
-    $props();
+  }: {
+    onOpenMeetings?: () => void;
+    onOpenHelp?: () => void;
+    /** Opens a day in the Calendar (a date a holiday leaves out, #341). */
+    onOpenDay?: (date: string) => void;
+    /** Opens the help on privacy from the staff import (#330). */
+    onOpenPrivacy?: () => void;
+  } = $props();
 
   const uid = $props.id();
   const env = browserFileEnv((accept) => pickFile(accept ?? '.ics,text/calendar'));
@@ -192,11 +202,23 @@
   const noMeetings = $derived(
     !!chosen && !rangeInvalid && zoneKnown && teams.length > 0 && !canExport,
   );
-  function build(filter: Filter) {
-    // A year around the range, so school holidays that cross its edges keep their real start,
-    // also the long periods of an imported region.
+  // A year around the range, so school holidays that cross its edges keep their real start,
+  // also the long periods of an imported region.
+  const exportIndex = $derived.by(() => {
+    if (rangeInvalid) return null;
     const range = { ...ws.settings, horizon: { from: addDays(from, -366), to: addDays(to, 366) } };
-    return exportIcsWithCounts(ws, workspaceIndex({ ...ws, settings: range }), {
+    return workspaceIndex({ ...ws, settings: range });
+  });
+  /** What holidays leave out of this file, named before the export (#341). */
+  const drops = $derived(
+    exportIndex && chosen ? holidayDrops(ws, exportIndex, scope, from, to) : [],
+  );
+  const regionName = $derived(
+    resolveRegion(ws, ws.settings.region)?.name[$locale] ?? ws.settings.region,
+  );
+
+  function build(filter: Filter) {
+    return exportIcsWithCounts(ws, exportIndex ?? workspaceIndex(ws), {
       scope: filter,
       previous: lastExport(ws.id, filter),
       from,
@@ -641,6 +663,12 @@
           >
         </div>
       </fieldset>
+      <HolidayDrops
+        {drops}
+        lead={$t('holidayDrops.export', { region: regionName })}
+        horizon={ws.settings.horizon}
+        {onOpenDay}
+      />
       <div class="row">
         <button
           type="submit"
