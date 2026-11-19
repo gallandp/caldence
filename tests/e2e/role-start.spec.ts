@@ -51,11 +51,13 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   ).toBeFocused();
   await dialog.getByRole('button', { name: 'Create' }).click();
   await expect(dialog).toBeHidden();
-  const team = page.getByRole('tabpanel', { name: 'Specialist group' });
+  const team = page.getByRole('tabpanel', { name: 'Overview' });
   await expect(team.getByRole('heading', { level: 2, name: 'Engineering' })).toBeVisible();
   for (const name of ['Backend', 'Frontend', 'Data'])
     await expect(team.getByText(name).first()).toBeVisible();
-  // No product yet: the calendar offers the way in instead of the start screen.
+  // No product yet: the product world's calendar offers the way in instead of the start screen.
+  const worlds = page.getByRole('group', { name: 'World' });
+  await worlds.getByRole('button', { name: 'Products' }).click();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(calendar(page).getByRole('heading', { name: 'No teams yet' })).toBeVisible();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toHaveCount(0);
@@ -65,9 +67,10 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(area.getByText('Step 1 of 2')).toBeVisible();
   await area.getByRole('button', { name: 'Cancel' }).click();
   // After a reload the line page is still there.
+  await worlds.getByRole('button', { name: 'Line' }).click();
   await autosaved(page, 'Frontend');
   await page.reload();
-  await page.getByRole('tab', { name: /Specialist group|Line team/ }).click();
+  await page.getByRole('tab', { name: 'Overview', exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Engineering' })).toBeVisible();
 });
 

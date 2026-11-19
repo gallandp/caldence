@@ -142,22 +142,31 @@
     product: undefined,
     line: undefined,
   };
+  let shownWorld: 'product' | 'line' | undefined;
   $effect(() => {
     const world = inLine ? 'line' : 'product';
+    const back = lastPage[world];
+    // Entering a world (a switch, a jump, an undo or an opened file) brings back its last page,
+    // even one both worlds have (meeting load).
+    if (world !== shownWorld) {
+      shownWorld = world;
+      if (back && back !== active && navViews.includes(back)) {
+        untrack(() => select(back));
+        return;
+      }
+    }
     if (navViews.includes(active)) {
       lastPage[world] = active;
       return;
     }
-    // A view of the other world (after switching, a jump, an undo or an opened file) gives way
-    // to this world's last page, else its first.
-    const back = lastPage[world];
+    // A view of the other world gives way to this world's last page, else its first.
     untrack(() => select(back && navViews.includes(back) ? back : (navViews[0] ?? 'team')));
   });
   $effect(() => {
     if (activeOrg && active === 'meetings') select('team');
   });
   $effect(() => {
-    if ($presenting && !PRESENTED.has(active)) select('calendar');
+    if ($presenting && !PRESENTED.has(active)) select(navViews[0] ?? 'calendar');
   });
   // Larger type for the projector, set on the root so every rem grows with it.
   $effect(() => {
@@ -195,7 +204,7 @@
           ? 'view.area'
           : `view.${id}`;
   /** Views whose numbers depend on the selected team or area name it above the headline. */
-  const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team'];
+  const SCOPED: readonly ViewId[] = ['calendar', 'load', 'meetings', 'team', 'people', 'staffing'];
   const activeTeam = $derived($workspace.teams.find((x) => x.id === $activeTeamId));
   const scopeName = $derived(
     noTeams && !activeLine
