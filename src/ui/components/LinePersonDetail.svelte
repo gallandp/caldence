@@ -21,7 +21,7 @@
 
   /** All meetings ÷ all hours, as an average week: the Load view's figure. */
   const total = $derived.by(() => {
-    const meetings = row.commitments.reduce((n, c) => n + c.meetings, 0);
+    const meetings = row.meetings;
     const cap = capacity(ws, row.person.id);
     return { meetings, cap, share: share(meetings, cap) };
   });

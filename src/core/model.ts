@@ -413,8 +413,15 @@ export function selectionPeople(
 export function unitTeamIds(ws: Workspace, unitId: string): string[] {
   if (unitId === ORG_UNIT) return ws.teams.map((t) => t.id);
   const people = selectionPeople(ws, unitId);
+  // Their teams, and the teams whose meetings invite one of them by name (#285).
   if (people)
-    return ws.teams.filter((t) => t.members.some((m) => people.has(m.personId))).map((t) => t.id);
+    return ws.teams
+      .filter(
+        (t) =>
+          t.members.some((m) => people.has(m.personId)) ||
+          t.events.some((e) => e.participants.some((p) => p.personId && people.has(p.personId))),
+      )
+      .map((t) => t.id);
   return ws.areas.find((a) => a.id === unitId)?.teamIds ?? [unitId];
 }
 

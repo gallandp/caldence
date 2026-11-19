@@ -60,6 +60,10 @@
   /** A big line (#315: ~500 people) shows its first rows at once and the rest on request. */
   const ROWS = 150;
   const shown = $derived(showAll ? sorted : sorted.slice(0, ROWS));
+  // A company that is gone (or the only one left) must not keep hiding everyone.
+  $effect(() => {
+    if (company !== '' && (!several || !companies.some((c) => c.id === company))) company = '';
+  });
   // A person who left the list (another unit, a filter) does not stay opened.
   $effect(() => {
     if (open !== null && !filtered.some((r) => r.person.id === open)) open = null;
@@ -67,10 +71,11 @@
 
   const fte = (n: number) => formatNumber($locale, n, 1);
   /** Bar colours per commitment, in order; the label says the same in text. */
-  /** One colour per team or area across the table, so a product looks the same in every row. */
-  const colourAt = $derived(new Map(units(ws).map((u, i) => [u.id, i])));
-  const colourOf = (unitId: string) =>
-    PRODUCT_COLOURS[(colourAt.get(unitId) ?? 0) % PRODUCT_COLOURS.length];
+  /** One colour per team or area, the same in every row and in the calendar. */
+  const colourAt = $derived(
+    new Map(units(ws).map((u, i) => [u.id, PRODUCT_COLOURS[i % PRODUCT_COLOURS.length]])),
+  );
+  const colourOf = (unitId: string) => colourAt.get(unitId);
   const barScale = (r: StaffRow) =>
     Math.max(
       r.contract,

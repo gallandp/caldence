@@ -33,7 +33,9 @@
   export async function show(of?: LineUnit, under?: string) {
     unit = of;
     name = of?.name ?? '';
-    parentId = of?.parentId ?? under ?? '';
+    // A unit on the lowest level offers no place below it: then the new one starts at the top.
+    const offered = parentChoices($workspace, of?.id).some((u) => u.id === under);
+    parentId = of?.parentId ?? (offered ? under! : '');
     managerId = of?.managerPersonId ?? '';
     familyId =
       of?.skillFamilyId ??

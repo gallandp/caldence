@@ -694,7 +694,9 @@
               </section>
             {:else if id === 'team' && activeLine}
               {#if active === id}
-                <LineView unit={activeLine} onOpen={(unit) => activeTeamId.set(unit)} />
+                {#key activeLine.id}
+                  <LineView unit={activeLine} onOpen={(unit) => activeTeamId.set(unit)} />
+                {/key}
               {/if}
             {:else if id === 'meetings' && activeLine}
               {#if active === id}

@@ -39,7 +39,7 @@
     type Team,
   } from '../../core/model';
   import { record } from '../../core/record';
-  import { PRODUCT_COLOURS } from '../productColours';
+  import { productColourOf } from '../productColours';
   import { ruleSummary } from '../meetings/rules';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
@@ -156,8 +156,12 @@
    */
   const productColour = $derived.by(() => {
     if (selectedLineUnit($filter.teamId) === undefined || $filter.personId) return null;
-    const ids = unitLoadIds($workspace, $filter.teamId!);
-    return new Map(ids.map((id, i) => [id, PRODUCT_COLOURS[i % PRODUCT_COLOURS.length]!]));
+    const ids = new Set(unitLoadIds($workspace, $filter.teamId!));
+    return new Map(
+      units($workspace).flatMap((u) =>
+        ids.has(u.id) ? [[u.id, productColourOf($workspace, u.id)] as const] : [],
+      ),
+    );
   });
   const colourOf = (teamId: string, category?: string) => productColour?.get(teamId) ?? category;
 

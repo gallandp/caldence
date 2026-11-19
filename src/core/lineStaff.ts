@@ -29,6 +29,8 @@ export interface StaffRow {
   person: Person;
   contract: number;
   commitments: Commitment[];
+  /** Average meeting hours a week over all teams and areas: the Load view's figure. */
+  meetings: number;
   /** Contract minus all hours ÷ weekly hours; below 0 overbooked. */
   free: number;
   /** Over the Load view's limit in some week: all meetings ÷ all hours above the limit. */
@@ -67,9 +69,9 @@ export function commitments(ws: Workspace, personId: string, weeks: WeekLoad[]):
     });
   }
   for (const a of ws.areas) {
-    if (!Object.hasOwn(a.memberHours, personId)) continue;
-    const hours = a.memberHours[personId]!;
-    if (hours <= 0) continue;
+    const hours = Object.hasOwn(a.memberHours, personId) ? a.memberHours[personId]! : 0;
+    // An area counts with its hours, or without when the person attends its meetings (#307).
+    if (hours <= 0 && avg(a.id) <= 0) continue;
     out.push({
       unitId: a.id,
       name: a.name,
@@ -98,6 +100,10 @@ export function staffRows(
         person,
         contract: contractFte(ws, person.id),
         commitments: commitments(ws, person.id, weeks),
+        meetings:
+          weeks.length > 0
+            ? weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0) / weeks.length
+            : 0,
         free: freeFte(ws, person.id),
         overLimit: over.has(person.id),
         context: hint && !hint.overriddenIn ? hint : null,

@@ -593,7 +593,8 @@
   title={$t('team.delete.title', { name: current?.name ?? '' })}
   message={activeLine
     ? $t('line.unit.delete.message', {
-        n: linePeople($workspace, activeLine.id).size,
+        // Only the unit's own people lose their line unit; sub-units move up with theirs.
+        n: $workspace.people.filter((p) => p.lineUnitId === activeLine.id).length,
       })
     : activeArea
       ? [

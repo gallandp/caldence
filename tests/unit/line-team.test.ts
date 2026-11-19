@@ -130,6 +130,24 @@ describe('line unit as the selection (#316)', () => {
     expect(dev.weekly).toBe(50 + 40);
   });
 
+  it('brings the teams that invite one of its people by name (#285)', () => {
+    const ws = lined();
+    const t3: Team = {
+      ...structuredClone(ws.teams[1]!),
+      id: 't3',
+      name: 'Team C',
+      members: [{ personId: 'p1', roleId: 'r1' }],
+      memberHours: { p1: 8 },
+      events: [{ ...weekly('e3', 30), participants: [{ personId: 'p3', share: 1 }] }],
+    };
+    ws.teams.push(t3);
+    expect(unitTeamIds(ws, lineSelection('l1'))).toEqual(['t1', 't2', 't3']);
+    const kai = staffRows(ws, 'l1', loadPerWeek(ws, noIndex())).find((r) => r.person.id === 'p3')!;
+    // Not a member there, but the meeting counts in Kai's total, as in the Load view.
+    expect(kai.commitments.map((c) => c.unitId)).toEqual(['t2']);
+    expect(kai.meetings).toBe(1.5);
+  });
+
   it('measures a person on all their hours', () => {
     const ws = lined();
     expect(capacity(ws, 'p2', lineSelection('l1'))).toBe(50);
