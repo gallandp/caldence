@@ -94,7 +94,7 @@ test('effect check while staffing a person on a demand (#320)', async ({ page })
   await showView(page, 'Meeting load');
   await page.locator('tr[data-person="person-alex"] button.who').click();
   await expect(page.locator('[data-staffed]')).toContainText(
-    'Team Delta: below minimum commitment · of it in Team Delta: 88% in meetings',
+    'Team Delta: below minimum commitment · 88% in meetings',
   );
 });
 

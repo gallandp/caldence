@@ -163,10 +163,16 @@
 
   // ---------- staffing a person on a demand (#320) ----------
 
-  let staffing = $state<Demand | null>(null);
+  let staffingId = $state<string | null>(null);
+  /** Read from the team each time: an undo or edit can change or remove the demand meanwhile. */
+  const staffing = $derived(team.demands?.find((d) => d.id === staffingId) ?? null);
+  // Presenting hides the dialog; it does not come back afterwards.
+  $effect(() => {
+    if ($presenting) untrack(() => (staffingId = null));
+  });
   function closeStaffing() {
-    const id = staffing?.id;
-    staffing = null;
+    const id = staffingId;
+    staffingId = null;
     if (id) void focusSoon(`[data-demand="${CSS.escape(id)}"] [data-assign]`);
   }
 </script>
@@ -318,7 +324,7 @@
                   data-assign
                   data-no-present
                   aria-label={$t('assign.startFor', { name })}
-                  onclick={() => (staffing = d)}>{$t('assign.start')}</button
+                  onclick={() => (staffingId = d.id)}>{$t('assign.start')}</button
                 >
               </span>
               <span class="tools" data-no-present>

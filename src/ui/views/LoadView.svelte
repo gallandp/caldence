@@ -588,6 +588,7 @@
                           personId={p.person.id}
                           roleId={a.roleId}
                           withTeam
+                          short
                         />
                       </li>
                     {/each}

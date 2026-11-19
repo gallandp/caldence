@@ -201,7 +201,14 @@ export function minCommitment(
   team: Team,
   roleId: string,
 ): MinCommitment | undefined {
-  const meetingHours = productMeetings(ws, team, roleId).reduce((s, m) => s + m.hours, 0);
+  return minCommitmentOf(
+    ws,
+    productMeetings(ws, team, roleId).reduce((s, m) => s + m.hours, 0),
+  );
+}
+
+/** The Mindestzusage for meetings of `meetingHours` a week (see `minCommitment`). */
+export function minCommitmentOf(ws: Workspace, meetingHours: number): MinCommitment | undefined {
   const { hoursPerWeek } = ws.settings;
   const { maxFte } = ws.settings.thresholds;
   if (meetingHours <= 0 || hoursPerWeek <= 0 || maxFte <= 0) return undefined;

@@ -10,15 +10,10 @@
   /**
    * Staffing a person on a product's demand (#320): "Person → Product" with an FTE stepper and
    * the effect check of the commitment before it is made. Assigning is always possible; the check
-   * only tells what the hours leave after the product's meetings. Without a person given, the
-   * dialog offers the people not in the product yet, the ones with the demand's skill first.
+   * only tells what the hours leave after the product's meetings. It offers the people not in the
+   * product yet, the ones with the demand's skill first.
    */
-  let {
-    team,
-    demand,
-    personId: given,
-    onclose,
-  }: { team: Team; demand: Demand; personId?: string; onclose: () => void } = $props();
+  let { team, demand, onclose }: { team: Team; demand: Demand; onclose: () => void } = $props();
 
   const uid = $props.id();
   let dialog: HTMLDialogElement | undefined = $state();
@@ -47,7 +42,7 @@
       .map((p) => ({ id: p.id, name: p.name, free: free.get(p.id)!, skill: hasSkill(p.id) }));
   });
   let picked = $state<string | undefined>(undefined);
-  const personId = $derived(given ?? picked ?? choices[0]?.id);
+  const personId = $derived(picked ?? choices[0]?.id);
   const person = $derived(ws.people.find((p) => p.id === personId));
   const free = $derived(personId ? freeFte(ws, personId) : 0);
   const open = $derived.by(() => {
@@ -119,35 +114,33 @@
   <h2 id="{uid}-title">
     {$t('assign.title', { person: person?.name ?? '…', team: team.name })}
   </h2>
-  {#if choices.length === 0 && !given}
+  {#if choices.length === 0}
     <p class="hint">{$t('assign.nobody', { team: team.name })}</p>
     <div class="actions">
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
     </div>
   {:else}
     <form novalidate onsubmit={save}>
-      {#if !given}
-        <div class="field">
-          <label for="{uid}-person">{$t('assign.person')}</label>
-          <select
-            id="{uid}-person"
-            value={personId}
-            onchange={(e) => {
-              picked = e.currentTarget.value;
-              value = null;
-            }}
-          >
-            {#each choices as c (c.id)}
-              <option value={c.id}
-                >{$t(c.free < 0 ? 'assign.option.over' : 'assign.option', {
-                  name: c.name,
-                  free: fte(Math.abs(c.free)),
-                })}{c.skill ? ` · ${what}` : ''}</option
-              >
-            {/each}
-          </select>
-        </div>
-      {/if}
+      <div class="field">
+        <label for="{uid}-person">{$t('assign.person')}</label>
+        <select
+          id="{uid}-person"
+          value={personId}
+          onchange={(e) => {
+            picked = e.currentTarget.value;
+            value = null;
+          }}
+        >
+          {#each choices as c (c.id)}
+            <option value={c.id}
+              >{$t(c.free < 0 ? 'assign.option.over' : 'assign.option', {
+                name: c.name,
+                free: fte(Math.abs(c.free)),
+              })}{c.skill ? ` · ${what}` : ''}</option
+            >
+          {/each}
+        </select>
+      </div>
       <div class="amount">
         <div class="stepper" role="group" aria-labelledby="{uid}-fte-l">
           <button
@@ -166,9 +159,10 @@
             value={amount}
             aria-describedby="{uid}-free"
             aria-invalid={valid ? undefined : 'true'}
-            oninput={(e) => {
+            onchange={(e) => {
+              // On change, not on every key: a half-typed number is left alone; off the 0.1 grid snaps.
               const v = e.currentTarget.value;
-              value = v.trim() === '' ? NaN : Number(v);
+              value = v.trim() === '' ? NaN : tenth(Number(v));
             }}
           />
           <span class="unit" aria-hidden="true">{$t('assign.fte')}</span>

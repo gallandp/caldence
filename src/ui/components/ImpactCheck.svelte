@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { commitmentImpact } from '../../core/impact';
+  import { commitmentImpact, overallLoad } from '../../core/impact';
+  import { loadPerWeek } from '../../core/load';
+  import { index } from '../state/workspace';
   import type { Workspace } from '../../core/model';
   import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
 
@@ -26,6 +28,8 @@
   } = $props();
 
   const impact = $derived(commitmentImpact(ws, teamId, personId, roleId));
+  /** Measured like the Terminlast people table, so "über Grenze" means the same there. */
+  const whole = $derived(overall ? overallLoad(ws, loadPerWeek(ws, $index), personId) : null);
   const team = $derived(ws.teams.find((x) => x.id === teamId));
   const product = $derived(team?.name ?? '');
   const max = $derived(ws.settings.thresholds.maxFte);
@@ -92,12 +96,12 @@
         </p>
       </div>
 
-      {#if overall}
+      {#if whole}
         <p class="overall" data-impact-overall>
-          {$t('impact.overall', { name, share: pct(impact.overall.share) })}
-          {#if impact.overall.over}
+          {$t('impact.overall', { name, share: pct(whole.share) })}
+          {#if whole.over}
             <span class="over-tag" data-impact-over>{$t('load.over')}</span>
-            <span class="muted">{$t('impact.overall.over', { max: pct(max) })}</span>
+            <span class="muted">{$t('whole.over', { max: pct(max) })}</span>
           {/if}
         </p>
       {/if}

@@ -1,7 +1,11 @@
-import { minCommitment, productMeetings, type MinCommitment, type ProductMeeting } from './demand';
-import { loadBase, occurrenceHours, occurrencesPerWeek, overMax } from './load';
-import { attendees, units, type Workspace } from './model';
-import { effectiveDuration } from './recurrence';
+import {
+  minCommitmentOf,
+  productMeetings,
+  type MinCommitment,
+  type ProductMeeting,
+} from './demand';
+import { overMax, personLoad, type WeekLoad } from './load';
+import type { Workspace } from './model';
 
 /**
  * Effect check (#320): what a person's commitment to a product leaves after the product's
@@ -21,70 +25,36 @@ export interface Impact {
   meetingHours: number;
   /** Hours left for product work: hours − meetings, at least 0. */
   left: number;
-  /** Meeting hours ÷ hours in the product; 1 when there are no hours. */
+  /**
+   * Meeting hours of the demand's role ÷ hours in the product; 1 when there are no hours. A member
+   * with a second role there has that role's meetings in their overall share only.
+   */
   share: number;
   state: ImpactState;
   min: MinCommitment | undefined;
   meetings: ProductMeeting[];
-  overall: OverallLoad;
 }
 
 export interface OverallLoad {
-  /** Meeting hours of a typical week in all teams and areas. */
+  /** Average meeting hours per week in the planning horizon, all teams and areas. */
   hours: number;
   /** All the person's hours, at most the weekly hours (`loadBase`). */
   base: number;
   share: number;
-  /** "über Grenze": the same rule as Terminlast. */
+  /** "über Grenze": the rule and numbers of the Terminlast people table. */
   over: boolean;
 }
 
 const EPS = 1e-9;
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
- * A person's meeting hours in a typical week in all their teams and areas: the analytical average
- * (no horizon, no holidays), counted like `weeklyHoursByPerson`. Only units the person can attend
- * are read: their teams, their areas and the areas of their teams.
+ * The person's overall status after the change, measured exactly like the Terminlast people table
+ * (`personLoad` over the horizon), so "über Grenze" means the same in both places.
  */
-export function personWeeklyMeetingHours(ws: Workspace, personId: string): number {
-  const teams = new Set(
-    ws.teams.filter((t) => t.members.some((m) => m.personId === personId)).map((t) => t.id),
-  );
-  const relevant = new Set(teams);
-  for (const a of ws.areas)
-    if (
-      a.teamIds.some((id) => teams.has(id)) ||
-      a.members.some((m) => m.personId === personId) ||
-      a.events.some((e) => e.participants.some((p) => p.personId === personId))
-    )
-      relevant.add(a.id);
-  for (const t of ws.teams)
-    if (t.events.some((e) => e.participants.some((p) => p.personId === personId)))
-      relevant.add(t.id);
-  let sum = 0;
-  for (const unit of units(ws)) {
-    if (!relevant.has(unit.id)) continue;
-    for (const event of unit.events) {
-      const perWeek = occurrencesPerWeek(event.rule, unit);
-      if (perWeek === 0) continue;
-      const minutes = effectiveDuration(event, unit);
-      for (const p of event.participants)
-        if (attendees(ws, unit.id, p, event).includes(personId))
-          sum += perWeek * occurrenceHours(event, minutes, p.share);
-    }
-  }
-  return sum;
-}
-
-export function overallLoad(ws: Workspace, personId: string): OverallLoad {
-  const hours = personWeeklyMeetingHours(ws, personId);
-  const base = loadBase(ws, personId);
-  return {
-    hours,
-    base,
-    share: base > 0 ? hours / base : hours > 0 ? 1 : 0,
-    over: overMax(hours, base, ws.settings.thresholds.maxFte),
-  };
+export function overallLoad(ws: Workspace, weeks: WeekLoad[], personId: string): OverallLoad {
+  const { hours, base, share } = personLoad(ws, weeks, personId);
+  return { hours, base, share, over: overMax(hours, base, ws.settings.thresholds.maxFte) };
 }
 
 /** The state of `hours` in a product whose role meetings take `meetingHours` (#320). */
@@ -94,14 +64,15 @@ export function impactState(
   min: MinCommitment | undefined,
 ): ImpactState {
   if (meetingHours > 0 && hours <= meetingHours + EPS) return 'meetingsOnly';
-  if (min && hours < min.hours - EPS) return 'under';
+  // Member hours are stored to 0.01 h (`assign`): the Mindestzusage counts the same way.
+  if (min && hours < round2(min.hours) - EPS) return 'under';
   return 'enough';
 }
 
 /**
  * The effect check for a person in a role of a product, on the workspace as it would be. The
  * person's hours in the product are their member hours there (or the weekly hours without an
- * entry), 0 when they are not a member.
+ * entry), 0 when they are not a member. Cheap: no load over the horizon (see `overallLoad`).
  */
 export function commitmentImpact(
   ws: Workspace,
@@ -119,7 +90,7 @@ export function commitmentImpact(
       : ws.settings.hoursPerWeek;
   const meetings = productMeetings(ws, team, roleId);
   const meetingHours = meetings.reduce((s, m) => s + m.hours, 0);
-  const min = minCommitment(ws, team, roleId);
+  const min = minCommitmentOf(ws, meetingHours);
   return {
     hours,
     meetingHours,
@@ -128,6 +99,5 @@ export function commitmentImpact(
     state: impactState(hours, meetingHours, min),
     min,
     meetings,
-    overall: overallLoad(ws, personId),
   };
 }
