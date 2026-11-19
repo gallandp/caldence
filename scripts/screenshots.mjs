@@ -28,6 +28,8 @@ const horizon = { en: 'Horizon', de: 'Zeitraum' };
 const openExample = { en: 'Open the example', de: 'Das Beispiel öffnen' };
 const person = { en: 'Person', de: 'Person' };
 const areaTab = { en: 'Area', de: 'Bereich' };
+const lineExample = { en: 'Open the large line example', de: 'Großes Beispiel mit Linie öffnen' };
+const lineWorld = { en: 'Line', de: 'Linie' };
 
 function freePort() {
   return new Promise((done, fail) => {
@@ -109,6 +111,16 @@ const withArea = (page$) => async (page, l) => {
   await panel.locator('h3').first().waitFor();
 };
 
+/** The invented line example (#323) in the line world (#393), on one of its pages by tab id. */
+const withLine = (tab, world = 'line') => async (page, l) => {
+  await page.getByRole('button', { name: lineExample[l] }).click();
+  await page.locator('#tab-team').waitFor();
+  if (world === 'line') await page.getByRole('radio', { name: lineWorld[l], exact: true }).click();
+  await page.locator(`#tab-${tab}`).click();
+  await page.locator(`#panel-${tab} h2`).first().waitFor();
+  await page.waitForLoadState('networkidle');
+};
+
 const shots = [
   {
     view: 'start',
@@ -146,6 +158,10 @@ const shots = [
   { view: 'templates', steps: withExample('templates') },
   { view: 'exchange', steps: withExample('exchange') },
   { view: 'help', steps: withExample('help') },
+  // The line world (#398): its overview, its staff, and the matrix between the worlds.
+  { view: 'line', steps: withLine('team') },
+  { view: 'staff', steps: withLine('people') },
+  { view: 'matrix', steps: withLine('matrix') },
 ];
 
 const port = await freePort();
