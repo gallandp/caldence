@@ -208,6 +208,21 @@ export function removeItem(
         )
       : units.some((t) => t.events.some((e) => e.categoryId === id));
   if (inUse && replacementId === undefined) return fail(path, 'error.ref.inuse');
+  if (kind === 'roles') {
+    // Role links follow the replacement; without one, a link to the role goes (#338).
+    for (const a of out.areas) {
+      if (!a.roleLinks) continue;
+      a.roleLinks = uniqueBy(
+        a.roleLinks.flatMap((l) => {
+          const roleId = l.roleId === id ? replacementId : l.roleId;
+          const teamRoleId = l.teamRoleId === id ? replacementId : l.teamRoleId;
+          return roleId && teamRoleId ? [{ ...l, roleId, teamRoleId }] : [];
+        }),
+        (l) => `${l.teamId}\u0000${l.roleId}`,
+      );
+    }
+    dropStaleLinks(out);
+  }
   if (replacementId === undefined) return { ok: true, value: out };
 
   for (const t of units) {
@@ -271,8 +286,14 @@ export function duplicateTeam(ws: Workspace, teamId: string, name: string): [Wor
   const id = newId('t', unitIds(ws));
   const copy: Team = { ...structuredClone(src), id, name };
   const out = { ...structuredClone(ws), teams: [...structuredClone(ws.teams), copy] };
-  // The copy joins the area of its source.
-  for (const a of out.areas) if (a.teamIds.includes(teamId)) a.teamIds.push(id);
+  // The copy joins the area of its source, with the same role links (#338).
+  for (const a of out.areas)
+    if (a.teamIds.includes(teamId)) {
+      a.teamIds.push(id);
+      const links = (a.roleLinks ?? []).filter((l) => l.teamId === teamId);
+      if (links.length > 0)
+        a.roleLinks = [...a.roleLinks!, ...links.map((l) => ({ ...l, teamId: id }))];
+    }
   return [out, id];
 }
 
@@ -281,7 +302,19 @@ export function removeTeam(ws: Workspace, teamId: string): Workspace {
   const out = structuredClone(ws);
   out.teams = out.teams.filter((t) => t.id !== teamId);
   for (const a of out.areas) a.teamIds = a.teamIds.filter((id) => id !== teamId);
+  dropStaleLinks(out);
   return out;
+}
+
+/** Removes role links whose team left the area or that link a role to itself (#338). */
+function dropStaleLinks(ws: Workspace): void {
+  for (const a of ws.areas) {
+    if (!a.roleLinks) continue;
+    a.roleLinks = a.roleLinks.filter(
+      (l) => a.teamIds.includes(l.teamId) && l.roleId !== l.teamRoleId,
+    );
+    if (a.roleLinks.length === 0) delete a.roleLinks;
+  }
 }
 
 // ---------- areas ----------
@@ -340,6 +373,7 @@ export function setAreaTeams(
       a.id === areaId
         ? out.teams.filter((t) => wanted.has(t.id)).map((t) => t.id)
         : a.teamIds.filter((id) => !wanted.has(id));
+  dropStaleLinks(out);
   const v = validate(out);
   return v.ok ? { ok: true, value: out } : v;
 }

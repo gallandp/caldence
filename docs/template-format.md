@@ -20,14 +20,14 @@ The `team` and `area` objects, their events, rules, cycles and cadences follow t
 
 ### Example: the SAFe template
 
-The built-in SAFe template (`src/data/templates/safe.en.json`) has a Scrum team and an `area` "Release Train" with a 10-week PI cadence (`kind: "pi"`), the cycle "PI 1" and the train's meetings: PI Planning (two days), ART Sync, System Demo, Inspect & Adapt and the PI Planning preparation on a milestone. They invite Product Owner, Scrum Master/Team Coach and Agile Team `fromTeams`, and Product Management and Release Train Engineer as the train's own roles. Its `levelNames` is `{ "preset": "train" }`, so a workspace without areas calls its levels Release Train and Team.
+The built-in SAFe template (`src/data/templates/safe.en.json`) has a Scrum team and an `area` "Release Train" with a 10-week PI cadence (`kind: "pi"`), the cycle "PI 1" and the train's meetings: PI Planning (two days), ART Sync, System Demo, Inspect & Adapt and the PI Planning preparation on a milestone. They invite Product Owner, Scrum Master/Team Coach and Agile Team `fromTeams`, and Product Management and Release Train Engineer as the train's own roles. Its `levelNames` is `{ "preset": "train" }`, so a workspace without teams calls its levels Release Train and Team.
 
 ## Applying a template
 
 - Roles and categories are matched with existing ones by name (trimmed, ignoring case). Matches are reused; the others are added with new ids.
 - The team gets a new id and `templateId`.
 - All dates (cadence start, cycle milestones, `every-n-weeks` anchors, `once` dates) move by a whole number of weeks so that the cadence starts on the first matching weekday on or after the day of applying.
-- With an `area`, the first team from the template creates the area with the template's cadence, cycles and meetings, without people. It takes the template's `levelNames` only when it is the workspace's first area and the workspace has no level names yet.
+- With an `area`, the first team from the template creates the area with the template's cadence, cycles and meetings, without people. It takes the template's `levelNames` only when the workspace has no teams and no level names yet; a workspace with teams keeps its own level names, also when the template's area is its first (#338).
 - A further team from the same template joins the area that already holds a team from it (or an empty area of the same name) instead of creating a second one. Its dates move so that its cadence starts with the area's first increment on or after the day of applying, keeping its iterations in step with the area. Existing areas made by hand are never changed.
 
 ## No personal data

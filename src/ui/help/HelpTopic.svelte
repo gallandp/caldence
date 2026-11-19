@@ -34,6 +34,7 @@
       'help.views.export',
       'help.ics.areas',
       'help.ics.remember',
+      'help.ics.holidays',
       'help.ics.note',
       'help.views.import',
     ],

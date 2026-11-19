@@ -50,6 +50,9 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   // 6 -> 7: meetings can take place on site with a travel time (#309); existing meetings are
   // remote, so only the version changes, which keeps older apps from ignoring travel time.
   6: (w) => w,
+  // 7 -> 8: an area can map its roles to a team's own role names (#338); existing areas have no
+  // such links, so only the version changes, which keeps older apps from leaving people out.
+  7: (w) => w,
 };
 
 export type MigrateResult =
