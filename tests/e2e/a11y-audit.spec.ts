@@ -44,10 +44,7 @@ async function loadExample(page: Page, locale: Locale) {
     .getByRole('tabpanel')
     .getByRole('button', { name: /^(Open the example|Das Beispiel öffnen)$/ })
     .click();
-  // A language chosen before counts as an unsaved change: discard it.
-  const discard = page.getByRole('dialog').getByRole('button', { name: /^(Discard|Verwerfen)$/ });
-  await expect(page.getByRole('grid').or(discard)).toBeVisible();
-  if (await discard.isVisible()) await discard.click();
+  // The language is the browser's: switching it is no unsaved change to discard (#337).
   await expect(page.getByRole('grid')).toBeVisible();
   await setLanguage(page, locale);
   await expect(page.locator('html')).toHaveAttribute('lang', locale);

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { openPeoplePool, openWorkspaceFile, teamAction, setLanguage } from './helpers';
+import { changeHours, openPeoplePool, openWorkspaceFile, teamAction } from './helpers';
 
 /** The bundled regions: the 16 German states. */
 const BUILT_IN_REGIONS = 16;
@@ -376,15 +376,15 @@ test('rows have visible labels', async ({ page }) => {
 
 test('a stale error and draft disappear when the workspace changes elsewhere', async ({ page }) => {
   await openExample(page);
-  await setLanguage(page, 'de');
-  const to = page.getByLabel('Zeitraum bis');
+  await changeHours(page, '39');
+  const to = page.getByLabel('Horizon to');
   await to.fill('2026-01-01');
-  await expect(page.getByText(/liegt vor dem Beginn/)).toBeVisible();
-  // Undo (outside a field) takes back the language: a change this view did not make.
+  await expect(page.getByText(/before its start/)).toBeVisible();
+  // Undo (outside a field) takes back the hours: a change this part of the view did not make.
   await page.locator('#set-general').click();
   await page.keyboard.press('ControlOrMeta+z');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.getByText(/liegt vor dem Beginn|before its start/)).toHaveCount(0);
+  await expect(page.locator('#set-hours')).toHaveValue('40');
+  await expect(page.getByText(/before its start/)).toHaveCount(0);
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
 });
 

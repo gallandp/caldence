@@ -161,7 +161,11 @@
         return;
       }
       error = null;
-      workspace.replace(result.value.ws, { fileName: result.value.name, dirty: false });
+      workspace.replace(result.value.ws, {
+        fileName: result.value.name,
+        dirty: false,
+        opened: true,
+      });
     }, undefined);
   }
 
@@ -231,7 +235,7 @@
     }
     error = null;
     files.forget();
-    ws.settings.locale = get(workspace).settings.locale;
+    ws.settings.locale = get(locale);
     workspace.replace(ws, { fileName: null, dirty: false });
   }
 
@@ -243,18 +247,12 @@
   }
 
   export function openExample(): Promise<void> {
-    return exclusive(
-      () => replaceWith(() => exampleWorkspace(get(workspace).settings.locale)),
-      undefined,
-    );
+    return exclusive(() => replaceWith(() => exampleWorkspace(get(locale))), undefined);
   }
 
   /** The large invented line organisation example (#323). */
   export function openLineExample(): Promise<void> {
-    return exclusive(
-      () => replaceWith(() => lineExample(get(workspace).settings.locale)),
-      undefined,
-    );
+    return exclusive(() => replaceWith(() => lineExample(get(locale))), undefined);
   }
 </script>
 

@@ -34,6 +34,8 @@
     exchange: 'view.exchange',
     excel: 'exchange.xlsx.button',
     staff: 'staff.open',
+    overview: 'area.view.overview',
+    calendar: 'view.calendar',
   };
 </script>
 

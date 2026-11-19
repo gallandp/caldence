@@ -1,11 +1,17 @@
 import { get, writable } from 'svelte/store';
-import type { SavedView, Workspace } from '../../core/model';
+import {
+  hasOrgLevel,
+  ORG_UNIT,
+  selectedLineUnit,
+  type SavedView,
+  type Workspace,
+} from '../../core/model';
 
 const view = writable<SavedView>({});
 
 /**
  * Where the app is looking now: the selected unit and the view. Saved into the file and the
- * autosave together with the area page, so a file opens where it was saved (persona concept Q5).
+ * autosave together with the area page, so a reload comes back there (persona concept Q5).
  * Setting the same place again does not notify, so the autosave is not scheduled for nothing.
  */
 export const currentView = {
@@ -16,8 +22,34 @@ export const currentView = {
   },
 };
 
-/** The area's page; a new area or a file without a saved page starts on the structure. */
-export const areaPage = writable<'structure' | 'overview'>('structure');
+/** The area's page. An area opens on its overview (#337); only a new area starts on the structure. */
+export const areaPage = writable<'structure' | 'overview'>('overview');
+
+/**
+ * Where a replaced workspace opens (#337). An `opened` file lands on an answer, never on an
+ * editor: the first area's page, otherwise the Calendar. The autosave after a reload comes back
+ * to the saved unit and view; unknown values are left out.
+ */
+export function openingPlace(
+  ws: Workspace,
+  opened: boolean,
+  views: readonly string[],
+): { unit?: string; page?: string } {
+  const saved = ws.view;
+  const known = (unit: string | undefined) =>
+    (unit === ORG_UNIT && hasOrgLevel(ws)) ||
+    (unit !== undefined && ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
+    [...ws.teams, ...ws.areas].some((u) => u.id === unit);
+  if (!opened)
+    return {
+      unit: known(saved?.unit) ? saved?.unit : undefined,
+      page: views.find((id) => id === saved?.page),
+    };
+  const area = ws.areas[0];
+  if (area) return { unit: area.id, page: 'team' };
+  const team = ws.teams.find((t) => t.id === saved?.unit);
+  return { unit: team?.id, page: 'calendar' };
+}
 
 /** The workspace as it is written: with the current view. Keys of a newer app version stay. */
 export function withView(ws: Workspace): Workspace {

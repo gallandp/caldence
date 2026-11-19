@@ -28,6 +28,8 @@ export function createWorkspaceStore(initial: Workspace) {
   const fileName = writable<string | null>(null);
   const history = writable<Workspace[]>([]);
   const version = writable(0);
+  /** True when the last replace opened a file, which lands on an answer (#337). */
+  const opened = writable(false);
   /** Set while presenting: the state, undo history and dirty flag to return to (M1). */
   const baseline = writable<{ ws: Workspace; history: Workspace[]; dirty: boolean } | null>(null);
 
@@ -69,10 +71,14 @@ export function createWorkspaceStore(initial: Workspace) {
     return true;
   }
 
-  function replace(ws: Workspace, opts: { fileName: string | null; dirty: boolean }): void {
+  function replace(
+    ws: Workspace,
+    opts: { fileName: string | null; dirty: boolean; opened?: boolean },
+  ): void {
     // Another workspace ends presenting; its what-ifs belonged to the old one.
     baseline.set(null);
     history.set([]);
+    opened.set(opts.opened === true);
     version.update((n) => n + 1);
     state.set(ws);
     fileName.set(opts.fileName);
@@ -137,6 +143,7 @@ export function createWorkspaceStore(initial: Workspace) {
     fileName: { subscribe: fileName.subscribe } as Readable<string | null>,
     /** Increments whenever the whole workspace is replaced (New, Open, example, restore). */
     version: { subscribe: version.subscribe } as Readable<number>,
+    opened: { subscribe: opened.subscribe } as Readable<boolean>,
     replace,
     markSaved,
     beginPresent,

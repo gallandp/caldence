@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import { openExample, openWorkspaceFile, pickUnit, showAreaPage, useFileFallback } from './helpers';
 import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 import { structureWorkspace } from './structure-fixture';
 import { areaWorkspace } from './area-fixture';
@@ -171,6 +171,8 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   ws.settings.locale = 'en';
   ws.settings.hourlyRate = 100;
   await openWorkspaceFile(page, ws, 'plan.caldence.json');
+  // The file opens on its area (#337).
+  await pickUnit(page, 'Team Alpha');
   await present(page);
   await openMeetings(page);
   const panel = page.locator('#panel-meetings');
@@ -281,6 +283,7 @@ test('Escape closes the area person card first, then ends presenting', async ({ 
   await openWorkspaceFile(page, structureWorkspace({ teams: 4 }));
   await pickUnit(page, 'Payments');
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Structure');
   await page.getByRole('button', { name: 'Present', exact: true }).click();
   await page
     .locator('.areanode')

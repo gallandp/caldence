@@ -3,10 +3,12 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { AREA_CONTROLS, AREA_LABELS } from '../../src/ui/help/areas';
 import {
+  autosaved,
   currentUnit,
   openExample,
   openWorkspaceFile,
   pickUnit,
+  showAreaPage,
   showView,
   unitNames,
   useFileFallback,
@@ -64,6 +66,7 @@ test('the start screen mentions areas, and the example opens with its area', asy
   await expect(hint(page)).toHaveCount(0);
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
+  await showAreaPage(page, 'Structure');
   const area = panel(page, 'Area');
   // Three groups of people: only in the area, in a team and the area, only in a team.
   await expect(area.getByText('Jordan').first()).toBeVisible();
@@ -84,6 +87,7 @@ test('two teams without an area get a hint that groups them; dismissed it stays 
   await expect(hint(page)).toHaveCount(0);
   await expect(page.getByRole('tab', { name: 'Team', exact: true })).toBeFocused();
   // The same workspace after a reload (back on the Team page, where it was): still dismissed.
+  await autosaved(page, '"page":"team"');
   await page.reload();
   await expect(page.getByRole('list', { name: 'Members of Team Alpha' })).toBeVisible();
   await expect(hint(page)).toHaveCount(0);
@@ -180,6 +184,7 @@ test('the areas guide names controls the area page has', async ({ page }) => {
 
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
+  await showAreaPage(page, 'Structure');
   const area = panel(page, 'Area');
   for (const c of AREA_CONTROLS)
     await expect(area.getByRole(c.role, { name: en(c.name), exact: true })).toBeVisible();
@@ -262,7 +267,10 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(area.getByText('Commerce has no teams yet')).toHaveCount(0);
     // The button is gone with the empty state: focus lands on the chosen team, and the comparison
     // of cadences, hidden without teams, is back.
-    await expect(area.getByRole('button', { name: /Team Gamma/ }).first()).toBeFocused();
+    // (The cost table's link, not the overlap example above it, which also names Team Gamma.)
+    await expect(
+      area.locator('[data-area-costs]').getByRole('button', { name: /Team Gamma/ }),
+    ).toBeFocused();
     await expect(area.getByRole('heading', { name: 'Cadence and meeting load' })).toBeVisible();
   });
 }
