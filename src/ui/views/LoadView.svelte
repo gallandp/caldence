@@ -248,8 +248,17 @@
    */
   const ORG_HINTS = 5;
   const orgHints = $derived(hintItems.filter((h) => h.areaId === ORG_UNIT));
-  const shownHints = $derived(
-    hintItems.filter((h) => h.areaId !== ORG_UNIT || orgHints.indexOf(h) < ORG_HINTS),
+  const shownHints = $derived.by(() => {
+    const shown = new Set(orgHints.slice(0, ORG_HINTS));
+    return hintItems.filter((h) => h.areaId !== ORG_UNIT || shown.has(h));
+  });
+  /** Hints of areas only, of the organisation only (worded for it), or of both. */
+  const hintsTitle = $derived(
+    orgHints.length === 0
+      ? $t('load.hints')
+      : orgHints.length === hintItems.length
+        ? areaText($t, $levels, ORG_UNIT)('load.hints')
+        : $t('load.hints.both'),
   );
   const moreOrgHints = $derived(Math.max(0, orgHints.length - ORG_HINTS));
 
@@ -795,7 +804,7 @@
     {/if}
     {#if hintItems.length > 0}
       <h4 class="hints-title">
-        {areaText($t, $levels, orgHints.length === hintItems.length ? ORG_UNIT : '')('load.hints')}
+        {hintsTitle}
       </h4>
       {#if orgHints.length < hintItems.length}<p class="note">{$t('load.hints.rule')}</p>{/if}
       {#if orgHints.length > 0}<p class="note">

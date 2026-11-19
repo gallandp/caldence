@@ -11,7 +11,16 @@
   import { workspace } from '../state/workspace';
 
   /** "+ Person" in the area node: a new or existing person with an area role and area hours. */
-  let { area, onadded }: { area: Area; onadded: (personId: string) => void } = $props();
+  let {
+    area,
+    onadded,
+    inSentence,
+  }: {
+    area: Area;
+    onadded: (personId: string) => void;
+    /** The unit's name inside a sentence; an unnamed organisation is "the organisation" (#328). */
+    inSentence?: string;
+  } = $props();
   /** Area texts, worded for the organisation when it is the one shown (#328). */
   const tt = $derived(areaText($translate, $levels, area.id));
 
@@ -100,7 +109,7 @@
   aria-labelledby="{uid}-title"
   oncancel={(e) => (e.preventDefault(), close())}
 >
-  <h2 id="{uid}-title">{tt('area.add.title', { name: area.name })}</h2>
+  <h2 id="{uid}-title">{tt('area.add.title', { name: inSentence ?? area.name })}</h2>
   <form onsubmit={submit}>
     <label>
       {tt('area.add.person')}

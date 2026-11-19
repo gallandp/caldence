@@ -70,6 +70,12 @@ test('the organisation holds its own people and plans meetings from every area o
   await expect(mira).toContainText('Managing director');
   await expect(mira).toContainText('8 h');
   await expect(root).toContainText('People in the organisation · 1');
+  // The card names the unnamed organisation by its level word, its sentences say "the organisation".
+  await mira.click();
+  const card = page.getByRole('dialog', { name: 'Mira' });
+  await expect(card.locator('.unit-name.area')).toHaveText('Organisation');
+  await expect(card.getByRole('button', { name: 'Remove from the organisation' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   // Meetings & cadence plans the organisation like an area.
   await showView(page, 'Meetings & cadence');

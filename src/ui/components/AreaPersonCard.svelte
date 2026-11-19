@@ -25,8 +25,11 @@
     person: p,
     onclose,
     ongone,
+    inSentence,
   }: {
     area: Area;
+    /** The unit's name inside a sentence; an unnamed organisation is "the organisation" (#328). */
+    inSentence?: string;
     personId: string | null;
     /** The person's place in the structure; undefined once they left it. */
     person: StructurePerson | undefined;
@@ -36,6 +39,8 @@
   } = $props();
   /** Area texts, worded for the organisation when it is the one shown (#328). */
   const tt = $derived(areaText($translate, $levels, area.id));
+
+  const unitText = $derived(inSentence ?? area.name);
 
   const uid = $props.id();
   const problems = new Problems(uid);
@@ -149,7 +154,7 @@
 
   function onAreaHours(event: Event) {
     if (!personId) return;
-    const label = tt('area.card.hoursIn', { name, unit: area.name });
+    const label = tt('area.card.hoursIn', { name, unit: unitText });
     const n = parse(event.currentTarget as HTMLInputElement, 'area-hours', label);
     if (n === null) return;
     const id = personId;
@@ -357,11 +362,11 @@
     <div class="foot" data-no-present>
       {#if p.areaRoleIds.length > 0 || p.areaHours > 0}
         <button type="button" class="remove" onclick={remove}
-          >{tt('area.card.remove', { name: area.name })}</button
+          >{tt('area.card.remove', { name: unitText })}</button
         >
       {:else if invite}
         <button type="button" class="remove" disabled aria-describedby="{uid}-implicit"
-          >{tt('area.card.remove', { name: area.name })}</button
+          >{tt('area.card.remove', { name: unitText })}</button
         >
         <p class="hint" id="{uid}-implicit">{tt('area.person.implicit', { invite })}</p>
       {/if}
