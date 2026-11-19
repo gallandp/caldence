@@ -119,7 +119,7 @@ test('adding a person from another team fills in the hours left and flags too ma
     'more than',
   );
   // Gamma has no meetings for Developers.
-  await row.getByRole('button', { name: 'Alex' }).click();
+  await row.getByRole('button', { name: 'Alex', exact: true }).click();
   await expect(
     load
       .locator('.detail li')
