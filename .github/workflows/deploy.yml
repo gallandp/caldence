@@ -42,7 +42,9 @@ jobs:
     timeout-minutes: 15
     environment:
       name: production
-      url: ${{ inputs.channel == 'v2' && 'https://caldence.de/v2/' || 'https://caldence.de/' }}
+      url: ${{ steps.channel.outputs.url }}
+    outputs:
+      url: ${{ steps.channel.outputs.url }}
     permissions:
       contents: read
       attestations: read
@@ -148,9 +150,12 @@ jobs:
           dir="$SFTP_PATH"
           [ -z "$FOLDER" ] || dir="${SFTP_PATH%/}/$FOLDER"
           # The list of files the last deployment of this channel uploaded; missing on the first
-          # one. "-mkdir" ignores an existing folder; for stable it is the web folder itself.
-          printf -- '-mkdir "%s"\ncd "%s"\n-get .caldence-deploy-files old-list\n' "$dir" "$dir" \
-            | sftp -b - "${ssh_opts[@]}" "$target"
+          # one. Only the v2 folder is created when missing ("-mkdir" ignores an existing one); a
+          # missing web folder still fails at "cd", as before.
+          {
+            [ -z "$FOLDER" ] || printf -- '-mkdir "%s"\n' "$dir"
+            printf 'cd "%s"\n-get .caldence-deploy-files old-list\n' "$dir"
+          } | sftp -b - "${ssh_opts[@]}" "$target"
           [ -f old-list ] || echo "No earlier file list on the server: nothing is deleted."
           { printf 'cd "%s"\n' "$dir"; node "$PLAN" site old-list; } > batch.txt
           cd site
@@ -187,4 +192,4 @@ jobs:
       - run: npx playwright install chromium
       - run: npx playwright test -c playwright.deploy.config.ts
         env:
-          DEPLOY_URLS: ${{ inputs.channel == 'v2' && 'https://caldence.de/v2/' || 'https://caldence.de/' }}
+          DEPLOY_URLS: ${{ needs.deploy.outputs.url }}
