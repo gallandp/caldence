@@ -783,6 +783,7 @@
   "load.warn.clash.one": "1 Überschneidung",
   "load.warn.clash.other": "{n} Überschneidungen",
   "load.overlaps": "Überschneidende Termine",
+  "load.overlaps.all": "Alle {n} Personen mit Überschneidungen zeigen",
   "load.hints": "Stunden {levelInArea}",
   "load.hints.rule": "Diese Zeilen sind nicht die Grenze, die immer alle Termine ÷ alle Wochenstunden zählt: Sie vergleichen die Termine {levelInArea} mit den dort gesetzten Stunden. Die Stunden stehen auf der Seite Struktur der Ebene {levelArea}; bis sie gesetzt sind, zählen diese Termine gegen die übrigen Wochenstunden.",
   "load.hint.no-area-hours": "{person}: zu Terminen in {area} eingeladen (bis {hours} h pro Woche), aber dort sind keine Stunden gesetzt",

@@ -493,20 +493,19 @@ export function loadSummary(
 
 /** Same-day pairs whose [start, start + duration) overlap; touching edges do not count. */
 function overlapping<T extends Occurrence>(list: T[]): { date: ISODate; a: T; b: T }[] {
-  const sorted = [...list].sort(
-    (x, y) =>
-      x.date.localeCompare(y.date) ||
-      toMinutes(x.start) - toMinutes(y.start) ||
-      x.teamId.localeCompare(y.teamId),
-  );
+  // Plain code-unit order: dates and ids are ASCII, and localeCompare is slow at scale.
+  const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+  const sorted = list
+    .map((o) => ({ o, start: toMinutes(o.start) }))
+    .sort((x, y) => cmp(x.o.date, y.o.date) || x.start - y.start || cmp(x.o.teamId, y.o.teamId));
   const out: { date: ISODate; a: T; b: T }[] = [];
   for (let i = 0; i < sorted.length; i++) {
-    const a = sorted[i]!;
-    const aEnd = toMinutes(a.start) + a.duration;
+    const { o: a, start } = sorted[i]!;
+    const aEnd = start + a.duration;
     for (let j = i + 1; j < sorted.length; j++) {
       const b = sorted[j]!;
-      if (b.date !== a.date || toMinutes(b.start) >= aEnd) break;
-      out.push({ date: a.date, a, b });
+      if (b.o.date !== a.date || b.start >= aEnd) break;
+      out.push({ date: a.date, a, b: b.o });
     }
   }
   return out;
@@ -542,7 +541,7 @@ export function clashes(
   options: { from?: ISODate; to?: ISODate; units?: ReadonlySet<string> } = {},
 ): Clash[] {
   const { from, to, units } = options;
-  const byPerson = new Map<string, FilteredOccurrence[]>();
+  const byPerson = new Map<string, Occurrence[]>();
   for (const id of personIds) byPerson.set(id, []);
   for (const unit of scopeUnits(ws, {})) {
     // Per meeting: who of them attends, with the shares of the lines that invite them.
@@ -565,7 +564,8 @@ export function clashes(
           (sum, share) => sum + occurrenceHours(meeting.event, occ.duration, share),
           0,
         );
-        if (hours > 0) byPerson.get(id)!.push({ ...occ, hours });
+        // The occurrence itself, not a copy per person: that adds up at line scale (#316 budget).
+        if (hours > 0) byPerson.get(id)!.push(occ);
       }
     }
   }
@@ -574,7 +574,7 @@ export function clashes(
     for (const c of overlapping(list))
       if (!units || units.has(c.a.teamId) || units.has(c.b.teamId)) out.push({ personId, ...c });
   // A stable sort keeps the people's order within a day.
-  return out.sort((x, y) => x.date.localeCompare(y.date));
+  return out.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
 }
 
 /** When both meetings of a clash run: from the later start to the earlier end. */

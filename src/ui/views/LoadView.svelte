@@ -342,25 +342,35 @@
 
   /**
    * One warning per person whose meetings clash in the planning horizon (#339): how many, between
-   * which teams or areas, and the first one as an example. The calendar's overlap rule.
+   * which teams or areas, and the first one as an example. The calendar's overlap rule. Like the
+   * people table, a whole line names the first ones and offers the rest (#316 budget).
    */
-  const clashItems = $derived.by(() => {
+  const CLASH_ROWS = 50;
+  let allClashes = $state(false);
+  const clashPeople = $derived.by(() => {
     const ws = $workspace;
     const byPerson = record<ReturnType<typeof clashes>>();
     for (const c of clashes(ws, $index, scopePeople(ws, $filter)))
       (byPerson[c.personId] ??= []).push(c);
+    const nameById = new Map(ws.people.map((p) => [p.id, p.name]));
+    const collator = new Intl.Collator($locale);
+    return Object.entries(byPerson)
+      .map(([personId, found]) => ({ personId, found, person: nameById.get(personId) ?? personId }))
+      .sort((a, b) => collator.compare(a.person, b.person));
+  });
+  const clashItems = $derived.by(() => {
+    const ws = $workspace;
     const units = [...ws.areas, ...ws.teams];
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
+    const unitById = new Map(units.map((u) => [u.id, u]));
     const eventName = (o: { teamId: string; eventId: string }) =>
-      units.find((u) => u.id === o.teamId)?.events.find((e) => e.id === o.eventId)?.name ??
-      o.eventId;
-    return Object.entries(byPerson)
-      .map(([personId, found]) => {
+      unitById.get(o.teamId)?.events.find((e) => e.id === o.eventId)?.name ?? o.eventId;
+    return (allClashes ? clashPeople : clashPeople.slice(0, CLASH_ROWS)).map(
+      ({ personId, found, person }) => {
         const ids = new Set(found.flatMap((c) => [c.a.teamId, c.b.teamId]));
         const names = units.filter((u) => ids.has(u.id)).map((u) => u.name);
         const first = found[0]!;
         const time = clashTime(first);
-        const person = ws.people.find((p) => p.id === personId)?.name ?? personId;
         return {
           key: `clash/${personId}`,
           person,
@@ -378,8 +388,8 @@
             to: time.end,
           }),
         };
-      })
-      .sort((a, b) => a.person.localeCompare(b.person, $locale));
+      },
+    );
   });
 
   // ---------- summary tiles and chart ----------
@@ -796,8 +806,8 @@
   <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
-      {#if warningItems.length + clashItems.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length + clashItems.length}</span
+      {#if warningItems.length + clashPeople.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length + clashPeople.length}</span
         >{/if}
     </h3>
     <p class="note">
@@ -806,7 +816,7 @@
         limit: formatPercent($locale, $workspace.settings.thresholds.maxFte),
       })}
     </p>
-    {#if warningItems.length + clashItems.length === 0}
+    {#if warningItems.length + clashPeople.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
     {/if}
     {#if warningItems.length > 0}
@@ -832,6 +842,15 @@
           <li class="warning" data-clash>{w.text}</li>
         {/each}
       </ul>
+      {#if clashItems.length < clashPeople.length}
+        <button
+          type="button"
+          class="secondary more"
+          data-all-clashes
+          onclick={() => (allClashes = true)}
+          >{$t('load.overlaps.all', { n: formatNumber($locale, clashPeople.length, 0) })}</button
+        >
+      {/if}
     {/if}
     {#if contextItems.length > 0}
       <h4 class="hints-title">{$t('load.context')}</h4>

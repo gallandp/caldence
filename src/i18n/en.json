@@ -783,6 +783,7 @@
   "load.warn.clash.one": "1 overlap",
   "load.warn.clash.other": "{n} overlaps",
   "load.overlaps": "Overlapping meetings",
+  "load.overlaps.all": "Show all {n} people with overlaps",
   "load.hints": "Hours {levelInArea}",
   "load.hints.rule": "These lines are not the limit, which always counts all meetings ÷ all weekly hours: they compare meetings {levelInArea} with the hours set there. Set the hours on the Structure page of the {levelAreaLc}; until then those meetings count against the other weekly hours.",
   "load.hint.no-area-hours": "{person}: invited to meetings in {area} (up to {hours} h a week), but no hours are set there",

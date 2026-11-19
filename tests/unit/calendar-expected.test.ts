@@ -46,7 +46,13 @@ describe('constants of the calendar e2e tests', () => {
   it('finds per person exactly the conflicts the calendar marks', () => {
     for (const person of ws.people) {
       const one = clashes(ws, index, [person.id]).map(({ date, a, b }) => ({ date, a, b }));
-      expect(one, person.name).toEqual(conflicts(ws, index, person.id));
+      // The same occurrences; a clash leaves out the hours the calendar's filter counted.
+      const marked = conflicts(ws, index, person.id).map(({ date, a, b }) => ({
+        date,
+        a: { ...a, hours: undefined },
+        b: { ...b, hours: undefined },
+      }));
+      expect(one, person.name).toEqual(marked);
     }
   });
 });
