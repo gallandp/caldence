@@ -6,6 +6,8 @@ This page is the yardstick for every change proposal. Words follow the [glossary
 
 Caldence lets an Agile Coach build the meeting system of teams and areas in minutes and show everyone the same picture of it: when people meet, how much of their time it takes and what it costs, before anyone argues about it.
 
+Where line managers staff products, Caldence shows at the moment of staffing what a product's meetings leave of a commitment, so nobody commits time that the meetings already take. It goes into staffing only as far as that needs.
+
 ## Target users
 
 Builders create and change plans; readers come with one question and mostly see the coach's screen or file.
@@ -14,6 +16,7 @@ Builders create and change plans; readers come with one question and mostly see 
 2. **Product Owner** (builder): builds their own team's cadence, gets it into Outlook as `.ics` and wants to know what meetings cost.
 3. **Area lead** (reader): whether the teams' cadences are aligned and what their meetings cost, as a figure for a budget talk.
 4. **People manager** (reader): meeting load per person and role, who is over the limit and who has room.
+5. **Line manager** (builder, in a staffing round): decides which of their people work in which product. Main question: "Whom can I give to which product so that there is time left for the work?" (Caldence 2, #314).
 
 ## Problems Caldence solves
 
@@ -36,9 +39,8 @@ Builders create and change plans; readers come with one question and mostly see 
 ## What Caldence is not
 
 - Not a tool for finding free slots or booking rooms; single meetings exist only as part of a plan.
-- Not a total workload or capacity planner; it measures meeting time only.
+- Not a capacity planner: FTE appear only to show what meetings leave of a commitment; no absences, no utilisation beyond products, no HR records, no skill ratings, no time tracking.
 - Not a collaboration server: no shared online plans, no live sync between users, no accounts.
-- Not a time-tracking or HR tool.
 
 ## Current focus themes
 
@@ -50,4 +52,5 @@ Builders create and change plans; readers come with one question and mostly see 
 
 ## Changes
 
+- 2026-11-19: staffing sentence, line manager as builder and a sharper "not a capacity planner" (Philipp approved; #324 part A, epic #314).
 - 2026-11-18: created from the app (1.44), the personas and the builders/readers split; focus themes reflect proposals #272 to #281.
