@@ -290,7 +290,11 @@ export function reviewStaff(
   const parents = new Set(units.flatMap((u) => (u.parentId === undefined ? [] : [u.parentId])));
   const groupsByName = (name: string): LineUnit[] =>
     units.filter(
-      (u) => nameKey(u.name) === nameKey(name) && (u.parentId === undefined || parents.has(u.id)),
+      (u) =>
+        nameKey(u.name) === nameKey(name) &&
+        // A unit chosen as line team takes no units below it (#399).
+        u.kind !== 'team' &&
+        (u.parentId === undefined || parents.has(u.id)),
     );
   const familiesByName = new Map(out.skillFamilies.map((f) => [nameKey(f.name), f] as const));
   /** Units of that name; `parentId` null means anywhere in the tree. */

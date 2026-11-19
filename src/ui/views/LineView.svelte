@@ -160,15 +160,18 @@
       <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
       <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
       {#if !$presenting}
-        <div class="empty-actions">
-          <button
-            type="button"
-            class="secondary"
-            bind:this={addButton}
-            onclick={() => dialog?.show(undefined, unit.id)}
-            >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
-          >
-        </div>
+        <!-- A unit chosen as line team takes no units below it (#399). -->
+        {#if unit.kind !== 'team'}
+          <div class="empty-actions">
+            <button
+              type="button"
+              class="secondary"
+              bind:this={addButton}
+              onclick={() => dialog?.show(undefined, unit.id)}
+              >{$t('line.unit.addBelow', { team: $levels.lineTeamLc })}</button
+            >
+          </div>
+        {/if}
         <p class="note">{$t('line.empty.people')}</p>
       {/if}
     </section>

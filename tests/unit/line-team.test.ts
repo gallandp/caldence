@@ -34,7 +34,8 @@ import {
   updateLinePerson,
   updateLineUnit,
 } from '../../src/core/lineEdit';
-import { removeSkillFamily } from '../../src/core/line';
+import { removeCompany, removeSkillFamily } from '../../src/core/line';
+import { validate } from '../../src/core/validate';
 import type { HolidayIndex } from '../../src/core/regions';
 
 const noIndex = (): HolidayIndex => ({
@@ -315,5 +316,13 @@ describe('the level of a line unit (#399)', () => {
     expect(updateLineUnit(ws, 'g1', { kind: 'team' }).ok).toBe(false);
     const w1 = ok(updateLineUnit(ws, 'l1', { kind: 'team' }));
     expect(parentChoices(w1, undefined).map((u) => u.id)).toEqual(['g1']);
+  });
+
+  it('turns a company unit back into a derived unit when its company is deleted', () => {
+    const w1 = ok(updateLineUnit(lined(), 'g1', { kind: 'company' }));
+    const co = w1.lineUnits!.find((u) => u.id === 'g1')!.companyId!;
+    const w2 = removeCompany(w1, co);
+    expect(w2.lineUnits!.find((u) => u.id === 'g1')).not.toHaveProperty('kind');
+    expect(validate(w2).ok).toBe(true);
   });
 });
