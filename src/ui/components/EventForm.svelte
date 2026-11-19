@@ -332,8 +332,8 @@
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */
   const own = $derived.by(() => {
     if (!drafted || scope === team.id) return undefined;
-    const b = whatIfEffect($workspace, $index, team.id);
-    const a = whatIfEffect(drafted, $index, team.id);
+    const b = whatIfEffect($workspace, $index, team.id, rate);
+    const a = whatIfEffect(drafted, $index, team.id, rate);
     return b && a ? { name: team.name, before: b, after: a } : undefined;
   });
   const scopeName = $derived(unitName($workspace, scope, $levels.org));

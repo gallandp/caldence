@@ -97,3 +97,85 @@ test('a SAFe team in a Scrum file keeps the level words and maps the roles (#338
   await teamAction(page, 'Choose teams …');
   await expect(dialog.getByLabel('Agile Team in North')).toHaveValue('role-dev');
 });
+
+test('a "missing in team" note maps the role right there, with the obvious match selected (#362)', async ({
+  page,
+}) => {
+  await addSafeTeam(page);
+  await pickUnit(page, 'Release Train');
+  await teamAction(page, 'Choose teams …');
+  const teams = page.getByRole('dialog', { name: 'Teams in Release Train' });
+  await teams.getByRole('checkbox', { name: 'North' }).check();
+  await teams.getByRole('button', { name: 'Apply' }).click();
+  await expect(teams).toBeHidden();
+
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  const row = page
+    .getByRole('tabpanel', { name: 'Meetings & cadence' })
+    .getByRole('row', { name: /PI Planning day 1/ });
+  const smPill = row.getByRole('button', {
+    name: 'No Scrum Master/Team Coach in North: choose the matching role',
+  });
+  const agilePill = row.getByRole('button', { name: /^No Agile Team in North/ });
+  // Escape and Cancel leave the file as it was and return focus to the note.
+  await smPill.click();
+  const dialog = page.getByRole('dialog', { name: 'No Scrum Master/Team Coach in North' });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(smPill).toBeFocused();
+  await smPill.click();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(smPill).toBeFocused();
+  // "Scrum Master" is the obvious match for "Scrum Master/Team Coach": selected, to confirm.
+  await smPill.click();
+  const select = dialog.getByLabel('Scrum Master/Team Coach in North');
+  await expect(select).toHaveValue('role-sm');
+  await expect(dialog.getByText('Suggested because the names are alike.')).toBeVisible();
+  const axe = await new AxeBuilder({ page }).include('dialog[open]').analyze();
+  expect(axe.violations).toEqual([]);
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(row.getByText('Scrum Master/Team Coach · every team (1)')).toBeVisible();
+  await expect(row.getByText('No Scrum Master/Team Coach in North')).toHaveCount(0);
+  // The note is gone: focus moves on to the meeting's next note.
+  await expect(agilePill).toBeFocused();
+
+  // "Agile Team" has no obvious match: nothing is selected until the coach picks a role.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await agilePill.click();
+  const agile = page.getByRole('dialog', { name: 'No Agile Team in North' });
+  await expect(agile.getByLabel('Agile Team in North')).toHaveValue('');
+  await expect(agile.getByText('Suggested because the names are alike.')).toHaveCount(0);
+  // On a phone the dialog fits the screen.
+  const box = (await agile.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await agile.getByLabel('Agile Team in North').selectOption({ label: 'Developers' });
+  await agile.getByRole('button', { name: 'Apply' }).click();
+  await expect(row.getByText('Agile Team · every team (2)')).toBeVisible();
+  await expect(row.getByText(/in North$/)).toHaveCount(0);
+  // No note left to map: focus stays in the meeting, on its list of who is invited.
+  await expect(row.locator('ul.area-roles')).toBeFocused();
+
+  // The same mapping as in "Choose teams …".
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await teamAction(page, 'Choose teams …');
+  await expect(teams.getByLabel('Scrum Master/Team Coach in North')).toHaveValue('role-sm');
+  await expect(teams.getByLabel('Agile Team in North')).toHaveValue('role-dev');
+});
+
+test('while presenting, a "missing in team" note is plain text (#362)', async ({ page }) => {
+  await addSafeTeam(page);
+  await pickUnit(page, 'Release Train');
+  await teamAction(page, 'Choose teams …');
+  const teams = page.getByRole('dialog', { name: 'Teams in Release Train' });
+  await teams.getByRole('checkbox', { name: 'North' }).check();
+  await teams.getByRole('button', { name: 'Apply' }).click();
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  // While presenting the tabs step aside, so the row is found in the panel by its id.
+  const row = page.locator('#panel-meetings').getByRole('row', { name: /PI Planning day 1/ });
+  await expect(row.getByRole('button', { name: /^No Agile Team in North/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(row.getByText('No Agile Team in North')).toBeVisible();
+  await expect(row.getByRole('button', { name: /^No Agile Team in North/ })).toHaveCount(0);
+});

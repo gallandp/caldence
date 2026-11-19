@@ -8,7 +8,9 @@ import {
   teamAction,
   pickUnit,
   setLanguage,
+  openWorkspaceFile,
 } from './helpers';
+import { areaWorkspace } from './area-fixture';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -620,7 +622,7 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   const effect = form.locator('.effect');
   // Without an hourly rate: hours and meeting load only.
   await expect(effect).toContainText('±0.0 h per week');
-  await expect(effect.getByText('Cost', { exact: true })).toHaveCount(0);
+  await expect(effect.getByText('Cost, Team Alpha', { exact: true })).toHaveCount(0);
   // Weekly Sync: 15 minutes, Product Owner and Scrum Master. Twice as long: +0.5 h.
   await form.getByLabel('Duration (minutes)').fill('30');
   await expect(effect).toContainText('+0.5 h per week');
@@ -650,4 +652,30 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(row(page, 'Weekly Sync')).toContainText('30 min');
+});
+
+test('the effect names whose hours they are; on a phone a team in an area adds the area (#364)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const ws = areaWorkspace();
+  ws.settings.locale = 'en';
+  await openWorkspaceFile(page, ws);
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Meetings & cadence');
+  await panel(page).getByRole('button', { name: 'Edit Backlog Refinement' }).click();
+  const form = panel(page).getByRole('region', { name: 'Edit Backlog Refinement' });
+  const effect = form.locator('.effect');
+  await form.getByLabel('Duration (minutes)').fill('30');
+  // The hours are the area's: the row says so.
+  await expect(effect.locator('dl > div').nth(2)).toHaveText(
+    'Hours in meetings, Payments −0.5 h per week',
+  );
+  // On a phone: the team's own change first, then the area's meeting load in short.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(effect.locator('.line')).toHaveText(
+    '−0.4 h per week · meeting load Team Alpha: 16% → 14% · Payments: 13% → 13%',
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

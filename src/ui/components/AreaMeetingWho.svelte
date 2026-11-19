@@ -3,11 +3,16 @@
     attendees,
     missingRoles,
     participantName,
+    ORG_UNIT,
     type Area,
     type CalEvent,
   } from '../../core/model';
+  import { tick } from 'svelte';
+  import { teamRoleIds, unmatchedRoles } from '../../core/areaEdit';
   import { areaText, formatNumber, levels, locale, translate } from '../../i18n';
+  import { presenting } from '../state/present';
   import { workspace } from '../state/workspace';
+  import RoleLinkDialog from './RoleLinkDialog.svelte';
 
   /**
    * Who an area meeting invites: one chip per participant ("Product Owner · every team (4)" for
@@ -28,9 +33,21 @@
       ? ''
       : ` · ${tt('meet.role.shareOnly', { share: formatNumber($locale, share * 100, 0) })}`;
   const missing = $derived(missingRoles(ws, area, event));
+  /**
+   * A missing role the team may call differently: it is not among the team's roles, and the team
+   * has roles to choose from. Its pill opens the mapping (#362).
+   */
+  const mappable = (teamId: string, roleId: string) =>
+    // The organisation takes its teams' links from their areas; it keeps none of its own (#328).
+    area.id !== ORG_UNIT &&
+    !$presenting &&
+    teamRoleIds(ws, teamId).length > 0 &&
+    unmatchedRoles(ws, area, teamId).includes(roleId);
+  let list = $state<HTMLUListElement | undefined>();
+  let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
 </script>
 
-<ul class="area-roles">
+<ul class="area-roles" bind:this={list} tabindex="-1">
   {#each event.participants as p, i (i)}
     <li
       class="area-chip"
@@ -58,12 +75,44 @@
     </li>
   {/each}
 </ul>
+{#snippet warning()}
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg>
+{/snippet}
 {#each missing as m, i (i)}
-  <p class="missing">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3zM12 10v4M12 17h.01" /></svg
-    >{tt('area.missingRole', { team: teamName(m.teamId), role: roleName(m.roleId) })}
-  </p>
+  {@const note = tt('area.missingRole', { team: teamName(m.teamId), role: roleName(m.roleId) })}
+  {#if mappable(m.teamId, m.roleId)}
+    <button
+      type="button"
+      class="missing"
+      aria-label={tt('area.roleLink.choose', { note })}
+      onclick={(e) => (mapping = { ...m, button: e.currentTarget })}
+      >{@render warning()}{note}<svg
+        class="chev"
+        data-no-print
+        viewBox="0 0 24 24"
+        aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
+      ></button
+    >
+  {:else}
+    <p class="missing">{@render warning()}{note}</p>
+  {/if}
 {/each}
+{#if mapping}
+  <RoleLinkDialog
+    {area}
+    teamId={mapping.teamId}
+    roleId={mapping.roleId}
+    onclose={async () => {
+      const back = mapping?.button;
+      mapping = undefined;
+      await tick();
+      // Back to the pill; once the mapping made it go away, to the meeting's next pill or its
+      // chips, so focus never falls back to the page.
+      if (back?.isConnected) back.focus();
+      else (list?.parentElement?.querySelector<HTMLElement>('button.missing') ?? list)?.focus();
+    }}
+  />
+{/if}
 
 <style>
   .area-roles {
@@ -118,6 +167,33 @@
     color: var(--warn);
     font-size: 0.8rem;
     font-weight: 600;
+  }
+  /* A pill that opens the mapping (#362): the same warning look, with a chevron as its cue. */
+  :global(#app) button.missing {
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.35;
+    min-height: 2rem;
+    padding: 6px 8px 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    box-shadow: none;
+    text-align: start;
+  }
+  :global(#app) button.missing:hover {
+    border-color: currentColor;
+  }
+  :global(#app) button.missing:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .missing .chev {
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-left: -0.1rem;
   }
   .missing svg {
     width: 1rem;
