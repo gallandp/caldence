@@ -33,7 +33,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. The app also uses them as the weekly limit: a person whose hours in all teams and areas add up to more is flagged, and adding a person to one more team proposes the hours left. |
 | `horizon` | `{ from, to }` | Planning period; `to` is not before `from`. |
 | `skipHolidays` | boolean | Skip meetings that fall on a public holiday. |
-| `thresholds` | `{ warnFactor, maxFte }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. |
+| `thresholds` | `{ warnFactor, maxFte, contextSwitch? }` | Both above 0. `maxFte` is the one limit for meetings: a share of a person's weekly hours (0.6 = 60 %, shown in percent in Settings). `warnFactor` flags a load spike: a week above this many times the usual load. `contextSwitch` (optional, Caldence 2, an integer from 2 to 50, default 3): from this many teams a person gets a context-switch hint (#321). |
 | `hourlyRate` | number, optional | Euros per person and hour, above 0. With it, Meetings and Meeting load show what meetings cost; without it, no costs are shown. |
 | `levelNames` | object, optional | What the workspace calls its two levels (an area and its teams). Either `{ "preset": … }` with one of `area` (Bereich/Team), `department` (Abteilung/Team), `platform` (Plattform/Produkt), `chapter` (Chapter/Unit), `train` (Release Train/Team), or own names `{ "area": "Cluster", "team": "Squad" }`, both non-empty; own names may add `"organisation": "Konzern"` for the top level (non-empty; without it "Organisation"). Without it: `area`. |
 
@@ -46,6 +46,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | `cadence` | `{ kind, lengthWeeks, start }` | `kind` is `sprint`, `flow` or `pi`; `lengthWeeks` is an integer from 1; `start` is a date. |
 | `members` | list of `{ personId, roleId }` | A person in a role. The same pair must not appear twice. |
 | `memberHours` | object | Weekly working hours of a person in this team, by person id, from 0 to 168. A member without an entry has `settings.hoursPerWeek`. |
+| `contextOverrides` | object, optional | Caldence 2 (#321): context-switch hints overridden on purpose, by person id, each `{ teams, reason? }`. `teams` (integer from 2) is the number of teams the person was in when the hint was overridden; `reason` (optional, at most 200 characters) is about the work or the planning, never about the person. The override is dropped as soon as the person leaves the team, their roles or hours in it change, or their number of teams changes. A change to `settings.hoursPerWeek` keeps it. Never part of a template; a template file with it is refused. |
 | `assumptions` | object of numbers | Named values (for example `Number of developers`) that scale meeting durations. |
 | `cycles` | list of `{ id, name, milestones }` | `milestones` is a list of `{ id, name, date }`. |
 | `events` | list of events | The recurring meetings. |
