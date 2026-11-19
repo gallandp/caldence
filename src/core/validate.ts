@@ -2,7 +2,7 @@ import { isValidDate, isValidTime } from './date';
 import { LEVEL_PRESETS } from './levels';
 import { inYearRange, latestHorizonEnd, LIMITS } from './limits';
 import { migrate } from './migrate';
-import { CURRENT_SCHEMA, type Workspace } from './model';
+import { CURRENT_SCHEMA, FORMAT2_SCHEMA_BASE, type Workspace } from './model';
 import { validateRegion } from './regionFile';
 import { isBuiltinRegion } from './regions';
 
@@ -510,7 +510,11 @@ export function validate(input: unknown): Result<Workspace> {
     const v = w.schemaVersion;
     c.err(
       'schemaVersion',
-      typeof v === 'number' && v > CURRENT_SCHEMA ? 'error.schema.newer' : 'error.schema.unknown',
+      typeof v !== 'number' || v < CURRENT_SCHEMA
+        ? 'error.schema.unknown'
+        : v >= FORMAT2_SCHEMA_BASE
+          ? 'error.schema.v2'
+          : 'error.schema.newer',
     );
   }
 
