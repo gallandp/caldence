@@ -262,3 +262,15 @@ describe('performance fixture (#315)', () => {
     expect(meetings).toBeGreaterThanOrEqual(600);
   });
 });
+
+describe('assign keeps manual memberships (#315 review)', () => {
+  it('refuses a person who is already a member of the team', () => {
+    const w = structuredClone(fixture) as unknown as Workspace;
+    w.roles.push({ id: 'dev', name: 'Developer', colour: '#123456' });
+    w.teams[0]!.demands = [{ id: 'd1', fte: 1, roleId: 'dev' }];
+    const r = assign(w, { personId: 'p1', teamId: 't1', demandId: 'd1', fte: 0.5 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors[0]!.key).toBe('error.assignment.member');
+    expect(w.teams[0]!.memberHours.p1).toBe(32);
+  });
+});

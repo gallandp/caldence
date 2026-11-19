@@ -32,6 +32,7 @@
   "error.line.cycle": "The line at {path} contains itself",
   "error.line.depth": "The line at {path} has more than three levels",
   "error.assignment.duplicate": "The person is already assigned there ({path}). Another role in the same {levelTeam} stays a normal membership",
+  "error.assignment.member": "The person is already a member here ({path}). Their hours stay a normal membership",
   "error.assignment.notMember": "The assignment at {path} is missing from the members ({levelTeam})",
   "error.file.tooLarge": "The file is too large (at most 5 MB)",
   "error.schoolHoliday.tooLong": "The school holiday at {path} is longer than a year",

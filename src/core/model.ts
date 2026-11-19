@@ -429,7 +429,11 @@ export function holders(ws: Workspace, unitId: string, p: Participant): string[]
   if (area && p.fromTeams)
     for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
   const known = roleHolderCache.get(lists[0]!)?.get(`${unitKey}\u0000${p.roleId}`);
-  if (known && known.lists.every((l, i) => l === lists[i] && l.length === known.lengths[i]))
+  if (
+    known &&
+    known.lists.length === lists.length &&
+    known.lists.every((l, i) => l === lists[i] && l.length === known.lengths[i])
+  )
     return known.ids;
   const ids = [
     ...new Set(lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []))),

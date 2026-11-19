@@ -32,6 +32,7 @@
   "error.line.cycle": "Die Linie bei {path} enthält sich selbst",
   "error.line.depth": "Die Linie bei {path} hat mehr als drei Ebenen",
   "error.assignment.duplicate": "Die Person ist dort schon einmal zugeordnet ({path}). Eine weitere Rolle im selben {levelTeam} bleibt eine normale Mitgliedschaft",
+  "error.assignment.member": "Die Person ist hier schon Mitglied ({path}). Ihre Stunden bleiben eine normale Mitgliedschaft",
   "error.assignment.notMember": "Die Zuordnung bei {path} fehlt unter den Mitgliedern ({levelTeam})",
   "error.file.tooLarge": "Die Datei ist zu groß (höchstens 5 MB)",
   "error.schoolHoliday.tooLong": "Die Ferien bei {path} dauern länger als ein Jahr",

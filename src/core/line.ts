@@ -51,6 +51,10 @@ export function assign(ws: Workspace, data: Omit<Assignment, 'id'>): Result<[Wor
   const list = ws.assignments ?? [];
   if (list.some((a) => a.personId === data.personId && a.teamId === data.teamId))
     return fail(`assignments.${list.length}`, 'error.assignment.duplicate');
+  // A member already has hours in the team; staffing them would overwrite those (one number per
+  // person and team), and unassigning would remove a membership it did not add.
+  if (ws.teams.find((t) => t.id === data.teamId)?.members.some((m) => m.personId === data.personId))
+    return fail(`assignments.${list.length}.personId`, 'error.assignment.member');
   const out = structuredClone(ws);
   const team = out.teams.find((t) => t.id === data.teamId);
   const demand = team?.demands?.find((d) => d.id === data.demandId);
@@ -59,8 +63,7 @@ export function assign(ws: Workspace, data: Omit<Assignment, 'id'>): Result<[Wor
   let n = 1;
   while (taken.has(`as${n}`)) n++;
   const id = `as${n}`;
-  if (!team.members.some((m) => m.personId === data.personId && m.roleId === demand.roleId))
-    team.members.push({ personId: data.personId, roleId: demand.roleId });
+  team.members.push({ personId: data.personId, roleId: demand.roleId });
   team.memberHours = Object.assign(record<number>(), team.memberHours, {
     [data.personId]: round2(data.fte * out.settings.hoursPerWeek),
   });

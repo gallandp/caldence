@@ -562,14 +562,17 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
   });
   const teamById = new Map(teams.flatMap((t) => (isObj(t) && isStr(t.id) ? [[t.id, t]] : [])));
 
+  const teamIds = new Set(teamById.keys());
   const list = optList('assignments', LIMITS.assignments);
   c.ids(list, 'assignments');
   const staffed = new Set<string>();
   c.each(list, 'assignments', (a, p) => {
     c.ref(a, 'personId', p, ids.people);
-    c.ref(a, 'teamId', p, new Set(teamById.keys()));
+    c.ref(a, 'teamId', p, teamIds);
     const own = isStr(a.teamId) ? demands.get(a.teamId) : undefined;
-    c.ref(a, 'demandId', p, new Set(own?.keys()));
+    if (a.demandId === undefined) c.err(`${p}.demandId`, 'error.required');
+    else if (!isStr(a.demandId) || !own?.has(a.demandId))
+      c.err(`${p}.demandId`, 'error.ref.unknown');
     c.num(a, 'fte', p, { min: 0, max: LIMITS.maxFte });
     if (!isStr(a.personId) || !isStr(a.teamId)) return;
     // One assignment per person and team (v1).

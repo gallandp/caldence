@@ -110,17 +110,21 @@ export function occurrences(
 ): Occurrence[] {
   // Load, weeks and calendar expand the same unit in one update. Workspaces are never changed in
   // place, so the same team and settings objects mean the same answer; callers only read it.
-  const key = `${range?.from}/${range?.to}`;
-  const hit = cache.get(team);
-  if (hit && hit.settings === settings && hit.index === index && hit.key === key) return hit.value;
+  // One entry per range and horizon, so the calendar's month and the full horizon both stay.
+  const key = `${range?.from}/${range?.to}/${settings.horizon.from}/${settings.horizon.to}`;
+  let byKey = cache.get(team);
+  if (!byKey) cache.set(team, (byKey = new Map()));
+  const hit = byKey.get(key);
+  if (hit && hit.settings === settings && hit.index === index) return hit.value;
   const value = expand(team, settings, index, range);
-  cache.set(team, { settings, index, key, value });
+  if (byKey.size > 8) byKey.clear();
+  byKey.set(key, { settings, index, value });
   return value;
 }
 
 const cache = new WeakMap<
   Team,
-  { settings: Settings; index: HolidayIndex; key: string; value: Occurrence[] }
+  Map<string, { settings: Settings; index: HolidayIndex; value: Occurrence[] }>
 >();
 
 /** The dates `from`, `from` + 1, ...: most units share them, so they are made once (#315). */
