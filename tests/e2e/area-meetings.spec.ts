@@ -58,6 +58,19 @@ test('an area plans its own meetings and invites a role from every team', async 
   await expect(row.getByText('No Scrum Master in Team Beta')).toBeVisible();
 });
 
+test('"Set hours" in the area meeting form opens the Structure page at that person (#361)', async ({
+  page,
+}) => {
+  await openAreaMeetings(page);
+  const form = await addScrumOfScrums(page);
+  await form.getByRole('button', { name: 'Set hours' }).click();
+  await expect(
+    page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Structure' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  const card = page.getByRole('dialog', { name: 'Sam' });
+  await expect(card.getByRole('spinbutton', { name: 'Hours in the area' })).toBeFocused();
+});
+
 test('the area gets a cadence of its own and can drop it again', async ({ page }) => {
   const panel = await openAreaMeetings(page);
   await panel.getByRole('button', { name: 'Set cadence' }).click();

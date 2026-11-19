@@ -268,8 +268,11 @@ export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
 export interface AreaHint {
   personId: string;
   areaId: string;
-  /** No hours set in the area, or the area meetings take more than the limit of them. */
-  kind: 'no-area-hours' | 'area-share';
+  /**
+   * No hours set in the area (`no-hours`: no weekly hours anywhere, #361), or the area meetings
+   * take more than the limit of them.
+   */
+  kind: 'no-area-hours' | 'no-hours' | 'area-share';
   /** The most hours of the area's meetings in one week. */
   hours: number;
   /** The person's weekly hours in the area. */
@@ -291,7 +294,13 @@ export function areaHints(weeks: WeekLoad[], ws: Workspace): AreaHint[] {
       if (hours <= 0) continue;
       const inArea = areaHours(ws, area.id, person.id);
       const kind =
-        inArea <= 0 ? 'no-area-hours' : fte(hours, inArea) > maxFte ? 'area-share' : null;
+        inArea > 0
+          ? fte(hours, inArea) > maxFte
+            ? 'area-share'
+            : null
+          : capacity(ws, person.id) > 0
+            ? 'no-area-hours'
+            : 'no-hours';
       if (kind)
         result.push({ personId: person.id, areaId: area.id, kind, hours, areaHours: inArea });
     }
