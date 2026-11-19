@@ -38,7 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
-  import { calendarWeek } from '../state/focus';
+  import { calendarDay, calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -378,6 +378,16 @@
     mode = lastMode = 'week';
     selected = null;
     cursor = day;
+  });
+
+  // A day another view links to (#341): opened with its details, as if chosen in the grid.
+  $effect(() => {
+    const date = $calendarDay;
+    if (date === null || !shown) return;
+    calendarDay.set(null);
+    if (!inHorizon(date)) return;
+    if (mode === 'range') mode = lastMode = 'month';
+    void tick().then(() => selectByKey(date));
   });
 
   function edit(item: DayItem) {
