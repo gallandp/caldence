@@ -10,6 +10,7 @@ import {
 } from '../../src/core/lineEdit';
 import { lineLevels, lowestLineLevel } from '../../src/core/lineLevels';
 import { validate } from '../../src/core/validate';
+import { reviewStaff } from '../../src/core/staffImport';
 import '../../src/i18n';
 import { levelWords, lineLevelWord } from '../../src/i18n/levels';
 
@@ -175,5 +176,32 @@ describe('own line levels (#408)', () => {
     const w2 = structuredClone(ws);
     w2.lineUnits![1]!.kind = 'group';
     expect(parentChoices(w2, 'b', 'group').map((u) => u.id)).toEqual(['a']);
+  });
+
+  it('staff import refuses a new group when no level sits between the top and the lowest', () => {
+    const ws = lined();
+    ws.settings.lineLevels = [{ id: 'company', company: true }, { id: 'team' }];
+    ws.lineUnits = [];
+    ws.people = ws.people.filter((p) => p.id !== 'p2');
+    const row = {
+      line: 2,
+      name: 'Mira',
+      team: 'T1',
+      fteText: '1',
+      fte: 1,
+      skills: [],
+      group: 'G',
+      company: '',
+    };
+    const review = reviewStaff(
+      ws,
+      { rows: [row], ignored: [], missing: [] } as never,
+      {},
+      {
+        family: () => 'Neu',
+      },
+    );
+    expect(review.ws.lineUnits ?? []).toEqual([]);
+    expect(review.counts.error).toBe(1);
   });
 });

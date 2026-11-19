@@ -422,6 +422,11 @@ export function reviewStaff(
       }
       if (!unit) {
         if (!group) {
+          // Without a level between the top and the lowest one there is no place for a new group.
+          if (own && groupKind.kind === lowest) {
+            error('tooDeep');
+            continue;
+          }
           group = { id: newUnit(), name: row.group, ...groupKind };
           units.push(group);
           unitById.set(group.id, group);
