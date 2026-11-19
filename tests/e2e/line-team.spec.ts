@@ -85,16 +85,32 @@ test('a line team shows its staff, and a person opens with figures and line fiel
   ).toEqual([]);
 });
 
-test('a specialist group lists its line teams and opens them', async ({ page }) => {
-  await openWorkspaceFile(page, lineWorkspace(), 'line.caldence.json');
+test('a specialist group shows its line tree at every depth and opens a unit (#390)', async ({
+  page,
+}) => {
+  const ws = lineWorkspace();
+  (ws.lineUnits as { id: string; name: string; parentId?: string }[]).push({
+    id: 'lu4',
+    name: 'Orvalis Kasse',
+    parentId: 'lu3',
+  });
+  await openWorkspaceFile(page, ws, 'line.caldence.json');
   await pickLine(page, 'Orvalis');
   await showView(page, 'Specialist group');
   const view = panel(page, 'Specialist group');
-  await expect(view.getByRole('heading', { name: 'Units below' })).toBeVisible();
-  await expect(view.locator('button.kid')).toHaveCount(2);
+  await expect(view.getByRole('heading', { name: 'Structure' })).toBeVisible();
+  const tree = view.getByRole('list', { name: 'Line tree of Orvalis' });
+  await expect(tree).toContainText('Specialist group · 3 units below · Led by Ruth');
+  await expect(tree).toContainText('7 people');
+  await expect(tree.locator('button[data-line-node]')).toHaveCount(3);
+  // Orvalis Geld has a unit of its own now: a group, with Orvalis Kasse nested below it.
+  const geld = tree.locator('[data-line-node="lu3"]');
+  await expect(geld).toContainText('Specialist group');
+  await expect(geld).toContainText('3 people');
+  await expect(tree.locator('.kids [data-line-node="lu4"]')).toContainText('Line team');
   await expect(view.locator('tbody tr')).toHaveCount(7);
-  await view.locator('button.kid', { hasText: 'Orvalis Geld' }).click();
-  await expect(page.locator('.switcher .pick .label')).toHaveText('Orvalis Geld');
+  await tree.locator('[data-line-node="lu4"]').click();
+  await expect(page.locator('.switcher .pick .label')).toHaveText('Orvalis Kasse');
 });
 
 test('calendar, meeting load and meetings follow the line team', async ({ page }) => {
