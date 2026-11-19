@@ -196,11 +196,12 @@
       // Another file: back must not lead into units of the file before.
       replaceRoute = true;
       queueRoute();
+      const place = openingPlace($workspace, $opened, views);
       if (firstOpening) {
         firstOpening = false;
-        if (applyRoute(location.hash)) return;
+        // A unit the address does not name (or this file does not know) is the saved one.
+        if (applyRoute(location.hash, place.unit)) return;
       }
-      const place = openingPlace($workspace, $opened, views);
       if (place.unit) activeTeamId.set(place.unit);
       // The organisation or line of the file before is not this file's: start on its first team.
       else if ($activeTeamId === ORG_UNIT || selectedLineUnit($activeTeamId) !== undefined)
@@ -329,21 +330,31 @@
       const replace = replaceRoute;
       replaceRoute = false;
       if (hash === location.hash) return;
-      if (replace) history.replaceState(history.state, '', hash);
-      else history.pushState(null, '', hash);
+      // Presenting redirects some views: the entry stays as it was for after presenting.
+      if (replace && $presenting) return;
+      // Each entry knows its file: back into another file's entries keeps this file's unit.
+      const state = { file: $version };
+      if (replace) history.replaceState(state, '', hash);
+      else history.pushState(state, '', hash);
     });
   }
 
-  /** Goes to the place in `hash`; false when it names no view. Unknown units and pages are left out. */
-  function applyRoute(hash: string): boolean {
+  /**
+   * Goes to the place in `hash`; false when it names no view. An unknown unit becomes `fallback`
+   * (else the unit stays); a page counts only with the organisation or an area it belongs to.
+   */
+  function applyRoute(hash: string, fallback?: string, sameFile = true): boolean {
     const route = parseRoute(hash, views);
     if (!route) return false;
     const ws = untrack(() => $workspace);
-    if (knownUnit(ws, route.unit)) activeTeamId.set(route.unit!);
+    const unit = sameFile && knownUnit(ws, route.unit) ? route.unit : fallback;
+    if (unit) activeTeamId.set(unit);
     select(route.view as ViewId);
     const page = route.page;
+    const paged =
+      sameFile && unit === route.unit && (unit === ORG_UNIT || ws.areas.some((a) => a.id === unit));
     // After the unit's own effect, which opens another area on its overview.
-    if (page && AREA_PAGES.includes(page))
+    if (paged && page && AREA_PAGES.includes(page))
       void tick().then(() => areaPage.set(page as 'structure' | 'overview'));
     return true;
   }
@@ -351,7 +362,8 @@
   function onPopState() {
     // What the app makes of the entry (an unknown unit, say) corrects it without a new one.
     replaceRoute = true;
-    applyRoute(location.hash);
+    const file = (history.state as { file?: number } | null)?.file;
+    applyRoute(location.hash, undefined, file === undefined || file === $version);
     queueRoute();
   }
 
