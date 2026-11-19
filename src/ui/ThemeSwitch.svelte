@@ -8,6 +8,8 @@
       'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
     dark: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
   };
+  /** The id of a note that describes the switch. */
+  let { describedby }: { describedby?: string } = $props();
   const buttons: HTMLButtonElement[] = [];
 
   // Radio group keyboard pattern: arrows move and select, only the checked option is tabbable.
@@ -23,7 +25,12 @@
 
 <div class="theme">
   <span id="theme-label">{$t('theme.label')}</span>
-  <div class="options" role="radiogroup" aria-labelledby="theme-label">
+  <div
+    class="options"
+    role="radiogroup"
+    aria-labelledby="theme-label"
+    aria-describedby={describedby}
+  >
     {#each THEMES as option, i (option)}
       <button
         type="button"
