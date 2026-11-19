@@ -74,6 +74,11 @@
     font-size: 0.78rem;
     font-weight: 600;
   }
+  /* A long role or team name wraps anywhere instead of widening a phone's meeting card (#431). */
+  .area-chip,
+  .missing {
+    overflow-wrap: anywhere;
+  }
   /* A person invited by name (#285): outlined, with a person glyph. */
   .area-chip.person {
     background: transparent;
