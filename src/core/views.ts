@@ -493,11 +493,14 @@ export function loadSummary(
 
 /** Same-day pairs whose [start, start + duration) overlap; touching edges do not count. */
 function overlapping<T extends Occurrence>(list: T[]): { date: ISODate; a: T; b: T }[] {
-  // Plain code-unit order: dates and ids are ASCII, and localeCompare is slow at scale.
+  // ISO dates sort by code unit; localeCompare only breaks the rare tie of the same start.
   const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
   const sorted = list
     .map((o) => ({ o, start: toMinutes(o.start) }))
-    .sort((x, y) => cmp(x.o.date, y.o.date) || x.start - y.start || cmp(x.o.teamId, y.o.teamId));
+    .sort(
+      (x, y) =>
+        cmp(x.o.date, y.o.date) || x.start - y.start || x.o.teamId.localeCompare(y.o.teamId),
+    );
   const out: { date: ISODate; a: T; b: T }[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const { o: a, start } = sorted[i]!;
