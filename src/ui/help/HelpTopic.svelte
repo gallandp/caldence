@@ -48,6 +48,16 @@
       'help.staffing.product',
       'help.staffing.privacy',
     ],
+    worlds: [
+      'help.worlds.idea',
+      'help.worlds.product.title',
+      'help.worlds.product',
+      'help.worlds.line.title',
+      'help.worlds.line',
+      'help.worlds.matrix.title',
+      'help.worlds.matrix',
+      'help.worlds.none',
+    ],
     privacy: [
       'help.privacy.local',
       'help.privacy.people',

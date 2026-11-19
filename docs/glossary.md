@@ -53,17 +53,20 @@ Caldence is not a capacity planner: these words exist only to show what meetings
 
 | DE | EN | Means | Do not use it for |
 |---|---|---|---|
-| **Linie** | line | The second tree, the one that owns people (who leads whom). Group in the unit switcher | The {levelArea}/{levelTeam} tree, "Organisation" |
+| **Welt**: **Produkte** / **Linie** | world: **Products** / **Line** | One of the two sides of the file, picked with the switch at the top of the sidebar (#393). Produkte is the functional side ({levelAreas}, {levelTeams}, meetings, cadence), Linie the disciplinary one (line units, staff, staffing). Each world has its own pages and remembers its last one; the switch shows only once the file has a line | A level, a mode, a filter |
+| **Matrix** | matrix | Line teams against {levelTeams}, with the Zusagen in the cells (#396). The same page in both worlds, shown once the file has a line | A capacity or utilisation grid |
+| **Linie** | line | The second tree, the one that owns people (who leads whom). The world Linie shows it | The {levelArea}/{levelTeam} tree, "Organisation" |
 | **Linieneinheit**: **Fachgruppe** / **Linienteam** | line unit: specialist group / line team | One unit of the line. With units below it is a Fachgruppe, without a Linienteam; both names can be changed (`lineLevelNames`) | A {levelTeam} |
 | **Linienführungskraft** (UI: Führungskraft, "Führung: …") | line manager (UI: "Led by …") | Leads a line unit and decides the Zusagen in a staffing round. The persona: "Whom can I give to which {levelTeam} so that there is time left for the work?" | A people manager who only reads |
-| **Personal** | staff | The people of a line unit; tab of a line team page | Members of a {levelTeam} |
+| **Personal** | staff | The people of a line unit; a page of the world Linie | Members of a {levelTeam} |
 | **Skill** | skill | A plain tag for what someone can do; no levels, no ratings | A rating, a role |
 | **Skill-Familie** | skill family | The skills a {levelArea} and a Fachgruppe share; it filters the Besetzung | A level of the tree |
 | **Gesellschaft** | company | Legal employer in a group of affiliated companies; an attribute of a person, shown only with two or more | A level of the tree |
 | **Vertrag** | contract | A person's contracted FTE (0.1 to 1.0) | Weekly hours in a {levelTeam} |
 | **Bedarf** | demand | What a {levelTeam} asks of the line: a skill (or only a role) and FTE | A Zusage |
 | **zuordnen / Zusage / zugesagt** | staff, assign / commitment / committed | Zuordnen gives a person FTE on a Bedarf; the result is a Zusage, which is a normal membership with those hours. No dates | "Planung", "Buchung" |
-| **Besetzung** | staffing | The tab of a line team where people are matched to open Bedarfe | The staffing map of the Überblick |
+| **Aus der Linie** / **ohne Linie** | From the line / no line | Links into the other world (#397): the line team of a member, the line teams that supply a {levelTeam} or {levelArea}. "ohne Linie" marks a member without a line unit. A link leads to the other world; "Zurück zu …" at the top of the page leads back | A filter |
+| **Besetzung** | staffing | The page of the world Linie where people are matched to open Bedarfe | The staffing map of the Überblick |
 | **frei / überbucht** | free / overbooked | Vertrag minus all of a person's hours in all {levelTeams} and {levelAreas}, in FTE; below 0 "überbucht" | Free time after meetings |
 | **Zeit nach Terminen** | time after meetings | The committed hours minus the role's meetings in that {levelTeam}, in a typical week. Not a productivity or performance figure | Productivity, "Kapazität" |
 | **davon in X: n % in Terminen** | in X: n % in meetings | Meeting hours in that {levelTeam} ÷ the hours committed there | "über Grenze" |

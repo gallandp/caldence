@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { ViewId } from '../viewIcons';
+import { VIEW_ICONS, type ViewId } from '../viewIcons';
 
 /**
  * The help as topics: short guides for tasks and reference pages to look things up.
@@ -30,6 +30,7 @@ export type TopicId =
   | 'team'
   | 'areas'
   | 'staffing'
+  | 'worlds'
   | 'templates'
   | 'settings'
   | 'files'
@@ -297,6 +298,7 @@ export const TOPICS: Topic[] = [
       { text: 'help.g.files.4', control: null },
     ],
   },
+  { id: 'worlds', kind: 'reference', icon: VIEW_ICONS.matrix, tint: 'area' },
   { id: 'views', kind: 'reference', icon: MAP, tint: 'accent' },
   {
     id: 'templates',
@@ -332,7 +334,30 @@ export const MAP_VIEWS = [
   'load',
   'meetings',
   'team',
+  'matrix',
   'templates',
   'settings',
   'exchange',
 ] as const;
+
+/** The same in the line world (#398): its own pages, then the shared ones. */
+export const LINE_MAP_VIEWS = [
+  'team',
+  'people',
+  'staffing',
+  'load',
+  'matrix',
+  'settings',
+  'exchange',
+] as const;
+
+export type MapView = (typeof MAP_VIEWS)[number] | (typeof LINE_MAP_VIEWS)[number];
+
+/** The guides in the order the home page shows them: the line world leads with staffing. */
+export function guidesFor(world: 'product' | 'line'): Topic[] {
+  if (world === 'product') return GUIDES;
+  return [
+    ...GUIDES.filter((g) => g.id === 'staffing'),
+    ...GUIDES.filter((g) => g.id !== 'staffing'),
+  ];
+}
