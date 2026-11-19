@@ -110,7 +110,7 @@ async function storedFileName(page: Page): Promise<string | null> {
   return page.evaluate(
     () =>
       new Promise<string | null>((resolve) => {
-        const req = indexedDB.open('caldence', 1);
+        const req = indexedDB.open('caldence-v2', 1);
         req.onerror = () => resolve(null);
         req.onsuccess = () => {
           const db = req.result;

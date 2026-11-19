@@ -85,7 +85,7 @@ test.describe('imprint and privacy links', () => {
     const legal = page.getByRole('navigation', { name: 'Legal' });
     await expect(legal.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
       'href',
-      './imprint.html',
+      '../imprint.html',
     );
     await expect(legal.getByRole('link')).toHaveCount(1);
   });

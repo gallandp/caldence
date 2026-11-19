@@ -220,6 +220,48 @@ describe('autosave', () => {
   });
 });
 
+describe('autosave of Caldence 2 next to 1.x (#344)', () => {
+  it('copies the 1.x autosave once, read only, when its own store is empty', async () => {
+    const own = memory();
+    const legacy = memory();
+    legacy.data.set('current', { ws, fileName: 'plan.json', dirty: false });
+    const before = structuredClone(legacy.data.get('current'));
+    const a = createAutosave(own, 0, legacy);
+    expect(await a.restore()).toEqual({ ws, fileName: 'plan-v2.json', dirty: true });
+    a.schedule(
+      { ws: { ...ws, id: 'changed' }, fileName: 'plan.json', dirty: true },
+      { immediate: true },
+    );
+    await a.flush();
+    expect(legacy.data.get('current')).toEqual(before);
+    expect(legacy.data.size).toBe(1);
+    expect((own.data.get('current') as { ws: { id: string } }).ws.id).toBe('changed');
+  });
+
+  it('prefers its own autosave over the 1.x one', async () => {
+    const own = memory();
+    const legacy = memory();
+    own.data.set('current', { ws: { ...ws, id: 'mine' }, fileName: null, dirty: false });
+    legacy.data.set('current', { ws, fileName: 'old.json', dirty: false });
+    const r = await createAutosave(own, 0, legacy).restore();
+    expect(r?.ws.id).toBe('mine');
+  });
+
+  it('leaves an unreadable 1.x autosave alone and starts empty', async () => {
+    const own = memory();
+    const legacy = memory();
+    legacy.data.set('current', { ws: { schemaVersion: 'x' } });
+    expect(await createAutosave(own, 0, legacy).restore()).toBeNull();
+    expect(own.data.size).toBe(0);
+    expect(legacy.data.size).toBe(1);
+  });
+
+  it('starts empty when the 1.x store cannot be read', async () => {
+    const legacy: KV = { get: () => Promise.reject(new Error('blocked')), set: async () => {} };
+    expect(await createAutosave(memory(), 0, legacy).restore()).toBeNull();
+  });
+});
+
 describe('restoreWithTimeout', () => {
   afterEach(() => vi.useRealTimers());
 

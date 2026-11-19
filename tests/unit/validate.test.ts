@@ -297,6 +297,17 @@ describe('loadWorkspace', () => {
     });
   });
 
+  it('opens a Caldence 2 file (format 2) from text', () => {
+    const w = emptyWorkspace('2026-11-07');
+    const text = JSON.stringify({ ...w, schemaVersion: 1000 + CURRENT_SCHEMA });
+    expect(loadWorkspace(text)).toEqual({ ok: true, value: w });
+    // validate() itself sees only migrated workspaces; a raw format 2 object is not one.
+    expect(errorsOf({ ...emptyWorkspace('2026-11-07'), schemaVersion: 1007 })).toContainEqual({
+      path: 'schemaVersion',
+      key: 'error.schema.v2',
+    });
+  });
+
   it('reports a newer schema from text', () => {
     const text = JSON.stringify({
       ...emptyWorkspace('2026-11-07'),

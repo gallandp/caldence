@@ -17,8 +17,9 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: false,
       manifest: {
-        name: 'Caldence',
-        short_name: 'Caldence',
+        // Caldence 2 preview at /v2/ (#344): its own installable app next to 1.x.
+        name: 'Caldence 2 (preview)',
+        short_name: 'Caldence 2',
         description: 'Plan the recurring meetings of agile roles and export them to your calendar.',
         start_url: './',
         scope: './',
@@ -49,6 +50,10 @@ export default defineConfig({
         navigateFallback: null,
         // ./?anything still opens the app offline.
         ignoreURLParametersMatching: [/.*/],
+        // Caldence 2 runs at /v2/ on the same origin (#344). Workbox's cleanup deletes every
+        // precache whose name contains this worker's scope (https://caldence.de/), which would
+        // wipe the /v2/ precache on each 1.x update. It only removes caches of Workbox < 4.
+        cleanupOutdatedCaches: false,
       },
     }),
   ],

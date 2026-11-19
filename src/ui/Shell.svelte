@@ -28,7 +28,7 @@
   import ExchangeView from './views/ExchangeView.svelte';
   import HelpView from './views/HelpView.svelte';
   import { registerFileInput } from './state/picker';
-  import { LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
+  import { LEGAL_DIR, LEGAL_PAGES, hasLegalPage, type LegalPage } from './state/legal';
   import { activeTeamId, filter, workspace } from './state/workspace';
   import { exportRequest } from './state/exportScope';
   import { rail, setRail } from './state/sidebar';
@@ -518,7 +518,7 @@
         {#if legal.length > 0}
           <nav class="legal" aria-label={$t('legal.label')}>
             {#each legal as page (page)}
-              <a href="./{page}.html">{$t('legal.' + page)}</a>
+              <a href="{LEGAL_DIR}{page}.html">{$t('legal.' + page)}</a>
             {/each}
           </nav>
         {/if}
@@ -606,9 +606,9 @@
               class="back link"
               data-no-print
               onclick={() => backToArea(backArea.id)}
-              ><span aria-hidden="true">←</span>{$t('overview.back', {
-                name: backArea.name,
-              })}</button
+              ><span aria-hidden="true">←</span><span class="back-label"
+                >{$t('overview.back', { name: backArea.name })}</span
+              ></button
             >
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
@@ -1075,6 +1075,11 @@
     container: content / inline-size;
   }
   main {
+    /* The sticky back button's top and height; a card scrolled into view below it keeps the
+       button's bottom plus a gap clear (--back-offset, #302). */
+    --back-top: 0.75rem;
+    --back-height: 2.75rem;
+    --back-offset: calc(var(--back-top) + var(--back-height) + 0.75rem);
     padding: var(--head-gap, 0) 2rem 2.5rem;
   }
   main:focus {
@@ -1108,10 +1113,11 @@
     display: flex;
     align-items: center;
     gap: 0.35rem;
-    top: 0.75rem;
+    top: var(--back-top);
     z-index: 3;
     width: fit-content;
-    min-height: 2.75rem;
+    max-width: 100%;
+    min-height: var(--back-height);
     margin: 1rem 0 0;
     padding: 0 1rem;
     border: 1px solid var(--border);
@@ -1121,6 +1127,13 @@
     color: var(--accent-text);
     font: inherit;
     font-weight: 600;
+  }
+  /* One line, also for a long area name, so the button never grows past --back-height. */
+  :global(#app) button.back .back-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   :global(#app) button.back:hover {
     background: var(--accent-soft);

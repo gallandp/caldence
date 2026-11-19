@@ -242,7 +242,7 @@ test('teams without meetings show a hint that leads to the Meetings view', async
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(ws)),
   });
-  await expect(page.getByText('empty.caldence.json')).toBeVisible();
+  await expect(page.getByText('empty-v2.caldence.json')).toBeVisible();
   await expect(panel(page).getByText('There are no meetings yet')).toBeVisible();
   await expect(panel(page).getByRole('grid')).toBeVisible();
   await panel(page).getByRole('button', { name: 'Go to Meetings' }).click();

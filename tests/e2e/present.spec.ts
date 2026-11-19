@@ -160,7 +160,7 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   const meta = page.locator('[data-print-meta]');
   await expect(meta).toBeVisible();
   expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(
-    /^"plan\.caldence\.json · printed on \d\d\/\d\d\/\d{4} · €100 per hour and person · planning horizon 2027, 52\u00a0wks"$/,
+    /^"plan-v2\.caldence\.json · printed on \d\d\/\d\d\/\d{4} · €100 per hour and person · planning horizon 2027, 52\u00a0wks"$/,
   );
 });
 

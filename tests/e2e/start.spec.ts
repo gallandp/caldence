@@ -144,7 +144,7 @@ test('Open a file reads a workspace file', async ({ page }) => {
   const chooser = page.waitForEvent('filechooser');
   await calendar(page).getByRole('button', { name: 'Open a file…' }).click();
   await (await chooser).setFiles('tests/fixtures/valid-workspace.json');
-  await expect(page.getByText('valid-workspace.json')).toBeVisible();
+  await expect(page.getByText('valid-workspace-v2.json')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Welcome to|Willkommen bei/ })).toHaveCount(0);
   // The start screen is gone: the focus moves to the Calendar tab, not to the page.
   // (The fixture is a German workspace.)

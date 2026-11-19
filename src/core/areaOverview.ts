@@ -2,6 +2,7 @@ import { addDays, diffDays, weekday, type ISODate } from './date';
 import { capacity, fte, occurrenceHours, occurrencesPerWeek, overMax, type WeekLoad } from './load';
 import { areaAsTeam, attendees, type Area, type Cadence, type Team, type Workspace } from './model';
 import { effectiveDuration } from './recurrence';
+import { areaStructure } from './structure';
 
 /**
  * The area overview (#168): team cadences compared with the area cadence, and the load of each
@@ -153,11 +154,24 @@ export interface LoadCell {
    */
   share: number;
   /**
-   * At least one member is over the limit (thresholds.maxFte), judged like the people table on
-   * all their meetings that week ÷ their hours in all their teams and areas (#294), not on this
-   * team alone. Missing hours in an area are not counted here; Load warns about them.
+   * At least one member is over the limit (thresholds.maxFte), judged like the people table and
+   * Warnings on all their meetings that week ÷ their hours in all their teams and areas (#294,
+   * #307), not on this team alone.
    */
   warn: boolean;
+}
+
+/** One row of the strip: these people's meeting hours in a unit ÷ their weekly hours there. */
+function unitLoad(ws: Workspace, unitId: string, people: string[], weeks: WeekLoad[]): LoadCell[] {
+  const capTotal = people.reduce((sum, p) => sum + capacity(ws, p, unitId), 0);
+  const allHours = new Map(people.map((p) => [p, capacity(ws, p)]));
+  const { maxFte } = ws.settings.thresholds;
+  return weeks.map((week) => {
+    const total = people.reduce((sum, p) => sum + (week.byTeamPerson[unitId]?.[p] ?? 0), 0);
+    const warn = people.some((p) => overMax(week.byPerson[p] ?? 0, allHours.get(p) ?? 0, maxFte));
+    const share = capTotal > 0 ? fte(total, capTotal) : total > 0 ? 1 : 0;
+    return { monday: week.monday, share, warn };
+  });
 }
 
 /**
@@ -166,16 +180,22 @@ export interface LoadCell {
  * full. `warn` is per person, on all their teams and areas (#294).
  */
 export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell[] {
-  const people = [...new Set(team.members.map((m) => m.personId))];
-  const capTotal = people.reduce((sum, p) => sum + capacity(ws, p, team.id), 0);
-  const allHours = new Map(people.map((p) => [p, capacity(ws, p)]));
-  const { maxFte } = ws.settings.thresholds;
-  return weeks.map((week) => {
-    const total = people.reduce((sum, p) => sum + (week.byTeamPerson[team.id]?.[p] ?? 0), 0);
-    const warn = people.some((p) => overMax(week.byPerson[p] ?? 0, allHours.get(p) ?? 0, maxFte));
-    const share = capTotal > 0 ? fte(total, capTotal) : total > 0 ? 1 : 0;
-    return { monday: week.monday, share, warn };
-  });
+  return unitLoad(ws, team.id, [...new Set(team.members.map((m) => m.personId))], weeks);
+}
+
+/** People of the area in none of its teams, such as the head of area (the "only in" group). */
+export function areaOnlyPeople(ws: Workspace, area: Area): string[] {
+  return areaStructure(ws, area)
+    .people.filter((p) => p.group === 'area')
+    .map((p) => p.personId);
+}
+
+/**
+ * The load of the people only in the area (#334): their meetings in the area ÷ their area hours,
+ * and `warn` on all their meetings ÷ all their weekly hours, like a team row.
+ */
+export function areaOnlyLoad(ws: Workspace, area: Area, weeks: WeekLoad[]): LoadCell[] {
+  return unitLoad(ws, area.id, areaOnlyPeople(ws, area), weeks);
 }
 
 export interface AreaMeetingHours {

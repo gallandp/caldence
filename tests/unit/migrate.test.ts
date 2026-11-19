@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { MIGRATIONS, migrate } from '../../src/core/migrate';
+import { MIGRATIONS, migrate, toFile } from '../../src/core/migrate';
 import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import { loadWorkspace } from '../../src/core/validate';
 
@@ -103,6 +103,25 @@ describe('migrate', () => {
     expect(MIGRATIONS[4]!(old)).toEqual({ ...old, areas: [] });
     const r = loadWorkspace(JSON.stringify(old));
     expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA, areas: [] });
+  });
+
+  it('opens format 2 files (schema 1000 + n) like format 1 files of schema n (#344)', () => {
+    const w = emptyWorkspace('2026-11-07');
+    expect(migrate(toFile(w))).toEqual({ ok: true, value: w });
+    const old: Record<string, unknown> = { ...w, schemaVersion: 1004 };
+    delete old.areas;
+    const r = migrate(old);
+    expect(r.ok && (r.value as { areas: unknown[]; schemaVersion: number })).toMatchObject({
+      areas: [],
+      schemaVersion: CURRENT_SCHEMA,
+    });
+    expect(migrate({ schemaVersion: 1000 })).toEqual({ ok: false, key: 'error.schema.unknown' });
+    expect(migrate({ schemaVersion: 1000 + CURRENT_SCHEMA + 1 })).toEqual({
+      ok: false,
+      key: 'error.schema.newer',
+    });
+    expect(toFile(w).schemaVersion).toBe(1000 + CURRENT_SCHEMA);
+    expect(w.schemaVersion).toBe(CURRENT_SCHEMA);
   });
 
   it('rejects newer schemas without touching the input', () => {

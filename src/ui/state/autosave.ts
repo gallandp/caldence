@@ -2,6 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import type { Workspace } from '../../core/model';
 import { migrate } from '../../core/migrate';
 import { validate } from '../../core/validate';
+import { v2FileName } from './files';
 
 export interface KV {
   get(k: string): Promise<unknown>;
@@ -70,7 +71,63 @@ export function idbStore(dbName = 'caldence', storeName = 'autosave'): KV {
   };
 }
 
-export function createAutosave(kv: KV, debounceMs = 500) {
+/**
+ * @param legacy store of Caldence 1.x on the same origin (#344). Read once, when this store is
+ *   still empty, so the user finds their plan; never written.
+ */
+/**
+ * Reads one key of another app's store, read only: never creates the database (a missing one
+ * stays missing), closes it right after, and gives up after `timeoutMs`. Every failure reads as
+ * undefined. For the 1.x autosave next to Caldence 2 (#344).
+ */
+export function readOnlyStore(dbName: string, storeName: string, timeoutMs = 1000): KV {
+  return {
+    get: (k) =>
+      new Promise<unknown>((resolve) => {
+        let settled = false;
+        const done = (v: unknown) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(v);
+        };
+        const timer = setTimeout(() => done(undefined), timeoutMs);
+        if (typeof indexedDB === 'undefined') return done(undefined);
+        let req: IDBOpenDBRequest;
+        try {
+          req = indexedDB.open(dbName);
+        } catch {
+          return done(undefined);
+        }
+        // The database does not exist: abort, so opening it here does not create it.
+        req.onupgradeneeded = () => req.transaction?.abort();
+        req.onerror = () => done(undefined);
+        req.onblocked = () => done(undefined);
+        req.onsuccess = () => {
+          const db = req.result;
+          // Never hold up a version change of the owner.
+          db.onversionchange = () => db.close();
+          try {
+            const get = db.transaction(storeName, 'readonly').objectStore(storeName).get(k);
+            get.onsuccess = () => {
+              db.close();
+              done(get.result);
+            };
+            get.onerror = () => {
+              db.close();
+              done(undefined);
+            };
+          } catch {
+            db.close();
+            done(undefined);
+          }
+        };
+      }),
+    set: () => Promise.reject(new Error('read only')),
+  };
+}
+
+export function createAutosave(kv: KV, debounceMs = 500, legacy?: KV) {
   const status = writable(true);
   let available = true;
   // Set when the stored data could not be read: writing then could destroy it.
@@ -99,11 +156,23 @@ export function createAutosave(kv: KV, debounceMs = 500) {
       disable();
       return null;
     }
+    // First start of Caldence 2: take over the 1.x autosave, read only.
+    let fromLegacy = false;
+    if ((stored === undefined || stored === null) && legacy) {
+      try {
+        stored = await legacy.get(AUTOSAVE_KEY);
+        fromLegacy = true;
+      } catch {
+        return null;
+      }
+    }
     if (stored === undefined || stored === null) return null;
     const s = stored as Partial<AutosaveState>;
     const migrated = typeof stored === 'object' ? migrate(s.ws) : undefined;
     const checked = migrated?.ok ? validate(migrated.value) : undefined;
     if (!checked?.ok) {
+      // A 1.x workspace that does not load stays where it is, untouched.
+      if (fromLegacy) return null;
       // Keep what we could not load before the next write replaces it (best effort).
       try {
         await kv.set(BACKUP_KEY, stored);
@@ -114,8 +183,11 @@ export function createAutosave(kv: KV, debounceMs = 500) {
     }
     return {
       ws: checked.value,
-      fileName: typeof s.fileName === 'string' ? s.fileName : null,
-      dirty: s.dirty === true,
+      // A plan taken over from 1.x is saved under a name of its own (see v2FileName in files.ts).
+      fileName:
+        typeof s.fileName === 'string' ? (fromLegacy ? v2FileName(s.fileName) : s.fileName) : null,
+      // Taken over from 1.x, the plan is not saved as a Caldence 2 file yet.
+      dirty: fromLegacy || s.dirty === true,
     };
   }
 
@@ -191,7 +263,14 @@ export function createAutosave(kv: KV, debounceMs = 500) {
   };
 }
 
-export const autosave = createAutosave(idbStore());
+// Caldence 2 keeps its own database: 1.x runs on the same origin and must never read a format 2
+// workspace or have its own overwritten (#344). The 1.x autosave is copied once (see above).
+export const AUTOSAVE_DB = 'caldence-v2';
+export const autosave = createAutosave(
+  idbStore(AUTOSAVE_DB),
+  500,
+  readOnlyStore('caldence', 'autosave'),
+);
 
 /** True when the page address asks to start without the stored workspace (`?reset`). */
 export function wantsReset(href: string): boolean {

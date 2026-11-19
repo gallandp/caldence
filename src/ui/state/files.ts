@@ -1,5 +1,6 @@
-import type { Workspace } from '../../core/model';
+import { FORMAT2_SCHEMA_BASE, type Workspace } from '../../core/model';
 import { loadWorkspace, type Result } from '../../core/validate';
+import { toFile } from '../../core/migrate';
 
 export const DEFAULT_FILE_NAME = 'workspace.caldence.json';
 
@@ -33,8 +34,25 @@ export interface FileEnv {
   pickFile(accept?: string): Promise<File | null>;
 }
 
+/** True when the text is a format 2 file (Caldence 2, `schemaVersion` 1000 + n). */
+function isFormat2(text: string): boolean {
+  try {
+    const v = (JSON.parse(text) as { schemaVersion?: unknown }).schemaVersion;
+    return typeof v === 'number' && v >= FORMAT2_SCHEMA_BASE;
+  } catch {
+    return false;
+  }
+}
+
+/** The name Caldence 2 suggests for the copy of a 1.x file: `plan.json` → `plan-v2.json`. */
+export function v2FileName(name: string): string {
+  if (/-v2(\.caldence)?\.json$/i.test(name)) return name;
+  const m = /^(.*?)((\.caldence)?\.json)$/i.exec(name);
+  return m ? `${m[1]}-v2${m[2]}` : `${name}-v2`;
+}
+
 export function serialize(ws: Workspace): string {
-  return JSON.stringify(ws, null, 2) + '\n';
+  return JSON.stringify(toFile(ws), null, 2) + '\n';
 }
 
 const jsonTypes = [{ accept: { 'application/json': ['.json'] } }];
@@ -184,8 +202,12 @@ export function createFileService(env: FileEnv) {
     }
     const loaded = loadWorkspace(text);
     if (!loaded.ok) return loaded;
-    handle = picked; // replaces any earlier handle (null in the fallback path)
-    return { ok: true, value: { ws: loaded.value, name } };
+    // A 1.x file (format 1) is never overwritten with format 2, which 1.x cannot open (#344):
+    // no handle, so the first save asks for a place, and the plan gets a name of its own, which
+    // the autosave keeps across a reload.
+    const format1 = !isFormat2(text);
+    handle = format1 ? null : picked; // replaces any earlier handle (null in the fallback path)
+    return { ok: true, value: { ws: loaded.value, name: format1 ? v2FileName(name) : name } };
   }
 
   async function write(target: FileHandleLike, ws: Workspace): Promise<string> {

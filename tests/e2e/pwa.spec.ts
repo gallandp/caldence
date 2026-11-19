@@ -9,7 +9,7 @@ test('links a manifest with name, start_url, display and a maskable icon', async
   expect(href).toBeTruthy();
   const res = await request.get(new URL(href!, page.url()).toString());
   const manifest = await res.json();
-  expect(manifest.name).toBe('Caldence');
+  expect(manifest.name).toBe('Caldence 2 (preview)');
   expect(manifest.start_url).toBe('./');
   expect(manifest.display).toBe('standalone');
   expect(

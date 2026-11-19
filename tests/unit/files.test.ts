@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { addTeam } from '../../src/core/edit';
-import { emptyWorkspace } from '../../src/core/model';
+import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import { conflicts } from '../../src/core/views';
 import { validate, loadWorkspace } from '../../src/core/validate';
 import { workspaceIndex } from '../../src/core/views';
@@ -8,6 +8,7 @@ import { exampleWorkspace } from '../../src/data/examples';
 import {
   DEFAULT_FILE_NAME,
   createFileService,
+  v2FileName,
   exportTextFile,
   isActivationError,
   openTextFile,
@@ -36,7 +37,8 @@ describe('serialize', () => {
   it('uses 2-space indent and a trailing newline, and round-trips', () => {
     const text = serialize(ws);
     expect(text.endsWith('}\n')).toBe(true);
-    expect(text).toContain('\n  "schemaVersion": 7');
+    // Caldence 2 writes format 2 (#344).
+    expect(text).toContain(`\n  "schemaVersion": ${1000 + CURRENT_SCHEMA}`);
     const back = loadWorkspace(text);
     expect(back.ok && back.value).toEqual(ws);
   });
@@ -58,6 +60,36 @@ describe('file service with pickers', () => {
     expect(await svc.save(ws, 'a.json')).toBe('a.json');
     expect(writes).toEqual([serialize(ws)]);
     expect(showSaveFilePicker).not.toHaveBeenCalled();
+  });
+
+  it('never overwrites an opened 1.x file: the first save asks, with a v2 name (#344)', async () => {
+    const old = fakeHandle('plan.caldence.json', JSON.stringify({ ...ws, schemaVersion: 7 }));
+    const target = fakeHandle('plan-v2.caldence.json');
+    const showSaveFilePicker = vi.fn(async () => target.handle);
+    const svc = createFileService({
+      showOpenFilePicker: async () => [old.handle],
+      showSaveFilePicker,
+      download: vi.fn(),
+      pickFile: async () => null,
+    });
+    const opened = await svc.open();
+    expect(opened?.ok && opened.value.name).toBe('plan-v2.caldence.json');
+    await svc.save(ws, 'plan-v2.caldence.json');
+    expect(old.writes).toEqual([]);
+    expect(showSaveFilePicker).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestedName: 'plan-v2.caldence.json' }),
+    );
+    expect(target.writes).toEqual([serialize(ws)]);
+  });
+
+  it.each([
+    ['plan.json', 'plan-v2.json'],
+    ['plan.caldence.json', 'plan-v2.caldence.json'],
+    ['PLAN.JSON', 'PLAN-v2.JSON'],
+    ['plan-v2.json', 'plan-v2.json'],
+    ['plan', 'plan-v2'],
+  ])('v2FileName(%s) is %s', (name, expected) => {
+    expect(v2FileName(name)).toBe(expected);
   });
 
   it('save without a handle asks for a location and keeps the handle', async () => {

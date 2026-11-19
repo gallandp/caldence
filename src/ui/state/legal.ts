@@ -1,5 +1,9 @@
 // The operator's imprint and privacy page live next to the app on the webspace, never in the
-// release. A link is shown only when the page is there.
+// release. A link is shown only when the page is there. Caldence 2 is served from /v2/, so it
+// looks for them one folder up, next to 1.x (#344).
+
+/** Folder of the legal pages, relative to the app. */
+export const LEGAL_DIR = '../';
 
 export const LEGAL_PAGES = ['imprint', 'privacy'] as const;
 export type LegalPage = (typeof LEGAL_PAGES)[number];
@@ -10,7 +14,7 @@ const APP_MARKER = '<div id="app">';
 /** True when `./<page>.html` exists and is not the app itself. Never throws. */
 export async function hasLegalPage(
   page: LegalPage,
-  base: string = document.baseURI,
+  base: string = new URL(LEGAL_DIR, document.baseURI).href,
   fetchFn: typeof fetch = fetch,
 ): Promise<boolean> {
   try {

@@ -99,7 +99,7 @@ test('saving writes where the app is looking, and a reload comes back there', as
       page.evaluate(async () => {
         const text = JSON.stringify(
           await new Promise((resolve) => {
-            const req = indexedDB.open('caldence');
+            const req = indexedDB.open('caldence-v2');
             req.onsuccess = () => {
               const db = req.result;
               const names = [...db.objectStoreNames];
