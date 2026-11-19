@@ -50,6 +50,10 @@ export default defineConfig({
         navigateFallback: null,
         // ./?anything still opens the app offline.
         ignoreURLParametersMatching: [/.*/],
+        // Caldence 2 runs at /v2/ on the same origin (#344). Workbox's cleanup deletes every
+        // precache whose name contains this worker's scope (https://caldence.de/), which would
+        // wipe the /v2/ precache on each 1.x update. It only removes caches of Workbox < 4.
+        cleanupOutdatedCaches: false,
       },
     }),
   ],

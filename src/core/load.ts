@@ -214,15 +214,13 @@ export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: st
  * Flags weeks above warnFactor x the person's usual load and weeks above maxFte. The usual load
  * of a week is the person's average, or their recurring meetings that week if that is more, so
  * peaks that come back with the cadence (every sprint start) are not flagged; one-off meetings
- * and cycle milestones on top of them are. The FTE check compares all of a person's meeting
- * hours with their hours summed over their teams and areas, whatever the scope, so a person is
- * over the limit everywhere or nowhere (#273). Area meetings are also checked on their own
- * against the person's area hours, so meetings in an area where someone has no hours (0 h
- * without an entry) are flagged even when their team hours would cover them.
+ * and cycle milestones on top of them are. The limit is one rule everywhere: all of a person's
+ * meeting hours ÷ their hours summed over their teams and areas, whatever the scope, so a person
+ * is over the limit everywhere or nowhere (#273, #307, #334). Area meetings measured against the
+ * area hours alone are hints, see `areaHints`.
  */
 export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
   const { warnFactor, maxFte } = ws.settings.thresholds;
-  const tooMuch = (hours: number, capacity: number) => overMax(hours, capacity, maxFte);
   const result: LoadWarning[] = [];
   for (const person of ws.people) {
     const total = weeks.reduce((sum, w) => sum + (w.byPerson[person.id] ?? 0), 0);
@@ -234,16 +232,49 @@ export function warnings(weeks: WeekLoad[], ws: Workspace): LoadWarning[] {
       if (average > 0 && hours > warnFactor * usual) {
         result.push({ monday: week.monday, personId: person.id, kind: 'above-usual' });
       }
-      const over =
-        tooMuch(hours, hoursPerWeek) ||
-        ws.areas.some((a) =>
-          tooMuch(week.byTeamPerson[a.id]?.[person.id] ?? 0, areaHours(ws, a.id, person.id)),
-        );
-      if (over) result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
+      if (overMax(hours, hoursPerWeek, maxFte)) {
+        result.push({ monday: week.monday, personId: person.id, kind: 'above-fte' });
+      }
     }
   }
   return result.sort(
     (a, b) => a.monday.localeCompare(b.monday) || a.personId.localeCompare(b.personId),
+  );
+}
+
+export interface AreaHint {
+  personId: string;
+  areaId: string;
+  /** No hours set in the area, or the area meetings take more than the limit of them. */
+  kind: 'no-area-hours' | 'area-share';
+  /** The most hours of the area's meetings in one week. */
+  hours: number;
+  /** The person's weekly hours in the area. */
+  areaHours: number;
+}
+
+/**
+ * Hints about area meetings, at most one per person and area (#307, #334): a person attends
+ * meetings of an area without hours set there, or those meetings take more than the limit of
+ * their area hours in some week. They are never "over the limit", which `warnings` judges on all
+ * meetings ÷ all weekly hours.
+ */
+export function areaHints(weeks: WeekLoad[], ws: Workspace): AreaHint[] {
+  const { maxFte } = ws.settings.thresholds;
+  const result: AreaHint[] = [];
+  for (const area of ws.areas) {
+    for (const person of ws.people) {
+      const hours = Math.max(0, ...weeks.map((w) => w.byTeamPerson[area.id]?.[person.id] ?? 0));
+      if (hours <= 0) continue;
+      const inArea = areaHours(ws, area.id, person.id);
+      const kind =
+        inArea <= 0 ? 'no-area-hours' : fte(hours, inArea) > maxFte ? 'area-share' : null;
+      if (kind)
+        result.push({ personId: person.id, areaId: area.id, kind, hours, areaHours: inArea });
+    }
+  }
+  return result.sort(
+    (a, b) => a.personId.localeCompare(b.personId) || a.areaId.localeCompare(b.areaId),
   );
 }
 
