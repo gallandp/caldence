@@ -119,6 +119,10 @@ test('load and cost count organisation meetings for the organisation and its att
   // "Of which here" would equal the total for the organisation (#436).
   await expect(load.getByRole('columnheader', { name: /^Share/ })).toBeVisible();
   await expect(load.getByRole('columnheader', { name: /^of which/ })).toHaveCount(0);
+  // Someone who works only at organisation level is named so, not "only in the area".
+  await expect(load.locator('tr[data-person="person-mira"] td.units')).toHaveText(
+    'only in the organisation',
+  );
   await showView(page, 'Meetings & cadence');
   const panel = page.locator('#panel-meetings');
   // Mira, Jordan and the POs Alex, Kim and Lee: 5 people × 1 h × €100.
@@ -145,7 +149,8 @@ test('load and cost count organisation meetings for the organisation and its att
   // The page names who attends without hours there, each a way to set them (#436).
   await page.keyboard.press('Escape');
   const invited = page.locator('[data-org-invited]');
-  await expect(invited).toHaveText('Invited without hours · 3: Alex, Kim, Lee');
+  await expect(invited.getByRole('heading')).toHaveText('Invited without hours · 3');
+  await expect(invited.getByRole('listitem')).toHaveText(['Alex', 'Kim', 'Lee']);
   await invited.getByRole('button', { name: 'Set hours for Kim in Northwind' }).click();
   await expect(
     page.getByRole('dialog', { name: 'Kim' }).locator('[data-area-hours]'),

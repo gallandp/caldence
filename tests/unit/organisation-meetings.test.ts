@@ -214,6 +214,19 @@ describe('organisation meetings and people (#328)', () => {
     expect(invited(ws).sort()).toEqual(['alex', 'bo', 'dana', 'rita', 'ron']);
     const set = setAreaHours(ws, ORG_UNIT, 'rita', 2);
     expect(set.ok && invited(set.value)).toEqual(['alex', 'bo', 'dana', 'ron']);
+    // Someone invited by name counts as well; once given hours there, they leave the list.
+    const named = workspace([
+      sync({
+        participants: [
+          { roleId: 'ceo', share: 1 },
+          { personId: 'eve', share: 1 },
+        ],
+      }),
+    ]);
+    named.people.push({ id: 'eve', name: 'eve' });
+    expect(invited(named)).toEqual(['eve']);
+    const eveHours = setAreaHours(named, ORG_UNIT, 'eve', 1);
+    expect(eveHours.ok && invited(eveHours.value)).toEqual([]);
   });
 
   it('is edited like an area', () => {

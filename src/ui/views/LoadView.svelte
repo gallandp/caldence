@@ -551,12 +551,14 @@
           <td class="units"
             >{p.units.length === 0
               ? '–'
-              : p.units.every((u) => u.area)
-                ? $t('load.onlyArea')
-                : p.units
-                    .filter((u) => !u.area)
-                    .map((u) => u.name)
-                    .join(', ')}</td
+              : p.units.every((u) => u.id === ORG_UNIT)
+                ? areaText($t, $levels, ORG_UNIT)('load.onlyArea')
+                : p.units.every((u) => u.area)
+                  ? $t('load.onlyArea')
+                  : p.units
+                      .filter((u) => !u.area)
+                      .map((u) => u.name)
+                      .join(', ')}</td
           >
           <td class="num nowrap"
             >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td

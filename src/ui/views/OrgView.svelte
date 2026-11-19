@@ -33,7 +33,10 @@
   const structure = $derived(areaStructure(ws, org));
   /** People with a role or hours in the organisation; those only invited stay in the meetings. */
   const own = $derived(structure.people.filter((p) => p.areaRoleIds.length > 0 || p.areaHours > 0));
-  /** Invited through "every area" or "every team" without hours here (#436): set them here. */
+  /**
+   * Invited through "every area", "every team" or by name, without hours here (#436): their
+   * hours are set here.
+   */
   const invited = $derived(structure.people.filter((p) => p.invitedOnly));
   const byId = $derived(new Map(structure.people.map((p) => [p.personId, p])));
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
@@ -176,25 +179,33 @@
                 </li>
               {/each}
             </ul>
-          {:else}
+          {:else if invited.length === 0}
             <p class="none">{$t('org.people.none')}</p>
           {/if}
           {#if invited.length > 0}
-            <p class="invited" data-org-invited>
-              <span class="lbl">{$t('org.invited')} · {invited.length}:</span>
-              {#each invited as p, i (p.personId)}{#if $presenting}{personName(
-                    p.personId,
-                  )}{:else}<button
-                    type="button"
-                    class="name"
-                    data-p={p.personId}
-                    aria-label={$t('load.hint.setHours', {
-                      person: personName(p.personId),
-                      area: inSentence,
-                    })}
-                    onclick={(e) => pick(p.personId, e, true)}>{personName(p.personId)}</button
-                  >{/if}{i < invited.length - 1 ? ', ' : ''}{/each}
-            </p>
+            <div class="invited" data-org-invited>
+              <h4 class="lbl" id="org-invited">{$t('org.invited')} · {invited.length}</h4>
+              <ul class="chips" aria-labelledby="org-invited">
+                {#each invited as p (p.personId)}
+                  <li>
+                    {#if $presenting}
+                      <span class="chip">{personName(p.personId)}</span>
+                    {:else}
+                      <button
+                        type="button"
+                        class="chip"
+                        data-p={p.personId}
+                        aria-label={$t('load.hint.setHours', {
+                          person: personName(p.personId),
+                          area: inSentence,
+                        })}
+                        onclick={(e) => pick(p.personId, e, true)}>{personName(p.personId)}</button
+                      >
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
           {/if}
         </div>
       </section>
@@ -371,26 +382,49 @@
     color: var(--text-muted);
   }
   .invited {
-    margin: 0.15rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+  }
+  :global(#app) .invited .lbl {
+    margin: 0;
     font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-  .invited .lbl {
-    color: var(--warn);
     font-weight: 600;
+    color: var(--warn);
   }
-  :global(#app) .invited .name {
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  :global(#app) .invited button.chip {
+    min-width: 0;
     min-height: 0;
-    padding: 0;
     border: 0;
-    background: none;
     box-shadow: none;
+    background: var(--accent-soft);
     color: var(--accent-text);
     font: inherit;
+    font-size: 0.8125rem;
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
     cursor: pointer;
+  }
+  :global(#app) .invited button.chip:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
   }
   .h {
     flex: none;
