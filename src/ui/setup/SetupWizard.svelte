@@ -403,11 +403,13 @@
       </div>
       <div class="field">
         <label for="{uid}-region">{$t('settings.region')}</label>
-        <select id="{uid}-region" bind:value={region}>
+        <select id="{uid}-region" bind:value={region} aria-describedby="{uid}-region-check">
           {#each regionOptions as id (id)}
             <option value={id}>{regionName(id)}</option>
           {/each}
         </select>
+        <!-- Preset, not chosen: say so (#341). -->
+        <p class="hint" id="{uid}-region-check">{$t('settings.region.check')}</p>
       </div>
       <div class="row">
         <div class="field">

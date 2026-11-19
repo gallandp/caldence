@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
+  import { areaShare } from '../../core/areaCosts';
   import { costPerCadence, meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import { areaAsTeam, participantName, type CalEvent } from '../../core/model';
@@ -23,6 +24,9 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import { exportRequest } from '../state/exportScope';
+  import HolidayDrops from '../components/HolidayDrops.svelte';
+  import { holidayDrops } from '../../core/ics';
+  import { resolveRegion } from '../../core/regions';
   import CyclesCard from '../components/CyclesCard.svelte';
   import Rich from '../help/Rich.svelte';
   import EventForm from '../components/EventForm.svelte';
@@ -55,8 +59,10 @@
     onSetHours?: () => void;
     /** Opens Import / Export with this team (or the person exported last) preselected. */
     onExport?: () => void;
+    /** Opens a day in the Calendar (a date a holiday leaves out, #341). */
+    onOpenDay?: (date: string) => void;
   }
-  let { edit, onEditOpened, show, onShown, onSetHours, onExport }: Props = $props();
+  let { edit, onEditOpened, show, onShown, onSetHours, onExport, onOpenDay }: Props = $props();
   /** The meeting a drill-in pointed at; highlighted until the unit changes. */
   let pointed = $state<string | undefined>();
 
@@ -66,6 +72,15 @@
   const area = $derived($workspace.areas.find((x) => x.id === $activeTeamId));
   const team = $derived(
     $workspace.teams.find((x) => x.id === $activeTeamId) ?? (area ? areaAsTeam(area) : undefined),
+  );
+  const horizon = $derived($workspace.settings.horizon);
+  /** Meetings holidays leave out in the planning horizon, the export's default period (#341). */
+  const drops = $derived(
+    team ? holidayDrops($workspace, $index, { teamId: team.id }, horizon.from, horizon.to) : [],
+  );
+  const regionName = $derived(
+    resolveRegion($workspace, $workspace.settings.region)?.name[$locale] ??
+      $workspace.settings.region,
   );
   const categories = $derived($workspace.categories);
   const roles = $derived($workspace.roles);
@@ -162,6 +177,8 @@
   const rate = $derived($workspace.settings.hourlyRate);
   // Only this page's meetings: for an area its own, not those of its teams.
   const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
+  /** What its people also spend in the area's meetings (#336); none for an area or lone team. */
+  const share = $derived(team ? areaShare($workspace, $index, team.id, rate) : undefined);
   const euro = (n: number) => formatEuro($locale, n);
   /** The Takt's short name for "Ø … / Sprint" (#279). */
   const kind = $derived(team ? $t(`meet.kind.${team.cadence.kind}`) : '');
@@ -378,7 +395,13 @@
   {:else}
     <CadenceCard {team} {area} />
     {#if costs && rate}
-      <CostCard summary={costs} {rate} cadence={team?.cadence} />
+      <CostCard
+        summary={costs}
+        {rate}
+        cadence={team?.cadence}
+        areaShare={share}
+        unitName={team?.name}
+      />
     {:else if !rate && team.events.length > 0}
       <RateInvite />
     {/if}
@@ -468,6 +491,12 @@
           {$t('meet.print.filter', { query: query.trim() })}
         </p>
       {/if}
+      <HolidayDrops
+        {drops}
+        lead={$t('holidayDrops.meetings', { region: regionName })}
+        {horizon}
+        {onOpenDay}
+      />
       {#if categories.length === 0}
         <p class="empty" id="meet-needs-category">{$t('meet.needsCategory')}</p>
       {/if}

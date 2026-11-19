@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { isoWeek } from '../../core/date';
-  import { capacity, fte, hoursIn, loadPerWeek, overMax } from '../../core/load';
+  import { capacity, fte, hoursIn, loadBase, loadPerWeek, overMax } from '../../core/load';
   import { unitLoadIds } from '../../core/model';
   import { scopePeople } from '../../core/views';
   import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
@@ -10,8 +10,8 @@
 
   /**
    * One week of Load in detail. Each person is judged on all their meetings that week ÷ their
-   * hours in all their teams and areas, like the people table (#294); `here` keeps their part in
-   * the selected team.
+   * hours in all their teams and areas (at most the Settings weekly hours), like the people table
+   * (#294, #342); `here` keeps their part in the selected team.
    */
   const uid = $props.id();
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
@@ -30,7 +30,7 @@
       .filter((p) => inScope.has(p.id))
       .map((person) => {
         const hours = week.byPerson[person.id] ?? 0;
-        const cap = capacity($workspace, person.id);
+        const cap = loadBase($workspace, person.id);
         const hereHours = hoursIn(week, ids, person.id);
         const hereCap = capacity($workspace, person.id, teamId);
         return {
