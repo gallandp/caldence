@@ -12,6 +12,8 @@
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
+  import StaffingMap from './components/StaffingMap.svelte';
+  import { hasDemands } from '../core/staffingMap';
   import { calendarDay, calendarWeek, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
@@ -106,6 +108,10 @@
   const noTeams = $derived($workspace.teams.length === 0);
   /** An area is selected: views that work per team offer its teams instead. */
   const activeArea = $derived($workspace.areas.find((a) => a.id === $activeTeamId));
+  /** The area's products, for its staffing map (#322). */
+  const areaTeams = $derived(
+    activeArea ? $workspace.teams.filter((x) => activeArea.teamIds.includes(x.id)) : [],
+  );
   /** The organisation is selected (#313): Calendar and Load show everything. */
   const activeOrg = $derived($activeTeamId === ORG_UNIT);
   /** A line unit is selected (#316): the Team entry is its page, the views show its people. */
@@ -753,6 +759,13 @@
                       }}
                       onOpenUnit={(unitId) => drillIn(unitId, 'meetings')}
                     />
+                    {#if hasDemands($workspace, areaTeams)}
+                      <StaffingMap
+                        teams={areaTeams}
+                        single
+                        onOpen={(teamId) => drillIn(teamId, 'team')}
+                      />
+                    {/if}
                   {/snippet}
                 </AreaView>
               {/if}

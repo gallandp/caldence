@@ -56,9 +56,26 @@ test('a file at the target scale opens and renders within budget', async ({ page
       if (ms !== null) times[`${scope}/${view}`] = Math.round(ms);
     }
   };
+  /** The Overview page of the organisation or a platform, with its staffing map (#322). */
+  const overview = async (scope: string) => {
+    await page.evaluate(() => document.getElementById('tab-team')?.click());
+    times[`${scope}/overview`] = Math.round(
+      await page.evaluate(async () => {
+        const tab = document.querySelectorAll<HTMLButtonElement>('.pages button')[1]!;
+        const t0 = performance.now();
+        tab.click();
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        return performance.now() - t0;
+      }),
+    );
+    await expect(page.locator('[data-staffing-map]')).toBeVisible();
+    await page.locator('.pages button').first().click();
+  };
   await all('org');
+  await overview('org');
   await pickUnit(page, ws.areas[0]!.name);
   await all('platform');
+  await overview('platform');
   await pickUnit(page, ws.teams[0]!.name);
   await all('product');
   // A line team of about a dozen people and the whole line of ~500 (#316).
