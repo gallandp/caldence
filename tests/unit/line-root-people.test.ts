@@ -3,6 +3,7 @@ import valid from '../fixtures/valid-workspace.json';
 import { addItem } from '../../src/core/edit';
 import { addLineUnit, updateLineUnit, updateLinePerson } from '../../src/core/lineEdit';
 import {
+  hasLine,
   LINE_ROOT,
   lineSelection,
   linePeople,
@@ -14,6 +15,8 @@ import { staffRows } from '../../src/core/lineStaff';
 import { buildMatrix } from '../../src/core/matrix';
 import { structureSheets } from '../../src/core/structureSheets';
 import { validate } from '../../src/core/validate';
+import { removeLineUnit } from '../../src/core/line';
+import { knownUnit } from '../../src/ui/state/view';
 
 const base = (): Workspace => ({ ...(valid as unknown as Workspace), lineName: 'Nice IT GmbH' });
 
@@ -80,5 +83,19 @@ describe('people directly at the line root', () => {
     if (!result.ok) throw new Error('not added');
     const m = buildMatrix(result.value, lineSelection(unitId), 'line', 'Nice IT GmbH');
     expect(m.rows.some((r) => r.unit.id === ORG_UNIT)).toBe(false);
+  });
+
+  it('keeps the line while someone sits at the root and no unit is left (#420)', () => {
+    const made = addLineUnit(base(), 'Backend');
+    if (!made.ok) throw new Error('no unit');
+    const [ws1, unitId] = made.value;
+    const { result } = addNew(ws1, 'Hans Peter', ORG_UNIT);
+    if (!result.ok) throw new Error('not added');
+    const left = removeLineUnit(result.value, unitId);
+    expect(left.lineUnits ?? []).toHaveLength(0);
+    expect(hasLine(left)).toBe(true);
+    expect(knownUnit(left, LINE_ROOT)).toBe(true);
+    expect(staffRows(left, ORG_UNIT, []).map((r) => r.person.name)).toEqual(['Hans Peter']);
+    expect(hasLine(removeLineUnit(ws1, unitId))).toBe(false);
   });
 });

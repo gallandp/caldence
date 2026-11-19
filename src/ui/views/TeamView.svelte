@@ -22,7 +22,7 @@
   import ImpactCheck from '../components/ImpactCheck.svelte';
   import ImpactTag from '../components/ImpactTag.svelte';
   import UnitChip from '../components/UnitChip.svelte';
-  import { lineSelection, lineUnitsById } from '../../core/model';
+  import { lineSelection, lineUnitsById, hasLine } from '../../core/model';
   import { productMeetings } from '../../core/demand';
   import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
@@ -41,7 +41,7 @@
   );
   const roleName = $derived((id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id);
   /** Members come from the line (#397): their line unit links there, while the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const withLine = $derived(hasLine($workspace));
   const lineUnitOf = $derived.by(() => {
     const units = lineUnitsById($workspace, $levels.org);
     const byPerson = new Map($workspace.people.map((p) => [p.id, p.lineUnitId]));
@@ -434,7 +434,7 @@
                   >
                   <span class="who">
                     <span class="name">{name}</span>
-                    {#if hasLine}
+                    {#if withLine}
                       {@const unit = lineUnitOf(member.personId)}
                       {#if unit}
                         <UnitChip selection={lineSelection(unit.id)} name={unit.name} line />

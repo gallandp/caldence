@@ -354,8 +354,9 @@
       minutes: formatNumber($locale, e.duration, 0),
     });
   /** Where each product's people come from (#397): a column while the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
-  const fromLine = $derived(hasLine && !$presenting);
+  // Cross links into the line need line units (#420: root people alone have none).
+  const withLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const fromLine = $derived(withLine && !$presenting);
 </script>
 
 <div class="overview stack" data-area-overview>
@@ -468,7 +469,7 @@
           </p>
           <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
-        {#if hasLine}
+        {#if withLine}
           <!-- The line behind these products, as line teams × products (#397). -->
           <button
             type="button"

@@ -1,5 +1,6 @@
 import { get, writable } from 'svelte/store';
 import {
+  hasLine,
   hasOrgLevel,
   LINE_ROOT,
   ORG_UNIT,
@@ -37,7 +38,7 @@ export function knownUnit(ws: Workspace, unit: string | undefined): boolean {
   return (
     (unit === ORG_UNIT && hasOrgLevel(ws)) ||
     // The root of the line world (#395), while the file has a line.
-    (unit === LINE_ROOT && (ws.lineUnits?.length ?? 0) > 0) ||
+    (unit === LINE_ROOT && hasLine(ws)) ||
     (unit !== undefined && !!ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
     [...ws.teams, ...ws.areas].some((u) => u.id === unit)
   );

@@ -374,6 +374,14 @@ export function lineRootName(ws: Workspace, fallback: string): string {
   return ws.lineName || orgName(ws, fallback);
 }
 
+/**
+ * Whether the file has a line (#420): a line unit, or someone directly at the line's root. Only
+ * then the line root, the line world and the matrix can be chosen.
+ */
+export function hasLine(ws: Workspace): boolean {
+  return (ws.lineUnits?.length ?? 0) > 0 || ws.people.some((p) => p.lineUnitId === ORG_UNIT);
+}
+
 /** Line units by id, with the line's root for the people who sit directly there. */
 export function lineUnitsById(ws: Workspace, rootName: string): Map<string, LineUnit> {
   return new Map([

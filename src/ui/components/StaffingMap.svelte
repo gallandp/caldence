@@ -39,7 +39,8 @@
   }
   let { teams, single = false, onOpen }: Props = $props();
   /** Cross links into the line (#397), while the file has a line. */
-  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  // Cross links into the line need line units (#420: root people alone have none).
+  const withLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
   const fromLine = (teamId: string) =>
     supplyingUnits(ws, teamId)
       .map((u) => u.name)
@@ -156,7 +157,7 @@
       {:else}
         <span class="p-state full">{$t('map.product.full')}</span>
       {/if}
-      {#if hasLine && !$presenting}
+      {#if withLine && !$presenting}
         {@const line = fromLine(p.team.id)}
         <span class="p-line" data-from-line
           >{$t('cross.fromLine')}: {line || $t('cross.noLine')}</span
@@ -302,7 +303,7 @@
               >{/if}
             {#if pl.ownerGaps > 0}<span class="pill">{countText('owner.gaps', pl.ownerGaps)}</span
               >{/if}
-            {#if hasLine && pl.area && !single}
+            {#if withLine && pl.area && !single}
               {@const area = pl.area}
               <button
                 type="button"

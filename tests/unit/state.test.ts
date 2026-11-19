@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyWorkspace } from '../../src/core/model';
 import { addTeam, removeTeam, updateSettings } from '../../src/core/edit';
 import { createWorkspaceStore, createActiveTeamId } from '../../src/ui/state/workspace';
+import { LINE_ROOT, ORG_UNIT } from '../../src/core/model';
 import { fieldErrors } from '../../src/ui/state/form';
 
 const fresh = () => createWorkspaceStore(emptyWorkspace('2026-01-05'));
@@ -129,6 +130,14 @@ describe('activeTeamId', () => {
     expect(get(active)).toBe(get(s).teams[0]!.id);
     s.apply((ws) => removeTeam(ws, get(s).teams[0]!.id));
     expect(get(active)).toBeNull();
+  });
+
+  it('falls back to the line root when only people at the root are left (#420)', () => {
+    const s = createWorkspaceStore({
+      ...emptyWorkspace('2026-01-05'),
+      people: [{ id: 'p1', name: 'Hanne Brix', lineUnitId: ORG_UNIT }],
+    });
+    expect(get(createActiveTeamId(s))).toBe(LINE_ROOT);
   });
 });
 

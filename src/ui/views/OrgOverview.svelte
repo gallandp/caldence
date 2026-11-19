@@ -28,9 +28,10 @@
   const num = (n: number, d: number) => formatNumber($locale, n, d);
   const euro = (n: number) => formatEuro($locale, n);
   /** Cross links into the line (#397): per platform (and the products in none), its line units. */
-  const hasLine = $derived((ws.lineUnits?.length ?? 0) > 0);
+  // Cross links into the line need line units (#420: root people alone have none).
+  const withLine = $derived((ws.lineUnits?.length ?? 0) > 0);
   const supply = $derived.by(() => {
-    if (!hasLine) return [];
+    if (!withLine) return [];
     const inArea = new Set(ws.areas.flatMap((a) => a.teamIds));
     const rows = ws.areas.map((a) => ({
       id: a.id,
@@ -71,7 +72,7 @@
   {#if !rate && meetings > 0}
     <div data-no-present><RateInvite focusAfter="[data-org-cost]" /></div>
   {/if}
-  {#if hasLine}
+  {#if withLine}
     <!-- Where each platform's people come from, and the matrix behind it (#397). -->
     <section class="from-line" aria-labelledby="{uid}-from-line">
       <div class="head">

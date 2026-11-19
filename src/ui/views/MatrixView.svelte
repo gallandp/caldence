@@ -9,6 +9,7 @@
     type MatrixWorld,
   } from '../../core/matrix';
   import {
+    hasLine,
     lineRootName,
     lineSelection,
     ORG_UNIT,
@@ -199,7 +200,7 @@
 
   {#if m.rows.length === 0 && !m.noLine}
     <p class="empty-note">
-      {(ws.lineUnits?.length ?? 0) === 0 ? $t('matrix.empty.noLine') : $t('matrix.empty.none')}
+      {!hasLine(ws) ? $t('matrix.empty.noLine') : $t('matrix.empty.none')}
     </p>
   {:else}
     {#if !$presenting}
