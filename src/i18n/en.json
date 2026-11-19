@@ -1899,5 +1899,6 @@
   "world.label": "World",
   "world.product": "Products",
   "world.line": "Line",
-  "settings.lineLevels.conflict": "These levels do not fit the units of the line: a unit would sit above the unit it belongs to, or too deep."
+  "settings.lineLevels.conflict": "These levels do not fit the units of the line: a unit would sit above the unit it belongs to, or too deep.",
+  "staff.error.groupUnknown": "“{name}” does not exist in the line"
 }

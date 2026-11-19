@@ -2,6 +2,7 @@ import type { Cell, Sheet } from './xlsx';
 import type { LineUnit, Person, Workspace } from './model';
 import { LIMITS } from './limits';
 import { groupLineLevel, isCompanyLevel, lineLevels, lowestLineLevel } from './lineLevels';
+import { lineKind } from './lineStaff';
 
 /**
  * Staff import for the line organisation (#330): people with line team, contract FTE, skills and,
@@ -229,6 +230,7 @@ export type RowError =
   | 'teamUnknown'
   | 'teamAmbiguous'
   | 'groupAmbiguous'
+  | 'groupUnknown'
   | 'company'
   | 'tooDeep'
   | 'fte'
@@ -347,7 +349,8 @@ export function reviewStaff(
         nameKey(u.name) === nameKey(name) &&
         // A unit chosen on the lowest level takes no units below it (#399).
         u.kind !== lowest &&
-        (u.parentId === undefined || parents.has(u.id)),
+        // With own levels a unit's stored level says it can hold units, children or not (#408).
+        (u.parentId === undefined || parents.has(u.id) || (own && u.kind !== undefined)),
     );
   const familiesByName = new Map(out.skillFamilies.map((f) => [nameKey(f.name), f] as const));
   /** Units of that name; `parentId` null means anywhere in the tree. */
@@ -459,39 +462,52 @@ export function reviewStaff(
     // The line unit: the team under the given units above it, or the one team of that name. The
     // units above are the row's level columns top-down (#408), the specialist group among them;
     // the first one is looked for anywhere in the line, each further one below the one before.
-    const chain = chainLevels.flatMap((id) => {
-      const name = id === groupLevel ? row.group : (row.levels?.[id] ?? '');
-      return name === '' ? [] : [{ id, name }];
-    });
-    if (row.group !== '' && !chainLevels.includes(groupLevel)) {
-      // Without a level between the top and the lowest one there is no place for a group.
-      res.errorName = row.group;
-      error('tooDeep');
-      continue;
-    }
+    // Without a level between the top and the lowest one, the group column names a company unit
+    // at the top, which the import finds but never creates (#408).
+    const groupInChain = chainLevels.includes(groupLevel);
+    const chain = [
+      ...(row.group !== '' && !groupInChain ? [{ id: undefined, name: row.group }] : []),
+      ...chainLevels.flatMap((id) => {
+        const name = id === groupLevel ? row.group : (row.levels?.[id] ?? '');
+        return name === '' ? [] : [{ id, name }];
+      }),
+    ];
     if (chain.some((c) => c.name.length > LIMITS.textChars)) {
       error('team');
       continue;
     }
+    // With own levels a unit only counts when it is on the column's level; otherwise a found unit
+    // of another level could end up above a unit of a higher one.
+    const onLevel = (u: LineUnit, id: string | undefined) =>
+      !own || id === undefined || lineKind(out, u.id) === id;
     let unit: LineUnit | undefined;
     let anchor: LineUnit | undefined;
+    /** Units this row creates; they join the file only when the whole row succeeds. */
+    const fresh: LineUnit[] = [];
     let failed = false;
+    const fail = (e: RowError, name: string) => {
+      res.errorName = name;
+      error(e);
+      failed = true;
+    };
     for (const step of chain) {
-      const found = anchor
-        ? byName(step.name, anchor.id).filter((u) => u.kind !== lowest)
-        : groupsByName(step.name);
+      const found = (
+        anchor
+          ? byName(step.name, anchor.id).filter((u) => u.kind !== lowest)
+          : groupsByName(step.name)
+      ).filter((u) => onLevel(u, step.id));
       if (found.length > 1) {
-        res.errorName = step.name;
-        error('groupAmbiguous');
-        failed = true;
+        fail('groupAmbiguous', step.name);
         break;
       }
       let next = found[0];
       if (!next) {
+        if (step.id === undefined) {
+          fail('groupUnknown', step.name);
+          break;
+        }
         if (anchor && depth(anchor) >= maxLevels) {
-          res.errorName = anchor.name;
-          error('tooDeep');
-          failed = true;
+          fail('tooDeep', anchor.name);
           break;
         }
         next = {
@@ -500,31 +516,32 @@ export function reviewStaff(
           ...(anchor ? { parentId: anchor.id } : {}),
           ...(own ? { kind: step.id } : {}),
         };
-        units.push(next);
+        fresh.push(next);
         unitById.set(next.id, next);
-        created.units.push(next.name);
-        res.notes.push({ key: 'newGroup', name: next.name });
       }
-      if (anchor) parents.add(anchor.id);
       anchor = next;
     }
-    if (failed) continue;
-    if (anchor) {
+    if (!failed && anchor) {
       unit = byName(row.team, anchor.id)[0];
-      if (!unit && depth(anchor) >= maxLevels) {
-        res.errorName = anchor.name;
-        error('tooDeep');
-        continue;
-      }
-      if (!unit) {
+      if (!unit && depth(anchor) >= maxLevels) fail('tooDeep', anchor.name);
+      else if (!unit) {
         unit = { id: newUnit(), name: row.team, parentId: anchor.id, ...teamKind };
-        parents.add(anchor.id);
-        units.push(unit);
+        fresh.push(unit);
         unitById.set(unit.id, unit);
-        created.units.push(unit.name);
-        res.notes.push({ key: 'newTeam', name: unit.name });
       }
-    } else {
+    }
+    if (failed) {
+      for (const u of fresh) unitById.delete(u.id);
+      continue;
+    }
+    for (const u of fresh) {
+      units.push(u);
+      if (u.parentId !== undefined) parents.add(u.parentId);
+      created.units.push(u.name);
+      res.notes.push({ key: u === unit ? 'newTeam' : 'newGroup', name: u.name });
+    }
+    if (anchor) parents.add(anchor.id);
+    if (!anchor) {
       const found = byName(row.team, null);
       if (found.length === 0) {
         error('teamUnknown');
@@ -536,6 +553,7 @@ export function reviewStaff(
       }
       unit = found[0]!;
     }
+    if (!unit) continue; // Set on every path above; this tells the type checker.
 
     // Company, skills.
     let companyId: string | undefined;

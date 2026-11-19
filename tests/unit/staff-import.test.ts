@@ -560,4 +560,84 @@ describe('own line levels (#408)', () => {
     );
     expect(t).toBe('Name;Linienteam;Vertrag FTE;Skills;Sparte;Fachgruppe;Staffel;Gesellschaft\r\n');
   });
+
+  it('names the line team column after the lowest level, also after a level is added below', () => {
+    const w = lined();
+    w.settings.lineLevels = [{ id: 'company', company: true }, { id: 'group' }, { id: 'team' }];
+    w.settings.lineLevels.push({ id: 'll9', name: 'Ebene 4' });
+    const c = levelColumns(w.settings, (id) => (id === 'team' ? 'Linienteam' : id));
+    expect(c.map((x) => x.id)).toEqual(['team']);
+    const table = staffTable(
+      [
+        ['Name', 'Ebene 4', 'Vertrag FTE', 'Skills', 'Fachgruppe', 'Linienteam'],
+        ['Mira Holt', 'Unten', 1, '', 'Fachgruppe Handel', 'Mitte'],
+      ],
+      { team: ['Ebene 4'] },
+      c,
+    );
+    expect(table.rows[0]).toMatchObject({ team: 'Unten', levels: { team: 'Mitte' } });
+  });
+
+  it('creates nothing for a row that fails further down its path', () => {
+    const w = lined();
+    w.settings.lineLevels = [
+      { id: 'company', company: true },
+      { id: 'group' },
+      { id: 'll2', name: 'Staffel' },
+      { id: 'team' },
+    ];
+    w.lineUnits = [
+      { id: 'g1', name: 'Fachgruppe Handel', kind: 'group' },
+      { id: 'l1', name: 'Orvalis Ware', parentId: 'g1', kind: 'team' },
+      { id: 'g2', name: 'G2', parentId: 'g1', kind: 'group' },
+      { id: 'g3', name: 'G3', parentId: 'g2', kind: 'group' },
+    ];
+    const c = levelColumns(w.settings, (id) => (id === 'll2' ? 'Staffel' : id));
+    const r = reviewStaff(
+      w,
+      staffTable(
+        [
+          ['Name', 'Linienteam', 'Vertrag FTE', 'Skills', 'Fachgruppe', 'Staffel'],
+          ['Mira Holt', 'X', 1, '', 'G3', 'N'],
+        ],
+        {},
+        c,
+      ),
+      {},
+      names,
+    );
+    expect(r.rows[0]).toMatchObject({ status: 'error', error: 'tooDeep', errorName: 'N' });
+    expect(r.ws.lineUnits!.map((u) => u.name)).not.toContain('N');
+    expect(r.created.units).toEqual([]);
+  });
+
+  it('takes a unit of another level as a new one, so the order of levels holds', () => {
+    const w = leveled();
+    w.lineUnits!.push({ id: 's9', name: 'Fachgruppe Handel', kind: 'group' });
+    const r = runLevels(w, [['Mira Holt', 'X', 1, '', '', 'Fachgruppe Handel', 'Staffel Rot']]);
+    // "Fachgruppe Handel" sits twice on the group level: ambiguous, nothing created.
+    expect(r.rows[0]).toMatchObject({ status: 'error', error: 'groupAmbiguous' });
+    const r2 = runLevels(leveled(), [['Jon Reh', 'Y', 1, '', 'Orvalis Ware', '', '']]);
+    // A Sparte named like a line team is not that team: a new Sparte is made.
+    expect(r2.rows[0]!.status).toBe('new');
+    expect(keys(r2.ws)).toEqual([]);
+  });
+
+  it('finds the company unit through the group column when no level sits in between', () => {
+    const w = lined();
+    w.settings.lineLevels = [{ id: 'company', company: true }, { id: 'team' }];
+    w.companies!.push({ id: 'co2', name: 'Nice-IT GmbH' });
+    w.lineUnits = [
+      { id: 'g1', name: 'Nice-IT GmbH', kind: 'company', companyId: 'co2' },
+      { id: 'l1', name: 'Orvalis Ware', parentId: 'g1', kind: 'team' },
+    ];
+    const r = run(w, [
+      ['Mira Holt', 'Orvalis Ware', 1, '', 'Nice-IT GmbH', ''],
+      ['Jon Reh', 'Neu', 1, '', 'Nice-IT GmbH', ''],
+      ['Ina Wolf', 'Neu', 1, '', 'Gibt es nicht', ''],
+    ]);
+    expect(r.rows.map((x) => x.status)).toEqual(['new', 'new', 'error']);
+    expect(r.rows[2]!.error).toBe('groupUnknown');
+    expect(keys(r.ws)).toEqual([]);
+  });
 });

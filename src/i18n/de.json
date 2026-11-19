@@ -1899,5 +1899,6 @@
   "world.label": "Welt",
   "world.product": "Produkte",
   "world.line": "Linie",
-  "settings.lineLevels.conflict": "Diese Ebenen passen nicht zu den Einheiten der Linie: eine Einheit stünde über der Einheit darüber oder zu tief."
+  "settings.lineLevels.conflict": "Diese Ebenen passen nicht zu den Einheiten der Linie: eine Einheit stünde über der Einheit darüber oder zu tief.",
+  "staff.error.groupUnknown": "„{name}“ gibt es in der Linie nicht"
 }

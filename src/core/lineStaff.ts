@@ -3,7 +3,6 @@ import { contractFte, freeFte } from './line';
 import {
   groupLineLevel,
   isCompanyLevel,
-  leafLineLevel,
   lineLevelIndex,
   lineLevels,
   lowestLineLevel,
@@ -177,7 +176,7 @@ export function lineKind(ws: Workspace, unitId: string): LineKind | 'org' {
   if (unitId === ORG_UNIT) return 'org';
   const unit = ws.lineUnits?.find((u) => u.id === unitId);
   if (unit?.kind !== undefined) return unit.kind;
-  return isLineGroup(ws, unitId) ? groupLineLevel(ws.settings) : leafLineLevel(ws.settings);
+  return isLineGroup(ws, unitId) ? groupLineLevel(ws.settings) : lowestLineLevel(ws.settings);
 }
 
 /**

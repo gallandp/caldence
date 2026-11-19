@@ -1,5 +1,5 @@
 import type { LevelNames } from '../core/levels';
-import { DEFAULT_LINE_LEVELS, groupLineLevel, leafLineLevel } from '../core/lineLevels';
+import { DEFAULT_LINE_LEVELS, groupLineLevel, lowestLineLevel } from '../core/lineLevels';
 import type { LineLevel } from '../core/model';
 import { t, type Locale } from './index';
 
@@ -58,7 +58,7 @@ export function levelWords(
   const settings = { lineLevels: [...list] };
   const byId = (id: string) => list.find((l) => l.id === id)!;
   const groupLevel = byId(groupLineLevel(settings));
-  const teamLevel = byId(leafLineLevel(settings));
+  const teamLevel = byId(lowestLineLevel(settings));
   const companyLevel = list.find((l) => l.company) ?? { id: 'company', name: line?.company };
   const lineWords = {
     lineGroup: wordOf(groupLevel),
