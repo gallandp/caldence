@@ -18,6 +18,7 @@
   import { FALLBACK_ZONES, supportedZones } from '../state/zones';
   import { index, workspace } from '../state/workspace';
   import ThemeSwitch from '../ThemeSwitch.svelte';
+  import { setLanguage } from '../state/language';
 
   const settings = $derived($workspace.settings);
 
@@ -262,13 +263,13 @@
         : 'custom',
   );
   const presetLabel = (preset: LevelPreset) => {
-    const w = levelWords({ preset }, settings.locale);
+    const w = levelWords({ preset }, $locale);
     return $t('level.preset', { area: w.area, team: w.team });
   };
   function onLevelChoice(event: Event) {
     const value = (event.currentTarget as HTMLSelectElement).value;
     if (value === 'custom') {
-      const w = levelWords(settings.levelNames, settings.locale);
+      const w = levelWords(settings.levelNames, $locale);
       commit(['levelNames.area', 'levelNames.team'], {
         levelNames: { area: w.area, team: w.team },
       });
@@ -302,8 +303,9 @@
     commit([`lineLevelNames.${level}`], { lineLevelNames: plain ? undefined : next });
   }
 
+  // A setting of this browser, like the theme: switching it does not change the file (#337).
   const lang = (event: Event) =>
-    commit([], { locale: (event.currentTarget as HTMLSelectElement).value as Locale });
+    setLanguage((event.currentTarget as HTMLSelectElement).value as Locale);
 </script>
 
 {#snippet err(key: string, label: string)}
@@ -319,14 +321,15 @@
     <h3 id="set-general">{$t('settings.general')}</h3>
 
     <div class="grid">
-      <label class="field">
-        <span>{$t('lang.label')}</span>
-        <select value={settings.locale} onchange={lang}>
+      <div class="field">
+        <label for="set-lang">{$t('lang.label')}</label>
+        <select id="set-lang" value={$locale} onchange={lang} aria-describedby="note-lang">
           {#each ['de', 'en'] as option (option)}
             <option value={option} lang={option}>{$t('lang.name.' + option)}</option>
           {/each}
         </select>
-      </label>
+        <p class="help" id="note-lang">{$t('lang.browser')}</p>
+      </div>
 
       <div class="field">
         <label for="set-region">{$t('settings.region')}</label>

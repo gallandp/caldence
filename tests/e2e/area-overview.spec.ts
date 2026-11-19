@@ -524,12 +524,11 @@ test('the key figure tiles and the cards keep the same gap at 1440, 1280 present
   page,
 }) => {
   const overview = await openOverview(page, 100);
-  // The gaps between the overview's blocks: key figures, cost card, costly meetings, ...
+  // The gaps between the overview's blocks: key figures, clash line, cost card, ...
   const gaps = () =>
     overview.evaluate((el) => {
-      const boxes = [...el.querySelectorAll(':scope > .kpis, :scope > .card')].map((c) =>
-        c.getBoundingClientRect(),
-      );
+      const blocks = ':scope > .kpis, :scope > [data-clashes], :scope > .card';
+      const boxes = [...el.querySelectorAll(blocks)].map((c) => c.getBoundingClientRect());
       return boxes.slice(1).map((b, i) => Math.round(b.top - boxes[i]!.bottom));
     });
   const sameGap = async () => {

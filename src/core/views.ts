@@ -1,4 +1,13 @@
-import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
+import {
+  addDays,
+  diffDays,
+  fromMinutes,
+  isoWeek,
+  mondayOf,
+  toMinutes,
+  type ISODate,
+  type Time,
+} from './date';
 import { capacity, fte, loadBase, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
@@ -482,31 +491,97 @@ export function loadSummary(
   };
 }
 
+/** Same-day pairs whose [start, start + duration) overlap; touching edges do not count. */
+function overlapping<T extends Occurrence>(list: T[]): { date: ISODate; a: T; b: T }[] {
+  const sorted = [...list].sort(
+    (x, y) =>
+      x.date.localeCompare(y.date) ||
+      toMinutes(x.start) - toMinutes(y.start) ||
+      x.teamId.localeCompare(y.teamId),
+  );
+  const out: { date: ISODate; a: T; b: T }[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const a = sorted[i]!;
+    const aEnd = toMinutes(a.start) + a.duration;
+    for (let j = i + 1; j < sorted.length; j++) {
+      const b = sorted[j]!;
+      if (b.date !== a.date || toMinutes(b.start) >= aEnd) break;
+      out.push({ date: a.date, a, b });
+    }
+  }
+  return out;
+}
+
 /** Overlapping attended occurrences of a person on the same day, across all teams. */
 export function conflicts(
   ws: Workspace,
   index: HolidayIndex,
   personId: string,
 ): { date: ISODate; a: Occurrence; b: Occurrence }[] {
-  const attended = filteredOccurrences(ws, index, { personId })
-    .filter((o) => !o.skippedHoliday && o.hours > 0)
-    .sort(
-      (x, y) =>
-        x.date.localeCompare(y.date) ||
-        toMinutes(x.start) - toMinutes(y.start) ||
-        x.teamId.localeCompare(y.teamId),
-    );
-  const out: { date: ISODate; a: Occurrence; b: Occurrence }[] = [];
-  for (let i = 0; i < attended.length; i++) {
-    const a = attended[i]!;
-    const aEnd = toMinutes(a.start) + a.duration;
-    for (let j = i + 1; j < attended.length; j++) {
-      const b = attended[j]!;
-      if (b.date !== a.date || toMinutes(b.start) >= aEnd) break;
-      out.push({ date: a.date, a, b });
+  return overlapping(
+    filteredOccurrences(ws, index, { personId }).filter((o) => !o.skippedHoliday && o.hours > 0),
+  );
+}
+
+export interface Clash {
+  personId: string;
+  date: ISODate;
+  a: Occurrence;
+  b: Occurrence;
+}
+
+/**
+ * The `conflicts` of several people in one pass (#339): every unit's meetings are expanded once
+ * and handed to the people who attend them. Sorted by date, then in the order of `personIds`.
+ * `from` and `to` keep dates in [from, to); `units` keeps pairs with at least one meeting in them.
+ */
+export function clashes(
+  ws: Workspace,
+  index: HolidayIndex,
+  personIds: Iterable<string>,
+  options: { from?: ISODate; to?: ISODate; units?: ReadonlySet<string> } = {},
+): Clash[] {
+  const { from, to, units } = options;
+  const byPerson = new Map<string, FilteredOccurrence[]>();
+  for (const id of personIds) byPerson.set(id, []);
+  for (const unit of scopeUnits(ws, {})) {
+    // Per meeting: who of them attends, with the shares of the lines that invite them.
+    const invited = new Map<string, { event: CalEvent; shares: Map<string, number[]> }>();
+    for (const event of unit.events) {
+      const shares = new Map<string, number[]>();
+      for (const p of event.participants)
+        for (const id of attendees(ws, unit.id, p, event))
+          if (byPerson.has(id)) shares.set(id, [...(shares.get(id) ?? []), p.share]);
+      if (shares.size > 0) invited.set(event.id, { event, shares });
+    }
+    if (invited.size === 0) continue;
+    for (const occ of occurrences(unit, ws.settings, index)) {
+      const meeting = invited.get(occ.eventId);
+      if (!meeting || occ.skippedHoliday) continue;
+      if ((from !== undefined && occ.date < from) || (to !== undefined && occ.date >= to)) continue;
+      for (const [id, shares] of meeting.shares) {
+        // The hours a person filter counts; meetings worth 0 h are not attended.
+        const hours = shares.reduce(
+          (sum, share) => sum + occurrenceHours(meeting.event, occ.duration, share),
+          0,
+        );
+        if (hours > 0) byPerson.get(id)!.push({ ...occ, hours });
+      }
     }
   }
-  return out;
+  const out: Clash[] = [];
+  for (const [personId, list] of byPerson)
+    for (const c of overlapping(list))
+      if (!units || units.has(c.a.teamId) || units.has(c.b.teamId)) out.push({ personId, ...c });
+  // A stable sort keeps the people's order within a day.
+  return out.sort((x, y) => x.date.localeCompare(y.date));
+}
+
+/** When both meetings of a clash run: from the later start to the earlier end. */
+export function clashTime(c: { a: Occurrence; b: Occurrence }): { start: Time; end: Time } {
+  const start = Math.max(toMinutes(c.a.start), toMinutes(c.b.start));
+  const end = Math.min(toMinutes(c.a.start) + c.a.duration, toMinutes(c.b.start) + c.b.duration);
+  return { start: fromMinutes(start), end: fromMinutes(end % (24 * 60)) };
 }
 
 /**

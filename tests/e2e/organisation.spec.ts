@@ -21,6 +21,11 @@ test('the organisation sits above the areas and shows the whole tree', async ({ 
   // No meetings of its own yet: Meetings & cadence steps aside, the page takes its place.
   await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveCount(0);
   await showView(page, 'Organisation');
+  // The organisation opens on its overview, like an area (#337).
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Structure' })
+    .click();
   const tree = page.getByRole('list', { name: 'Structure of Organisation' });
   await expect(tree.locator('.node.root')).toContainText('1 area · 4 teams · 6 people');
   await expect(tree.locator('button.node.area')).toHaveText(/Commerce/);

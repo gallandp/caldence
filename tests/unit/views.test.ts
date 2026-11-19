@@ -3,6 +3,8 @@ import valid from '../fixtures/valid-workspace.json';
 import { REGIONS, regionIds } from '../../src/data/regions';
 import {
   cadenceNumber,
+  clashes,
+  clashTime,
   conflicts,
   dayLoad,
   filteredOccurrences,
@@ -281,6 +283,41 @@ describe('conflicts', () => {
     const out = filteredOccurrences(ws, workspaceIndex(ws), {});
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ date: '2027-03-28', start: '09:00' });
+  });
+});
+
+describe('clashes', () => {
+  it('lists the conflicts of several people with the person', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 30));
+    const out = clashes(ws, workspaceIndex(ws), ['p1', 'nobody']);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ personId: 'p1', date: '2026-12-02' });
+  });
+  it('keeps only dates in [from, to) and pairs that touch the given units', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 30));
+    const index = workspaceIndex(ws);
+    const t1 = ws.teams[0]!.id;
+    expect(clashes(ws, index, ['p1'], { from: '2026-12-03' })).toEqual([]);
+    expect(clashes(ws, index, ['p1'], { to: '2026-12-02' })).toEqual([]);
+    expect(clashes(ws, index, ['p1'], { units: new Set([t1]) })).toHaveLength(1);
+    expect(clashes(ws, index, ['p1'], { units: new Set(['elsewhere']) })).toEqual([]);
+  });
+  it('counts no clash days when meetings only touch', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '10:00', 60));
+    const found = clashes(ws, workspaceIndex(ws), ['p1']);
+    expect(new Set(found.map((c) => c.date)).size).toBe(0);
+  });
+  it('names the time both meetings run', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 60));
+    expect(clashTime(clashes(ws, workspaceIndex(ws), ['p1'])[0]!)).toEqual({
+      start: '09:30',
+      end: '10:00',
+    });
+  });
+  it('counts a person named twice once', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 30));
+    const out = clashes(ws, workspaceIndex(ws), ['p1', 'p1']);
+    expect(out.map((c) => c.date)).toEqual(['2026-12-02']);
   });
 });
 

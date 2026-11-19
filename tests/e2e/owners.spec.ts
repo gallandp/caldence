@@ -52,10 +52,18 @@ test('owner tandems: mark a role, fill the gap, choose one half (#331)', async (
   await page.locator('.switcher .pick').click();
   await page.locator('.switcher .list button.org').click();
   await showView(page, 'Organisation');
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Structure' })
+    .click();
   await expect(page.locator('button.node.area')).toContainText('4 owner gaps');
 
   // The area has its own owner card.
   await pickUnit(page, 'Commerce');
   await showView(page, 'Area');
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Structure' })
+    .click();
   await expect(page.locator('[data-owner-card]')).toContainText('Area owner');
 });
