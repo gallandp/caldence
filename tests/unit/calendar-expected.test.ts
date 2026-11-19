@@ -42,4 +42,11 @@ describe('constants of the calendar e2e tests', () => {
     expect(new Set(found.map((c) => c.date)).size).toBe(COMMERCE_CLASH_DAYS);
     expect(found[0]).toMatchObject({ personId: 'person-robin', date: COMMERCE_FIRST_CLASH });
   });
+
+  it('finds per person exactly the conflicts the calendar marks', () => {
+    for (const person of ws.people) {
+      const one = clashes(ws, index, [person.id]).map(({ date, a, b }) => ({ date, a, b }));
+      expect(one, person.name).toEqual(conflicts(ws, index, person.id));
+    }
+  });
 });

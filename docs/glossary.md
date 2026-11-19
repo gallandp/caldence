@@ -37,7 +37,7 @@ column and bar uses it and shows its value ("über 60 %").
 | **Stunden {levelInArea}** (Hinweis) | hours in the area (hint) | One line per person and {levelArea} under Warnungen: invited to meetings {levelInArea} without hours set there, or those meetings take more than the Grenze of the hours there. Never a weekly warning | "über Grenze", "Warnung" |
 | **Platz bis Grenze (Termine)** | room before limit (meetings) | Hours per week that still fit into meetings before the Grenze (was "Frei bis Grenze") | Free working time |
 | **davon {levelInTeam} / {levelInArea}** | of which in the team / area | People table and the week opened from the area Overview: a person's part in the chosen {levelTeam} or {levelArea} (meetings there ÷ hours there) | The person's share, sort or Grenze |
-| **Überschneidung** | clash (calendar: overlap) | Two meetings of one person at the same time on one day. The calendar marks the day with a person chosen; the {levelArea} Overview counts the days in the next 12 weeks; Meeting load lists one warning per person (#339). Never a limit or a weekly warning | "Konflikt", "über Grenze" |
+| **Überschneidung** | overlap | Two meetings of one person at the same time on one day. The calendar marks the day with a person chosen; the {levelArea} Overview counts the days in the next 12 weeks; Meeting load lists one line per person under “Overlapping meetings” (#339). Never a limit or a weekly warning | "Konflikt", "clash", "über Grenze" |
 | **Lastspitze** | load spike | A week above warnFactor × usual load | "Überlast", "Grenze" |
 | **Kosten** | cost | Meeting hours × rate, always with unit and period (€/Woche, im Planungszeitraum) | — |
 | **Planungszeitraum** | planning horizon | Settings horizon; the period for long-term cost | — |

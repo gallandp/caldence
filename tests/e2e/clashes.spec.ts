@@ -18,7 +18,7 @@ test('the area overview counts clash days and opens the example in the calendar'
   await showView(page, 'Area');
   await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
   const line = page.locator('[data-area-overview] [data-clashes]');
-  await expect(line).toContainText(`Clashes in the next 12 weeks: ${COMMERCE_CLASH_DAYS} days`);
+  await expect(line).toContainText(`Overlaps in the next 12 weeks: ${COMMERCE_CLASH_DAYS} days`);
   const example = line.getByRole('button');
   await expect(example).toHaveText(
     'e.g. Robin: Sprint Planning (Team Gamma) and Replenishment (Team Delta) on Mon 01/04/2027, 11:00–11:30',
@@ -41,17 +41,25 @@ test('the area overview counts clash days and opens the example in the calendar'
   // One click leads back to the overview.
   await page.getByRole('button', { name: 'Commerce overview' }).click();
   await expect(line).toBeVisible();
+  // A load cell then opens the team's week for everyone: the person is no longer chosen.
+  await page
+    .locator(
+      '[data-area-overview] [data-load] tr[data-team="team-gamma"] button[data-week="2027-01-04"]',
+    )
+    .click();
+  await expect(page.locator('[data-week-focus="2027-01-04"]')).toBeVisible();
+  await expect(page.getByLabel('Person', { exact: true })).toHaveValue('');
 });
 
-test('Meeting load lists one clash warning per person', async ({ page }) => {
+test('Meeting load lists one overlap line per person', async ({ page }) => {
   await showView(page, 'Meeting load');
   const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
   const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
   const clashes = warnings.locator('li[data-clash]');
   // Team Alpha: Alex and Sam, both also in Team Beta.
   await expect(clashes).toHaveText([
-    `Alex: ${ALEX_CLASHES} clashes between Team Alpha and Team Beta, e.g. Sprint Planning and Replenishment on Thu 01/07/2027, 11:00–12:00`,
-    /^Sam: \d+ clashes between Team Alpha and Team Beta, e\.g\. /,
+    `Alex: ${ALEX_CLASHES} overlaps between Team Alpha and Team Beta, e.g. Sprint Planning and Replenishment on Thu 01/07/2027, 11:00–12:00`,
+    /^Sam: \d+ overlaps between Team Alpha and Team Beta, e\.g\. /,
   ]);
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Alex' });
   await expect(clashes).toHaveCount(1);

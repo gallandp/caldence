@@ -6,7 +6,9 @@
   const uid = $props.id();
 
   let roleId = $state('');
-  let personId = $state('');
+  // The field follows the filter when it is set from elsewhere: a person chosen from the area
+  // overview's overlap line, or no person after a load cell opened a team's week.
+  let personId = $derived($filter.personId ?? '');
   /**
    * With an area selected: one of its teams, or '' for the whole area. With the organisation: one
    * of its areas or teams, or '' for all.
@@ -27,11 +29,6 @@
     if (personId !== '' && !$workspace.people.some((p) => p.id === personId)) personId = '';
     // Also when another team or area is picked, or the team leaves the area.
     if (teamId !== '' && !choices.some((unit) => unit.id === teamId)) teamId = '';
-  });
-
-  // A person chosen from elsewhere (the area overview's clash line) shows in the field too.
-  $effect(() => {
-    if ($filter.personId) personId = $filter.personId;
   });
 
   // The person view spans all teams; otherwise the filter follows the active team.

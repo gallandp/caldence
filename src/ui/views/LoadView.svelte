@@ -584,11 +584,17 @@
     </p>
     {#if warningItems.length + clashItems.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
-    {:else}
+    {/if}
+    {#if warningItems.length > 0}
       <ul class="warnings">
         {#each warningItems as w (w.key)}
           <li class="warning">{w.text}</li>
         {/each}
+      </ul>
+    {/if}
+    {#if clashItems.length > 0}
+      <h4 class="hints-title">{$t('load.overlaps')}</h4>
+      <ul class="warnings overlaps">
         {#each clashItems as w (w.key)}
           <li class="warning" data-clash>{w.text}</li>
         {/each}
@@ -941,6 +947,9 @@
   .hints-title {
     margin: 1rem 0 0;
     font-size: 0.9375rem;
+  }
+  .hints-title + .overlaps {
+    margin-top: 0.5rem;
   }
   .hints {
     display: flex;

@@ -302,6 +302,11 @@ describe('clashes', () => {
     expect(clashes(ws, index, ['p1'], { units: new Set([t1]) })).toHaveLength(1);
     expect(clashes(ws, index, ['p1'], { units: new Set(['elsewhere']) })).toEqual([]);
   });
+  it('counts no clash days when meetings only touch', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '10:00', 60));
+    const found = clashes(ws, workspaceIndex(ws), ['p1']);
+    expect(new Set(found.map((c) => c.date)).size).toBe(0);
+  });
   it('names the time both meetings run', () => {
     const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 60));
     expect(clashTime(clashes(ws, workspaceIndex(ws), ['p1'])[0]!)).toEqual({
