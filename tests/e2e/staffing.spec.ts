@@ -9,8 +9,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-async function openBoard(page: Page) {
-  await openWorkspaceFile(page, staffingWorkspace(), 'staffing.caldence.json');
+async function openBoard(page: Page, ws: unknown = staffingWorkspace()) {
+  await openWorkspaceFile(page, ws, 'staffing.caldence.json');
   await page
     .getByRole('radiogroup', { name: 'World' })
     .getByRole('radio', { name: 'Line' })
@@ -160,4 +160,30 @@ test.describe('phone', () => {
     );
     expect(wide).toEqual([]);
   });
+});
+
+test('open demands have a heading; without a skill family the board offers to set one', async ({
+  page,
+}) => {
+  const ws = staffingWorkspace();
+  // Orvalis Ware inherits its family from Orvalis: without it, the line team has none.
+  delete (ws.lineUnits as { skillFamilyId?: string }[])[0]!.skillFamilyId;
+  const board = await openBoard(page, ws);
+
+  await expect(board.getByRole('heading', { name: 'Open demands' })).toBeVisible();
+  await expect(board.getByRole('region', { name: 'Open demands' })).toBeVisible();
+  // Without a family every open demand shows, Delta's role-only one too.
+  await expect(row(board, 'team-delta/d2')).toBeVisible();
+  await expect(
+    board.getByText('With a skill family for Orvalis Ware, only matching demands are shown here.'),
+  ).toBeVisible();
+
+  await board.getByRole('button', { name: 'Set skill family …' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Skill family').selectOption({ label: 'Orvalis' });
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog).toBeHidden();
+  await expect(row(board, 'team-delta/d2')).toHaveCount(0);
+  await expect(board.getByRole('button', { name: 'Set skill family …' })).toHaveCount(0);
+  await expect(board.getByLabel('Search team')).toBeFocused();
 });

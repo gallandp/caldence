@@ -15,6 +15,7 @@
   import { initials } from '../avatar';
   import { workspace } from '../state/workspace';
   import AssignDialog from './AssignDialog.svelte';
+  import LineUnitDialog from '../LineUnitDialog.svelte';
   import OwnerAvatars from './OwnerAvatars.svelte';
   import { openPlace } from '../state/jump';
 
@@ -76,6 +77,14 @@
   // ---------- demands ----------
 
   let productQuery = $state('');
+  /** A line unit without a skill family, while the file has families to choose from. */
+  const canSetFamily = $derived(
+    !familyId &&
+      (ws.skillFamilies?.length ?? 0) > 0 &&
+      (ws.lineUnits ?? []).some((u) => u.id === unit.id),
+  );
+  let unitDialog: LineUnitDialog | undefined = $state();
+  let familyButton: HTMLButtonElement | undefined = $state();
   const groups = $derived(openDemands(ws, { family: familyId, query: productQuery }));
   const demandCount = $derived(groups.reduce((s, g) => s + g.rows.length, 0));
   /** Platforms among the groups; the group of products without one does not count. */
@@ -369,7 +378,7 @@
     </section>
 
     <section class="demands" aria-labelledby="{uid}-demands">
-      <h3 id="{uid}-demands" class="sr-only">{$t('board.demands')}</h3>
+      <h3 id="{uid}-demands" class="demands-title">{$t('board.demands')}</h3>
       <label class="sr-only" for="{uid}-dq">{$t('board.searchProduct')}</label>
       <input
         id="{uid}-dq"
@@ -379,13 +388,22 @@
         bind:value={productQuery}
       />
       <div class="summary">
-        {#if !familyId && productQuery.trim() === ''}
-          <p class="muted">{$t('board.noFamily', { name: unit.name })}</p>
-        {/if}
         <p class="muted">
           {summary}
           <span id="{uid}-fits" role="status" class="fits">{fitsText}</span>
         </p>
+        {#if canSetFamily && productQuery.trim() === ''}
+          <!-- Without a skill family the list holds every open demand: offer to narrow it. -->
+          <p class="muted">
+            {$t('board.noFamily', { name: unit.name })}
+            <button
+              type="button"
+              class="link"
+              bind:this={familyButton}
+              onclick={() => unitDialog?.show(unit)}>{$t('board.noFamily.set')}</button
+            >
+          </p>
+        {/if}
         {#if selected}
           <button type="button" class="link" onclick={() => select(null)}
             >{$t('board.clear')}</button
@@ -539,6 +557,12 @@
     onassigned={assigned}
   />
 {/if}
+
+<LineUnitDialog
+  bind:this={unitDialog}
+  returnFocus={() =>
+    void tick().then(() => (familyButton?.isConnected ? familyButton : productSearch)?.focus())}
+/>
 
 <style>
   .board {
@@ -723,6 +747,10 @@
     flex-direction: column;
     gap: 0.75rem;
     min-width: 0;
+  }
+  .demands-title {
+    margin: 0;
+    font-size: 1.05rem;
   }
   .summary {
     display: flex;
