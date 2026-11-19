@@ -105,6 +105,12 @@ describe('migrate', () => {
     expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA, areas: [] });
   });
 
+  it('sends a Caldence 2 file (schema 1000 and up) to /v2/', () => {
+    expect(migrate({ schemaVersion: 1000 })).toEqual({ ok: false, key: 'error.schema.v2' });
+    expect(migrate({ schemaVersion: 1007 })).toEqual({ ok: false, key: 'error.schema.v2' });
+    expect(migrate({ schemaVersion: 999 })).toEqual({ ok: false, key: 'error.schema.newer' });
+  });
+
   it('rejects newer schemas without touching the input', () => {
     const w = { ...emptyWorkspace('2026-11-07'), schemaVersion: CURRENT_SCHEMA + 1 };
     const copy = structuredClone(w);

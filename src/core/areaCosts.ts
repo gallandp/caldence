@@ -1,5 +1,5 @@
 import { unitCostSummary, meetingCost, type UnfilledRole } from './cost';
-import { capacity, occurrencesPerWeek, weeklyHoursByPerson } from './load';
+import { capacity, occurrencesPerWeek } from './load';
 import {
   areaAsTeam,
   attendees,
@@ -19,9 +19,12 @@ import type { HolidayIndex } from './regions';
  */
 export interface UnitRow {
   unitId: string;
-  /** Hours per week of all attendees together, recurring meetings only. */
+  /**
+   * Hours per week of all attendees together, recurring meetings only. A role nobody holds counts
+   * as one person, as in the cost and the Meeting load tiles, so hours × rate = cost (#335).
+   */
   hours: number;
-  /** Weekly hours of the people counted, in this unit. */
+  /** Weekly hours of the people counted, in this unit; an unfilled role brings the default. */
   capacity: number;
   /** hours ÷ capacity: for a team "Termine im Team", for the total the Terminlast. */
   share: number;
@@ -63,6 +66,20 @@ function invitedTo(ws: Workspace, unit: Team): Set<string> {
   return out;
 }
 
+/** Hours per week of a unit's recurring meetings: the cost at a rate of 1 per hour. */
+function weeklyHours(ws: Workspace, unit: Team): number {
+  return sum(
+    unit.events.map(
+      (e) =>
+        occurrencesPerWeek(e.rule, unit) * meetingCost(ws, unit, e, effectiveDuration(e, unit), 1),
+    ),
+  );
+}
+
+/** The default weekly hours of each role nobody holds (`role:` entries of `invitedTo`). */
+const unfilledCapacity = (ws: Workspace, invited: Set<string>) =>
+  [...invited].filter((id) => id.startsWith('role:')).length * ws.settings.hoursPerWeek;
+
 export function unitRow(
   ws: Workspace,
   index: HolidayIndex,
@@ -71,7 +88,8 @@ export function unitRow(
   rate: number | undefined,
   invited: Set<string> = invitedTo(ws, unit),
 ): UnitRow {
-  const hours = sum(Object.values(weeklyHoursByPerson(ws, unit.id)));
+  const hours = weeklyHours(ws, unit);
+  cap += unfilledCapacity(ws, invited);
   const out: UnitRow = {
     unitId: unit.id,
     hours,
@@ -113,7 +131,7 @@ export function areaCosts(
   ];
   const all = [...teamRows, areaRow];
   const hours = sum(all.map((r) => r.hours));
-  const cap = sum(everyone.map((p) => capacity(ws, p, area.id)));
+  const cap = sum(everyone.map((p) => capacity(ws, p, area.id))) + unfilledCapacity(ws, invited);
   const total: UnitRow = {
     unitId: area.id,
     hours,
