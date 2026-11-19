@@ -13,7 +13,20 @@
    * only tells what the hours leave after the product's meetings. It offers the people not in the
    * product yet, the ones with the demand's skill first.
    */
-  let { team, demand, onclose }: { team: Team; demand: Demand; onclose: () => void } = $props();
+  let {
+    team,
+    demand,
+    person: initial,
+    onclose,
+    onassigned,
+  }: {
+    team: Team;
+    demand: Demand;
+    /** Picked to start with, e.g. the person selected or dragged on the staffing tab (#319). */
+    person?: string;
+    onclose: () => void;
+    onassigned?: (personId: string, fte: number) => void;
+  } = $props();
 
   const uid = $props.id();
   let dialog: HTMLDialogElement | undefined = $state();
@@ -41,8 +54,11 @@
       )
       .map((p) => ({ id: p.id, name: p.name, free: free.get(p.id)!, skill: hasSkill(p.id) }));
   });
-  let picked = $state<string | undefined>(undefined);
-  const personId = $derived(picked ?? choices[0]?.id);
+  // svelte-ignore state_referenced_locally
+  let picked = $state<string | undefined>(initial);
+  const personId = $derived(
+    picked !== undefined && choices.some((c) => c.id === picked) ? picked : choices[0]?.id,
+  );
   const person = $derived(ws.people.find((p) => p.id === personId));
   const free = $derived(personId ? freeFte(ws, personId) : 0);
   const open = $derived.by(() => {
@@ -74,6 +90,10 @@
       ? (ws.skills?.find((s) => s.id === demand.skillId)?.name ?? '')
       : (ws.roles.find((r) => r.id === demand.roleId)?.name ?? ''),
   );
+  /** The picked person lacks the demand's skill: allowed, with a hint (#319). */
+  const noSkill = $derived(
+    demand.skillId !== undefined && !!person && !person.skillIds?.includes(demand.skillId),
+  );
   const eyebrow = $derived(
     [platform, what, $t('assign.demand', { fte: fte(demand.fte) })].filter(Boolean).join(' · '),
   );
@@ -87,7 +107,9 @@
       const r = assign(w, { personId: id, teamId: team.id, demandId: demand.id, fte: n });
       return r.ok ? { ok: true, value: r.value[0] } : r;
     });
-    if (result.ok) close();
+    if (!result.ok) return;
+    onassigned?.(id, n);
+    close();
   }
 
   function close() {
@@ -181,6 +203,11 @@
           · {$t('assign.open', { fte: fte(open) })}
         </p>
       </div>
+      {#if noSkill}
+        <p class="note" data-assign-noskill>
+          {$t('assign.noSkill', { name: person?.name ?? '', skill: what })}
+        </p>
+      {/if}
       {#if !valid}
         <p class="error" role="alert">{$t('assign.invalid', { max: fte(max) })}</p>
       {/if}
@@ -207,6 +234,7 @@
 
 <style>
   dialog {
+    box-sizing: border-box;
     width: min(36rem, calc(100vw - 2 * var(--space)));
     max-height: calc(100dvh - 2 * var(--space));
     padding: calc(var(--space) * 1.5);
@@ -307,6 +335,13 @@
   }
   .hint {
     color: var(--text-muted);
+  }
+  .note {
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius);
+    background: var(--warn-soft);
+    font-size: 0.9rem;
   }
   .error {
     margin: 0;
