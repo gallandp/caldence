@@ -3,6 +3,7 @@ import { areaCosts, costliest, meetingCosts } from '../../src/core/areaCosts';
 import { teamLoad } from '../../src/core/areaOverview';
 import { costSummary, unitCostSummary } from '../../src/core/cost';
 import { loadPerWeek } from '../../src/core/load';
+import { loadSummary } from '../../src/core/views';
 import { areaAsTeam, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import { areaWorkspace } from '../e2e/area-fixture';
@@ -275,6 +276,28 @@ describe('unfilled roles (#264)', () => {
     expect(roles(unitCostSummary(w, noIndex(), areaAsTeam(area), 100).unfilled)).toContain(
       'role-dev',
     );
+  });
+
+  it('counts an unfilled role as one person in the hours and share too (#335)', () => {
+    const w = ws();
+    const area = w.areas[0]!;
+    const gamma = devMeeting(w, 'team-gamma');
+    const c = areaCosts(w, noIndex(), area, 100);
+    const row = c.teams.find((r) => r.unitId === gamma.id)!;
+    const tiles = (teamId: string) =>
+      loadSummary(w, { teamId }).byRole.reduce((s, r) => s + r.hours, 0);
+    // The same hours as the Meeting load tiles, for the team and for the whole area.
+    expect(row.hours).toBeCloseTo(tiles(gamma.id));
+    expect(c.total.hours).toBeCloseTo(tiles(area.id));
+    // Hours × rate = cost, in every row and in the total.
+    for (const r of [...c.teams, c.area, c.total]) {
+      expect(r.hours * 100).toBeCloseTo(r.cost!.perWeek);
+    }
+    // The unfilled role brings the default weekly hours, as in the Meeting load tiles.
+    const hpw = w.settings.hoursPerWeek;
+    expect(row.capacity).toBe(40 + hpw);
+    expect(row.share).toBeCloseTo(row.hours / (40 + hpw));
+    expect(c.total.share).toBeCloseTo(c.total.hours / c.total.capacity);
   });
 
   it('a one-off meeting adds cost only in the horizon, and the note says so', () => {
