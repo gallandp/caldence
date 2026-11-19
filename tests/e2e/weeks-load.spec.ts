@@ -197,9 +197,9 @@ test('a horizon that ends before the cadence starts gives rows without cadence',
 }) => {
   const panel = await openView(page, 'weeks');
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
-  await page.getByLabel('Horizon from').fill('2026-06-01');
-  await page.getByLabel('Horizon to').fill('2026-12-31');
-  await expect(page.getByLabel('Horizon to')).not.toHaveAttribute('aria-invalid', 'true');
+  await page.getByLabel('Planning from').fill('2026-06-01');
+  await page.getByLabel('Planning until').fill('2026-12-31');
+  await expect(page.getByLabel('Planning until')).not.toHaveAttribute('aria-invalid', 'true');
   // The calendar keeps its Horizon level while the horizon changes.
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await expect(panel.getByRole('button', { name: 'Horizon', exact: true })).toHaveAttribute(
