@@ -55,6 +55,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
+    container-type: inline-size;
   }
   /* Same look as the field labels next to it. */
   #theme-label {
@@ -106,6 +107,21 @@
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+  /* On a phone the three labels with icons do not fit one row (#435): like an iOS segmented
+     control, the switch spans the row and shows text only. */
+  @container (max-width: 20rem) {
+    .options {
+      display: flex;
+      width: 100%;
+    }
+    :global(#app) .options button {
+      flex: 1 1 auto;
+      padding: 0 0.5rem;
+    }
+    svg {
+      display: none;
+    }
   }
   @media (forced-colors: active) {
     :global(#app) .options button {
