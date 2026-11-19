@@ -173,3 +173,30 @@ test('the Team view flags a member with too many hours until they are lowered (#
   await expect(noa).not.toContainText('Σ');
   await expect(noa.getByText('44 h – more than 40 h a week')).toBeVisible();
 });
+
+test('the add-member form shows the meeting load before and after (#342)', async ({ page }) => {
+  await openExample(page);
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+  const team = panel(page);
+  await team.getByLabel('Person', { exact: true }).fill('Alex');
+  await team.getByLabel('Role', { exact: true }).selectOption({ label: 'Developer' });
+  // Alex: 4.4 h of meetings ÷ 32 h. The 8 h left bring the base to 40 h.
+  const preview = team.locator('[data-member-preview]');
+  await expect(preview).toHaveText('Meeting load of Alex after: 4.4 h · 11% (before 14%)');
+  await expect(team.getByLabel('Hrs/week in team')).toHaveAccessibleDescription(
+    /Meeting load of Alex after: 4\.4 h · 11% \(before 14%\)/,
+  );
+  // 16 h would make 48 h: the hours above the 40 h of Settings do not lower the share.
+  await team.getByLabel('Hrs/week in team').fill('16');
+  await expect(preview).toHaveText('Meeting load of Alex after: 4.4 h · 11% (before 14%)');
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await expect(preview).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  const load = page.getByRole('tabpanel', { name: 'Meeting load' });
+  const row = load.locator('tr[data-person]').filter({ hasText: 'Alex' });
+  await expect(row.getByText('48 h – more than 40 h a week')).toBeVisible();
+  await expect(row).toContainText('4.4 of 40.0 h');
+  await expect(row).toContainText('11%');
+});

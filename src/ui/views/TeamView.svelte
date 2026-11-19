@@ -1,15 +1,23 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
-  import { areaHours, capacity, hoursLeft, overbooked, placesOf } from '../../core/load';
+  import {
+    areaHours,
+    capacity,
+    hoursLeft,
+    loadPerWeek,
+    overbooked,
+    personLoad,
+    placesOf,
+  } from '../../core/load';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
   import ListEditor from '../components/ListEditor.svelte';
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
   import { initials, inkOn } from '../avatar';
   import { Problems } from '../state/problems.svelte';
-  import { activeTeamId, workspace } from '../state/workspace';
+  import { activeTeamId, index, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
 
   const uid = $props.id();
@@ -67,10 +75,32 @@
     const places = person ? placesOf($workspace, person.id) : [];
     if (!person || places.length === 0) return null;
     return {
+      id: person.id,
       name: person.name,
       places: places.join(', '),
       hours: capacity($workspace, person.id),
       left: hoursLeft($workspace, person.id),
+    };
+  });
+
+  /**
+   * What adding them does to their meeting load (#342): their average meeting hours per week and
+   * share, measured like the people table, before and after.
+   */
+  const preview = $derived.by(() => {
+    if (!team || !elsewhere || roleChoice === '') return null;
+    const h = addHours ?? elsewhere.left;
+    if (!Number.isFinite(h) || h < 0) return null;
+    const { id: personId } = elsewhere;
+    const ws = $workspace;
+    const next = updateTeam(ws, team.id, {
+      members: [...team.members, { personId, roleId: roleChoice }],
+      memberHours: withHours(team.memberHours, personId, h),
+    });
+    if (!next.ok) return null;
+    return {
+      before: personLoad(ws, loadPerWeek(ws, $index), personId),
+      after: personLoad(next.value, loadPerWeek(next.value, $index), personId),
     };
   });
 
@@ -421,7 +451,9 @@
                   step="0.5"
                   placeholder={String(defaultHours)}
                   value={addHours ?? elsewhere?.left ?? ''}
-                  aria-describedby={elsewhere ? `${uid}-elsewhere` : undefined}
+                  aria-describedby={elsewhere
+                    ? [`${uid}-elsewhere`, preview && `${uid}-preview`].filter(Boolean).join(' ')
+                    : undefined}
                   oninput={(e) => {
                     const v = e.currentTarget.value;
                     addHours = v.trim() === '' ? null : Number(v);
@@ -442,6 +474,16 @@
                 })}
                 {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
               </p>
+              {#if preview}
+                <p class="hint" id="{uid}-preview" data-member-preview data-no-present>
+                  {$t('team.members.preview', {
+                    name: elsewhere.name,
+                    hours: formatNumber($locale, preview.after.hours, 1),
+                    share: formatPercent($locale, preview.after.share),
+                    before: formatPercent($locale, preview.before.share),
+                  })}
+                </p>
+              {/if}
             {/if}
             {@render err('member-add')}
           {/if}
