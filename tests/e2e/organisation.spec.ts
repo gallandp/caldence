@@ -1,6 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { currentUnit, openExample, showView, teamAction, useFileFallback } from './helpers';
+import {
+  currentUnit,
+  openExample,
+  pickUnit,
+  showView,
+  teamAction,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -21,6 +28,11 @@ test('the organisation sits above the areas and shows the whole tree', async ({ 
   // No meetings of its own yet: Meetings & cadence steps aside, the page takes its place.
   await expect(page.getByRole('tab', { name: 'Meetings & cadence' })).toHaveCount(0);
   await showView(page, 'Organisation');
+  // The organisation opens on its overview, like an area (#337).
+  await page
+    .getByRole('group', { name: 'Page' })
+    .getByRole('button', { name: 'Structure' })
+    .click();
   const tree = page.getByRole('list', { name: 'Structure of Organisation' });
   await expect(tree.locator('.node.root')).toContainText('1 area · 4 teams · 6 people');
   await expect(tree.locator('button.node.area')).toHaveText(/Commerce/);
@@ -72,4 +84,24 @@ test('calendar and load show every team and area for the organisation', async ({
   await expect(page.locator('#panel-calendar').getByText('PO Forum')).toHaveCount(0);
   await showView(page, 'Meeting load');
   await expect(page.locator('#panel-load')).toBeVisible();
+});
+
+test('the organisation opens on its overview, also coming from an area’s structure (#337)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Area');
+  const pages = page.getByRole('group', { name: 'Page' });
+  await pages.getByRole('button', { name: 'Structure' }).click();
+  await expect(pages.getByRole('button', { name: 'Structure' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  await expect(pages.getByRole('button', { name: 'Overview' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });

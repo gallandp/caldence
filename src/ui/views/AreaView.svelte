@@ -21,7 +21,7 @@
     $props();
 
   // A new area opens on its structure, where the "ready" card's steps act (only when shown).
-  // The page last shown is kept while the app is open and saved in the file (Q5).
+  // Any other area opens on its overview (#337); the page shown is kept while it stays selected.
   $effect(() => {
     if ($areaReady === area.id) areaPage.set('structure');
   });

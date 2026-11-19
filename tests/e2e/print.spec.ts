@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { areaWorkspace } from './area-fixture';
-import { openExample, openWorkspaceFile, pickUnit, setLanguage, useFileFallback } from './helpers';
+import {
+  openExample,
+  openWorkspaceFile,
+  pickUnit,
+  setLanguage,
+  showAreaPage,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -95,6 +102,7 @@ test('the area structure prints its table in full and "0 h" for unset hours', as
   await openWorkspaceFile(page, ws);
   await pickUnit(page, 'Payments');
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Structure');
   const show = page.getByRole('group', { name: /show/i });
   await show.getByRole('button', { name: 'Table' }).click();
   await page.emulateMedia({ media: 'print' });

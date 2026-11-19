@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { currentUnit, openWorkspaceFile, pickUnit, useFileFallback } from './helpers';
+import { currentUnit, openWorkspaceFile, pickUnit, showView, useFileFallback } from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -50,6 +50,7 @@ test('with the area selected the calendar shows area and team meetings', async (
   await page.goto('/');
   await openWorkspaceFile(page, areaWorkspace());
   await pickUnit(page, 'Unit');
+  await showView(page, 'Calendar');
   await page.getByRole('button', { name: 'Week', exact: true }).click();
   const week = page.locator('.week');
   const showFor = page.getByRole('region', { name: 'Show for' });
