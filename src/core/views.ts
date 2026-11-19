@@ -1,4 +1,13 @@
-import { addDays, diffDays, isoWeek, mondayOf, toMinutes, type ISODate } from './date';
+import {
+  addDays,
+  diffDays,
+  fromMinutes,
+  isoWeek,
+  mondayOf,
+  toMinutes,
+  type ISODate,
+  type Time,
+} from './date';
 import { capacity, fte, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
@@ -381,6 +390,44 @@ export function conflicts(
     }
   }
   return out;
+}
+
+export interface Clash {
+  personId: string;
+  date: ISODate;
+  a: Occurrence;
+  b: Occurrence;
+}
+
+/**
+ * The `conflicts` of several people (#339), sorted by date and then in the order given. `from`
+ * and `to` keep dates in [from, to); `units` keeps pairs with at least one meeting in them.
+ */
+export function clashes(
+  ws: Workspace,
+  index: HolidayIndex,
+  personIds: Iterable<string>,
+  options: { from?: ISODate; to?: ISODate; units?: ReadonlySet<string> } = {},
+): Clash[] {
+  const { from, to, units } = options;
+  const out: Clash[] = [];
+  for (const personId of new Set(personIds))
+    for (const c of conflicts(ws, index, personId))
+      if (
+        (from === undefined || c.date >= from) &&
+        (to === undefined || c.date < to) &&
+        (!units || units.has(c.a.teamId) || units.has(c.b.teamId))
+      )
+        out.push({ personId, ...c });
+  // A stable sort keeps the people's order within a day.
+  return out.sort((x, y) => x.date.localeCompare(y.date));
+}
+
+/** When both meetings of a clash run: from the later start to the earlier end. */
+export function clashTime(c: { a: Occurrence; b: Occurrence }): { start: Time; end: Time } {
+  const start = Math.max(toMinutes(c.a.start), toMinutes(c.b.start));
+  const end = Math.min(toMinutes(c.a.start) + c.a.duration, toMinutes(c.b.start) + c.b.duration);
+  return { start: fromMinutes(start), end: fromMinutes(end % (24 * 60)) };
 }
 
 /**

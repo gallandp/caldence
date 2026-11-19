@@ -29,6 +29,11 @@
     if (teamId !== '' && !choices.some((unit) => unit.id === teamId)) teamId = '';
   });
 
+  // A person chosen from elsewhere (the area overview's clash line) shows in the field too.
+  $effect(() => {
+    if ($filter.personId) personId = $filter.personId;
+  });
+
   // The person view spans all teams; otherwise the filter follows the active team.
   $effect(() => {
     if (personId !== '') filter.set({ personId });

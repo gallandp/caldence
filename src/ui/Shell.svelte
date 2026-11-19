@@ -11,7 +11,7 @@
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
-  import { loadWeek } from './state/focus';
+  import { calendarWeek, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -218,6 +218,13 @@
     filter.set({ teamId });
     loadWeek.set({ teamId, monday });
     drillIn(teamId, 'load');
+  }
+
+  /** The clash line in the area overview: that week in the calendar, for that person. */
+  function openCalendar(personId: string, date: string) {
+    filter.set({ personId });
+    calendarWeek.set(date);
+    if (activeArea) drillIn(activeArea.id, 'calendar');
   }
 
   // Presenting: picking an area after a team opens its overview, not an empty view of the area.
@@ -675,6 +682,7 @@
                         drillIn(unitId, 'meetings');
                       }}
                       onOpenUnit={(unitId) => drillIn(unitId, 'meetings')}
+                      onOpenCalendar={openCalendar}
                     />
                   {/snippet}
                 </AreaView>

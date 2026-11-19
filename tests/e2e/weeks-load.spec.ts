@@ -317,8 +317,10 @@ test('the person filter limits the person table and the warnings to that person'
   const panel = await openView(page, 'load');
   const people = panel.getByRole('table', { name: 'People' });
   await expect(people.locator('tbody tr[data-person]')).toHaveCount(2);
-  // One line per person: Alex and Sam.
-  const all = panel.getByRole('region', { name: 'Warnings', exact: true }).getByRole('listitem');
+  // One line per person: Alex and Sam (their clash lines come on top, #339).
+  const all = panel
+    .getByRole('region', { name: 'Warnings', exact: true })
+    .locator('li:not([data-clash])');
   await expect(all).toHaveCount(2);
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Alex' });
   await expect(people.locator('tbody tr[data-person]')).toHaveCount(1);
@@ -332,7 +334,9 @@ test('the person filter limits the person table and the warnings to that person'
     `${fmt('en', 0.6 * 32 - ALEX.average)} h`,
     `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h)`,
   ]);
-  const items = panel.getByRole('region', { name: 'Warnings', exact: true }).getByRole('listitem');
+  const items = panel
+    .getByRole('region', { name: 'Warnings', exact: true })
+    .locator('li:not([data-clash])');
   await expect(items).toHaveCount(1);
   const weeks = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(
     ALEX.warnings.map(([week]) => `W${week}`),
@@ -363,7 +367,7 @@ test('a person in two teams has the same share, room and tag in every scope (#27
   const people = panel.getByRole('table', { name: 'People' });
   const alex = people.locator('tr[data-person="person-alex"]');
   const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
-  const alexWarning = warnings.getByRole('listitem').filter({ hasText: /^Alex: / });
+  const alexWarning = warnings.locator('li:not([data-clash])').filter({ hasText: /^Alex: / });
   await expect(alexWarning).toHaveCount(1);
   const warningText = await alexWarning.textContent();
   // The Calendar's weeks with a warning are the weeks the chart marks for Team Alpha.
@@ -463,10 +467,10 @@ test('weeks above the FTE limit are listed as text', async ({ page }) => {
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const section = panel.getByRole('region', { name: 'Warnings', exact: true });
   // One line per person; many weeks are summed up as a span.
-  await expect(section.getByRole('listitem')).toHaveCount(2);
+  await expect(section.locator('li:not([data-clash])')).toHaveCount(2);
   await expect(
     section
-      .getByRole('listitem')
+      .locator('li:not([data-clash])')
       .filter({ hasText: /^Alex: / })
       .getByText(/over the 10% limit in \d+ weeks from W\d+ to W\d+, up to \d+\.\d h$/),
   ).toBeVisible();
@@ -475,7 +479,19 @@ test('weeks above the FTE limit are listed as text', async ({ page }) => {
 });
 
 test('without warnings the list says so', async ({ page }) => {
-  const panel = await openView(page, 'load');
+  // Without Team Beta's meetings and the one-off review, nobody in Team Alpha has a clash (#339).
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  type Unit = { id: string; events: { name: string }[] };
+  const team = (id: string) => (ws.teams as Unit[]).find((t) => t.id === id)!;
+  team('team-beta').events = [];
+  const alpha = team('team-alpha');
+  alpha.events = alpha.events.filter((e) => e.name !== 'Release Readiness Review');
+  await page.clock.setFixedTime(new Date('2027-03-10T12:00:00'));
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await setLanguage(page, 'en');
+  await showView(page, 'Meeting load');
+  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Load spike from (× usual load)').fill('10');
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();

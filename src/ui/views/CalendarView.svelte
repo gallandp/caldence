@@ -38,6 +38,7 @@
   } from '../../core/model';
   import { record } from '../../core/record';
   import { ruleSummary } from '../meetings/rules';
+  import { calendarWeek } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -65,6 +66,15 @@
   let mode = $state<Mode>(lastMode);
   const modes: readonly Mode[] = ['week', 'month', 'range'];
   let cursor = $state<ISODate>(clampToHorizon());
+  // A week asked for from elsewhere (the area overview's clash line) opens in the week view.
+  $effect(() => {
+    const date = $calendarWeek;
+    if (date === null) return;
+    mode = lastMode = 'week';
+    selected = null;
+    cursor = date;
+    calendarWeek.set(null);
+  });
   let selected = $state<ISODate | null>(null);
   let grid: HTMLTableElement | undefined = $state();
   let details: DayDetails | undefined = $state();
