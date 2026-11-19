@@ -140,6 +140,8 @@
 <style>
   .tree {
     --stem: color-mix(in srgb, var(--line) 35%, var(--border));
+    --col-gap: 1rem;
+    container-type: inline-size;
   }
   ul {
     list-style: none;
@@ -168,14 +170,16 @@
     height: 1.25rem;
     border-left: 2px solid var(--stem);
   }
+  /* One row of sub-units; it scrolls sideways rather than wrapping into loose rows. */
   .columns {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
-    gap: 1.5rem 1rem;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(12.5rem, 1fr);
+    gap: var(--col-gap);
     width: 100%;
     margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 2px solid var(--stem);
+    padding: 1.25rem 0 0.25rem;
+    overflow-x: auto;
   }
   /* A short stem from the line of sub-units down to each column. */
   .column {
@@ -193,6 +197,15 @@
     height: 1.25rem;
     border-left: 2px solid var(--stem);
   }
+  /* The bar joining the stems runs from the first column's stem to the last one's, no further. */
+  .column:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 2.025rem;
+    top: -1.25rem;
+    width: calc(100% + var(--col-gap));
+    border-top: 2px solid var(--stem);
+  }
   .kids {
     position: relative;
     display: flex;
@@ -201,18 +214,36 @@
     margin-left: 1.1rem;
     padding-left: 0.9rem;
   }
-  .kids::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 1.4rem;
-    border-left: 2px solid var(--stem);
-  }
   .kids > li {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+  }
+  /* The trunk of a branch: from the parent card down past every sibling but the last … */
+  .kids > li:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -0.9rem;
+    top: 0;
+    bottom: -0.5rem;
+    border-left: 2px solid var(--stem);
+  }
+  /* … and to each card's middle, with a short arm into the card. */
+  .kids > li > .node {
+    position: relative;
+  }
+  .kids > li > .node::before {
+    content: '';
+    position: absolute;
+    left: calc(-0.9rem - 1px);
+    top: -0.5rem;
+    width: 0.9rem;
+    height: calc(50% + 0.5rem);
+    border-left: 2px solid var(--stem);
+    border-bottom: 2px solid var(--stem);
+    border-bottom-left-radius: 0.5rem;
+    pointer-events: none;
   }
   .node {
     display: flex;
@@ -311,6 +342,52 @@
     background: var(--danger-soft);
     color: var(--danger);
     font-weight: 600;
+  }
+  /* Narrow: the sub-units stack under the root as one branch, joined like the deeper ones. */
+  @container (max-width: 36rem) {
+    .root-item {
+      align-items: stretch;
+    }
+    .node.root:not(:last-child)::after {
+      left: 1.1rem;
+      height: 0.75rem;
+    }
+    .columns {
+      grid-auto-flow: row;
+      grid-auto-columns: auto;
+      gap: 0.75rem;
+      margin: 0.75rem 0 0 1.1rem;
+      padding: 0 0 0 0.9rem;
+      width: auto;
+      grid-template-columns: minmax(0, 1fr);
+      overflow: visible;
+    }
+    .column::before {
+      content: none;
+    }
+    .column:not(:last-child)::after {
+      left: -0.9rem;
+      top: 0;
+      bottom: -0.75rem;
+      width: 0;
+      border-top: 0;
+      border-left: 2px solid var(--stem);
+    }
+    .column > .node {
+      position: relative;
+    }
+    .column > .node::before {
+      content: '';
+      position: absolute;
+      left: calc(-0.9rem - 1px);
+      top: -0.75rem;
+      width: 0.9rem;
+      height: calc(50% + 0.75rem);
+      border-left: 2px solid var(--stem);
+      border-bottom: 2px solid var(--stem);
+      border-bottom-left-radius: 0.5rem;
+      pointer-events: none;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     :global(#app) .tree button.node {
