@@ -28,7 +28,7 @@ describe('catalogues', () => {
   it('contain every error key used in src/core', () => {
     const keys = new Set<string>();
     for (const f of walk('src/core', '.ts')) {
-      for (const m of readFileSync(f, 'utf8').matchAll(/'(error\.[a-z.]+)'/g)) keys.add(m[1]!);
+      for (const m of readFileSync(f, 'utf8').matchAll(/'(error\.[a-zA-Z0-9.]+)'/g)) keys.add(m[1]!);
     }
     expect(keys.size).toBeGreaterThan(5);
     for (const k of keys) {

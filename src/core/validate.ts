@@ -510,11 +510,11 @@ export function validate(input: unknown): Result<Workspace> {
     const v = w.schemaVersion;
     c.err(
       'schemaVersion',
-      typeof v !== 'number' || v < CURRENT_SCHEMA
-        ? 'error.schema.unknown'
-        : v >= FORMAT2_SCHEMA_BASE
+      typeof v === 'number' && v > CURRENT_SCHEMA
+        ? v >= FORMAT2_SCHEMA_BASE
           ? 'error.schema.v2'
-          : 'error.schema.newer',
+          : 'error.schema.newer'
+        : 'error.schema.unknown',
     );
   }
 

@@ -22,7 +22,7 @@
   "error.region.duplicate": "Eine importierte Region verwendet bereits die ID dieser Regionsdatei",
   "error.region.inUse": "Diese Region ist ausgewählt und kann nicht entfernt werden",
   "error.schema.newer": "Die Datei stammt aus einer neueren Version von Caldence und kann nicht geöffnet werden",
-  "error.schema.v2": "Die Datei wurde mit Caldence 2 gespeichert. Öffne sie unter caldence.de/v2/",
+  "error.schema.v2": "Die Datei wurde mit Caldence 2 gespeichert. Öffnen Sie sie unter caldence.de/v2/",
   "error.schema.unknown": "Unbekannte oder fehlende Schemaversion",
   "error.date.range": "Datum bei {path} liegt außerhalb der unterstützten Jahre 1900 bis 2200",
   "error.horizon.tooLong": "Der Planungszeitraum bei {path} ist länger als 5 Jahre",
