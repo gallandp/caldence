@@ -8,6 +8,7 @@
   import AreaPersonAdd from '../components/AreaPersonAdd.svelte';
   import AreaPersonCard from '../components/AreaPersonCard.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
+  import { presenting } from '../state/present';
   import { structurePerson } from '../state/view';
   import { workspace } from '../state/workspace';
 
@@ -32,6 +33,11 @@
   const structure = $derived(areaStructure(ws, org));
   /** People with a role or hours in the organisation; those only invited stay in the meetings. */
   const own = $derived(structure.people.filter((p) => p.areaRoleIds.length > 0 || p.areaHours > 0));
+  /**
+   * Invited through "every area", "every team" or by name, without hours here (#436): their
+   * hours are set here.
+   */
+  const invited = $derived(structure.people.filter((p) => p.invitedOnly));
   const byId = $derived(new Map(structure.people.map((p) => [p.personId, p])));
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   const roleOf = (id: string | undefined) => ws.roles.find((r) => r.id === id);
@@ -43,14 +49,15 @@
   let adder: AreaPersonAdd | undefined = $state();
   let addButton: HTMLButtonElement | undefined = $state();
   let peopleList: HTMLUListElement | undefined = $state();
+  let ownBox: HTMLDivElement | undefined = $state();
 
-  function pick(personId: string, event: Event) {
-    if (selected === personId) {
+  function pick(personId: string, event: Event, focusHours = false) {
+    if (selected === personId && !focusHours) {
       selected = null;
       return;
     }
     selected = personId;
-    void card?.open(event.currentTarget as HTMLElement);
+    void card?.open(event.currentTarget as HTMLElement, focusHours);
   }
 
   /**
@@ -63,8 +70,7 @@
     structurePerson.set(undefined);
     const id = target.personId;
     void tick().then(() => {
-      const from =
-        peopleList?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`) ?? addButton;
+      const from = ownBox?.querySelector<HTMLElement>(`[data-p="${CSS.escape(id)}"]`) ?? addButton;
       if (!from || !byId.has(id)) return;
       from.scrollIntoView({ block: 'center' });
       selected = id;
@@ -145,7 +151,7 @@
             onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
           >
         </div>
-        <div class="own">
+        <div class="own" bind:this={ownBox}>
           <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
           {#if own.length > 0}
             <ul class="people" bind:this={peopleList}>
@@ -173,8 +179,33 @@
                 </li>
               {/each}
             </ul>
-          {:else}
+          {:else if invited.length === 0}
             <p class="none">{$t('org.people.none')}</p>
+          {/if}
+          {#if invited.length > 0}
+            <div class="invited" data-org-invited>
+              <h4 class="lbl" id="org-invited">{$t('org.invited')} · {invited.length}</h4>
+              <ul class="chips" aria-labelledby="org-invited">
+                {#each invited as p (p.personId)}
+                  <li>
+                    {#if $presenting}
+                      <span class="chip">{personName(p.personId)}</span>
+                    {:else}
+                      <button
+                        type="button"
+                        class="chip"
+                        data-p={p.personId}
+                        aria-label={$t('load.hint.setHours', {
+                          person: personName(p.personId),
+                          area: inSentence,
+                        })}
+                        onclick={(e) => pick(p.personId, e, true)}>{personName(p.personId)}</button
+                      >
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </div>
           {/if}
         </div>
       </section>
@@ -349,6 +380,51 @@
   .none {
     font-size: 0.8rem;
     color: var(--text-muted);
+  }
+  .invited {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+  }
+  :global(#app) .invited .lbl {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--warn);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  :global(#app) .invited button.chip {
+    min-width: 0;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  :global(#app) .invited button.chip:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
   }
   .h {
     flex: none;

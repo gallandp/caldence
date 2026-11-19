@@ -17,7 +17,10 @@ export interface StructurePerson {
   otherHours: number;
   /** Area + its teams + other teams. */
   total: number;
-  /** In the area only because a meeting invites "role X from every team", without area hours. */
+  /**
+   * In the area only because a meeting invites them, as "role X from every team" or by name,
+   * without area hours.
+   */
   invitedOnly: boolean;
 }
 
@@ -47,14 +50,14 @@ const hoursOf = (ws: Workspace, area: Area, personId: string): number =>
 /**
  * The structure of an area: who works only in the area, in a team and in the area, or only in a
  * team, with their hours. A team member belongs to the area when they have an area role, area
- * hours, or a meeting of the area invites them as "role X from every team".
+ * hours, or a meeting of the area invites them as "role X from every team" or by name.
  */
 export function areaStructure(ws: Workspace, area: Area): Structure {
   const teams = area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id));
   const invited = new Set(
     area.events.flatMap((e) =>
       e.participants
-        .filter((p) => p.fromTeams || p.fromAreas)
+        .filter((p) => p.fromTeams || p.fromAreas || p.personId !== undefined)
         .flatMap((p) => attendees(ws, area.id, p, e)),
     ),
   );

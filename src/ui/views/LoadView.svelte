@@ -76,6 +76,8 @@
   /** With a team or area filter the person table shows its members and their hours in it. */
   const teamId = $derived($filter.personId ? undefined : $filter.teamId);
   const area = $derived($workspace.areas.find((a) => a.id === teamId));
+  /** "Of which here": not for the organisation, where it equals the total (#436). */
+  const showHere = $derived(!!teamId && teamId !== ORG_UNIT);
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
@@ -508,7 +510,7 @@
               >{/if}{#if sortBy === 'share'}<span aria-hidden="true"> ↓</span>{/if}</button
           >
         </th>
-        {#if teamId}
+        {#if showHere}
           <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
         {/if}
         <th scope="col" class="num" aria-sort={sortBy === 'free' ? 'descending' : undefined}>
@@ -549,12 +551,14 @@
           <td class="units"
             >{p.units.length === 0
               ? '–'
-              : p.units.every((u) => u.area)
-                ? $t('load.onlyArea')
-                : p.units
-                    .filter((u) => !u.area)
-                    .map((u) => u.name)
-                    .join(', ')}</td
+              : p.units.every((u) => u.id === ORG_UNIT)
+                ? areaText($t, $levels, ORG_UNIT)('load.onlyArea')
+                : p.units.every((u) => u.area)
+                  ? $t('load.onlyArea')
+                  : p.units
+                      .filter((u) => !u.area)
+                      .map((u) => u.name)
+                      .join(', ')}</td
           >
           <td class="num nowrap"
             >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
@@ -569,7 +573,7 @@
               >
             </span>
           </td>
-          {#if teamId}
+          {#if showHere}
             <td class="num nowrap"
               >{$t('load.here', {
                 hours: hours(p.here.hours),
@@ -600,7 +604,7 @@
           </td>
         </tr>
         <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
-          <td colspan={teamId ? 7 : 6}>
+          <td colspan={showHere ? 7 : 6}>
             <!-- Stays in the visible part of a table that scrolls sideways (phones). -->
             <div class="detail-in">
               {#if openPerson === p.person.id}
@@ -846,7 +850,7 @@
         {#if !$filter.personId}
           {area
             ? $t('load.table.person.noteArea', { name: area.name })
-            : teamId
+            : showHere
               ? $t('load.table.person.note')
               : ''}
         {/if}
