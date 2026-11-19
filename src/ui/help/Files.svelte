@@ -32,6 +32,8 @@
     print: 'file.print',
     exchange: 'view.exchange',
     excel: 'exchange.xlsx.button',
+    overview: 'area.view.overview',
+    calendar: 'view.calendar',
   };
 </script>
 

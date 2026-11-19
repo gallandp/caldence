@@ -18,7 +18,7 @@ Caldence 2, built on the branch `release/v2` and served at `/v2/` (#344), writes
 | `teams` | list of teams | See below. |
 | `areas` | list of areas | Groups of teams (shown as "Bereich" / "Area" by default). See below. May be empty. |
 | `organisation` | object, optional | The organisation the file maps, the top of the tree organisation → areas → teams: `{ "name": "Nordwind GmbH" }` (a string of at most 200 characters). One file is one organisation; without this entry the app shows the level's name ("Organisation"). Older app versions ignore it. |
-| `view` | object, optional | Where the app was looking when the file was saved, so it opens there again: `unit` (id of the selected team or area, or `@organisation` for the organisation), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored on open (a malformed `view` does not keep the file from opening). Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
+| `view` | object, optional | Where the app was looking when the file was saved: `unit` (id of the selected team or area, or `@organisation` for the organisation), `page` (`calendar`, `load`, `meetings`, `team`, `templates`, `settings`, `exchange` or `help`) and `areaPage` (`structure` or `overview`). All three are optional strings of at most 64 characters; unknown or malformed values are ignored (a malformed `view` does not keep the file from opening). Opening a file does not go back there: it lands on the first area's overview, or on the Calendar without an area. A reload of the autosave in the same browser comes back to `unit` and `page`; an area page opens on its overview. Choosing another view does not count as a change to save; the autosave follows it, also after presenting. |
 
 All ids (the workspace `id` and the ids of roles, people, categories, teams, areas, cycles, milestones and events) are 1 to 64 characters from `A–Z`, `a–z`, `0–9`, `.`, `_` and `-`, and unique within their list. A file with any other id is rejected. Dates are `YYYY-MM-DD`, times `HH:MM`, both local; durations are whole minutes.
 
@@ -26,7 +26,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `locale` | `"de"` or `"en"` | Language of the app. |
+| `locale` | `"de"` or `"en"` | Language of the app while the browser has none chosen. Switching the language in Settings is stored in the browser, not in the file. |
 | `region` | string | Id of a built-in or imported region. An unknown id still loads, but then no holidays are used. |
 | `timezone` | string | IANA time zone, for example `Europe/Berlin`. |
 | `workdays` | list of 1-7 | Working weekdays, Monday is 1, Sunday is 7. Not empty, no duplicates. |

@@ -5,6 +5,8 @@
   import { translate as t } from '../i18n';
   import { autosave, restoreWithTimeout, wantsReset } from './state/autosave';
   import { workspace } from './state/workspace';
+  import { language } from './state/language';
+  import { guardNumberWheel } from './state/wheel';
   import { areaPage, currentView, withView } from './state/view';
   import Shell from './Shell.svelte';
   import UpdateNotice from './UpdateNotice.svelte';
@@ -13,10 +15,10 @@
   import './theme.css';
   import './print.css';
 
-  // The UI language is a workspace setting.
-  // The UI language and the level names are workspace settings. Derived first, so that an edit
-  // elsewhere in the workspace does not rebuild every translated text.
-  const uiLocale = $derived($workspace.settings.locale);
+  // The UI language is this browser's choice, else the file's (#337); the level names are
+  // workspace settings. Derived first, so that an edit elsewhere in the workspace does not
+  // rebuild every translated text.
+  const uiLocale = $derived($language ?? $workspace.settings.locale);
   const levelKey = $derived(JSON.stringify($workspace.settings.levelNames ?? null));
   $effect(() => locale.set(uiLocale));
   $effect(() => {
@@ -28,6 +30,9 @@
 
   const { dirty, fileName, version, presentBase } = workspace;
   let ready = $state(false);
+
+  // A wheel over a number field scrolls, it never changes the value (#337).
+  onMount(() => guardNumberWheel(document));
 
   onMount(async () => {
     try {

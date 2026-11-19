@@ -1,6 +1,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { useFileFallback, currentUnit, unitNames, setLanguage, deleteAllUnits } from './helpers';
+import {
+  useFileFallback,
+  currentUnit,
+  unitNames,
+  setLanguage,
+  deleteAllUnits,
+  changeHours,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -232,8 +239,7 @@ test('New after a change, then Discard, shows the start screen again', async ({ 
   await start(page);
   await calendar(page).getByRole('button', { name: 'Open the example' }).click();
   await expect(calendar(page).getByRole('grid')).toBeVisible();
-  await setLanguage(page, 'de');
-  await setLanguage(page, 'en');
+  await changeHours(page, '39');
   await page.getByRole('button', { name: 'New', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click();
   await expect(calendar(page).getByRole('heading', { name: 'Welcome to Caldence' })).toBeVisible();
