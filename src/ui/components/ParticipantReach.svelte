@@ -1,6 +1,6 @@
 <script lang="ts">
   import { areaHours } from '../../core/load';
-  import { holders, missingRoles, type Area, type Workspace } from '../../core/model';
+  import { holders, missingRoles, teamRolesFor, type Area, type Workspace } from '../../core/model';
   import { translate as t } from '../../i18n';
 
   /**
@@ -43,7 +43,11 @@
         .filter(
           (x) =>
             area.teamIds.includes(x.id) &&
-            x.members.some((m) => m.personId === personId && m.roleId === roleId),
+            x.members.some(
+              (m) =>
+                m.personId === personId &&
+                (fromTeams ? teamRolesFor(area, x.id, roleId) : [roleId]).includes(m.roleId),
+            ),
         )
         .map((x) => x.name),
     ];

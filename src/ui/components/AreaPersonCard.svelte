@@ -4,7 +4,7 @@
   import { roleByName, updateTeam } from '../../core/edit';
   import { LIMITS } from '../../core/limits';
   import { capacity, overbooked } from '../../core/load';
-  import { attendees, eventAttendees, type Area } from '../../core/model';
+  import { attendees, eventAttendees, holders, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
@@ -56,10 +56,10 @@
   /** The "from every team" invitation that brought them into the area without hours. */
   const invite = $derived.by(() => {
     if (!p?.invitedOnly) return '';
-    const roleIds = new Set(p.teams.flatMap((x) => x.roleIds));
+    // Through its own role or a team role linked to it (#338).
     const hit = area.events
       .flatMap((e) => e.participants)
-      .find((x) => x.fromTeams && roleIds.has(x.roleId));
+      .find((x) => x.fromTeams && holders($workspace, area.id, x).includes(p.personId));
     return hit?.roleId !== undefined ? $t('area.fromTeams', { role: roleName(hit.roleId) }) : '';
   });
 

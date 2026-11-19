@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 7;
+export const CURRENT_SCHEMA = 8;
 
 export interface Settings {
   locale: 'de' | 'en';
@@ -159,6 +159,18 @@ export interface Area {
   memberHours: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /**
+   * Area roles a team calls by another name, e.g. a Scrum team's "Developers" for SAFe's "Agile
+   * Team" (#338). Meetings that invite a role "from every team" also invite these team roles.
+   */
+  roleLinks?: RoleLink[];
+}
+
+/** In team `teamId`, the people with `teamRoleId` attend where the area invites `roleId`. */
+export interface RoleLink {
+  teamId: string;
+  roleId: string;
+  teamRoleId: string;
 }
 
 export interface Workspace {
@@ -294,11 +306,20 @@ export function holders(ws: Workspace, unitId: string, p: Participant): string[]
     return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
   const area = ws.areas.find((a) => a.id === unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
-  const lists = [own?.members ?? []];
+  const ids = (own?.members ?? []).flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
   if (area && p.fromTeams)
-    for (const t of ws.teams) if (area.teamIds.includes(t.id)) lists.push(t.members);
-  const ids = lists.flat().flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
+    for (const t of ws.teams) {
+      if (!area.teamIds.includes(t.id)) continue;
+      const roles = teamRolesFor(area, t.id, p.roleId);
+      for (const m of t.members) if (roles.includes(m.roleId)) ids.push(m.personId);
+    }
   return [...new Set(ids)];
+}
+
+/** The team roles that stand for an area role in one of its teams: the role and its link. */
+export function teamRolesFor(area: Area, teamId: string, roleId: string): string[] {
+  const link = area.roleLinks?.find((l) => l.teamId === teamId && l.roleId === roleId);
+  return link ? [roleId, link.teamRoleId] : [roleId];
 }
 
 /** People the meeting invites by name. */
@@ -342,7 +363,9 @@ export function missingRoles(
   for (const p of event.participants) {
     if (p.personId !== undefined || !p.fromTeams) continue;
     for (const t of ws.teams) {
-      if (area.teamIds.includes(t.id) && !t.members.some((m) => m.roleId === p.roleId))
+      if (!area.teamIds.includes(t.id)) continue;
+      const roles = teamRolesFor(area, t.id, p.roleId);
+      if (!t.members.some((m) => roles.includes(m.roleId)))
         out.push({ teamId: t.id, roleId: p.roleId });
     }
   }
