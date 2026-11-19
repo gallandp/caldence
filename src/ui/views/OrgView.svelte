@@ -7,10 +7,14 @@
   import OwnerAvatars from '../components/OwnerAvatars.svelte';
   import { hasOwnerRoles, ownerGaps } from '../../core/owners';
   import { workspace } from '../state/workspace';
+  import { areaPage } from '../state/view';
+  import PageTabs from '../components/PageTabs.svelte';
+  import OrgOverview from './OrgOverview.svelte';
 
   /**
    * The organisation's page (#313): the tree organisation → areas → teams. It only shows; a click
-   * on a card opens that area or team, where it is edited.
+   * on a card opens that area or team, where it is edited. Its overview (#322) sits behind the
+   * same "Structure | Overview" switch as an area's.
    */
   let { onOpen }: { onOpen: (unitId: string) => void } = $props();
 
@@ -70,59 +74,68 @@
 {/snippet}
 
 <div class="org-view">
-  <p class="subtitle">{$t('org.subtitle')}</p>
-  <ul class="tree" aria-label={$t('org.tree.label', { name })}>
-    <li class="root-item">
-      <div class="node root">
-        <span class="badge" aria-hidden="true"><OrgIcon /></span>
-        <span class="text">
-          <span class="title">{name}</span>
-          <span class="meta">{$levels.org} · {total}</span>
-        </span>
-      </div>
-      {#if ws.areas.length === 0}
-        <p class="hint">{$t('org.noAreas')}</p>
-      {/if}
-      <ul class="columns">
-        {#each ws.areas as area (area.id)}
-          {@const teams = teamsOf(area.teamIds)}
-          {@const gaps = gapsIn(area, teams)}
-          <li class="column">
-            <button type="button" class="node area" onclick={() => onOpen(area.id)}>
-              <span class="badge" aria-hidden="true"><AreaIcon /></span>
-              <span class="text">
-                <span class="title">{area.name}</span>
-                <span class="meta">{areaMeta(area, teams)}</span>
-                {#if hasOwnerRoles(ws)}<span class="owners-row">
-                    <OwnerAvatars unit={area} names />
-                    {#if gaps > 0}
-                      <span class="gaps"
-                        >{$t(gaps === 1 ? 'owner.gaps.one' : 'owner.gaps.other', { n: gaps })}</span
-                      >
-                    {/if}
-                  </span>{/if}
-              </span>
-            </button>
-            {#if teams.length > 0}
-              <ul class="kids">
-                {#each teams as team (team.id)}{@render teamCard(team)}{/each}
-              </ul>
-            {:else}
-              <p class="empty">{$t('org.emptyArea')}</p>
-            {/if}
-          </li>
-        {/each}
-        {#if ungrouped.length > 0}
-          <li class="column loose">
-            <p class="group">{$t('area.ungrouped')}</p>
-            <ul class="kids">
-              {#each ungrouped as team (team.id)}{@render teamCard(team)}{/each}
-            </ul>
-          </li>
+  {#if $areaPage === 'structure'}
+    <p class="subtitle">{$t('org.subtitle')}</p>
+  {/if}
+  <PageTabs />
+  {#if $areaPage === 'overview'}
+    <OrgOverview {onOpen} />
+  {:else}
+    <ul class="tree" aria-label={$t('org.tree.label', { name })}>
+      <li class="root-item">
+        <div class="node root">
+          <span class="badge" aria-hidden="true"><OrgIcon /></span>
+          <span class="text">
+            <span class="title">{name}</span>
+            <span class="meta">{$levels.org} · {total}</span>
+          </span>
+        </div>
+        {#if ws.areas.length === 0}
+          <p class="hint">{$t('org.noAreas')}</p>
         {/if}
-      </ul>
-    </li>
-  </ul>
+        <ul class="columns">
+          {#each ws.areas as area (area.id)}
+            {@const teams = teamsOf(area.teamIds)}
+            {@const gaps = gapsIn(area, teams)}
+            <li class="column">
+              <button type="button" class="node area" onclick={() => onOpen(area.id)}>
+                <span class="badge" aria-hidden="true"><AreaIcon /></span>
+                <span class="text">
+                  <span class="title">{area.name}</span>
+                  <span class="meta">{areaMeta(area, teams)}</span>
+                  {#if hasOwnerRoles(ws)}<span class="owners-row">
+                      <OwnerAvatars unit={area} names />
+                      {#if gaps > 0}
+                        <span class="gaps"
+                          >{$t(gaps === 1 ? 'owner.gaps.one' : 'owner.gaps.other', {
+                            n: gaps,
+                          })}</span
+                        >
+                      {/if}
+                    </span>{/if}
+                </span>
+              </button>
+              {#if teams.length > 0}
+                <ul class="kids">
+                  {#each teams as team (team.id)}{@render teamCard(team)}{/each}
+                </ul>
+              {:else}
+                <p class="empty">{$t('org.emptyArea')}</p>
+              {/if}
+            </li>
+          {/each}
+          {#if ungrouped.length > 0}
+            <li class="column loose">
+              <p class="group">{$t('area.ungrouped')}</p>
+              <ul class="kids">
+                {#each ungrouped as team (team.id)}{@render teamCard(team)}{/each}
+              </ul>
+            </li>
+          {/if}
+        </ul>
+      </li>
+    </ul>
+  {/if}
 </div>
 
 <style>
