@@ -19,7 +19,14 @@
     type PersonMeeting,
   } from '../../core/load';
   import { contextHint, contextHints, contextThreshold } from '../../core/contextSwitch';
-  import { keyName, selectedLineUnit, units as allUnits, unitLoadIds } from '../../core/model';
+  import {
+    keyName,
+    lineSelection,
+    selectedLineUnit,
+    units as allUnits,
+    unitLoadIds,
+  } from '../../core/model';
+  import UnitChip from '../components/UnitChip.svelte';
   import { record } from '../../core/record';
   import {
     clashes,
@@ -41,7 +48,7 @@
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary, weekdayShort } from '../meetings/rules';
   import { presenting } from '../state/present';
-  import { filter, index, workspace } from '../state/workspace';
+  import { activeTeamId, filter, index, workspace } from '../state/workspace';
 
   interface Props {
     /** Opens a week in the Calendar with the Person filter on that person (#343). */
@@ -73,6 +80,13 @@
    * people's meetings everywhere are its part, the same as the share column.
    */
   const hereId = $derived(selectedLineUnit(teamId) === undefined ? teamId : undefined);
+  /**
+   * Cross links (#397): in the products each person's line unit, in the line the products each
+   * person works in. Only while the file has a line.
+   */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const inLineWorld = $derived(selectedLineUnit($activeTeamId) !== undefined);
+  const lineUnitById = $derived(new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u])));
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   const people = $derived(
@@ -563,16 +577,33 @@
               >
             {/if}
           </th>
-          <td class="units"
-            >{p.units.length === 0
-              ? '–'
-              : p.units.every((u) => u.area)
-                ? $t('load.onlyArea')
-                : p.units
-                    .filter((u) => !u.area)
-                    .map((u) => u.name)
-                    .join(', ')}</td
-          >
+          <td class="units">
+            <!-- Cross links (#397): the products in the line, the line unit in the products. -->
+            {#if hasLine && inLineWorld && p.units.some((u) => !u.area)}
+              <span class="cross">
+                {#each p.units.filter((u) => !u.area) as u (u.id)}
+                  <UnitChip selection={u.id} name={u.name} />
+                {/each}
+              </span>
+            {:else}
+              {p.units.length === 0
+                ? '–'
+                : p.units.every((u) => u.area)
+                  ? $t('load.onlyArea')
+                  : p.units
+                      .filter((u) => !u.area)
+                      .map((u) => u.name)
+                      .join(', ')}
+            {/if}
+            {#if hasLine && !inLineWorld}
+              {@const unit = lineUnitById.get(p.person.lineUnitId ?? '')}
+              {#if unit}
+                <span class="cross"
+                  ><UnitChip selection={lineSelection(unit.id)} name={unit.name} line /></span
+                >
+              {/if}
+            {/if}
+          </td>
           <td class="num nowrap"
             >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
           >
@@ -1157,6 +1188,12 @@
     border-radius: 50%;
   }
   /* ---------- people ---------- */
+  .cross {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.15rem;
+  }
   :global(#app) .people button.who,
   :global(#app) .people button.sort {
     min-height: 1.5rem;

@@ -22,6 +22,8 @@
   import { presenting } from '../state/present';
   import { index, workspace } from '../state/workspace';
   import OwnerAvatars from './OwnerAvatars.svelte';
+  import { supplyingUnits } from '../../core/lineStaff';
+  import { openPlace } from '../state/jump';
 
   /**
    * The staffing map (#322): one row per platform, one tile per product, with coverage, open FTE
@@ -36,6 +38,12 @@
     onOpen: (teamId: string) => void;
   }
   let { teams, single = false, onOpen }: Props = $props();
+  /** Cross links into the line (#397), while the file has a line. */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const fromLine = (teamId: string) =>
+    supplyingUnits(ws, teamId)
+      .map((u) => u.name)
+      .join(', ');
 
   const uid = $props.id();
   /** Row key of the products in no platform. */
@@ -147,6 +155,12 @@
         <span class="p-state open">{$t('map.product.open', { fte: fte(p.open) })}</span>
       {:else}
         <span class="p-state full">{$t('map.product.full')}</span>
+      {/if}
+      {#if hasLine && !$presenting}
+        {@const line = fromLine(p.team.id)}
+        <span class="p-line" data-from-line
+          >{$t('cross.fromLine')}: {line || $t('cross.noLine')}</span
+        >
       {/if}
       <span class="p-foot">
         {#if !$presenting}<OwnerAvatars unit={p.team} />{/if}
@@ -288,6 +302,16 @@
               >{/if}
             {#if pl.ownerGaps > 0}<span class="pill">{countText('owner.gaps', pl.ownerGaps)}</span
               >{/if}
+            {#if hasLine && pl.area && !single}
+              {@const area = pl.area}
+              <button
+                type="button"
+                class="link matrix-row"
+                data-no-print
+                aria-label={$t('cross.matrix', { name: area.name })}
+                onclick={() => openPlace(area.id, 'matrix')}>{$t('view.matrix')}</button
+              >
+            {/if}
           </div>
         </div>
         <ul class="products" id="{uid}-{key}" hidden={!open}>
@@ -304,6 +328,21 @@
 </section>
 
 <style>
+  .p-line {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+  :global(#app) .staffing-map button.matrix-row {
+    min-height: 1.75rem;
+    padding: 0 0.35rem;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
   .staffing-map {
     display: flex;
     flex-direction: column;
