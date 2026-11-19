@@ -508,8 +508,9 @@
     margin-left: auto;
   }
   /* Where the room beside the sidebar is narrow, the file bar stays one row: the two buttons keep only their icons
-     (the name stays for screen readers and as the tooltip). */
-  @container content (max-width: 56rem) {
+     (the name stays for screen readers and as the tooltip). Below 73.5rem the labels would squeeze
+     the file name and the other buttons' labels onto two lines. */
+  @container content (max-width: 73.5rem) {
     .present-toggle.start,
     .present-toggle.print {
       padding-inline: 0.6rem;

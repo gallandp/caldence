@@ -746,9 +746,10 @@
     margin: 0;
     padding: 0;
   }
+  /* The guide line runs below the centre of the parent's badge. */
   .list .kids {
     position: relative;
-    margin-left: 1.2rem;
+    margin-left: 1rem;
     padding-left: 0.55rem;
   }
   .list .kids::before {
@@ -763,12 +764,13 @@
     margin-top: 0.35rem;
     border-top: 1px solid var(--border);
   }
+  /* The line tree can go several levels deep: each level steps in less than an area's teams,
+     so a deep unit keeps room for its name. */
+  .list .line-kids {
+    padding-left: 0.1rem;
+  }
   .list .line-kids::before {
     border-left-color: color-mix(in srgb, #db2777 45%, transparent);
-  }
-  .opt-name-line {
-    min-width: 0;
-    overflow-wrap: anywhere;
   }
   .group {
     margin: 0;
@@ -786,7 +788,7 @@
     gap: 0.5rem;
     width: 100%;
     min-height: 2.25rem;
-    padding: 0.35rem 0.55rem;
+    padding: 0.35rem 0.55rem 0.35rem 0.4rem;
     border: 0;
     border-radius: 0.5rem;
     background: transparent;
@@ -803,15 +805,19 @@
     color: var(--accent-text);
     font-weight: 650;
   }
-  /* In the list, names wrap in full: it is where people tell similar names apart. */
+  /* In the list, names wrap in full: it is where people tell similar names apart. They break
+     between words, long compounds by hyphenation, and only a word that still does not fit
+     breaks anywhere. */
   .opt-name,
-  .opt-name-org {
+  .opt-name-org,
+  .opt-name-line {
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
   /* A long word like "Organisation" stays whole: its count moves to a line of its own (#338). */
   .opt-name-org {
-    overflow-wrap: break-word;
+    hyphens: manual;
   }
   /* The organisation sits above the tree, set off by a hairline. */
   :global(#app) .switcher .list button.opt.org {

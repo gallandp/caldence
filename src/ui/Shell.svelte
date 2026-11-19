@@ -874,9 +874,12 @@
   .skip:focus {
     transform: translateY(var(--space));
   }
+  /* The sidebar grows with the window up to 21rem, room for a line tree three levels deep with
+     long names; at the old 15.5rem they broke letter by letter. Small laptops keep 15.5rem for
+     the views. */
   .layout {
     display: grid;
-    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-columns: clamp(15.5rem, 30vw - 4rem, 21rem) minmax(0, 1fr);
     min-height: 100vh;
   }
   .sidebar {
