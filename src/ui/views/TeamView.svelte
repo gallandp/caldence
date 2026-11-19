@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { assignmentOf, weeklyLimit } from '../../core/line';
+  import ConfirmDialog, { type Choice } from '../components/ConfirmDialog.svelte';
   import { tick } from 'svelte';
   import { addItem, renameAssumption, updateTeam } from '../../core/edit';
   import { areaHours, capacity, hoursLeft, overbooked, placesOf } from '../../core/load';
@@ -108,6 +110,19 @@
     }
   }
 
+  /** A staffed member (#315) is removed only after a yes: it also ends the assignment. */
+  let staffedRemove = $state<{ personId: string; roleId: string } | null>(null);
+  function askRemoveMember(personId: string, roleId: string) {
+    if (team && assignmentOf($workspace, team.id, personId, roleId))
+      staffedRemove = { personId, roleId };
+    else removeMember(personId, roleId);
+  }
+  function onStaffedChoice(choice: Choice) {
+    const pending = staffedRemove;
+    staffedRemove = null;
+    if (choice === 'save' && pending) removeMember(pending.personId, pending.roleId);
+  }
+
   function removeMember(personId: string, roleId: string) {
     if (!team) return;
     const { id, members, memberHours } = team;
@@ -171,7 +186,7 @@
     overbooked($workspace, personId)
       ? $t('team.people.over', {
           hours: hours(capacity($workspace, personId)),
-          max: hours(defaultHours),
+          max: hours(weeklyLimit($workspace, personId)),
         })
       : null;
 
@@ -323,7 +338,7 @@
                             class="chip-remove"
                             data-no-present
                             aria-describedby={describe('member-remove')}
-                            onclick={() => removeMember(member.personId, roleId)}
+                            onclick={() => askRemoveMember(member.personId, roleId)}
                             aria-label={$t('team.members.remove', {
                               person: name,
                               role: roleName(roleId),
@@ -573,6 +588,15 @@
     </details>
   {/if}
 </div>
+
+<ConfirmDialog
+  open={staffedRemove !== null}
+  title={$t('team.members.staffed.title', { name: personName(staffedRemove?.personId ?? '') })}
+  message={$t('team.members.staffed.message', { name: personName(staffedRemove?.personId ?? '') })}
+  confirmLabel={$t('team.members.staffed.confirm')}
+  discard={false}
+  onchoose={onStaffedChoice}
+/>
 
 <style>
   .pool {

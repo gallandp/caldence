@@ -64,9 +64,14 @@ function participantText(ws: Workspace, p: Participant, text: SheetText): string
 /**
  * The structure of a file as three flat tables for a spreadsheet: people per unit, the units, and
  * the meetings. Headers use the level names; hours follow the app (a team member without own
- * hours has the file's weekly hours, an area member 0).
+ * hours has the file's weekly hours, an area member 0). Skills, contracts, line units and
+ * companies only go in when asked (`lineData`, #315): a fourth sheet, one row per person.
  */
-export function structureSheets(ws: Workspace, text: SheetText): Sheet[] {
+export function structureSheets(
+  ws: Workspace,
+  text: SheetText,
+  opts: { lineData?: boolean } = {},
+): Sheet[] {
   const { t } = text;
   const units = unitsInOrder(ws);
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
@@ -120,6 +125,30 @@ export function structureSheets(ws: Workspace, text: SheetText): Sheet[] {
     }
   }
 
+  const line: Sheet[] = opts.lineData
+    ? [
+        {
+          name: t('xlsx.sheet.line'),
+          columns: [
+            t('xlsx.col.person'),
+            t('xlsx.col.lineUnit'),
+            t('xlsx.col.company'),
+            t('xlsx.col.contractFte'),
+            t('xlsx.col.skills'),
+          ],
+          rows: ws.people.map((p) => [
+            p.name,
+            ws.lineUnits?.find((u) => u.id === p.lineUnitId)?.name ?? null,
+            ws.companies?.find((c) => c.id === p.companyId)?.name ?? null,
+            p.contractFte ?? 1,
+            (p.skillIds ?? [])
+              .map((id) => ws.skills?.find((s) => s.id === id)?.name ?? id)
+              .join(', '),
+          ]),
+        },
+      ]
+    : [];
+
   return [
     {
       name: t('xlsx.sheet.structure'),
@@ -161,5 +190,6 @@ export function structureSheets(ws: Workspace, text: SheetText): Sheet[] {
       ],
       rows: meetings,
     },
+    ...line,
   ];
 }

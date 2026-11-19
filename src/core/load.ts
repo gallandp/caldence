@@ -1,3 +1,4 @@
+import { weeklyLimit } from './line';
 import { addDays, diffDays, mondayOf, type ISODate } from './date';
 import {
   attendees,
@@ -192,17 +193,18 @@ export function placesOf(ws: Workspace, personId: string): string[] {
 const placed = (ws: Workspace, personId: string): boolean => placesOf(ws, personId).length > 0;
 
 /**
- * Weekly hours a person has left for one more team: the Settings weekly hours minus their hours
- * in all teams and areas, at least 0. Someone in no team has them all (#274).
+ * Weekly hours a person has left for one more team: their weekly limit (the Settings weekly hours,
+ * times their contract FTE when set, #315) minus their hours in all teams and areas, at least 0.
+ * Someone in no team has them all (#274).
  */
 export function hoursLeft(ws: Workspace, personId: string): number {
   const used = placed(ws, personId) ? capacity(ws, personId) : 0;
-  return Math.max(0, ws.settings.hoursPerWeek - used);
+  return Math.max(0, weeklyLimit(ws, personId) - used);
 }
 
-/** The person's hours in all teams and areas add up to more than the Settings weekly hours. */
+/** The person's hours in all teams and areas add up to more than their weekly limit. */
 export function overbooked(ws: Workspace, personId: string): boolean {
-  return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;
+  return placed(ws, personId) && capacity(ws, personId) > weeklyLimit(ws, personId);
 }
 
 /** A person's hours in a week in these teams. */

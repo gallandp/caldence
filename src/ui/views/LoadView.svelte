@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { weeklyLimit } from '../../core/line';
   import { costSummary } from '../../core/cost';
   import { isoWeek } from '../../core/date';
   import {
@@ -349,9 +350,15 @@
               {@const total = weekly(p.cap)}
               <span class="overbooked" data-overbooked
                 ><span class="long"
-                  >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
+                  >{$t('team.people.over', {
+                    hours: total,
+                    max: weekly(weeklyLimit($workspace, p.person.id)),
+                  })}</span
                 ><span class="short" aria-hidden="true"
-                  >{$t('team.people.overShort', { hours: total, max: weekly(hpw) })}</span
+                  >{$t('team.people.overShort', {
+                    hours: total,
+                    max: weekly(weeklyLimit($workspace, p.person.id)),
+                  })}</span
                 ></span
               >
             {/if}

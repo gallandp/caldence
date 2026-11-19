@@ -2,7 +2,7 @@ import { areaCosts, unitRow } from './areaCosts';
 import { shiftedDays } from './edit';
 import { compareCadences } from './areaOverview';
 import { capacity } from './load';
-import { areaAsTeam, areaOf, type Workspace } from './model';
+import { areaAsTeam, areaOf, type Person, type Workspace } from './model';
 import type { HolidayIndex } from './regions';
 
 /**
@@ -85,9 +85,19 @@ export function countChanges(base: Workspace, ws: Workspace): number {
  * The workspace with people named by number in the order of the people list ("Person 1", ...),
  * for presenting without names (persona concept Q8). `name` makes the label in the UI language.
  */
-export function withoutNames(ws: Workspace, name: (n: number) => string): Workspace {
-  return { ...ws, people: ws.people.map((p, i) => ({ ...p, name: name(i + 1) })) };
+export function withoutNames(
+  ws: Workspace,
+  name: (n: number) => string,
+  only: (p: Person) => boolean = () => true,
+): Workspace {
+  return {
+    ...ws,
+    people: ws.people.map((p, i) => (only(p) ? { ...p, name: name(i + 1) } : p)),
+  };
 }
+
+/** Line staff (#315): presenting never shows their names, also with names shown. */
+export const isLineStaff = (p: Person): boolean => p.lineUnitId !== undefined;
 
 /** Puts the real names back, taken from `base` by id. */
 export function withNames(ws: Workspace, base: Workspace): Workspace {

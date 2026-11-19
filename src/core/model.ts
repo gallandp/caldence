@@ -23,6 +23,11 @@ export interface Settings {
   hourlyRate?: number;
   /** Names of the two levels; without it Bereich/Team (Area/Team). */
   levelNames?: LevelNames;
+  /**
+   * Own names of the line levels (#315): a unit with sub-units, and a unit without. Without it
+   * Fachgruppe/Linienteam (Specialist group/Line team).
+   */
+  lineLevelNames?: { group: string; team: string };
 }
 
 export interface Role {
@@ -34,6 +39,17 @@ export interface Role {
 export interface Person {
   id: string;
   name: string;
+  /** The line team or specialist group the person belongs to (#315). */
+  lineUnitId?: string;
+  /** Contracted share of a full week, 0.1 to 1.0; missing means 1.0. */
+  contractFte?: number;
+  skillIds?: string[];
+  companyId?: string;
+  /**
+   * Stands for a real person kept in a line file (#333); always with `lineUnitId`. Otherwise a
+   * normal person. There is no personnel number and no free text about a person in the file.
+   */
+  pseudonymous?: true;
 }
 
 export interface Category {
@@ -143,6 +159,58 @@ export interface Team {
   assumptions: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** What the team needs from the line (#315): a skill or only a role, and how much. */
+  demands?: Demand[];
+}
+
+/** A team's need, e.g. "Java · 2.0 FTE" in the development team role. */
+export interface Demand {
+  id: string;
+  /** Missing for a role-only demand ("Scrum Master · 0.5"). */
+  skillId?: string;
+  fte: number;
+  roleId: string;
+}
+
+/**
+ * A person staffed on a team's demand (#315). Mirrored into the team's `members` (person + the
+ * demand's role) and `memberHours` (fte × hoursPerWeek), so every existing view keeps working.
+ * At most one per person and team. No dates: a what-if is a copy of the file.
+ */
+export interface Assignment {
+  id: string;
+  personId: string;
+  teamId: string;
+  demandId: string;
+  fte: number;
+  /** Set when a warning (#321) was overridden; the reason must say nothing about the person. */
+  override?: { reason?: string };
+}
+
+/** A node of the line tree (at most three levels); without `parentId` it hangs under the organisation. */
+export interface LineUnit {
+  id: string;
+  name: string;
+  parentId?: string;
+  managerPersonId?: string;
+  skillFamilyId?: string;
+}
+
+export interface SkillFamily {
+  id: string;
+  name: string;
+}
+
+export interface Skill {
+  id: string;
+  name: string;
+  familyId: string;
+}
+
+/** An affiliated company of the group; a person attribute, not a tree level. */
+export interface Company {
+  id: string;
+  name: string;
 }
 
 /**
@@ -164,6 +232,8 @@ export interface Area {
   memberHours: Record<string, number>;
   cycles: Cycle[];
   events: CalEvent[];
+  /** The skill family of the platform (#315). */
+  skillFamilyId?: string;
 }
 
 export interface Workspace {
@@ -183,6 +253,12 @@ export interface Workspace {
    * file is one organisation; without this entry it is shown with its level name.
    */
   organisation?: Organisation;
+  /** Line organisation and staffing (#315, Caldence 2); all optional, no schema bump. */
+  lineUnits?: LineUnit[];
+  skillFamilies?: SkillFamily[];
+  skills?: Skill[];
+  companies?: Company[];
+  assignments?: Assignment[];
   /**
    * Where the file was looking when it was saved, so it opens there again (persona concept Q5):
    * the selected team or area, the view and the area page. Unknown values are ignored on open.

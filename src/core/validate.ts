@@ -180,6 +180,7 @@ function checkSettings(c: Checker, v: unknown): void {
   }
   if (s.hourlyRate !== undefined)
     c.num(s, 'hourlyRate', p, { min: 0, exclusive: true, max: LIMITS.hourlyRate });
+  checkLineLevels(c, s);
   if (s.levelNames !== undefined) {
     const n = c.obj(s.levelNames, 'settings.levelNames');
     if (n && n.preset !== undefined) {
@@ -200,6 +201,12 @@ function checkSettings(c: Checker, v: unknown): void {
       }
     }
   }
+}
+
+function checkLineLevels(c: Checker, s: Obj): void {
+  if (s.lineLevelNames === undefined) return;
+  const n = c.obj(s.lineLevelNames, 'settings.lineLevelNames');
+  if (n) for (const k of ['group', 'team']) c.str(n, k, 'settings.lineLevelNames');
 }
 
 function checkRule(
@@ -427,6 +434,130 @@ function checkTeam(
 }
 
 /**
+ * The line organisation and staffing (#315): line tree, skill families and skills, companies, the
+ * line fields of people, team demands and the assignments that are mirrored into team members.
+ */
+function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<string> }): void {
+  const optList = (k: string, max: number): unknown[] =>
+    w[k] === undefined ? [] : (c.arr(w[k], k, max) ?? []);
+  /** Ids, and names unique per file regardless of case. */
+  const named = (k: string, list: unknown[], extra?: (o: Obj, p: string) => void): Set<string> => {
+    const known = c.ids(list, k);
+    const names = new Set<string>();
+    c.each(list, k, (o, p) => {
+      c.str(o, 'name', p);
+      if (isStr(o.name)) {
+        const key = o.name.trim().toLowerCase();
+        if (names.has(key)) c.err(`${p}.name`, 'error.name.duplicate');
+        names.add(key);
+      }
+      extra?.(o, p);
+    });
+    return known;
+  };
+  const optRef = (o: Obj, k: string, p: string, known: Set<string>): void => {
+    if (o[k] !== undefined) c.ref(o, k, p, known);
+  };
+
+  const families = named('skillFamilies', optList('skillFamilies', LIMITS.skillFamilies));
+  const skills = named('skills', optList('skills', LIMITS.skills), (o, p) =>
+    c.ref(o, 'familyId', p, families),
+  );
+  const companies = named('companies', optList('companies', LIMITS.companies));
+
+  const unitList = optList('lineUnits', LIMITS.lineUnits);
+  const units = c.ids(unitList, 'lineUnits');
+  const parent = new Map<string, string>();
+  c.each(unitList, 'lineUnits', (o, p) => {
+    c.str(o, 'name', p);
+    optRef(o, 'parentId', p, units);
+    optRef(o, 'managerPersonId', p, ids.people);
+    optRef(o, 'skillFamilyId', p, families);
+    if (isStr(o.id) && isStr(o.parentId)) parent.set(o.id, o.parentId);
+  });
+  // At most three levels and no cycles: walk up from every unit.
+  unitList.forEach((o, i) => {
+    if (!isObj(o) || !isStr(o.id)) return;
+    let depth = 1;
+    for (let at = parent.get(o.id); at !== undefined; at = parent.get(at)) {
+      if (at === o.id) return c.err(`lineUnits.${i}.parentId`, 'error.line.cycle');
+      if (++depth > LIMITS.lineLevels) return c.err(`lineUnits.${i}.parentId`, 'error.line.depth');
+    }
+  });
+
+  (Array.isArray(w.people) ? w.people : []).forEach((o, i) => {
+    if (!isObj(o)) return;
+    const p = `people.${i}`;
+    optRef(o, 'lineUnitId', p, units);
+    optRef(o, 'companyId', p, companies);
+    if (o.contractFte !== undefined) c.num(o, 'contractFte', p, { min: 0.1, max: 1 });
+    if (o.pseudonymous !== undefined) {
+      if (o.pseudonymous !== true) c.err(`${p}.pseudonymous`, 'error.type');
+      else if (o.lineUnitId === undefined) c.err(`${p}.lineUnitId`, 'error.required');
+    }
+    if (o.skillIds !== undefined) {
+      const seen = new Set<unknown>();
+      (c.arr(o.skillIds, `${p}.skillIds`, LIMITS.skills) ?? []).forEach((id, j) => {
+        if (!isStr(id) || !skills.has(id)) c.err(`${p}.skillIds.${j}`, 'error.ref.unknown');
+        else if (seen.has(id)) c.err(`${p}.skillIds.${j}`, 'error.id.duplicate');
+        seen.add(id);
+      });
+    }
+  });
+
+  (Array.isArray(w.areas) ? w.areas : []).forEach((o, i) => {
+    if (isObj(o)) optRef(o, 'skillFamilyId', `areas.${i}`, families);
+  });
+
+  const teams = Array.isArray(w.teams) ? w.teams : [];
+  const demands = new Map<string, Map<string, string>>(); // team id -> demand id -> role id
+  teams.forEach((t, i) => {
+    if (!isObj(t) || t.demands === undefined) return;
+    const p = `teams.${i}.demands`;
+    const list = c.arr(t.demands, p, LIMITS.demandsPerTeam) ?? [];
+    c.ids(list, p);
+    const own = new Map<string, string>();
+    c.each(list, p, (d, dp) => {
+      optRef(d, 'skillId', dp, skills);
+      c.num(d, 'fte', dp, { min: 0, exclusive: true, max: LIMITS.demandFte });
+      c.ref(d, 'roleId', dp, ids.roles);
+      if (isStr(d.id) && isStr(d.roleId)) own.set(d.id, d.roleId);
+    });
+    if (isStr(t.id)) demands.set(t.id, own);
+  });
+  const teamById = new Map(teams.flatMap((t) => (isObj(t) && isStr(t.id) ? [[t.id, t]] : [])));
+
+  const list = optList('assignments', LIMITS.assignments);
+  c.ids(list, 'assignments');
+  const staffed = new Set<string>();
+  c.each(list, 'assignments', (a, p) => {
+    c.ref(a, 'personId', p, ids.people);
+    c.ref(a, 'teamId', p, new Set(teamById.keys()));
+    const own = isStr(a.teamId) ? demands.get(a.teamId) : undefined;
+    c.ref(a, 'demandId', p, new Set(own?.keys()));
+    c.num(a, 'fte', p, { min: 0, max: LIMITS.maxFte });
+    if (a.override !== undefined) {
+      const ov = c.obj(a.override, `${p}.override`);
+      if (ov && ov.reason !== undefined) c.str(ov, 'reason', `${p}.override`);
+    }
+    if (!isStr(a.personId) || !isStr(a.teamId)) return;
+    // One assignment per person and team (v1).
+    const pair = JSON.stringify([a.personId, a.teamId]);
+    if (staffed.has(pair)) c.err(p, 'error.assignment.duplicate');
+    staffed.add(pair);
+    // The mirror: the person is a member of the team in the demand's role.
+    const roleId = isStr(a.demandId) ? own?.get(a.demandId) : undefined;
+    const members = teamById.get(a.teamId)?.members;
+    if (
+      roleId !== undefined &&
+      Array.isArray(members) &&
+      !members.some((m) => isObj(m) && m.personId === a.personId && m.roleId === roleId)
+    )
+      c.err(p, 'error.assignment.notMember');
+  });
+}
+
+/**
  * An area: like a team without assumptions, with an optional cadence and a list of member teams.
  * `claimed` maps a team id to the area that already lists it, so a team in two areas is reported.
  */
@@ -570,6 +701,8 @@ export function validate(input: unknown): Result<Workspace> {
       c.err('organisation.name', 'error.required');
     else if (o) c.str(o, 'name', 'organisation');
   }
+
+  checkLine(c, w, { roles: roleIds, people: personIds });
 
   // An unknown settings.region still loads (no holidays); Settings flags it, like an unknown zone.
   checkCustomRegions(c, w.customRegions);

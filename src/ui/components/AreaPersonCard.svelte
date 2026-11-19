@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { weeklyLimit } from '../../core/line';
   import { tick } from 'svelte';
   import { removeFromArea, setAreaHours, setAreaRole } from '../../core/areaEdit';
   import { roleByName, updateTeam } from '../../core/edit';
@@ -335,7 +336,7 @@
       <p class="over" data-over>
         {$t('team.people.over', {
           hours: num(capacity($workspace, personId)),
-          max: num($workspace.settings.hoursPerWeek),
+          max: num(weeklyLimit($workspace, personId)),
         })}
       </p>
     {/if}
