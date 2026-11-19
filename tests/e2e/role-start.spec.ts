@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { setLanguage, useFileFallback } from './helpers';
+import { autosaved, setLanguage, showAreaPage, useFileFallback } from './helpers';
 
 /** The start screen asks who you are and sets up your level of the organisation (#387). */
 test.use({ locale: 'en-US' });
@@ -65,6 +65,7 @@ test('a line manager sets up line teams and lands on their page', async ({ page 
   await expect(area.getByText('Step 1 of 2')).toBeVisible();
   await area.getByRole('button', { name: 'Cancel' }).click();
   // After a reload the line page is still there.
+  await autosaved(page, 'Frontend');
   await page.reload();
   await page.getByRole('tab', { name: /Specialist group|Line team/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Engineering' })).toBeVisible();
@@ -123,6 +124,8 @@ test('an agile coach sets up the product organisation with several areas', async
   await expect(dialog).toBeHidden();
   const panel = page.getByRole('tabpanel', { name: 'Organisation' });
   await expect(panel.getByRole('heading', { level: 2, name: 'Nordlicht' })).toBeVisible();
+  // The organisation opens on its overview (#337); the tree is on Structure.
+  await showAreaPage(page, 'Structure');
   for (const name of ['Payments', 'Travel', 'Kestrel', 'Wren', 'Heron'])
     await expect(panel.getByText(name, { exact: true }).first()).toBeVisible();
 });
