@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ImpactTag from '../components/ImpactTag.svelte';
   import { areaShare } from '../../core/areaCosts';
   import { weeklyLimit } from '../../core/line';
   import { costSummary } from '../../core/cost';
@@ -197,6 +198,17 @@
     }
     return out;
   });
+  /** The person's assignments (#315) with the role they hold in the product. */
+  function staffedOf(personId: string): { teamId: string; roleId: string }[] {
+    const ws = $workspace;
+    return (ws.assignments ?? []).flatMap((a) => {
+      if (a.personId !== personId) return [];
+      const roleId = ws.teams
+        .find((x) => x.id === a.teamId)
+        ?.demands?.find((d) => d.id === a.demandId)?.roleId;
+      return roleId === undefined ? [] : [{ teamId: a.teamId, roleId }];
+    });
+  }
   /** Meetings without weekly hours to measure them against come first: always over the limit. */
   const noHours = (p: { average: number; cap: number }) => p.average > 0 && p.cap <= 0;
   const shareKey = (p: { average: number; cap: number; fte: number }) =>
@@ -564,6 +576,23 @@
                       >{/if}
                   </p>
                 {/if}
+                {@const staffed = staffedOf(p.person.id)}
+                {#if staffed.length > 0}
+                  <!-- Each assignment against its Mindestzusage (#320); "über Grenze" stays the row's. -->
+                  <ul class="staffed" data-staffed>
+                    {#each staffed as a (a.teamId + a.roleId)}
+                      <li>
+                        <ImpactTag
+                          ws={$workspace}
+                          teamId={a.teamId}
+                          personId={p.person.id}
+                          roleId={a.roleId}
+                          withTeam
+                        />
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
                 {@const lines = [...p.units, ...invitedOf(p.person.id, p.units)]}
                 {#if lines.length === 0}
                   <p class="note">{$t('load.detail.none')}</p>
@@ -810,6 +839,11 @@
 </div>
 
 <style>
+  .staffed {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    list-style: none;
+  }
   .more {
     margin-top: calc(var(--space) * 0.75);
   }
