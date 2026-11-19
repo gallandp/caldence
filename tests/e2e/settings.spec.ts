@@ -129,7 +129,7 @@ test('a horizon that ends before it starts shows an error and is not committed',
   page,
 }) => {
   await openExample(page);
-  const to = page.getByLabel('Horizon to');
+  const to = page.getByLabel('Planning until');
   await to.fill('2026-01-01');
   await expect(to).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByText(/before its start/)).toBeVisible();
@@ -138,7 +138,7 @@ test('a horizon that ends before it starts shows an error and is not committed',
   // Leaving and returning shows what is really stored.
   await page.getByRole('tab', { name: 'Team', exact: true }).click();
   await openSettings(page);
-  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Planning until')).toHaveValue('2027-12-31');
   await expect(page.getByText(/before its start/)).toHaveCount(0);
 });
 
@@ -233,7 +233,7 @@ test('a file that is not JSON shows an error and changes nothing', async ({ page
   await page.getByRole('button', { name: 'Import region file…' }).focus();
   await page.keyboard.press('Control+z');
   await expect(regionSelect(page)).toHaveValue('de-sn');
-  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Planning until')).toHaveValue('2027-12-31');
 });
 
 test('a horizon beyond the known school holidays shows a warning in Settings and Weeks', async ({
@@ -243,8 +243,8 @@ test('a horizon beyond the known school holidays shows a warning in Settings and
   const warning =
     /School holidays for Saxony are known only until 09\/01\/2028\. Later school holidays are missing\./;
   await expect(page.getByText(warning)).toHaveCount(0);
-  await page.getByLabel('Horizon to').fill('2028-12-31');
-  await page.getByLabel('Horizon to').blur();
+  await page.getByLabel('Planning until').fill('2028-12-31');
+  await page.getByLabel('Planning until').blur();
   await expect(page.getByText(warning)).toBeVisible();
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await page.getByRole('tabpanel').getByRole('button', { name: 'Horizon', exact: true }).click();
@@ -377,7 +377,7 @@ test('rows have visible labels', async ({ page }) => {
 test('a stale error and draft disappear when the workspace changes elsewhere', async ({ page }) => {
   await openExample(page);
   await changeHours(page, '39');
-  const to = page.getByLabel('Horizon to');
+  const to = page.getByLabel('Planning until');
   await to.fill('2026-01-01');
   await expect(page.getByText(/before its start/)).toBeVisible();
   // Undo (outside a field) takes back the hours: a change this part of the view did not make.
@@ -385,7 +385,7 @@ test('a stale error and draft disappear when the workspace changes elsewhere', a
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.locator('#set-hours')).toHaveValue('40');
   await expect(page.getByText(/before its start/)).toHaveCount(0);
-  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Planning until')).toHaveValue('2027-12-31');
 });
 
 test('colour radios can be chosen with the arrow keys', async ({ page }) => {

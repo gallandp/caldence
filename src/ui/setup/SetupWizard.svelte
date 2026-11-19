@@ -199,6 +199,13 @@
     dialog?.showModal();
   }
 
+  /** Shows the date fields and keeps keyboard focus in place of the button. */
+  async function showDates() {
+    editHorizon = true;
+    await tick();
+    document.getElementById(`${uid}-from`)?.focus();
+  }
+
   function close() {
     dialog?.close();
   }
@@ -759,7 +766,7 @@
             })}
           </p>
           <p class="hint">{$t('settings.horizon.hint')}</p>
-          <button type="button" class="link" onclick={() => (editHorizon = true)}
+          <button type="button" class="link" onclick={showDates}
             >{$t('setup.horizon.change')}</button
           >
         {/if}

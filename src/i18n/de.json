@@ -206,7 +206,7 @@
   "settings.horizon": "Planungszeitraum",
   "settings.horizon.from": "Planung ab",
   "settings.horizon.to": "Planung bis",
-  "settings.horizon.hint": "Für diese Spanne rechnet Caldence alle Termine durch. Kalender, Terminlast und Kosten beziehen sich darauf, und der .ics-Export schlägt sie vor.",
+  "settings.horizon.hint": "Für diesen Zeitraum berechnet Caldence alle Termine. Kalender, Terminlast und Kosten beziehen sich darauf, und exportierte Kalenderdateien (.ics) umfassen ihn, wenn Sie nichts anderes wählen.",
   "horizon.label.one": "{period}, {n} Wo.",
   "horizon.label.other": "{period}, {n} Wo.",
   "settings.skipHolidays": "Feiertage auslassen",

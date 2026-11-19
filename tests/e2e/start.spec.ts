@@ -181,17 +181,18 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   const horizon = dialog.getByRole('group', { name: 'Planning horizon' });
   await expect(horizon).toContainText('Planning runs from');
   await expect(horizon).toContainText('The calendar, meeting load and costs refer to it');
-  await expect(dialog.getByLabel('Horizon to')).toHaveCount(0);
+  await expect(dialog.getByLabel('Planning until')).toHaveCount(0);
   await horizon.getByRole('button', { name: 'Change dates' }).click();
-  await dialog.getByLabel('Horizon to').fill('2027-03-01');
+  await expect(dialog.getByLabel('Planning from')).toBeFocused();
+  await dialog.getByLabel('Planning until').fill('2027-03-01');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog.getByRole('alert')).toBeVisible();
-  await dialog.getByLabel('Horizon to').fill('2027-12-31');
+  await dialog.getByLabel('Planning until').fill('2027-12-31');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
-  await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Planning until')).toHaveValue('2027-12-31');
 });
 
 test('after the wizard a card offers the next steps once', async ({ page }) => {
