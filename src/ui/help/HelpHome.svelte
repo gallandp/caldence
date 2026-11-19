@@ -29,6 +29,8 @@
   } = $props();
 
   const guides = $derived(guidesFor(world));
+  /** The two worlds exist once the file has a line, which is when the sidebar offers Matrix. */
+  const twoWorlds = $derived(!views || views.includes('matrix'));
   const map = $derived(
     (world === 'line' ? LINE_MAP_VIEWS : MAP_VIEWS).filter(
       (v: MapView) => !views || views.includes(v),
@@ -44,12 +46,14 @@
 <section class="block" aria-labelledby="help-home-title">
   <h3 id="help-home-title" class="hero">{$t('help.home.title')}</h3>
   <p class="lead">{$t('help.home.lead')}</p>
-  <p class="world" data-help-world={world}>
-    <span>{$t(`help.home.world.${world}`)}</span>
-    <button type="button" class="world-link" data-world-link onclick={() => onOpen('worlds')}
-      >{$t('help.topic.worlds.title')} <span aria-hidden="true">›</span></button
-    >
-  </p>
+  {#if twoWorlds}
+    <p class="world" data-help-world={world}>
+      <span>{$t(`help.home.world.${world}`)}</span>
+      <button type="button" class="world-link" data-world-link onclick={() => onOpen('worlds')}
+        >{$t('help.topic.worlds.title')} <span aria-hidden="true">›</span></button
+      >
+    </p>
+  {/if}
   <ul class="guides">
     {#each guides as g, i (g.id)}
       <li class:featured={i === 0}>

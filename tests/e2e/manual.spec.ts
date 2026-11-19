@@ -306,9 +306,8 @@ test.describe('staffing help (#324)', () => {
       'data-topic',
       'start',
     );
-    await expect(
-      help.locator('.map').getByText(c['view.meetings']!, { exact: true }),
-    ).toBeVisible();
+    for (const key of ['view.meetings', 'view.matrix'])
+      await expect(help.locator('.map').getByText(c[key]!, { exact: true })).toBeVisible();
 
     // Line: its note, staffing first, and its own pages on the map.
     await world(c['world.line']!).click();
@@ -344,6 +343,9 @@ test.describe('staffing help (#324)', () => {
       await expect(help.getByRole('heading', { level: 4, name: c[key] })).toBeVisible();
     await expect(help.getByText(/^Caldence shows one organisation in two worlds/)).toBeVisible();
     expect((await new AxeBuilder({ page }).include('#app').analyze()).violations).toEqual([]);
+    // Back returns to the link that opened the chapter.
+    await help.getByRole('button', { name: c['help.back'], exact: true }).click();
+    await expect(help.locator('[data-world-link]')).toBeFocused();
   });
 
   test('the privacy page names the law; the guide and the staff import lead to it', async ({

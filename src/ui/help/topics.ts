@@ -334,6 +334,7 @@ export const MAP_VIEWS = [
   'load',
   'meetings',
   'team',
+  'matrix',
   'templates',
   'settings',
   'exchange',
