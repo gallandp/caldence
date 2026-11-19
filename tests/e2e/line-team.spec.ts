@@ -172,8 +172,9 @@ test('presenting hides the staff tab and line staff names', async ({ page }) => 
 });
 
 test('a deep line tree in the sidebar keeps the words of long names whole', async ({ page }) => {
-  // Invented German names, three levels deep. The test browser has no hyphenation dictionary,
-  // so the longest words are ones that fit their level whole in the sidebar of a 1440 px window.
+  // Invented German names, three levels deep, whose longest words fit their level whole in the
+  // sidebar of a 1440 px window. Hyphenation is off, so browsers with and without a German
+  // dictionary render the same.
   const ws = lineWorkspace();
   ws.settings.locale = 'de';
   ws.lineUnits = [
@@ -188,6 +189,7 @@ test('a deep line tree in the sidebar keeps the words of long names whole', asyn
   await page.locator('.switcher .pick').click();
   const names = page.locator('.switcher .list .opt-name-line');
   await expect(names).toHaveCount(4);
+  await names.evaluateAll((els) => els.forEach((el) => (el.style.hyphens = 'manual')));
 
   // The rendered lines of each name, read character by character.
   const shown = await names.evaluateAll((els) =>

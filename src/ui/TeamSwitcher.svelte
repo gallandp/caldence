@@ -767,7 +767,7 @@
   /* The line tree can go several levels deep: each level steps in less than an area's teams,
      so a deep unit keeps room for its name. */
   .list .line-kids {
-    padding-left: 0.1rem;
+    padding-left: 0.2rem;
   }
   .list .line-kids::before {
     border-left-color: color-mix(in srgb, #db2777 45%, transparent);
