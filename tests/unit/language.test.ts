@@ -8,6 +8,7 @@ function memory(initial: Record<string, string> = {}) {
     data,
     getItem: (k: string) => data[k] ?? null,
     setItem: (k: string, v: string) => void (data[k] = v),
+    removeItem: (k: string) => void delete data[k],
   };
 }
 
@@ -35,9 +36,19 @@ describe('language', () => {
     expect(get(language)).toBe('en');
   });
 
+  it("goes back to the file's language and forgets the choice", () => {
+    const storage = memory({ 'caldence.locale': 'de' });
+    setLanguage(undefined, storage);
+    expect(Object.keys(storage.data)).toEqual([]);
+    expect(get(language)).toBeUndefined();
+  });
+
   it('still switches when storage is blocked', () => {
     setLanguage('de', {
       setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
         throw new Error('blocked');
       },
     });

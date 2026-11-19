@@ -381,6 +381,24 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
+test('an area meeting for a role nobody holds counts one person in the area tile (#360)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { events: object[] };
+    area.events = [
+      {
+        ...structuredClone(area.events[0]!),
+        rule: { type: 'weekly', weekday: 3 },
+        participants: [{ roleId: 'role-dev', share: 1 }],
+      },
+    ];
+  });
+  const tile = overview.locator('[data-kpi="area"]');
+  await expect(tile.locator('b')).not.toHaveText('0 h');
+  await expect(tile).toContainText('per week, 1 person');
+});
+
 test('without a rate the overview shows time per team and invites a rate', async ({ page }) => {
   const overview = await openOverview(page);
   const table = overview.locator('[data-area-costs]');
@@ -486,7 +504,8 @@ test('each team row and its cost card add what its people spend in area meetings
   await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
   const card = page.locator('[data-costs] [data-cost-area-share]');
   await expect(card).toContainText('These figures count only the meetings of Team Gamma itself.');
-  await expect(card).toContainText('+ €150 / week and €');
+  // Gamma runs 3-week sprints, so the line also names the sprint, like the card above it (#366).
+  await expect(card).toContainText('+ €150 / week, €450 / sprint and €');
   await expect(card).toContainText('in meetings in the area for the people of Team Gamma.');
   // Meeting load for the team shows the same card line.
   await showView(page, 'Meeting load');

@@ -20,6 +20,10 @@
   const uid = $props.id();
   const euro = (n: number) => formatEuro($locale, n);
   const perCadence = $derived(cadence ? costPerCadence(summary.perWeek, cadence) : undefined);
+  /** The area share per sprint or PI, wherever the card shows its own (#366). */
+  const shareCadence = $derived(
+    cadence && areaShare ? costPerCadence(areaShare.perWeek, cadence) : undefined,
+  );
   const kind = $derived(cadence ? $t(`meet.kind.${cadence.kind}`) : '');
   const max = $derived(Math.max(0, ...summary.byCategory.map((c) => c.perWeek)));
   const category = (id: string) => $workspace.categories.find((c) => c.id === id);
@@ -60,8 +64,10 @@
     <p class="area-share" data-cost-area-share>
       {$t('cost.areaShare.own', { team })}
       <b
-        >{$t('cost.areaShare', {
+        >{$t(shareCadence === undefined ? 'cost.areaShare' : 'cost.areaShare.cadence', {
           week: euro(areaShare.perWeek),
+          cadence: euro(shareCadence ?? 0),
+          kind,
           horizon: euro(areaShare.horizon),
           team,
         })}</b

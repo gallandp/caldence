@@ -78,6 +78,8 @@
     autosave.flushNow();
   }
 
+  // Set before the first render, so "Loading…" is already in this browser's language (#363).
+  locale.set($language ?? $workspace.settings.locale);
   document.documentElement.lang = $locale;
 
   $effect(() => {
