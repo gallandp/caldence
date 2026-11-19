@@ -1,5 +1,6 @@
 import { isValidDate, isValidTime } from './date';
 import { LEVEL_PRESETS } from './levels';
+import { BUILT_IN_LINE_LEVELS, DEFAULT_LINE_LEVELS } from './lineLevels';
 import { inYearRange, latestHorizonEnd, LIMITS } from './limits';
 import { migrate } from './migrate';
 import { CURRENT_SCHEMA, FORMAT2_SCHEMA_BASE, type Workspace } from './model';
@@ -205,13 +206,41 @@ function checkSettings(c: Checker, v: unknown): void {
   }
 }
 
-const LINE_KINDS = ['company', 'group', 'team'];
-
 function checkLineLevels(c: Checker, s: Obj): void {
-  if (s.lineLevelNames === undefined) return;
-  const n = c.obj(s.lineLevelNames, 'settings.lineLevelNames');
-  if (n) for (const k of ['group', 'team']) c.str(n, k, 'settings.lineLevelNames');
-  if (n?.company !== undefined) c.str(n, 'company', 'settings.lineLevelNames');
+  if (s.lineLevelNames !== undefined) {
+    const n = c.obj(s.lineLevelNames, 'settings.lineLevelNames');
+    if (n) for (const k of ['group', 'team']) c.str(n, k, 'settings.lineLevelNames');
+    if (n?.company !== undefined) c.str(n, 'company', 'settings.lineLevelNames');
+  }
+  // Own line levels (#408): one or more, own levels named, a company level only at the top.
+  if (s.lineLevels === undefined) return;
+  const p = 'settings.lineLevels';
+  const list = c.arr(s.lineLevels, p, LIMITS.lineLevels);
+  if (!list) return;
+  if (list.length === 0) c.err(p, 'error.required');
+  c.ids(list, p);
+  const names = new Set<string>();
+  c.each(list, p, (o, q, i) => {
+    const builtIn = (BUILT_IN_LINE_LEVELS as readonly unknown[]).includes(o.id);
+    if (o.name !== undefined || !builtIn) c.str(o, 'name', q);
+    if (isStr(o.name)) {
+      const key = o.name.trim().toLowerCase();
+      if (!builtIn && key === '') c.err(`${q}.name`, 'error.required');
+      if (key !== '' && names.has(key)) c.err(`${q}.name`, 'error.name.duplicate');
+      names.add(key);
+    }
+    if (o.company !== undefined && typeof o.company !== 'boolean')
+      c.err(`${q}.company`, 'error.type');
+    if (o.company === true && i !== 0) c.err(`${q}.company`, 'error.line.companyLevelTop');
+  });
+}
+
+/** The line level ids of raw settings, top-down (#408); the built-in ones without own levels. */
+function rawLineLevels(settings: unknown): string[] {
+  const own =
+    isObj(settings) && Array.isArray(settings.lineLevels) ? settings.lineLevels : undefined;
+  const list = own && own.length > 0 ? own : DEFAULT_LINE_LEVELS;
+  return list.map((l) => (isObj(l) && isStr(l.id) ? l.id : ''));
 }
 
 function checkRule(
@@ -506,34 +535,52 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
   const unitList = optList('lineUnits', LIMITS.lineUnits);
   const units = c.ids(unitList, 'lineUnits');
   const parent = new Map<string, string>();
+  const levels = rawLineLevels(w.settings);
+  const ownLevels =
+    isObj(w.settings) && Array.isArray(w.settings.lineLevels) ? w.settings.lineLevels : [];
+  const companyLevels = new Set(
+    (ownLevels.length > 0 ? ownLevels : DEFAULT_LINE_LEVELS).flatMap((l) =>
+      isObj(l) && l.company === true && isStr(l.id) ? [l.id] : [],
+    ),
+  );
+  const lowest = levels.at(-1);
   c.each(unitList, 'lineUnits', (o, p) => {
     c.str(o, 'name', p);
     optRef(o, 'parentId', p, units);
     optRef(o, 'managerPersonId', p, ids.people);
     optRef(o, 'skillFamilyId', p, families);
     optRef(o, 'companyId', p, companies);
-    if (o.kind !== undefined && !LINE_KINDS.includes(o.kind as string))
-      c.err(`${p}.kind`, 'error.type');
+    if (o.kind !== undefined && !(isStr(o.kind) && levels.includes(o.kind)))
+      c.err(`${p}.kind`, 'error.line.levelUnknown');
     // A company sits at the top, below the organisation (#399).
-    if (o.kind === 'company' && o.parentId !== undefined)
+    if (isStr(o.kind) && companyLevels.has(o.kind) && o.parentId !== undefined)
       c.err(`${p}.parentId`, 'error.line.companyTop');
     if (isStr(o.id) && isStr(o.parentId)) parent.set(o.id, o.parentId);
   });
-  // A unit chosen as line team has no units below it (#399).
+  // A unit chosen on the lowest level has no units below it (#399), and a unit's chosen level is
+  // never above its parent's (#408); a level may hold units below units of the same level.
   unitList.forEach((o, i) => {
     if (isObj(o) && isStr(o.parentId)) {
       const above = unitList.find((u) => isObj(u) && u.id === o.parentId);
-      if (isObj(above) && above.kind === 'team')
-        c.err(`lineUnits.${i}.parentId`, 'error.line.teamParent');
+      if (!isObj(above)) return;
+      if (above.kind === lowest) c.err(`lineUnits.${i}.parentId`, 'error.line.teamParent');
+      else if (
+        isStr(o.kind) &&
+        isStr(above.kind) &&
+        levels.includes(o.kind) &&
+        levels.includes(above.kind) &&
+        levels.indexOf(above.kind) > levels.indexOf(o.kind)
+      )
+        c.err(`lineUnits.${i}.kind`, 'error.line.levelOrder');
     }
   });
-  // At most three levels and no cycles: walk up from every unit.
+  // At most as many levels as the file has, and no cycles: walk up from every unit.
   unitList.forEach((o, i) => {
     if (!isObj(o) || !isStr(o.id)) return;
     let depth = 1;
     for (let at = parent.get(o.id); at !== undefined; at = parent.get(at)) {
       if (at === o.id) return c.err(`lineUnits.${i}.parentId`, 'error.line.cycle');
-      if (++depth > LIMITS.lineLevels) return c.err(`lineUnits.${i}.parentId`, 'error.line.depth');
+      if (++depth > levels.length) return c.err(`lineUnits.${i}.parentId`, 'error.line.depth');
     }
   });
 

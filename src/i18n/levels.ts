@@ -1,4 +1,6 @@
 import type { LevelNames } from '../core/levels';
+import { DEFAULT_LINE_LEVELS, groupLineLevel, leafLineLevel } from '../core/lineLevels';
+import type { LineLevel } from '../core/model';
 import { t, type Locale } from './index';
 
 /** Words for the two levels; `…Lc` is the form inside an English sentence (German keeps capitals). */
@@ -30,6 +32,8 @@ export interface LevelWords {
   /** The line's company level (#399). */
   lineCompany: string;
   lineCompanyLc: string;
+  /** The word of every line level by its id (#408), top-down like the levels. */
+  lineLevels: { id: string; word: string; company: boolean }[];
 }
 
 /**
@@ -40,20 +44,30 @@ export function levelWords(
   names: LevelNames | undefined,
   locale: Locale,
   line?: { group: string; team: string; company?: string },
+  ownLineLevels?: LineLevel[],
 ): LevelWords {
-  const lineGroup = line?.group.trim() || t(locale, 'line.level.group');
-  const lineTeam = line?.team.trim() || t(locale, 'line.level.team');
-  const lineCompany = line?.company?.trim() || t(locale, 'line.level.company');
+  // A level's own name, else (built-in levels) the name from Settings or the language (#408).
+  const builtIn = { company: line?.company, group: line?.group, team: line?.team };
+  const own = (l: LineLevel): string | undefined =>
+    l.name?.trim() || builtIn[l.id as keyof typeof builtIn]?.trim() || undefined;
+  const wordOf = (l: LineLevel): string =>
+    own(l) ?? (l.id in builtIn ? t(locale, `line.level.${l.id}`) : l.id);
   // Own names stay as typed; the default English words are lower case inside a sentence.
-  const lineLc = (own: string | undefined, word: string) =>
-    own?.trim() || locale !== 'en' ? word : word.toLowerCase();
+  const lcOf = (l: LineLevel) => (own(l) || locale !== 'en' ? wordOf(l) : wordOf(l).toLowerCase());
+  const list = ownLineLevels && ownLineLevels.length > 0 ? ownLineLevels : DEFAULT_LINE_LEVELS;
+  const settings = { lineLevels: [...list] };
+  const byId = (id: string) => list.find((l) => l.id === id)!;
+  const groupLevel = byId(groupLineLevel(settings));
+  const teamLevel = byId(leafLineLevel(settings));
+  const companyLevel = list.find((l) => l.company) ?? { id: 'company', name: line?.company };
   const lineWords = {
-    lineGroup,
-    lineTeam,
-    lineGroupLc: lineLc(line?.group, lineGroup),
-    lineTeamLc: lineLc(line?.team, lineTeam),
-    lineCompany,
-    lineCompanyLc: lineLc(line?.company, lineCompany),
+    lineGroup: wordOf(groupLevel),
+    lineTeam: wordOf(teamLevel),
+    lineGroupLc: lcOf(groupLevel),
+    lineTeamLc: lcOf(teamLevel),
+    lineCompany: wordOf(companyLevel),
+    lineCompanyLc: lcOf(companyLevel),
+    lineLevels: list.map((l) => ({ id: l.id, word: wordOf(l), company: l.company === true })),
   };
   const lc = (s: string) => (locale === 'en' ? s.toLowerCase() : s);
   if (names && !('preset' in names)) {
@@ -125,12 +139,12 @@ export function levelParams(w: LevelWords): Record<string, string> {
   };
 }
 
-/** The word for a line unit's level (#399); the organisation is the root of the line (#395). */
-export const lineLevelWord = (w: LevelWords, kind: 'org' | 'company' | 'group' | 'team'): string =>
+/**
+ * The word for a line unit's level (#399, #408), by the level's id; the organisation is the root of
+ * the line (#395).
+ */
+export const lineLevelWord = (w: LevelWords, kind: string): string =>
   kind === 'org'
     ? w.org
-    : kind === 'company'
-      ? w.lineCompany
-      : kind === 'group'
-        ? w.lineGroup
-        : w.lineTeam;
+    : (w.lineLevels.find((l) => l.id === kind)?.word ??
+      (kind === 'company' ? w.lineCompany : kind === 'group' ? w.lineGroup : w.lineTeam));

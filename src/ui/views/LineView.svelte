@@ -9,6 +9,7 @@
     staffRows,
     unitStats,
   } from '../../core/lineStaff';
+  import { lowestLineLevel } from '../../core/lineLevels';
   import { ORG_UNIT, type LineUnit } from '../../core/model';
   import { formatNumber, formatPercent, levels, locale, translate as t } from '../../i18n';
   import { lineLevelWord } from '../../i18n/levels';
@@ -119,8 +120,8 @@
         <h3 id="line-empty-title">{$t('line.empty.title', { team: $levels.lineTeamLc })}</h3>
         <p>{$t('line.empty.text', { teams: $levels.teamsLc })}</p>
         {#if !$presenting}
-          <!-- A unit chosen as line team takes no units below it (#399). -->
-          {#if unit.kind !== 'team'}
+          <!-- A unit on the lowest level takes no units below it (#399, #408). -->
+          {#if unit.kind !== lowestLineLevel(ws.settings)}
             <div class="empty-actions">
               <button
                 type="button"
