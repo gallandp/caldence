@@ -249,16 +249,17 @@ function* scopedMeetings(
   }
 }
 
-/** A meeting holidays leave out of an export, with the dates it drops on (#341). */
+/** Meetings holidays leave out of an export, all on the same dates (#341). */
 export interface HolidayDrop {
-  name: string;
+  names: string[];
   dates: ISODate[];
 }
 
 /**
  * The meetings of a scope that fall on a public holiday in from..to and so are missing from its
- * .ics file, one entry per meeting name, ordered by their first such date. `index` must cover
- * from..to. Empty when the file skips no holidays.
+ * .ics file. Meetings dropped on the same dates share one entry; meetings bound to the cadence
+ * (sprint or PI days, such as Review and Retrospective) come first, then by their first date.
+ * `index` must cover from..to. Empty when the file skips no holidays.
  */
 export function holidayDrops(
   ws: Workspace,
@@ -267,18 +268,40 @@ export function holidayDrops(
   from: ISODate,
   to: ISODate,
 ): HolidayDrop[] {
-  const byName = new Map<string, Set<ISODate>>();
+  const byName = new Map<string, { dates: Set<ISODate>; cadence: boolean }>();
   for (const { event, occs } of scopedMeetings(ws, index, scope, from, to)) {
     for (const occ of occs) {
       if (!occ.skippedHoliday) continue;
-      const dates = byName.get(event.name) ?? new Set<ISODate>();
-      dates.add(occ.date);
-      byName.set(event.name, dates);
+      const entry = byName.get(event.name) ?? { dates: new Set<ISODate>(), cadence: false };
+      entry.dates.add(occ.date);
+      entry.cadence ||= event.rule.type === 'cadence-day';
+      byName.set(event.name, entry);
     }
   }
-  return [...byName]
-    .map(([name, dates]) => ({ name, dates: [...dates].sort() }))
-    .sort((a, b) => (a.dates[0]! < b.dates[0]! ? -1 : a.dates[0]! > b.dates[0]! ? 1 : 0));
+  const groups = new Map<string, { names: string[]; dates: ISODate[]; cadence: boolean }>();
+  for (const [name, { dates, cadence }] of byName) {
+    const sorted = [...dates].sort();
+    const key = sorted.join(' ');
+    const group = groups.get(key);
+    if (group) {
+      group.names.push(name);
+      group.cadence ||= cadence;
+    } else groups.set(key, { names: [name], dates: sorted, cadence });
+  }
+  const first = (g: { dates: ISODate[] }) => g.dates[0] ?? '';
+  return [...groups.values()]
+    .sort((a, b) =>
+      a.cadence !== b.cadence
+        ? a.cadence
+          ? -1
+          : 1
+        : first(a) < first(b)
+          ? -1
+          : first(a) > first(b)
+            ? 1
+            : 0,
+    )
+    .map(({ names, dates }) => ({ names, dates }));
 }
 
 /** True when the person attends at least one of the meetings a team's or area's export holds. */

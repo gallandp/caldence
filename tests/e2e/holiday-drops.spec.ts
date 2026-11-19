@@ -36,12 +36,28 @@ function sprintFile() {
       rule: { type: 'cadence-day', day: 11 },
       time: '10:00',
     },
+    {
+      ...base,
+      id: 'e3',
+      name: 'Daily',
+      rule: { type: 'weekdays', weekdays: [1, 2, 3, 4, 5] },
+      time: '09:00',
+    },
+    {
+      ...base,
+      id: 'e4',
+      name: 'Sprint Retrospective',
+      rule: { type: 'cadence-day', day: 11 },
+      time: '13:00',
+    },
   ];
   return ws;
 }
 
 const panel = (page: Page, name: string) => page.getByRole('tabpanel', { name });
-const LINE = 'Sprint Review 01/01/2027, 03/26/2027; Sprint Planning 03/29/2027';
+// Cadence-bound meetings first; meetings on the same dates share one entry.
+const LINE =
+  'Sprint Review, Sprint Retrospective 01/01/2027, 03/26/2027; Sprint Planning 03/29/2027; Daily 12/25/2026, 01/01/2027, 03/26/2027, 03/29/2027';
 
 test('a sprint ending on a holiday shows the dropped meetings in the export', async ({ page }) => {
   await page.goto('/');
@@ -55,13 +71,15 @@ test('a sprint ending on a holiday shows the dropped meetings in the export', as
 
   // A shorter period lists only its own dates.
   await exchange.getByLabel('To', { exact: true }).fill('2027-02-28');
-  await expect(drops).toContainText('Sprint Review 01/01/2027');
+  await expect(drops).toContainText('Sprint Review, Sprint Retrospective 01/01/2027;');
   await expect(drops).not.toContainText('03/26/2027');
   await exchange.getByLabel('To', { exact: true }).fill('2027-04-30');
 
   // Each date opens that day in the Calendar.
   await drops
-    .getByRole('button', { name: 'Sprint Review, 03/26/2027, show in the calendar' })
+    .getByRole('button', {
+      name: 'Sprint Review, Sprint Retrospective, 03/26/2027, show in the calendar',
+    })
     .click();
   await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveAttribute(
     'aria-selected',

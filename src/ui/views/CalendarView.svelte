@@ -499,8 +499,6 @@
     if (selected === null || !board || !(event.target instanceof Node)) return;
     // Hidden behind another view, or the click was on the calendar itself.
     if (board.offsetParent === null || board.contains(event.target)) return;
-    // A link in another view that opened this day (#341) is gone by now: not a click outside.
-    if (!event.target.isConnected) return;
     selected = null;
   }
 

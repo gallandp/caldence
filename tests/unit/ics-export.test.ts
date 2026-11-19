@@ -320,17 +320,32 @@ describe('exportIcs holidays (Review Focus 3)', () => {
     const range = { from: '2027-03-01', to: '2027-04-30' };
     const index = workspaceIndex({ ...w, settings: { ...w.settings, horizon: range } });
     const drops = holidayDrops(w, index, { teamId: 'team-alpha' }, range.from, range.to);
-    // Good Friday, Easter Monday; ordered by the first dropped date, a name only once.
+    // Good Friday, Easter Monday; ordered by the first dropped date, same dates merged.
     expect(drops).toEqual([
-      { name: 'Review', dates: ['2027-03-26'] },
-      { name: 'Planning', dates: ['2027-03-29'] },
-      { name: 'Kick-off', dates: ['2027-03-29'] },
+      { names: ['Review'], dates: ['2027-03-26'] },
+      { names: ['Planning', 'Kick-off'], dates: ['2027-03-29'] },
     ]);
     // The same dates the file leaves out.
     const lines = unfold(run(w, opts({ ...range, scope: { teamId: 'team-alpha' } })));
     expect(lines).toContain('EXDATE;TZID=Europe/Berlin:20270326T100000');
     expect(lines).toContain('EXDATE;TZID=Europe/Berlin:20270329T090000');
     expect(lines.join('\n')).not.toContain('Kick-off');
+  });
+
+  it('lists cadence-bound meetings first and merges those on the same dates', () => {
+    const w = example();
+    w.teams[0]!.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2026-12-21' };
+    w.teams[0]!.events = [
+      ev('Daily', { type: 'weekdays', weekdays: [1, 2, 3, 4, 5] }, '09:00'),
+      ev('Sprint Review', { type: 'cadence-day', day: 11 }, '10:00'),
+      ev('Sprint Retrospective', { type: 'cadence-day', day: 11 }, '13:00'),
+    ];
+    const range = { from: '2026-12-21', to: '2027-04-30' };
+    const index = workspaceIndex({ ...w, settings: { ...w.settings, horizon: range } });
+    expect(holidayDrops(w, index, { teamId: 'team-alpha' }, range.from, range.to)).toEqual([
+      { names: ['Sprint Review', 'Sprint Retrospective'], dates: ['2027-01-01', '2027-03-26'] },
+      { names: ['Daily'], dates: ['2026-12-25', '2027-01-01', '2027-03-26', '2027-03-29'] },
+    ]);
   });
 
   it('lists nothing when skipHolidays is off or no meeting falls on a holiday', () => {

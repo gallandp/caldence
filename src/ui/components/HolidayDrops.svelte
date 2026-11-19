@@ -19,18 +19,15 @@
   const linked = (d: string) => !!onOpenDay && d >= horizon.from && d <= horizon.to;
 </script>
 
+<!-- No whitespace around a date: the comma after it stays with it (see .day). -->
 {#snippet day(name: string, date: string)}
   {@const short = formatDisplayDate($locale, date, 'short')}
-  {#if linked(date)}
-    <button
-      type="button"
-      class="link"
-      aria-label={$t('holidayDrops.show', { name, date: short })}
-      onclick={() => onOpenDay?.(date)}>{short}</button
-    >
-  {:else}
-    {short}
-  {/if}
+  <!-- prettier-ignore -->
+  {#if linked(date)}<button type="button" class="link" aria-label={$t('holidayDrops.show', { name, date: short })} onclick={(e) => {
+    // Not a click outside the day details this opens in the Calendar.
+    e.stopPropagation();
+    onOpenDay?.(date);
+  }}>{short}</button>{:else}{short}{/if}
 {/snippet}
 
 {#if drops.length > 0}
@@ -42,14 +39,8 @@
     >
     <span>
       {lead}
-      {#each drops as drop, i (drop.name)}
-        {i > 0 ? $t('holidayDrops.sep') : ''}<span class="drop"
-          >{drop.name}
-          {#each drop.dates as date, j (date)}
-            {j > 0 ? ', ' : ''}{@render day(drop.name, date)}
-          {/each}
-        </span>
-      {/each}
+      <!-- prettier-ignore -->
+      {#each drops as drop, i (drop.dates.join())}{i > 0 ? $t('holidayDrops.sep') : ''}<span class="drop">{drop.names.join(', ')} {#each drop.dates as date, j (date)}{j > 0 ? ' ' : ''}<span class="day">{@render day(drop.names.join(', '), date)}{j < drop.dates.length - 1 ? ',' : ''}</span>{/each}</span>{/each}
     </span>
   </p>
 {/if}
@@ -76,6 +67,10 @@
   }
   .drop {
     color: var(--text);
+  }
+  /* A button may wrap on either side; its comma stays with it. */
+  .day {
+    white-space: nowrap;
   }
   :global(#app) .holiday-drops button.link {
     min-height: 0;
