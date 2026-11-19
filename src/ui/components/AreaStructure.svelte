@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { canLinkRole } from '../../core/areaEdit';
   import { areaAsTeam, eventAttendees, missingRoles, type Area, type Team } from '../../core/model';
   import { areaStructure, type Group, type StructurePerson } from '../../core/structure';
   import { locale, translate as t } from '../../i18n';
@@ -9,6 +10,7 @@
   import AreaIcon from './AreaIcon.svelte';
   import AreaPersonAdd from './AreaPersonAdd.svelte';
   import AreaPersonCard from './AreaPersonCard.svelte';
+  import RoleLinkDialog from './RoleLinkDialog.svelte';
   import { workspace } from '../state/workspace';
   import { presenting } from '../state/present';
   import { structurePerson } from '../state/view';
@@ -63,6 +65,13 @@
         )
       : [],
   );
+
+  /** A missing role the team may call differently opens the mapping (#433), as on the meeting. */
+  let mapping = $state<{ teamId: string; roleId: string; button: HTMLElement } | undefined>();
+  /** Once the mapping made the note go away: the next note, or the meeting it belongs to. */
+  const nextGap = () =>
+    root?.querySelector<HTMLElement>('button.gap') ??
+    root?.querySelector<HTMLElement>('.chipbtn[aria-pressed="true"]');
 
   function lit(personId: string): boolean {
     if (active) return personId === active;
@@ -528,12 +537,33 @@
                 </button>
               {/each}
               {#each gaps as g (g.roleId)}
-                <p class="gap">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"
-                    ><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" /></svg
+                {@const note = $t('area.missingRole', {
+                  team: team.name,
+                  role: roleName(g.roleId),
+                })}
+                {#if !$presenting && canLinkRole($workspace, g.teamId, g.roleId)}
+                  <button
+                    type="button"
+                    class="gap"
+                    aria-label={$t('area.roleLink.choose', { note })}
+                    onclick={(e) => (mapping = { ...g, button: e.currentTarget })}
+                    ><svg viewBox="0 0 24 24" aria-hidden="true"
+                      ><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" /></svg
+                    ><span class="gtx">{note}</span><svg
+                      class="chev"
+                      data-no-print
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
+                    ></button
                   >
-                  {$t('area.missingRole', { team: team.name, role: roleName(g.roleId) })}
-                </p>
+                {:else}
+                  <p class="gap">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"
+                      ><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" /></svg
+                    >
+                    {note}
+                  </p>
+                {/if}
               {/each}
               {#if st.both.length === 0 && gaps.length === 0}
                 <p class="none">{$t('area.structure.nobody')}</p>
@@ -604,6 +634,16 @@
   onclose={() => (selected = null)}
   ongone={() => addButton?.focus()}
 />
+{#if mapping}
+  <RoleLinkDialog
+    {area}
+    teamId={mapping.teamId}
+    roleId={mapping.roleId}
+    opener={mapping.button}
+    fallback={nextGap}
+    onclose={() => (mapping = undefined)}
+  />
+{/if}
 <AreaPersonAdd bind:this={adder} {area} onadded={focusPerson} />
 <AreaDialog bind:this={teamsDialog} returnFocus={() => teamsButton?.focus()} />
 
@@ -1111,6 +1151,41 @@
     background: var(--warn-soft);
     color: var(--warn);
     font-size: 0.8rem;
+  }
+  /* A note that opens the mapping (#433): the same look, with a chevron as its cue. */
+  :global(#app) button.gap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.45rem 0.55rem;
+    min-height: 2.75rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: inherit;
+    line-height: 1.35;
+    border: 1.5px dashed var(--warn);
+    border-radius: 0.625rem;
+    background: var(--warn-soft);
+    color: var(--warn);
+    box-shadow: none;
+    text-align: start;
+    cursor: pointer;
+  }
+  :global(#app) button.gap:hover {
+    border-style: solid;
+  }
+  :global(#app) button.gap:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .gtx {
+    flex: 1;
+  }
+  .gap svg.chev {
+    width: 0.9rem;
+    height: 0.9rem;
   }
   .gap svg {
     width: 1rem;

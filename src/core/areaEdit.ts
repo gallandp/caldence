@@ -99,6 +99,15 @@ export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): strin
   return [...new Set(invited)].filter((id) => !own.has(id));
 }
 
+/**
+ * Whether a "No X in team" note can offer the role mapping (#362, #433): the team has roles to
+ * choose from, and X is not one of them (a role the team has but nobody holds is not renamed).
+ */
+export function canLinkRole(ws: Workspace, teamId: string, roleId: string): boolean {
+  const own = teamRoleIds(ws, teamId);
+  return own.length > 0 && !own.includes(roleId);
+}
+
 const words = (name: string) =>
   name
     .normalize('NFC')

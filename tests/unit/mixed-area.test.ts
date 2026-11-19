@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { matchingRole, setRoleLinks, teamRoleIds, unmatchedRoles } from '../../src/core/areaEdit';
+import {
+  canLinkRole,
+  matchingRole,
+  setRoleLinks,
+  teamRoleIds,
+  unmatchedRoles,
+} from '../../src/core/areaEdit';
 import { costSummary, meetingCost } from '../../src/core/cost';
 import { exportIcs } from '../../src/core/ics';
 import { loadSummary } from '../../src/core/views';
@@ -89,6 +95,13 @@ describe('role links of an area (#338)', () => {
     ]);
     expect(unmatchedRoles(ws, area, star)).toEqual([]);
     expect(names(teamRoleIds(ws, north))).toEqual(['Product Owner', 'Scrum Master', 'Developers']);
+  });
+
+  it('offers the mapping only for a role the team does not have (#433)', () => {
+    const { ws, north } = mixed();
+    expect(canLinkRole(ws, north, roleId(ws, 'Agile Team'))).toBe(true);
+    expect(canLinkRole(ws, north, roleId(ws, 'Scrum Master'))).toBe(false);
+    expect(canLinkRole(ws, 'gone', roleId(ws, 'Agile Team'))).toBe(false);
   });
 
   it('after mapping, the area meetings invite and count the mapped people', () => {

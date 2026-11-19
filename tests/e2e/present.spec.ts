@@ -137,6 +137,7 @@ test('a what-if in a team of an area shows the team first, then the area (#340)'
   await page.goto('/');
   const ws = areaWorkspace();
   ws.settings.locale = 'en';
+  (ws.settings as { hourlyRate?: number }).hourlyRate = 100;
   await openWorkspaceFile(page, ws);
   await pickUnit(page, 'Team Alpha');
   await present(page);
@@ -160,6 +161,10 @@ test('a what-if in a team of an area shows the team first, then the area (#340)'
   await expect(whatIfBar(page)).toContainText(
     'Meeting load Team Alpha: 5.6 h → 5.2 h · 16% → 14% Meeting load Payments: 25.0 h → 24.5 h · 13% → 13%',
   );
+  // Its cost is the area's, and says so (#432).
+  await expect(whatIfBar(page)).toContainText(
+    /Cost, Payments: −€41 per week · −€[\d,]+ in the planning horizon/,
+  );
 });
 
 test('the what-if bar names the cost in the planning horizon; Print works while presenting', async ({
@@ -182,7 +187,7 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   await sheet.getByRole('button', { name: 'Apply' }).click();
   // Twice the time for the Product Owner and the Scrum Master: +€50 a week, every week of 2027.
   await expect(whatIfBar(page)).toContainText(
-    /Cost \+€50 per week · \+€[\d,]+ in the planning horizon \(2027, 52\u00a0wks\)/,
+    /Cost, Team Alpha: \+€50 per week · \+€[\d,]+ in the planning horizon \(2027, 52\u00a0wks\)/,
   );
 
   await page.evaluate(() => {

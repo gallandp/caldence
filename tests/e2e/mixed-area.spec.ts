@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { emptyWorkspace } from '../../src/core/model';
-import { openWorkspaceFile, pickUnit, teamAction, unitNames, useFileFallback } from './helpers';
+import {
+  openWorkspaceFile,
+  pickUnit,
+  showAreaPage,
+  teamAction,
+  unitNames,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -178,4 +185,103 @@ test('while presenting, a "missing in team" note is plain text (#362)', async ({
   await page.getByRole('button', { name: 'Present', exact: true }).click();
   await expect(row.getByText('No Agile Team in North')).toBeVisible();
   await expect(row.getByRole('button', { name: /^No Agile Team in North/ })).toHaveCount(0);
+});
+
+/** Adds Star's Release Train with North in it, the train selected. */
+async function trainWithNorth(page: Page) {
+  await addSafeTeam(page);
+  await pickUnit(page, 'Release Train');
+  await teamAction(page, 'Choose teams …');
+  const teams = page.getByRole('dialog', { name: 'Teams in Release Train' });
+  await teams.getByRole('checkbox', { name: 'North' }).check();
+  await teams.getByRole('button', { name: 'Apply' }).click();
+  await expect(teams).toBeHidden();
+}
+
+test('the "missing in team" note in the structure tree maps the role too (#433)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await trainWithNorth(page);
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Structure');
+  const chip = page.getByRole('button', { name: /^PI Planning day 1/ });
+  await chip.click();
+  const sm = page.getByRole('button', {
+    name: 'No Scrum Master/Team Coach in North: choose the matching role',
+  });
+  const agile = page.getByRole('button', { name: /^No Agile Team in North/ });
+  const dialog = page.getByRole('dialog', { name: 'No Scrum Master/Team Coach in North' });
+  // Escape and Cancel return focus to the note.
+  await sm.click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(sm).toBeFocused();
+  await sm.click();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(sm).toBeFocused();
+  await sm.click();
+  await expect(dialog.getByLabel('Scrum Master/Team Coach in North')).toHaveValue('role-sm');
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText('No Scrum Master/Team Coach in North')).toHaveCount(0);
+  // The note is gone: focus moves on to the next one, then to the meeting.
+  await expect(agile).toBeFocused();
+  await agile.click();
+  const other = page.getByRole('dialog', { name: 'No Agile Team in North' });
+  await other.getByLabel('Agile Team in North').selectOption({ label: 'Developers' });
+  await other.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByText(/^No .* in North$/)).toHaveCount(0);
+  await expect(chip).toBeFocused();
+
+  // While presenting, the note is plain text.
+  await teamAction(page, 'Choose teams …');
+  const teams = page.getByRole('dialog', { name: 'Teams in Release Train' });
+  await teams.getByLabel('Agile Team in North').selectOption({ label: 'Nobody' });
+  await teams.getByRole('button', { name: 'Apply' }).click();
+  await expect(agile).toBeVisible();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(page.getByText('No Agile Team in North')).toBeVisible();
+  await expect(agile).toHaveCount(0);
+});
+
+test('the "missing in team" hint in the meeting form maps the role; the form stays open (#433)', async ({
+  page,
+}) => {
+  await trainWithNorth(page);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  await panel
+    .getByRole('row', { name: /PI Planning day 1/ })
+    .getByRole('button', { name: 'Edit PI Planning day 1' })
+    .click();
+  const form = panel.locator('.eventform');
+  const sm = form.getByRole('button', {
+    name: 'No Scrum Master/Team Coach in North: choose the matching role',
+  });
+  const dialog = page.getByRole('dialog', { name: 'No Scrum Master/Team Coach in North' });
+  // Escape closes the mapping only, not the form.
+  await sm.click();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(form).toBeVisible();
+  await expect(sm).toBeFocused();
+  await sm.click();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(sm).toBeFocused();
+  // Apply maps the role without saving or closing the form.
+  await sm.click();
+  await dialog.getByRole('button', { name: 'Apply' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(form).toBeVisible();
+  await expect(form.getByText('No Scrum Master/Team Coach in North')).toHaveCount(0);
+  // The hint is gone: focus goes to its row's "who" choice.
+  await expect(form.getByLabel('Who: Scrum Master/Team Coach')).toBeFocused();
+  await form.getByRole('button', { name: 'Cancel' }).click();
+  await expect(form).toBeHidden();
+  await teamAction(page, 'Choose teams …');
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Teams in Release Train' })
+      .getByLabel('Scrum Master/Team Coach in North'),
+  ).toHaveValue('role-sm');
 });
