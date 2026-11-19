@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 1.48.0 – 2026-11-19
+
+### Added
+
+- When teams join an area, a role that the area's meetings invite from every team and that a team calls differently (for example "Agile Team" for "Developers") can be mapped to one of the team's roles. PI Planning and the other area meetings then count those people in load and cost, and the role filter and role calendars follow the mapping (#338) (#354)
+- A team in an area shows what its people also spend in the area's meetings, on its cost card and in its row of the area Overview, per week and in the planning horizon. People in several teams are split by their weekly hours. The area total stays unchanged. (#336) (#356)
+- Meetings & cadence and the .ics export name the meetings that public holidays leave out, with their dates; each date opens that day in the calendar (#341) (#357)
+- The add-member form in the Team view shows a person's meeting load before and after adding them (#342) (#367)
+- Meeting load: the person drill-in lists the meetings behind a person's load for each team or area, with repeat rule and hours per week; one-off meetings are marked (#343) (#370)
+- Meeting load: weeks in the warnings and the peak week open that week in the Calendar with the person filter set (#343) (#370)
+- The area Overview counts the days with overlapping meetings in the next 12 weeks and opens an example in the calendar (#339) (#371)
+- Meeting load lists one line per person whose meetings overlap, with an example (#339) (#371)
+
+### Changed
+
+- A file saved with Caldence 2 now says that it opens at caldence.de/v2/, instead of only "newer version". (#345)
+- A template's level words (for example SAFe's "Release Train") are only taken over by a file without teams; a file with teams keeps its own (#338) (#354)
+- Wizard step 4 and Settings ask you to check the preset holiday region (#341) (#357)
+- Opening a file starts on the first area's Overview, or on the Calendar without an area, never on Settings, Templates or Import/Export; the area page opens on its Overview (#337) (#358)
+- The language is now a setting of this browser like the appearance: switching it no longer marks the file changed, and the file's language is used only while the browser has none chosen (#337) (#358)
+- The note on meetings skipped on public holidays is now one short line; the dates unfold on request. (#405)
+- Browser back and forward now work inside Caldence: every view and selected team or area has its own address, which can also be bookmarked. (#411)
+
+### Fixed
+
+- After opening a week from the area Overview, the week detail's heading is no longer hidden behind the back button (#302) (#346)
+- The area Overview's hours and meeting share now count an unfilled role as one person, like the cost and the Meeting load tiles, so hours × rate equals the cost; the cost card no longer says unfilled roles add no hours (#335) (#348)
+- Updating Caldence no longer deletes the offline copy of the Caldence 2 preview at /v2/. (#351)
+- Warnings, the Calendar, the people table and the area Overview now agree on who is over the limit: always all meetings ÷ all weekly hours (#307, #334) (#352)
+- Missing hours in an area, or area meetings that take most of the hours there, are shown as one hint per person and area under "Hours in the area", not as weekly warnings (#307, #334) (#352)
+- The area Overview counts people who are only in the area, in a row of their own (#334) (#352)
+- A what-if in a team inside an area shows the team's own meeting load with its hours first, then the area's, in the dialog and the present-mode banner; the banner keeps the hours after Apply (#340) (#353)
+- The team switcher no longer breaks the word "Organisation" in the middle (#338) (#354)
+- The week view marks days on which the chosen person has overlapping meetings and names them, like the month view (#339) (#355)
+- The calendar legend names whose meeting hours the days show: the chosen person, all people in the chosen role, or all people (#339) (#355)
+- Scrolling the mouse wheel over a focused number field no longer changes its value (#337) (#358)
+- Meeting load by role: people who attend an area meeting through a role mapping count under their own role whether or not the role filter is set (#338) (#359)
+- Booking a person beyond the default hours per week no longer lowers their share in meetings or adds room before the limit (#342) (#367)
+
 ## 1.47.0 – 2026-11-18
 
 ### Added
