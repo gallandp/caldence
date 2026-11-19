@@ -489,11 +489,13 @@
       const hash = routeNow();
       const replace = replaceRoute;
       replaceRoute = false;
-      if (hash === location.hash) return;
+      const tagged = (history.state as { file?: string } | null)?.file === $workspace.id;
+      // Another file on the same address still takes the entry over.
+      if (hash === location.hash && (!replace || tagged)) return;
       // Presenting redirects some views: the entry stays as it was for after presenting.
       if (replace && $presenting) return;
       // Each entry knows its file: back into another file's entries keeps this file's unit.
-      const state = { file: $version };
+      const state = { file: $workspace.id };
       if (replace) history.replaceState(state, '', hash);
       else history.pushState(state, '', hash);
     });
@@ -525,8 +527,8 @@
   function onPopState() {
     // What the app makes of the entry (an unknown unit, say) corrects it without a new one.
     replaceRoute = true;
-    const file = (history.state as { file?: number } | null)?.file;
-    applyRoute(location.hash, undefined, file === undefined || file === $version);
+    const file = (history.state as { file?: string } | null)?.file;
+    applyRoute(location.hash, undefined, file === undefined || file === $workspace.id);
     queueRoute();
   }
 
