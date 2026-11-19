@@ -9,6 +9,7 @@ export const AREA_PARTS = [
   'time',
   'invite',
   'org',
+  'orgMeetings',
   'names',
 ] as const;
 
@@ -28,6 +29,8 @@ export const AREA_LABELS: Record<string, string> = {
   teamOnly: 'area.group.teamOnly',
   participants: 'meet.participants',
   fromTeams: 'area.participants.fromTeams',
+  fromAreas: 'org.participants.fromAreas',
+  meetings: 'view.meetings',
   org: 'view.org',
   rename: 'org.rename',
   settings: 'view.settings',

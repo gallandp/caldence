@@ -1,19 +1,58 @@
 <script lang="ts">
-  import { areaOf, orgName, type Area, type Cadence, type Team } from '../../core/model';
-  import { levels, translate as t } from '../../i18n';
-  import { initials } from '../avatar';
+  import { tick } from 'svelte';
+  import { areaOf, orgArea, orgName, type Area, type Cadence, type Team } from '../../core/model';
+  import { areaStructure } from '../../core/structure';
+  import { levels, locale, translate as t } from '../../i18n';
+  import { initials, inkOn } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
+  import AreaPersonAdd from '../components/AreaPersonAdd.svelte';
+  import AreaPersonCard from '../components/AreaPersonCard.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
   import { workspace } from '../state/workspace';
 
   /**
-   * The organisation's page (#313): the tree organisation → areas → teams. It only shows; a click
-   * on a card opens that area or team, where it is edited.
+   * The organisation's page (#313): the tree organisation → areas → teams. A click on a card
+   * opens that area or team, where it is edited. The organisation's own people (#328) are added
+   * and edited here with the dialogs of an area's structure.
    */
   let { onOpen }: { onOpen: (unitId: string) => void } = $props();
 
   const ws = $derived($workspace);
   const name = $derived(orgName(ws, $levels.org));
+
+  // ---------- the organisation's own people (#328) ----------
+
+  /** The organisation as an area, under its name or level word, for the area dialogs. */
+  const org = $derived({ ...orgArea(ws), name });
+  const structure = $derived(areaStructure(ws, org));
+  /** People with a role or hours in the organisation; those only invited stay in the meetings. */
+  const own = $derived(structure.people.filter((p) => p.areaRoleIds.length > 0 || p.areaHours > 0));
+  const byId = $derived(new Map(structure.people.map((p) => [p.personId, p])));
+  const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+  const roleOf = (id: string | undefined) => ws.roles.find((r) => r.id === id);
+  const hours = (n: number) =>
+    `${new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n)} h`;
+
+  let selected = $state<string | null>(null);
+  let card: AreaPersonCard | undefined = $state();
+  let adder: AreaPersonAdd | undefined = $state();
+  let addButton: HTMLButtonElement | undefined = $state();
+  let peopleList: HTMLUListElement | undefined = $state();
+
+  function pick(personId: string, event: Event) {
+    if (selected === personId) {
+      selected = null;
+      return;
+    }
+    selected = personId;
+    void card?.open(event.currentTarget as HTMLElement);
+  }
+
+  /** After adding: the new person's tile gets the focus. */
+  async function focusPerson(personId: string) {
+    await tick();
+    peopleList?.querySelector<HTMLElement>(`[data-p="${CSS.escape(personId)}"]`)?.focus();
+  }
   const ungrouped = $derived(ws.teams.filter((x) => !areaOf(ws, x.id)));
   const teamsOf = (ids: string[]): Team[] => ws.teams.filter((x) => ids.includes(x.id));
 
@@ -44,7 +83,7 @@
           })
         : '',
       teamsText(ws.teams.length),
-      peopleText(peopleIn([...ws.teams, ...ws.areas])),
+      peopleText(peopleIn([...ws.teams, ...ws.areas, org])),
     ]
       .filter(Boolean)
       .join(' · '),
@@ -63,17 +102,58 @@
   </li>
 {/snippet}
 
-<div class="org-view">
+<div class="org-view structure">
   <p class="subtitle">{$t('org.subtitle')}</p>
   <ul class="tree" aria-label={$t('org.tree.label', { name })}>
     <li class="root-item">
-      <div class="node root">
-        <span class="badge" aria-hidden="true"><OrgIcon /></span>
-        <span class="text">
-          <span class="title">{name}</span>
-          <span class="meta">{$levels.org} · {total}</span>
-        </span>
-      </div>
+      <section class="node root" aria-labelledby="org-root-name">
+        <div class="root-head">
+          <span class="badge" aria-hidden="true"><OrgIcon /></span>
+          <span class="text">
+            <span class="title" id="org-root-name">{name}</span>
+            <span class="meta">{$levels.org} · {total}</span>
+          </span>
+          <button
+            type="button"
+            class="secondary add"
+            data-no-present
+            bind:this={addButton}
+            onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
+          >
+        </div>
+        <div class="own">
+          <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
+          {#if own.length > 0}
+            <ul class="people" bind:this={peopleList}>
+              {#each own as p (p.personId)}
+                {@const c = roleOf(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])?.colour ?? '#5340e6'}
+                <li>
+                  <button
+                    type="button"
+                    class="person"
+                    class:sel={selected === p.personId}
+                    data-p={p.personId}
+                    aria-pressed={selected === p.personId}
+                    onclick={(e) => pick(p.personId, e)}
+                  >
+                    <span class="av" style:background={c} style:color={inkOn(c)} aria-hidden="true"
+                      >{initials(personName(p.personId))}</span
+                    >
+                    <span class="tx"
+                      ><b>{personName(p.personId)}</b><small
+                        >{p.areaRoleIds.map((id) => roleOf(id)?.name ?? id).join(', ')}</small
+                      ></span
+                    >
+                    <span class="h">{hours(p.areaHours)}</span>
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="none">{$t('org.people.none')}</p>
+          {/if}
+        </div>
+      </section>
       {#if ws.areas.length === 0}
         <p class="hint">{$t('org.noAreas')}</p>
       {/if}
@@ -110,6 +190,16 @@
   </ul>
 </div>
 
+<AreaPersonCard
+  bind:this={card}
+  area={org}
+  personId={selected}
+  person={selected ? byId.get(selected) : undefined}
+  onclose={() => (selected = null)}
+  ongone={() => addButton?.focus()}
+/>
+<AreaPersonAdd bind:this={adder} area={org} onadded={focusPerson} />
+
 <style>
   .org-view {
     display: flex;
@@ -131,12 +221,12 @@
     flex-direction: column;
     align-items: center;
   }
-  /* Organisation on top, a stem down to the row of areas. */
+  /* Organisation on top, with its own people, and a stem down to the row of areas. */
   .node.root {
     position: relative;
-    width: auto;
-    min-width: min(22rem, 100%);
-    max-width: 36rem;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(36rem, 100%);
     border-color: color-mix(in srgb, var(--org) 45%, var(--border));
     background: linear-gradient(180deg, var(--org-soft), var(--surface) 140%);
   }
@@ -147,6 +237,100 @@
     top: 100%;
     height: 1.25rem;
     border-left: 2px solid var(--area-line);
+  }
+  .root-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .root-head .text {
+    flex: 1;
+  }
+  .own {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid color-mix(in srgb, var(--org) 25%, var(--border));
+  }
+  :global(#app) .own .cap {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .cap .n {
+    font-weight: 400;
+  }
+  .people {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: 0.25rem;
+  }
+  :global(#app) .person {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.375rem 0.5rem;
+    border-color: transparent;
+    border-radius: 0.625rem;
+    background: none;
+    box-shadow: none;
+    color: var(--text);
+    font-weight: 400;
+    text-align: start;
+  }
+  :global(#app) .person:hover {
+    background: var(--surface-2);
+  }
+  :global(#app) .person.sel {
+    border-color: var(--org);
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--org);
+  }
+  .av {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .tx {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .tx b,
+  .tx small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tx b {
+    font-weight: 600;
+  }
+  .tx small,
+  .h,
+  .none {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .h {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .none {
+    margin: 0;
   }
   .hint {
     max-width: 36rem;

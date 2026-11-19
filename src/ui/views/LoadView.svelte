@@ -16,7 +16,15 @@
     warnings,
     type PersonMeeting,
   } from '../../core/load';
-  import { keyName, units as allUnits, unitLoadIds } from '../../core/model';
+  import {
+    areaUnits,
+    keyName,
+    ORG_UNIT,
+    orgName,
+    units as allUnits,
+    unitLoadIds,
+    unitName,
+  } from '../../core/model';
   import { record } from '../../core/record';
   import {
     clashes,
@@ -30,6 +38,7 @@
     formatDisplayDate,
     formatNumber,
     formatPercent,
+    levels,
     locale,
     translate as t,
   } from '../../i18n';
@@ -126,14 +135,15 @@
         hours: capacity(ws, personId, x.id),
         meetings: avg(x.id),
       }));
-    const areas = ws.areas
+    // The organisation's people count like an area's (#328).
+    const areas = areaUnits(ws)
       .filter(
         (a) =>
           a.members.some((m) => m.personId === personId) || Object.hasOwn(a.memberHours, personId),
       )
       .map((a) => ({
         id: a.id,
-        name: a.name,
+        name: a.id === ORG_UNIT ? orgName(ws, $levels.org) : a.name,
         area: true,
         roles: a.members.filter((m) => m.personId === personId).map((m) => roleName(m.roleId)),
         hours: areaHours(ws, a.id, personId),
@@ -148,12 +158,12 @@
    */
   function invitedOf(personId: string, known: { id: string }[]) {
     const ws = $workspace;
-    const areaIds = new Set(ws.areas.map((a) => a.id));
+    const areaIds = new Set(areaUnits(ws).map((a) => a.id));
     return allUnits(ws)
       .filter((u) => !known.some((k) => k.id === u.id))
       .map((u) => ({
         id: u.id,
-        name: u.name,
+        name: unitName(ws, u.id, $levels.org),
         area: areaIds.has(u.id),
         roles: [] as string[],
         hours: 0,
@@ -218,7 +228,7 @@
         key: `${h.personId}/${h.areaId}`,
         text: $t(`load.hint.${h.kind}`, {
           person: nameOf(h.personId),
-          area: ws.areas.find((a) => a.id === h.areaId)?.name ?? h.areaId,
+          area: unitName(ws, h.areaId, $levels.org) || h.areaId,
           hours: hours(h.hours),
           share: formatPercent($locale, fte(h.hours, h.areaHours)),
           areaHours: weekly(h.areaHours),
@@ -299,7 +309,7 @@
     const byPerson = record<ReturnType<typeof clashes>>();
     for (const c of clashes(ws, $index, scopePeople(ws, $filter)))
       (byPerson[c.personId] ??= []).push(c);
-    const units = [...ws.areas, ...ws.teams];
+    const units = allUnits(ws);
     const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
     const eventName = (o: { teamId: string; eventId: string }) =>
       units.find((u) => u.id === o.teamId)?.events.find((e) => e.id === o.eventId)?.name ??
@@ -307,7 +317,9 @@
     return Object.entries(byPerson)
       .map(([personId, found]) => {
         const ids = new Set(found.flatMap((c) => [c.a.teamId, c.b.teamId]));
-        const names = units.filter((u) => ids.has(u.id)).map((u) => u.name);
+        const names = units
+          .filter((u) => ids.has(u.id))
+          .map((u) => unitName(ws, u.id, $levels.org));
         const first = found[0]!;
         const time = clashTime(first);
         const person = ws.people.find((p) => p.id === personId)?.name ?? personId;

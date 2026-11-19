@@ -228,6 +228,15 @@ export function hasOrgLevel(ws: Workspace): boolean {
   return ws.areas.length > 0 || ws.teams.length >= 2;
 }
 
+/**
+ * The name of a team, an area or the organisation, or '' for an unknown id. `org` is the
+ * organisation's level word, its name while it has none.
+ */
+export function unitName(ws: Workspace, id: string | null | undefined, org: string): string {
+  if (id === ORG_UNIT) return orgName(ws, org);
+  return [...ws.teams, ...ws.areas].find((u) => u.id === id)?.name ?? '';
+}
+
 /** The organisation's name, or the level's name (`fallback`) while it has none. */
 export function orgName(ws: Workspace, fallback: string): string {
   return ws.organisation?.name || fallback;

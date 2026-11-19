@@ -7,7 +7,7 @@
   import { attendees, eventAttendees, holders, type Area } from '../../core/model';
   import { record } from '../../core/record';
   import type { StructurePerson } from '../../core/structure';
-  import { locale, translate as t } from '../../i18n';
+  import { areaText, levels, locale, translate } from '../../i18n';
   import AreaIcon from './AreaIcon.svelte';
   import { PALETTE } from './ColourField.svelte';
   import FieldError from './FieldError.svelte';
@@ -34,6 +34,8 @@
     /** The person left the structure (removed from an area they only worked in). */
     ongone: () => void;
   } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area.id));
 
   const uid = $props.id();
   const problems = new Problems(uid);
@@ -53,14 +55,19 @@
       ? area.events.filter((e) => eventAttendees($workspace, area.id, e).includes(personId))
       : [],
   );
+  /** "Product Owner · every team", or in the organisation "RTE · every area" (#328). */
+  const inviteText = (roleId: string, fromAreas: boolean) =>
+    tt(fromAreas ? 'org.fromAreas' : 'area.fromTeams', { role: roleName(roleId) });
   /** The "from every team" invitation that brought them into the area without hours. */
   const invite = $derived.by(() => {
     if (!p?.invitedOnly) return '';
     // Through its own role or a team role linked to it (#338).
     const hit = area.events
       .flatMap((e) => e.participants)
-      .find((x) => x.fromTeams && holders($workspace, area.id, x).includes(p.personId));
-    return hit?.roleId !== undefined ? $t('area.fromTeams', { role: roleName(hit.roleId) }) : '';
+      .find(
+        (x) => (x.fromTeams || x.fromAreas) && holders($workspace, area.id, x).includes(p.personId),
+      );
+    return hit?.roleId !== undefined ? inviteText(hit.roleId, !!hit.fromAreas) : '';
   });
 
   // The person is gone from the structure: close, and let the view move the focus.
@@ -119,13 +126,14 @@
       (x) => (x.roleId !== undefined && own.has(x.roleId)) || x.personId === personId,
     );
     const via = e.participants.find(
-      (x) => x.fromTeams && attendees($workspace, area.id, x, e).includes(personId),
+      (x) =>
+        (x.fromTeams || x.fromAreas) && attendees($workspace, area.id, x, e).includes(personId),
     );
     return direct || via?.roleId === undefined
       ? e.name
-      : $t('area.card.via', {
+      : tt('area.card.via', {
           meeting: e.name,
-          invite: $t('area.fromTeams', { role: roleName(via.roleId) }),
+          invite: inviteText(via.roleId, !!via.fromAreas),
         });
   }
   const mainRole = $derived(p ? roleName(p.teams[0]?.roleIds[0] ?? p.areaRoleIds[0] ?? '') : '');
@@ -141,7 +149,7 @@
 
   function onAreaHours(event: Event) {
     if (!personId) return;
-    const label = $t('area.card.hoursIn', { name, unit: area.name });
+    const label = tt('area.card.hoursIn', { name, unit: area.name });
     const n = parse(event.currentTarget as HTMLInputElement, 'area-hours', label);
     if (n === null) return;
     const id = personId;
@@ -152,7 +160,7 @@
     if (!personId) return;
     const team = $workspace.teams.find((x) => x.id === teamId);
     if (!team) return;
-    const label = $t('area.card.hoursIn', { name, unit: team.name });
+    const label = tt('area.card.hoursIn', { name, unit: team.name });
     const n = parse(event.currentTarget as HTMLInputElement, `team-${teamId}`, label);
     if (n === null) return;
     const id = personId;
@@ -180,7 +188,7 @@
     }
     creating = false;
     const id = personId;
-    commit('area-role', $t('area.card.role'), (ws) =>
+    commit('area-role', tt('area.card.role'), (ws) =>
       setAreaRole(ws, area.id, id, value === '' ? null : value),
     );
   }
@@ -189,12 +197,12 @@
   function onNewRole(event: Event) {
     if (!personId) return;
     const value = (event.currentTarget as HTMLInputElement).value.trim();
-    if (value === '') return fail('area-role', 'error.required', $t('settings.roles.add'));
+    if (value === '') return fail('area-role', 'error.required', tt('settings.roles.add'));
     if (value.length > LIMITS.textChars)
-      return fail('area-role', 'error.text.tooLong', $t('settings.roles.add'));
+      return fail('area-role', 'error.text.tooLong', tt('settings.roles.add'));
     const id = personId;
     const colour = PALETTE[roles.length % PALETTE.length]!.hex;
-    const done = commit('area-role', $t('area.card.role'), (ws) => {
+    const done = commit('area-role', tt('area.card.role'), (ws) => {
       const [next, roleId] = roleByName(ws, value, colour);
       return setAreaRole(next, area.id, id, roleId);
     });
@@ -208,7 +216,7 @@
     // Enter and leaving save (change), which does not fire for a field left empty.
     const input = event.currentTarget as HTMLInputElement;
     if (event.key === 'Enter' && input.value.trim() === '')
-      return fail('area-role', 'error.required', $t('settings.roles.add'));
+      return fail('area-role', 'error.required', tt('settings.roles.add'));
     // Escape cancels the new role only; the card stays open.
     if (event.key !== 'Escape') return;
     event.preventDefault();
@@ -237,12 +245,12 @@
       </div>
       <button type="button" class="icon-button x" onclick={close}
         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg><span
-          class="sr-only">{$t('area.card.close')}</span
+          class="sr-only">{tt('area.card.close')}</span
         ></button
       >
     </header>
 
-    <h3 class="section">{$t('area.card.hours')}</h3>
+    <h3 class="section">{tt('area.card.hours')}</h3>
     <div class="row">
       <div class="place">
         <span class="unit-name area"><AreaIcon />{area.name}</span>
@@ -251,30 +259,30 @@
           <small>{p.areaRoleIds.map(roleName).join(', ')}</small>
         {:else if $presenting}
           <!-- Presenting: the card shows, it does not edit. -->
-          <small>{p.areaRoleIds[0] ? roleName(p.areaRoleIds[0]) : $t('area.card.noRole')}</small>
+          <small>{p.areaRoleIds[0] ? roleName(p.areaRoleIds[0]) : tt('area.card.noRole')}</small>
         {:else}
           <select
             data-area-role
             value={creating ? NEW : (p.areaRoleIds[0] ?? '')}
-            aria-label={$t('area.card.role')}
+            aria-label={tt('area.card.role')}
             aria-invalid={!creating && errors['area-role'] ? true : undefined}
             aria-describedby={creating ? undefined : describe('area-role')}
             onchange={onRole}
           >
             <option value=""
               >{invite
-                ? $t('area.card.noRoleImplicit', { invite })
-                : $t('area.card.noRole')}</option
+                ? tt('area.card.noRoleImplicit', { invite })
+                : tt('area.card.noRole')}</option
             >
             {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-            <option value={NEW}>{$t('area.role.new')}</option>
+            <option value={NEW}>{tt('area.role.new')}</option>
           </select>
           {#if creating}
             <input
               type="text"
               data-new-role
-              placeholder={$t('area.role.placeholder')}
-              aria-label={$t('settings.roles.add')}
+              placeholder={tt('area.role.placeholder')}
+              aria-label={tt('settings.roles.add')}
               aria-invalid={errors['area-role'] ? true : undefined}
               aria-describedby={describe('area-role')}
               onchange={onNewRole}
@@ -291,11 +299,11 @@
             data-area-hours
             class:unset={p.invitedOnly}
             value={p.areaHours}
-            aria-label={$t('area.card.hoursArea')}
+            aria-label={tt('area.card.hoursArea')}
             aria-invalid={errors['area-hours'] ? true : undefined}
             aria-describedby={describe('area-hours')}
             onchange={onAreaHours}
-          />{/if}{$t('area.card.unit')}
+          />{/if}{tt('area.card.unit')}
       </span>
     </div>
     <FieldError {problems} id="area-role" />
@@ -312,28 +320,28 @@
               min="0"
               step="0.5"
               value={x.hours}
-              aria-label={$t('area.card.hoursTeam', { team: teamName(x.teamId) })}
+              aria-label={tt('area.card.hoursTeam', { team: teamName(x.teamId) })}
               aria-invalid={errors[`team-${x.teamId}`] ? true : undefined}
               aria-describedby={describe(`team-${x.teamId}`)}
               onchange={(e) => onTeamHours(x.teamId, e)}
-            />{/if}{$t('area.card.unit')}
+            />{/if}{tt('area.card.unit')}
         </span>
       </div>
       <FieldError {problems} id="team-{x.teamId}" />
     {/each}
     {#if p.otherHours > 0}
       <div class="row other">
-        <span>{$t('area.structure.otherTeams')}</span><span
-          >{num(p.otherHours)} {$t('area.card.unit')}</span
+        <span>{tt('area.structure.otherTeams')}</span><span
+          >{num(p.otherHours)} {tt('area.card.unit')}</span
         >
       </div>
     {/if}
     <div class="row sum">
-      <span>{$t('area.card.total')}</span><span>{num(p.total)} {$t('area.card.unit')}</span>
+      <span>{tt('area.card.total')}</span><span>{num(p.total)} {tt('area.card.unit')}</span>
     </div>
     {#if personId && overbooked($workspace, personId)}
       <p class="over" data-over>
-        {$t('team.people.over', {
+        {tt('team.people.over', {
           hours: num(capacity($workspace, personId)),
           max: num($workspace.settings.hoursPerWeek),
         })}
@@ -342,20 +350,20 @@
 
     {#if meetings.length > 0}
       <p class="hint">
-        {$t('area.card.meetings', { list: meetings.map(meetingLine).join(', ') })}
+        {tt('area.card.meetings', { list: meetings.map(meetingLine).join(', ') })}
       </p>
     {/if}
 
     <div class="foot" data-no-present>
       {#if p.areaRoleIds.length > 0 || p.areaHours > 0}
         <button type="button" class="remove" onclick={remove}
-          >{$t('area.card.remove', { name: area.name })}</button
+          >{tt('area.card.remove', { name: area.name })}</button
         >
       {:else if invite}
         <button type="button" class="remove" disabled aria-describedby="{uid}-implicit"
-          >{$t('area.card.remove', { name: area.name })}</button
+          >{tt('area.card.remove', { name: area.name })}</button
         >
-        <p class="hint" id="{uid}-implicit">{$t('area.person.implicit', { invite })}</p>
+        <p class="hint" id="{uid}-implicit">{tt('area.person.implicit', { invite })}</p>
       {/if}
     </div>
   {/if}

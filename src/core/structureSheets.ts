@@ -57,7 +57,11 @@ function peopleOf(
 
 function participantText(ws: Workspace, p: Participant, text: SheetText): string {
   const name = participantName(ws, p);
-  const who = p.fromTeams ? text.t('area.fromTeams', { role: name }) : name;
+  const who = p.fromAreas
+    ? text.t('org.fromAreas', { role: name })
+    : p.fromTeams
+      ? text.t('area.fromTeams', { role: name })
+      : name;
   return p.share >= 1 ? who : `${who} (${text.percent(p.share)})`;
 }
 

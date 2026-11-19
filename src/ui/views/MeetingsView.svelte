@@ -4,7 +4,14 @@
   import { areaShare } from '../../core/areaCosts';
   import { costPerCadence, meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
-  import { areaAsTeam, participantName, type CalEvent } from '../../core/model';
+  import {
+    areaAsTeam,
+    findArea,
+    ORG_UNIT,
+    orgName,
+    participantName,
+    type CalEvent,
+  } from '../../core/model';
   import { effectiveDuration } from '../../core/recurrence';
   import { validate } from '../../core/validate';
   import { nextDates } from '../../core/views';
@@ -14,6 +21,7 @@
     formatEuro,
     formatNumber,
     formatPercent,
+    levels,
     locale,
     translate as t,
   } from '../../i18n';
@@ -68,8 +76,15 @@
 
   const { canUndo } = workspace;
 
-  /** With an area selected, its own meetings: the area is planned like a team (see areaAsTeam). */
-  const area = $derived($workspace.areas.find((x) => x.id === $activeTeamId));
+  /**
+   * With an area selected, its own meetings: the area is planned like a team (see areaAsTeam).
+   * The organisation is planned like an area (#328), under its name or its level's word.
+   */
+  const org = $derived($activeTeamId === ORG_UNIT);
+  const area = $derived.by(() => {
+    const found = findArea($workspace, $activeTeamId);
+    return found && org ? { ...found, name: orgName($workspace, $levels.org) } : found;
+  });
   const team = $derived(
     $workspace.teams.find((x) => x.id === $activeTeamId) ?? (area ? areaAsTeam(area) : undefined),
   );
@@ -98,7 +113,7 @@
   onMount(() => {
     const stop = [
       workspace.subscribe((ws) => {
-        const next = JSON.stringify([ws.teams, ws.areas, ws.categories, ws.roles]);
+        const next = JSON.stringify([ws.teams, ws.areas, ws.organisation, ws.categories, ws.roles]);
         if (!isOwnChange() && next !== signature) editing = null;
         signature = next;
       }),
@@ -340,9 +355,11 @@
   function save(event: CalEvent, doCommit = true): Record<string, string> | null {
     if (!team) return { '': 'error.type' };
     const ti = $workspace.teams.findIndex((x) => x.id === team.id);
-    const base = area
-      ? `areas.${$workspace.areas.findIndex((x) => x.id === team.id)}`
-      : `teams.${ti}`;
+    const base = org
+      ? 'organisation'
+      : area
+        ? `areas.${$workspace.areas.findIndex((x) => x.id === team.id)}`
+        : `teams.${ti}`;
     const ei =
       event.id === '' ? team.events.length : team.events.findIndex((e) => e.id === event.id);
     const teamId = team.id;
@@ -393,7 +410,8 @@
   {#if !team}
     <p class="empty card">{$t('meet.none')}</p>
   {:else}
-    <CadenceCard {team} {area} />
+    <!-- The organisation has no cadence or cycles of its own; its teams and areas have. -->
+    {#if !org}<CadenceCard {team} {area} />{/if}
     {#if costs && rate}
       <CostCard
         summary={costs}
@@ -514,13 +532,16 @@
 
       {#if team.events.length === 0 && area && !editing}
         <section class="area-empty" aria-labelledby="{uid}-area-empty">
-          <h3 id="{uid}-area-empty">{$t('area.empty.meetings.title')}</h3>
+          <h3 id="{uid}-area-empty">
+            {$t(org ? 'org.empty.meetings.title' : 'area.empty.meetings.title')}
+          </h3>
           <p>
             <Rich
-              key="area.empty.meetings.text"
+              key={org ? 'org.empty.meetings.text' : 'area.empty.meetings.text'}
               labels={{
                 participants: 'meet.participants',
                 fromTeams: 'area.participants.fromTeams',
+                fromAreas: 'org.participants.fromAreas',
               }}
             />
           </p>
@@ -831,7 +852,7 @@
         </p>
       {/if}
     </div>
-    <div data-no-present><CyclesCard {team} /></div>
+    {#if !org}<div data-no-present><CyclesCard {team} /></div>{/if}
   {/if}
 
   <div class="card" data-no-present>

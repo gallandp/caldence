@@ -3,8 +3,8 @@
   import { addAreaPerson } from '../../core/areaEdit';
   import { addItem, roleByName } from '../../core/edit';
   import { LIMITS } from '../../core/limits';
-  import type { Area } from '../../core/model';
-  import { translate as t } from '../../i18n';
+  import { ORG_UNIT, type Area } from '../../core/model';
+  import { areaText, levels, translate } from '../../i18n';
   import { PALETTE } from './ColourField.svelte';
   import FieldError from './FieldError.svelte';
   import { Problems } from '../state/problems.svelte';
@@ -12,6 +12,8 @@
 
   /** "+ Person" in the area node: a new or existing person with an area role and area hours. */
   let { area, onadded }: { area: Area; onadded: (personId: string) => void } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area.id));
 
   const uid = $props.id();
   const problems = new Problems(uid);
@@ -61,22 +63,22 @@
   function submit(event: Event) {
     event.preventDefault();
     const value = name.trim();
-    if (value === '') return fail('add', 'error.required', $t('area.add.person'));
+    if (value === '') return fail('add', 'error.required', tt('area.add.person'));
     const roleNew = newRole.trim();
     clear('role');
     if (roleChoice === NEW && roleNew === '')
-      return fail('role', 'error.required', $t('settings.roles.add'));
+      return fail('role', 'error.required', tt('settings.roles.add'));
     if (roleChoice === NEW && roleNew.length > LIMITS.textChars)
-      return fail('role', 'error.text.tooLong', $t('settings.roles.add'));
+      return fail('role', 'error.text.tooLong', tt('settings.roles.add'));
     // A blank field keeps the hours of someone already in the area (a new person: 0 h).
     const h = hours;
     if (h !== null && (!Number.isFinite(h) || h < 0))
-      return fail('add', 'error.number.invalid', $t('area.add.hours'));
+      return fail('add', 'error.number.invalid', tt('area.add.hours'));
     const known = $workspace.people.find(
       (p) => p.name.trim().toLowerCase() === value.toLowerCase(),
     );
     let added = known?.id;
-    const done = commit('add', $t('area.add.person'), (ws) => {
+    const done = commit('add', tt('area.add.person'), (ws) => {
       let next = ws;
       let id = known?.id;
       if (id === undefined) [next, id] = addItem(next, 'people', { name: value });
@@ -98,14 +100,14 @@
   aria-labelledby="{uid}-title"
   oncancel={(e) => (e.preventDefault(), close())}
 >
-  <h2 id="{uid}-title">{$t('area.add.title', { name: area.name })}</h2>
+  <h2 id="{uid}-title">{tt('area.add.title', { name: area.name })}</h2>
   <form onsubmit={submit}>
     <label>
-      {$t('area.add.person')}
+      {tt('area.add.person')}
       <input
         type="text"
         list="{uid}-people"
-        placeholder={$t('team.members.person.placeholder')}
+        placeholder={tt('team.members.person.placeholder')}
         bind:value={name}
         aria-invalid={errors.add ? true : undefined}
         aria-describedby={describe('add')}
@@ -115,19 +117,19 @@
       {#each $workspace.people as p (p.id)}<option value={p.name}></option>{/each}
     </datalist>
     <label>
-      {$t('area.card.role')}
+      {tt('area.card.role')}
       <select value={roleChoice} onchange={onRoleChoice}>
         {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
-        <option value={NEW}>{$t('area.role.new')}</option>
+        <option value={NEW}>{tt('area.role.new')}</option>
       </select>
     </label>
     {#if roleChoice === NEW}
       <label>
-        {$t('settings.roles.add')}
+        {tt('settings.roles.add')}
         <input
           type="text"
           data-new-role
-          placeholder={$t('area.role.placeholder')}
+          placeholder={tt('area.role.placeholder')}
           bind:value={newRole}
           aria-invalid={errors.role ? true : undefined}
           aria-describedby={describe('role')}
@@ -136,19 +138,22 @@
       <FieldError {problems} id="role" />
     {/if}
     <label>
-      {$t('area.add.hours')}
+      {tt('area.add.hours')}
       <input type="number" min="0" step="0.5" bind:value={hours} placeholder="0" />
     </label>
-    <p class="help">
-      {$t('area.structure.help', {
-        areaOnly: $t('area.group.areaOnly'),
-        both: $t('area.group.both'),
-      })}
-    </p>
+    <!-- The organisation's page lists its people in one group, so the groups need no word. -->
+    {#if area.id !== ORG_UNIT}
+      <p class="help">
+        {tt('area.structure.help', {
+          areaOnly: tt('area.group.areaOnly'),
+          both: tt('area.group.both'),
+        })}
+      </p>
+    {/if}
     <FieldError {problems} id="add" />
     <div class="actions">
-      <button type="submit">{$t('area.dialog.add')}</button>
-      <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
+      <button type="submit">{tt('area.dialog.add')}</button>
+      <button type="button" onclick={close}>{tt('dialog.cancel')}</button>
     </div>
   </form>
 </dialog>

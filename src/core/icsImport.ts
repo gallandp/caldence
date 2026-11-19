@@ -9,7 +9,8 @@ import {
   type ISODate,
   type Time,
 } from './date';
-import type { CalEvent, Rule, Team, Workspace } from './model';
+import { uidPart } from './ics';
+import { areaUnits, type CalEvent, type Rule, type Team, type Workspace } from './model';
 import type { Result } from './validate';
 import { utcToLocal } from './zone';
 
@@ -583,11 +584,11 @@ export function reviewImport(
       if (!bySignature.has(sig)) bySignature.set(sig, e.id);
     }
   }
-  // Meetings of an area are exported with the area's id: an exported area calendar imported back
-  // into one of the teams is already in Caldence (#253). A deleted area's UIDs match nothing,
+  // Meetings of an area (and the organisation, #328) are exported with its id: an exported area
+  // calendar imported back into one of the teams is already in Caldence (#253). A deleted area's UIDs match nothing,
   // like those of a deleted team.
-  for (const area of ws.areas)
-    for (const e of area.events) byUid.set(`${e.id}.${area.id}.${ws.id}`, e.id);
+  for (const area of areaUnits(ws))
+    for (const e of area.events) byUid.set([e.id, area.id, ws.id].map(uidPart).join('.'), e.id);
   const categoryByName = new Map<string, string>();
   for (const c of ws.categories)
     if (!categoryByName.has(nameKey(c.name))) categoryByName.set(nameKey(c.name), c.id);

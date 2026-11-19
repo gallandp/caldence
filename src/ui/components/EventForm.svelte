@@ -2,6 +2,8 @@
   import { onMount, tick, untrack } from 'svelte';
   import {
     holders,
+    ORG_UNIT,
+    unitName,
     type Area,
     type CalEvent,
     type Category,
@@ -9,7 +11,7 @@
     type Team,
   } from '../../core/model';
   import { areaHours } from '../../core/load';
-  import { translate as t } from '../../i18n';
+  import { areaText, levels, translate } from '../../i18n';
   import { upsertEvent } from '../../core/edit';
   import { validate } from '../../core/validate';
   import { effectScope, whatIfEffect } from '../../core/whatIf';
@@ -42,6 +44,10 @@
     /** Opens where a person's area hours are set. */
     onSetHours?: () => void;
   } = $props();
+  /** Area texts, worded for the organisation when it is the one shown (#328). */
+  const tt = $derived(areaText($translate, $levels, area?.id ?? ''));
+  /** A meeting of the organisation can also invite a role from every area (#328). */
+  const inOrg = $derived(area?.id === ORG_UNIT);
 
   const uid = $props.id();
   const id = (field: string) => `${uid}-${field.replace(/\./g, '-')}`;
@@ -58,7 +64,14 @@
     assumption: string;
     grid: number | null;
     /** `key` only tells the rows apart while editing; it is not saved. */
-    participants: { key: number; roleId: string; share: number | null; fromTeams: boolean }[];
+    participants: {
+      key: number;
+      roleId: string;
+      share: number | null;
+      fromTeams: boolean;
+      /** Only in the organisation (#328): the role from every area. */
+      fromAreas: boolean;
+    }[];
     /** People invited by name (#285), saved after the roles. */
     people: { key: number; personId: string; share: number | null }[];
     /** Percent, 0 to 100. */
@@ -92,7 +105,15 @@
       grid: s?.grid ?? 5,
       participants: e.participants.flatMap((p) =>
         p.roleId !== undefined
-          ? [{ key: nextKey++, roleId: p.roleId, share: p.share, fromTeams: !!p.fromTeams }]
+          ? [
+              {
+                key: nextKey++,
+                roleId: p.roleId,
+                share: p.share,
+                fromTeams: !!p.fromTeams,
+                fromAreas: !!p.fromAreas,
+              },
+            ]
           : [],
       ),
       people: e.participants.flatMap((p) =>
@@ -108,8 +129,8 @@
   let draft = $state<Draft>(untrack(() => init(event)));
   const heading = $derived(
     untrack(() => event.id) === ''
-      ? $t('meet.form.new')
-      : $t('meet.form.edit', { name: untrack(() => event.name) }),
+      ? tt('meet.form.new')
+      : tt('meet.form.edit', { name: untrack(() => event.name) }),
   );
   let errors = $state<Record<string, string>>({});
   let form: HTMLFormElement | undefined;
@@ -149,6 +170,7 @@
           roleId: p.roleId,
           share: 1,
           fromTeams: p.fromTeams,
+          fromAreas: p.fromAreas,
         }).includes(personId),
       )
       .map((p) => roleName(p.roleId));
@@ -202,6 +224,7 @@
       share: 1,
       // In an area, a role nobody holds there is most likely meant from the teams.
       fromTeams: !!area && !area.members.some((m) => m.roleId === free.id),
+      fromAreas: false,
     });
     clearParticipantErrors();
     await tick();
@@ -267,11 +290,12 @@
       time: d.time.trim(),
       duration: n(d.duration),
       participants: [
-        ...d.participants.map((p) =>
-          area && p.fromTeams
-            ? { roleId: p.roleId, share: n(p.share), fromTeams: true }
-            : { roleId: p.roleId, share: n(p.share) },
-        ),
+        ...d.participants.map((p) => ({
+          roleId: p.roleId,
+          share: n(p.share),
+          ...(area && p.fromTeams ? { fromTeams: true } : {}),
+          ...(inOrg && p.fromAreas ? { fromAreas: true } : {}),
+        })),
         ...d.people.map((p) => ({ personId: p.personId, share: n(p.share) })),
       ],
       preparation: Number.isNaN(n(d.preparation))
@@ -312,11 +336,7 @@
     const a = whatIfEffect(drafted, $index, team.id);
     return b && a ? { name: team.name, before: b, after: a } : undefined;
   });
-  const scopeName = $derived(
-    $workspace.areas.find((a) => a.id === scope)?.name ??
-      $workspace.teams.find((x) => x.id === scope)?.name ??
-      '',
-  );
+  const scopeName = $derived(unitName($workspace, scope, $levels.org));
 
   async function submit(e: Event) {
     e.preventDefault();
@@ -355,7 +375,7 @@
 
 {#snippet err(field: string, label: string)}
   {#if errors[field]}
-    <p class="field-error" id="{id(field)}-err">{$t(errors[field]!, { path: label })}</p>
+    <p class="field-error" id="{id(field)}-err">{tt(errors[field]!, { path: label })}</p>
   {/if}
 {/snippet}
 
@@ -364,11 +384,11 @@
   <h3 id="{uid}-h">{heading}</h3>
   <form bind:this={form} novalidate onsubmit={submit} oninput={onEdit} onchange={onChange}>
     {#if errors['']}
-      <p class="field-error" role="alert" tabindex="-1">{$t(errors[''], { path: heading })}</p>
+      <p class="field-error" role="alert" tabindex="-1">{tt(errors[''], { path: heading })}</p>
     {/if}
     <div class="row">
       <div class="field grow">
-        <label for={id('name')}>{$t('meet.name')}</label>
+        <label for={id('name')}>{tt('meet.name')}</label>
         <input
           id={id('name')}
           type="text"
@@ -378,10 +398,10 @@
           aria-invalid={invalid('name')}
           aria-describedby={describe('name')}
         />
-        {@render err('name', $t('meet.name'))}
+        {@render err('name', tt('meet.name'))}
       </div>
       <div class="field">
-        <label for={id('categoryId')}>{$t('meet.category')}</label>
+        <label for={id('categoryId')}>{tt('meet.category')}</label>
         <select
           id={id('categoryId')}
           data-field="categoryId"
@@ -393,13 +413,13 @@
             <option value={c.id}>{c.name}</option>
           {/each}
         </select>
-        {@render err('categoryId', $t('meet.category'))}
+        {@render err('categoryId', tt('meet.category'))}
       </div>
     </div>
 
     <div class="row">
       <div class="field">
-        <label for={id('rule.type')}>{$t('meet.ruletype')}</label>
+        <label for={id('rule.type')}>{tt('meet.ruletype')}</label>
         <select
           id={id('rule.type')}
           data-field="rule.type"
@@ -408,17 +428,17 @@
           aria-describedby={describe('rule.type')}
         >
           {#each ruleTypes as r (r)}
-            <option value={r}>{$t(`meet.ruletype.${r}`)}</option>
+            <option value={r}>{tt(`meet.ruletype.${r}`)}</option>
           {/each}
         </select>
-        {@render err('rule.type', $t('meet.ruletype'))}
+        {@render err('rule.type', tt('meet.ruletype'))}
       </div>
       <RuleFields bind:draft={draft.rule} {team} {errors} idPrefix={uid} />
     </div>
 
     <div class="row">
       <div class="field">
-        <label for={id('time')}>{$t('meet.time')}</label>
+        <label for={id('time')}>{tt('meet.time')}</label>
         <input
           id={id('time')}
           type="text"
@@ -429,10 +449,10 @@
           aria-invalid={invalid('time')}
           aria-describedby={describe('time')}
         />
-        {@render err('time', $t('meet.time'))}
+        {@render err('time', tt('meet.time'))}
       </div>
       <div class="field">
-        <label for={id('duration')}>{$t('meet.duration')}</label>
+        <label for={id('duration')}>{tt('meet.duration')}</label>
         <input
           id={id('duration')}
           type="number"
@@ -443,10 +463,10 @@
           aria-invalid={invalid('duration')}
           aria-describedby={describe('duration')}
         />
-        {@render err('duration', $t('meet.duration'))}
+        {@render err('duration', tt('meet.duration'))}
       </div>
       <div class="field">
-        <label for={id('preparation')}>{$t('meet.prep')}</label>
+        <label for={id('preparation')}>{tt('meet.prep')}</label>
         <input
           id={id('preparation')}
           type="number"
@@ -458,32 +478,32 @@
           aria-invalid={invalid('preparation')}
           aria-describedby={describe('preparation', `${id('preparation')}-hint`)}
         />
-        <p class="hint" id="{id('preparation')}-hint">{$t('meet.prep.hint')}</p>
-        {@render err('preparation', $t('meet.prep'))}
+        <p class="hint" id="{id('preparation')}-hint">{tt('meet.prep.hint')}</p>
+        {@render err('preparation', tt('meet.prep'))}
       </div>
     </div>
 
     <div class="row">
       <div class="field">
-        <span class="label" id={id('place')}>{$t('meet.place')}</span>
+        <span class="label" id={id('place')}>{tt('meet.place')}</span>
         <div class="segmented" role="group" aria-labelledby={id('place')}>
           <button
             type="button"
             data-field="place.remote"
             aria-pressed={!draft.onSite}
-            onclick={() => (draft.onSite = false)}>{$t('meet.place.remote')}</button
+            onclick={() => (draft.onSite = false)}>{tt('meet.place.remote')}</button
           >
           <button
             type="button"
             data-field="place.onSite"
             aria-pressed={draft.onSite}
-            onclick={() => (draft.onSite = true)}>{$t('meet.place.onSite')}</button
+            onclick={() => (draft.onSite = true)}>{tt('meet.place.onSite')}</button
           >
         </div>
       </div>
       {#if draft.onSite}
         <div class="field">
-          <label for={id('onSite.travel')}>{$t('meet.travel')}</label>
+          <label for={id('onSite.travel')}>{tt('meet.travel')}</label>
           <input
             id={id('onSite.travel')}
             type="number"
@@ -494,23 +514,23 @@
             aria-invalid={invalid('onSite.travel')}
             aria-describedby={describe('onSite.travel', `${id('onSite.travel')}-hint`)}
           />
-          <p class="hint" id="{id('onSite.travel')}-hint">{$t('meet.travel.hint')}</p>
-          {@render err('onSite.travel', $t('meet.travel'))}
+          <p class="hint" id="{id('onSite.travel')}-hint">{tt('meet.travel.hint')}</p>
+          {@render err('onSite.travel', tt('meet.travel'))}
         </div>
       {/if}
     </div>
 
     <!-- Areas have no assumptions to scale by. -->
     <fieldset hidden={!!area && !draft.scaled}>
-      <legend>{$t('meet.scaling')}</legend>
+      <legend>{tt('meet.scaling')}</legend>
       <label class="check">
         <input type="checkbox" data-field="scaling" bind:checked={draft.scaled} />
-        <span>{$t('meet.scaling.enable')}</span>
+        <span>{tt('meet.scaling.enable')}</span>
       </label>
       {#if draft.scaled}
         <div class="row">
           <div class="field">
-            <label for={id('scaling.base')}>{$t('meet.scaling.base')}</label>
+            <label for={id('scaling.base')}>{tt('meet.scaling.base')}</label>
             <input
               id={id('scaling.base')}
               type="number"
@@ -521,10 +541,10 @@
               aria-invalid={invalid('scaling.base')}
               aria-describedby={describe('scaling.base')}
             />
-            {@render err('scaling.base', $t('meet.scaling.base'))}
+            {@render err('scaling.base', tt('meet.scaling.base'))}
           </div>
           <div class="field">
-            <label for={id('scaling.perUnit')}>{$t('meet.scaling.perUnit')}</label>
+            <label for={id('scaling.perUnit')}>{tt('meet.scaling.perUnit')}</label>
             <input
               id={id('scaling.perUnit')}
               type="number"
@@ -535,10 +555,10 @@
               aria-invalid={invalid('scaling.perUnit')}
               aria-describedby={describe('scaling.perUnit')}
             />
-            {@render err('scaling.perUnit', $t('meet.scaling.perUnit'))}
+            {@render err('scaling.perUnit', tt('meet.scaling.perUnit'))}
           </div>
           <div class="field">
-            <label for={id('scaling.assumption')}>{$t('meet.scaling.assumption')}</label>
+            <label for={id('scaling.assumption')}>{tt('meet.scaling.assumption')}</label>
             <select
               id={id('scaling.assumption')}
               data-field="scaling.assumption"
@@ -550,19 +570,19 @@
               )}
             >
               {#if assumptionKeys.length === 0 || staleAssumption}<option value=""
-                  >{$t('meet.option.none')}</option
+                  >{tt('meet.option.none')}</option
                 >{/if}
               {#each assumptionKeys as k (k)}
                 <option value={k}>{k}</option>
               {/each}
             </select>
             {#if assumptionKeys.length === 0}
-              <p class="hint" id="{id('scaling.assumption')}-hint">{$t('meet.scaling.none')}</p>
+              <p class="hint" id="{id('scaling.assumption')}-hint">{tt('meet.scaling.none')}</p>
             {/if}
-            {@render err('scaling.assumption', $t('meet.scaling.assumption'))}
+            {@render err('scaling.assumption', tt('meet.scaling.assumption'))}
           </div>
           <div class="field">
-            <label for={id('scaling.grid')}>{$t('meet.scaling.grid')}</label>
+            <label for={id('scaling.grid')}>{tt('meet.scaling.grid')}</label>
             <input
               id={id('scaling.grid')}
               type="number"
@@ -573,29 +593,31 @@
               aria-invalid={invalid('scaling.grid')}
               aria-describedby={describe('scaling.grid')}
             />
-            {@render err('scaling.grid', $t('meet.scaling.grid'))}
+            {@render err('scaling.grid', tt('meet.scaling.grid'))}
           </div>
         </div>
       {/if}
     </fieldset>
 
     <fieldset>
-      <legend>{$t('meet.participants')}</legend>
+      <legend>{tt('meet.participants')}</legend>
       <p class="hint" id="{uid}-share-hint">
-        {$t('meet.participants.hint')}{#if area}. {$t('area.participants.hint')}{/if}
+        {tt('meet.participants.hint')}{#if inOrg}. {tt('org.participants.hint')}{:else if area}. {tt(
+            'area.participants.hint',
+          )}{/if}
       </p>
       {#if roles.length === 0}
-        <p class="hint">{$t('meet.participants.noroles')}</p>
+        <p class="hint">{tt('meet.participants.noroles')}</p>
       {:else if draft.participants.length === 0}
-        <p class="hint">{$t('meet.participants.empty')}</p>
+        <p class="hint">{tt('meet.participants.empty')}</p>
       {/if}
       {#if draft.participants.length > 0}
         <!-- Column heads once; every field is named by its own aria-label. -->
         <div class="parts-wrap" class:in-area={!!area}>
           <div class="part-grid part-heads" aria-hidden="true">
-            <span>{$t('meet.participants.role')}</span>{#if area}<span
-                >{$t('area.participants.who')}</span
-              >{/if}<span>{$t('meet.participants.share')}</span>
+            <span>{tt('meet.participants.role')}</span>{#if area}<span
+                >{tt('area.participants.who')}</span
+              >{/if}<span>{tt('meet.participants.share')}</span>
           </div>
           <ul class="parts" bind:this={partsList}>
             {#each draft.participants as p, i (p.key)}
@@ -605,7 +627,7 @@
                     id={id(`participants.${i}.roleId`)}
                     data-field="participants.{i}.roleId"
                     bind:value={p.roleId}
-                    aria-label={$t('meet.participants.role')}
+                    aria-label={tt('meet.participants.role')}
                     aria-invalid={invalid(`participants.${i}.roleId`)}
                     aria-describedby={describe(`participants.${i}.roleId`)}
                   >
@@ -617,18 +639,24 @@
                 {#if area}
                   <div class="field who">
                     <select
-                      class:from-teams={p.fromTeams}
+                      class:from-teams={p.fromTeams || p.fromAreas}
                       data-field="participants.{i}.fromTeams"
-                      value={p.fromTeams ? 'teams' : 'area'}
-                      onchange={(e) => (p.fromTeams = e.currentTarget.value === 'teams')}
-                      aria-label={$t('area.participants.whoOf', { role: roleName(p.roleId) })}
+                      value={p.fromAreas ? 'areas' : p.fromTeams ? 'teams' : 'area'}
+                      onchange={(e) => {
+                        p.fromTeams = e.currentTarget.value === 'teams';
+                        p.fromAreas = e.currentTarget.value === 'areas';
+                      }}
+                      aria-label={tt('area.participants.whoOf', { role: roleName(p.roleId) })}
                     >
-                      <option value="area">{$t('area.participants.inArea')}</option>
-                      <option value="teams">{$t('area.participants.fromTeams')}</option>
+                      <option value="area">{tt('area.participants.inArea')}</option>
+                      {#if inOrg}
+                        <option value="areas">{tt('org.participants.fromAreas')}</option>
+                      {/if}
+                      <option value="teams">{tt('area.participants.fromTeams')}</option>
                     </select>
                   </div>
                 {/if}
-                <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
+                <span class="share-label" aria-hidden="true">{tt('meet.participants.share')}</span>
                 <div class="field share">
                   <input
                     id={id(`participants.${i}.share`)}
@@ -638,7 +666,7 @@
                     step="0.05"
                     data-field="participants.{i}.share"
                     bind:value={p.share}
-                    aria-label={$t('meet.participants.shareOf', { role: roleName(p.roleId) })}
+                    aria-label={tt('meet.participants.shareOf', { role: roleName(p.roleId) })}
                     aria-invalid={invalid(`participants.${i}.share`)}
                     aria-describedby={describe(`participants.${i}.share`, `${uid}-share-hint`)}
                   />
@@ -646,7 +674,7 @@
                 <button
                   type="button"
                   class="icon-button remove"
-                  aria-label={$t('meet.participants.remove', { role: roleName(p.roleId) })}
+                  aria-label={tt('meet.participants.remove', { role: roleName(p.roleId) })}
                   onclick={() => removeParticipant(i)}
                   ><svg viewBox="0 0 24 24" aria-hidden="true"
                     ><path d="M6 6l12 12M18 6L6 18" /></svg
@@ -656,12 +684,14 @@
                 {@render err(`participants.${i}.roleId`, roleName(p.roleId))}
                 {@render err(`participants.${i}.share`, roleName(p.roleId))}
                 {@render err(`participants.${i}.fromTeams`, roleName(p.roleId))}
+                {@render err(`participants.${i}.fromAreas`, roleName(p.roleId))}
                 {#if area}
                   <ParticipantReach
                     ws={$workspace}
                     {area}
                     roleId={p.roleId}
                     fromTeams={p.fromTeams}
+                    fromAreas={p.fromAreas}
                     named={namedIds}
                     {onSetHours}
                   />
@@ -677,22 +707,22 @@
         bind:this={addButton}
         disabled={roles.length === 0 || draft.participants.length >= roles.length}
         onclick={addParticipant}
-        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
+        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{tt(
           'meet.participants.add',
         )}</button
       >
     </fieldset>
 
     <fieldset class="people">
-      <legend>{$t('meet.people')}</legend>
-      <p class="hint" id="{uid}-people-hint">{$t('meet.people.hint')}</p>
+      <legend>{tt('meet.people')}</legend>
+      <p class="hint" id="{uid}-people-hint">{tt('meet.people.hint')}</p>
       {#if $workspace.people.length === 0}
-        <p class="hint">{$t('meet.people.none')}</p>
+        <p class="hint">{tt('meet.people.none')}</p>
       {/if}
       {#if draft.people.length > 0}
         <div class="parts-wrap">
           <div class="part-grid part-heads" aria-hidden="true">
-            <span>{$t('meet.people.person')}</span><span>{$t('meet.participants.share')}</span>
+            <span>{tt('meet.people.person')}</span><span>{tt('meet.participants.share')}</span>
           </div>
           <ul class="parts" bind:this={peopleList}>
             {#each draft.people as p, i (p.key)}
@@ -703,7 +733,7 @@
                     id={id(`people.${i}.personId`)}
                     data-field="people.{i}.personId"
                     bind:value={p.personId}
-                    aria-label={$t('meet.people.person')}
+                    aria-label={tt('meet.people.person')}
                     aria-invalid={invalid(`people.${i}.personId`)}
                     aria-describedby={describe(
                       `people.${i}.personId`,
@@ -713,14 +743,14 @@
                     )}
                   >
                     {#if herePeople.length > 0}
-                      <optgroup label={$t('meet.people.here', { unit: team.name })}>
+                      <optgroup label={tt('meet.people.here', { unit: team.name })}>
                         {#each herePeople as x (x.id)}
                           <option value={x.id}>{x.name}</option>
                         {/each}
                       </optgroup>
                     {/if}
                     {#if otherPeople.length > 0}
-                      <optgroup label={$t('meet.people.others')}>
+                      <optgroup label={tt('meet.people.others')}>
                         {#each otherPeople as x (x.id)}
                           <option value={x.id}>{x.name}</option>
                         {/each}
@@ -728,7 +758,7 @@
                     {/if}
                   </select>
                 </div>
-                <span class="share-label" aria-hidden="true">{$t('meet.participants.share')}</span>
+                <span class="share-label" aria-hidden="true">{tt('meet.participants.share')}</span>
                 <div class="field share">
                   <input
                     id={id(`people.${i}.share`)}
@@ -738,7 +768,7 @@
                     step="0.05"
                     data-field="people.{i}.share"
                     bind:value={p.share}
-                    aria-label={$t('meet.participants.shareOf', { role: personName(p.personId) })}
+                    aria-label={tt('meet.participants.shareOf', { role: personName(p.personId) })}
                     aria-invalid={invalid(`people.${i}.share`)}
                     aria-describedby={describe(`people.${i}.share`, `${uid}-share-hint`)}
                   />
@@ -746,7 +776,7 @@
                 <button
                   type="button"
                   class="icon-button remove"
-                  aria-label={$t('meet.people.remove', { name: personName(p.personId) })}
+                  aria-label={tt('meet.people.remove', { name: personName(p.personId) })}
                   onclick={() => removePerson(i)}
                   ><svg viewBox="0 0 24 24" aria-hidden="true"
                     ><path d="M6 6l12 12M18 6L6 18" /></svg
@@ -756,16 +786,16 @@
                 {@render err(`people.${i}.share`, personName(p.personId))}
                 {#if also.length > 0}
                   <p class="also" id="{uid}-also-{p.key}">
-                    {$t('meet.people.alsoRole', { role: also.join(', ') })}
+                    {tt('meet.people.alsoRole', { role: also.join(', ') })}
                   </p>
                 {/if}
                 <!-- Area time without hours there counts as over the limit, as for "from every team". -->
                 {#if area && areaHours($workspace, area.id, p.personId) === 0}
                   <p class="also no-hours" role="note">
-                    {$t('area.participants.noHours.one', { names: personName(p.personId) })}
+                    {tt('area.participants.noHours.one', { names: personName(p.personId) })}
                     {#if onSetHours}
                       <button type="button" class="link" onclick={onSetHours}
-                        >{$t('area.participants.setHours')}</button
+                        >{tt('area.participants.setHours')}</button
                       >
                     {/if}
                   </p>
@@ -785,7 +815,7 @@
           ><circle cx="10" cy="8" r="3.5" /><path
             d="M3.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"
           /></svg
-        >{$t('meet.people.add')}</button
+        >{tt('meet.people.add')}</button
       >
     </fieldset>
 
@@ -798,14 +828,14 @@
           team={own}
           compact
           live={false}
-          error={after ? undefined : $t('meet.effect.invalid')}
+          error={after ? undefined : tt('meet.effect.invalid')}
         />
       </div>
     {/if}
 
     <div class="actions">
-      <button type="submit" class="primary">{$t('meet.save')}</button>
-      <button type="button" onclick={cancel}>{$t('meet.cancel')}</button>
+      <button type="submit" class="primary">{tt('meet.save')}</button>
+      <button type="button" onclick={cancel}>{tt('meet.cancel')}</button>
     </div>
   </form>
 </section>
