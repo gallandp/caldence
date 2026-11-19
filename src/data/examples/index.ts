@@ -30,3 +30,14 @@ export function exampleWorkspace(locale?: string): Workspace {
   }
   return ws;
 }
+
+/**
+ * A fresh copy of the large line organisation example (#323) in the UI language, with a new id.
+ * Loaded on demand: the generator stays out of the start bundle.
+ */
+export async function lineExample(locale?: string): Promise<Workspace> {
+  const { lineExampleWorkspace } = await import('./line-example');
+  const result = loadWorkspace(JSON.stringify(lineExampleWorkspace(locale === 'en' ? 'en' : 'de')));
+  if (!result.ok) throw new Error('invalid line example workspace');
+  return { ...result.value, id: randomId() };
+}

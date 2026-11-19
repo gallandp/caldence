@@ -103,6 +103,8 @@
   "start.or": "Oder",
   "start.file.hint": "Eine gespeicherte Planung weiterbearbeiten",
   "start.example.hint": "Ein fertiges Beispiel mit mehreren Teams ansehen",
+  "start.lineExample": "Großes Beispiel mit Linie öffnen",
+  "start.lineExample.hint": "Eine erfundene Gruppe mit 61 Produkten, rund 500 Personen in der Linie, Skills und Besetzung",
   "start.private": "Alles bleibt in Ihrem Browser.",
   "setup.open": "Neu planen",
   "setup.title": "Neu planen",
