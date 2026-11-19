@@ -130,6 +130,27 @@ export function skillUsage(ws: Workspace, skillId: string): { people: number; de
 }
 
 /**
+ * What deleting a skill family touches (#389): its skills, the people who hold one of them, the
+ * demands that ask for one, and the platforms and line units that name the family.
+ */
+export function familyUsage(
+  ws: Workspace,
+  familyId: string,
+): { skills: number; people: number; demands: number; areas: number; lineUnits: number } {
+  const ids = new Set((ws.skills ?? []).filter((s) => s.familyId === familyId).map((s) => s.id));
+  return {
+    skills: ids.size,
+    people: ws.people.filter((p) => p.skillIds?.some((id) => ids.has(id))).length,
+    demands: ws.teams.reduce(
+      (n, t) => n + (t.demands ?? []).filter((d) => d.skillId && ids.has(d.skillId)).length,
+      0,
+    ),
+    areas: ws.areas.filter((a) => a.skillFamilyId === familyId).length,
+    lineUnits: (ws.lineUnits ?? []).filter((u) => u.skillFamilyId === familyId).length,
+  };
+}
+
+/**
  * Merges skill `fromId` into `intoId`: people and demands with the first get the second (once),
  * and the first is deleted. For two names of the same thing ("JS" and "JavaScript").
  */
