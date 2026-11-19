@@ -127,6 +127,11 @@
 {/if}
 
 <style>
+  /* Scrolled into view below the sticky "back to the overview" button (top 0.75rem, 2.75rem
+     high in Shell.svelte), so the heading is not hidden behind it (#302). */
+  .week-focus {
+    scroll-margin-top: 4.25rem;
+  }
   .head {
     display: flex;
     flex-wrap: wrap;
