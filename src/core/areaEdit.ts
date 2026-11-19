@@ -1,4 +1,4 @@
-import type { Area, Workspace } from './model';
+import type { Area, RoleLink, Workspace } from './model';
 import { record } from './record';
 import { validate, type Result } from './validate';
 
@@ -73,5 +73,36 @@ export function removeFromArea(ws: Workspace, areaId: string, personId: string):
   return mapArea(ws, areaId, (a) => {
     a.members = a.members.filter((m) => m.personId !== personId);
     withHours(a, personId, null);
+  });
+}
+
+/** The roles a team stands for: those its members hold and those its own meetings invite. */
+export function teamRoleIds(ws: Workspace, teamId: string): string[] {
+  const team = ws.teams.find((t) => t.id === teamId);
+  if (!team) return [];
+  const used = new Set([
+    ...team.members.map((m) => m.roleId),
+    ...team.events.flatMap((e) => e.participants.flatMap((p) => p.roleId ?? [])),
+  ]);
+  return ws.roles.flatMap((r) => (used.has(r.id) ? [r.id] : []));
+}
+
+/**
+ * The roles the area invites "from every team" that a team does not have, in meeting order,
+ * e.g. SAFe's "Agile Team" in a Scrum team (#338). Each can be linked to one of the team's roles.
+ */
+export function unmatchedRoles(ws: Workspace, area: Area, teamId: string): string[] {
+  const own = new Set(teamRoleIds(ws, teamId));
+  const invited = area.events.flatMap((e) =>
+    e.participants.flatMap((p) => (p.fromTeams && p.roleId !== undefined ? [p.roleId] : [])),
+  );
+  return [...new Set(invited)].filter((id) => !own.has(id));
+}
+
+/** Replaces the area's role links (#338); an empty list removes them. */
+export function setRoleLinks(ws: Workspace, areaId: string, links: RoleLink[]): Result<Workspace> {
+  return mapArea(ws, areaId, (a) => {
+    if (links.length > 0) a.roleLinks = structuredClone(links);
+    else delete a.roleLinks;
   });
 }

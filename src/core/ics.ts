@@ -8,6 +8,7 @@ import {
   type Rule,
   type Team,
   type Workspace,
+  invitesRole,
 } from './model';
 import { occurrences, type Occurrence } from './recurrence';
 import type { HolidayIndex, HolidayName } from './regions';
@@ -201,7 +202,10 @@ function eventsInScope(ws: Workspace, team: Team, scope: Filter): CalEvent[] {
     return team.events.filter((e) => eventAttendees(ws, team.id, e).includes(personId));
   }
   if (scope.roleId) {
-    return team.events.filter((e) => e.participants.some((p) => p.roleId === scope.roleId));
+    const roleId = scope.roleId;
+    return team.events.filter((e) =>
+      e.participants.some((p) => invitesRole(ws, team.id, p, roleId)),
+    );
   }
   return team.events;
 }

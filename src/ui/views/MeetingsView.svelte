@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
+  import { areaShare } from '../../core/areaCosts';
   import { costPerCadence, meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import { areaAsTeam, participantName, type CalEvent } from '../../core/model';
@@ -162,6 +163,8 @@
   const rate = $derived($workspace.settings.hourlyRate);
   // Only this page's meetings: for an area its own, not those of its teams.
   const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
+  /** What its people also spend in the area's meetings (#336); none for an area or lone team. */
+  const share = $derived(team ? areaShare($workspace, $index, team.id, rate) : undefined);
   const euro = (n: number) => formatEuro($locale, n);
   /** The Takt's short name for "Ø … / Sprint" (#279). */
   const kind = $derived(team ? $t(`meet.kind.${team.cadence.kind}`) : '');
@@ -378,7 +381,13 @@
   {:else}
     <CadenceCard {team} {area} />
     {#if costs && rate}
-      <CostCard summary={costs} {rate} cadence={team?.cadence} />
+      <CostCard
+        summary={costs}
+        {rate}
+        cadence={team?.cadence}
+        areaShare={share}
+        unitName={team?.name}
+      />
     {:else if !rate && team.events.length > 0}
       <RateInvite />
     {/if}
