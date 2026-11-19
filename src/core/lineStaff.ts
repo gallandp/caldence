@@ -10,6 +10,7 @@ import {
 } from './lineLevels';
 import { capacity, warnings, type WeekLoad } from './load';
 import {
+  ORG_UNIT,
   linePeople,
   lineSubtree,
   type LineKind,
@@ -159,6 +160,8 @@ export function unitStats(rows: StaffRow[]): UnitStats {
 
 /** The direct sub-units of a line unit, or the top units for none. */
 export function childUnits(ws: Workspace, parentId?: string): LineUnit[] {
+  // The organisation is the root of the line (#395): its children are the top units.
+  if (parentId === ORG_UNIT) parentId = undefined;
   return (ws.lineUnits ?? []).filter((u) => u.parentId === parentId);
 }
 
@@ -170,7 +173,8 @@ export const isLineGroup = (ws: Workspace, unitId: string): boolean =>
  * The level of a line unit (#399): the one chosen for it, else derived as before (a unit with
  * units below it is a group, one without a team).
  */
-export function lineKind(ws: Workspace, unitId: string): LineKind {
+export function lineKind(ws: Workspace, unitId: string): LineKind | 'org' {
+  if (unitId === ORG_UNIT) return 'org';
   const unit = ws.lineUnits?.find((u) => u.id === unitId);
   if (unit?.kind !== undefined) return unit.kind;
   return isLineGroup(ws, unitId) ? groupLineLevel(ws.settings) : leafLineLevel(ws.settings);
@@ -206,7 +210,7 @@ export function lineTree(ws: Workspace): { unit: LineUnit; depth: number }[] {
 
 /**
  * Units a unit may move under: not itself or its subtree, not a unit on the lowest level, the tree
- * stays within the file's number of levels, and with `kind` the parent's level is above it (#408).
+ * stays within the file's number of levels, and with `kind` the parent's level is not below it (#408).
  */
 export function parentChoices(
   ws: Workspace,
@@ -235,6 +239,6 @@ export function parentChoices(
       u.kind !== lowest &&
       !own.has(u.id) &&
       depthOf(u.id) + needs <= maxLevels &&
-      (below < 0 || levelOf(u) < below),
+      (below < 0 || levelOf(u) <= below),
   );
 }

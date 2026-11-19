@@ -318,20 +318,37 @@
     l.name ?? settings.lineLevelNames?.[l.id as 'group' | 'team' | 'company'] ?? '';
   function setLines(next: LineLevel[]): boolean {
     const result = workspace.apply((ws) => setLineLevels(ws, next));
-    lineError = result.ok ? '' : (result.errors[0]?.key ?? 'error.type');
+    const first = result.ok ? undefined : result.errors[0];
+    // A rule about the units (order, depth) is named as a conflict with the line, not by its path.
+    lineError = !first
+      ? ''
+      : first.path.startsWith('lineUnits')
+        ? 'settings.lineLevels.conflict'
+        : first.key;
     return result.ok;
   }
   const withNames = () => lineList.map((l) => ({ ...l, name: lineName(l) || undefined }));
   function onLineName(i: number, event: Event) {
     const next = withNames();
-    next[i] = { ...next[i]!, name: (event.currentTarget as HTMLInputElement).value.trim() };
-    setLines(next);
+    const input = event.currentTarget as HTMLInputElement;
+    next[i] = { ...next[i]!, name: input.value.trim() };
+    // Refused (an own level without a name): the field shows the stored name again.
+    if (!setLines(next)) input.value = lineName(lineList[i]!);
   }
   function moveLine(i: number, by: -1 | 1) {
     const next = withNames();
     const [l] = next.splice(i, 1);
     next.splice(i + by, 0, l!);
-    if (setLines(next)) tick().then(() => lineInputs[i + by]?.focus());
+    const id = l!.id;
+    const same = by < 0 ? 'up' : 'down';
+    const other = by < 0 ? 'down' : 'up';
+    // Focus stays on the arrow, so the level can be moved again; at the end on the other one.
+    if (setLines(next))
+      tick().then(() => {
+        const at = (dir: string) =>
+          document.querySelector<HTMLButtonElement>(`[data-move="${id}:${dir}"]:not(:disabled)`);
+        (at(same) ?? at(other))?.focus();
+      });
   }
   function removeLine(i: number) {
     const next = withNames();
@@ -722,6 +739,7 @@
                 <div class="level-actions">
                   <button
                     type="button"
+                    data-move="{level.id}:up"
                     aria-label={$t('settings.lineLevels.up', {
                       name: lineLevelWord($levelStore, level.id),
                     })}
@@ -730,6 +748,7 @@
                   >
                   <button
                     type="button"
+                    data-move="{level.id}:down"
                     aria-label={$t('settings.lineLevels.down', {
                       name: lineLevelWord($levelStore, level.id),
                     })}

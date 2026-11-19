@@ -1,7 +1,7 @@
 import type { Cell, Sheet } from './xlsx';
 import type { LineUnit, Person, Workspace } from './model';
 import { LIMITS } from './limits';
-import { lineLevels, lowestLineLevel } from './lineLevels';
+import { groupLineLevel, lineLevels, lowestLineLevel } from './lineLevels';
 
 /**
  * Staff import for the line organisation (#330): people with line team, contract FTE, skills and,
@@ -273,6 +273,10 @@ export function reviewStaff(
   // The file's levels (#408): how deep the tree may go and which level takes no units below it.
   const maxLevels = lineLevels(out.settings).length;
   const lowest = lowestLineLevel(out.settings);
+  // With own levels every unit stores its level: new groups the group level, new teams the lowest.
+  const own = out.settings.lineLevels !== undefined;
+  const groupKind = own ? { kind: groupLineLevel(out.settings) } : {};
+  const teamKind = own ? { kind: lowest } : {};
   const unitById = new Map(units.map((u) => [u.id, u] as const));
   const depth = (u: LineUnit): number => {
     let d = 1;
@@ -418,13 +422,13 @@ export function reviewStaff(
       }
       if (!unit) {
         if (!group) {
-          group = { id: newUnit(), name: row.group };
+          group = { id: newUnit(), name: row.group, ...groupKind };
           units.push(group);
           unitById.set(group.id, group);
           created.units.push(group.name);
           res.notes.push({ key: 'newGroup', name: group.name });
         }
-        unit = { id: newUnit(), name: row.team, parentId: group.id };
+        unit = { id: newUnit(), name: row.team, parentId: group.id, ...teamKind };
         parents.add(group.id);
         units.push(unit);
         unitById.set(unit.id, unit);

@@ -139,7 +139,12 @@ export function levelParams(w: LevelWords): Record<string, string> {
   };
 }
 
-/** The word for a line unit's level (#399, #408), by the level's id. */
+/**
+ * The word for a line unit's level (#399, #408), by the level's id; the organisation is the root of
+ * the line (#395).
+ */
 export const lineLevelWord = (w: LevelWords, kind: string): string =>
-  w.lineLevels.find((l) => l.id === kind)?.word ??
-  (kind === 'company' ? w.lineCompany : kind === 'group' ? w.lineGroup : w.lineTeam);
+  kind === 'org'
+    ? w.org
+    : (w.lineLevels.find((l) => l.id === kind)?.word ??
+      (kind === 'company' ? w.lineCompany : kind === 'group' ? w.lineGroup : w.lineTeam));

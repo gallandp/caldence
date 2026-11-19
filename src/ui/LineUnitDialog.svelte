@@ -1,7 +1,12 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { addLineUnit, updateLineUnit } from '../core/lineEdit';
-  import { isCompanyLevel, leafLineLevel, lineLevelIndex } from '../core/lineLevels';
+  import {
+    groupLineLevel,
+    isCompanyLevel,
+    lineLevelIndex,
+    lowestLineLevel,
+  } from '../core/lineLevels';
   import { lineKind, lineTree, parentChoices } from '../core/lineStaff';
   import { lineSelection, type LineKind, type LineUnit } from '../core/model';
   import { levels, translate as t } from '../i18n';
@@ -21,15 +26,27 @@
   let parentId = $state('');
   let kind = $state<LineKind>('team');
   /** The level as shown when the dialog opened: only a level the user changes is stored. */
-  let shownKind: LineKind = 'team';
-  /** The level as it will be stored, or undefined while a derived one stays derived. */
-  const chosenKind = $derived(kind !== shownKind || unit?.kind !== undefined ? kind : undefined);
+  let shownKind = $state<LineKind>('team');
+  /**
+   * The level as it will be stored, or undefined while a derived one stays derived. With own
+   * levels (#408) every unit stores its level, so none has to be derived any more.
+   */
+  const chosenKind = $derived(
+    $workspace.settings.lineLevels !== undefined || kind !== shownKind || unit?.kind !== undefined
+      ? kind
+      : undefined,
+  );
   const company = $derived(isCompanyLevel($workspace.settings, kind));
-  /** The levels on offer (#408): a company level, or one below the chosen parent's level. */
+  /**
+   * The levels on offer (#408): a company level, or one not above the chosen parent's level (a
+   * parent without a stored level counts as a group, as in `parentChoices`).
+   */
   const kinds = $derived.by(() => {
-    const above = $workspace.lineUnits?.find((u) => u.id === parentId)?.kind;
-    const from = above === undefined ? -1 : lineLevelIndex($workspace.settings, above);
-    return $levels.lineLevels.filter((l, i) => l.company || i > from || l.id === shownKind);
+    const above = $workspace.lineUnits?.find((u) => u.id === parentId);
+    const from = above
+      ? lineLevelIndex($workspace.settings, above.kind ?? groupLineLevel($workspace.settings))
+      : -1;
+    return $levels.lineLevels.filter((l, i) => l.company || i >= from || l.id === shownKind);
   });
   let managerId = $state('');
   let familyId = $state('');
@@ -37,13 +54,13 @@
   let general = $state('');
 
   const choices = $derived(parentChoices($workspace, unit?.id, chosenKind));
-  // A parent that does not fit the chosen level is dropped, and a level that is not below the
-  // chosen parent's gives way to the lowest one (#408).
+  // A parent that does not fit the chosen level is dropped, and a level above the chosen parent's
+  // gives way to the lowest one (#408).
   $effect(() => {
     if (parentId && !choices.some((u) => u.id === parentId)) parentId = '';
   });
   $effect(() => {
-    if (!kinds.some((k) => k.id === kind)) kind = leafLineLevel($workspace.settings);
+    if (!kinds.some((k) => k.id === kind)) kind = lowestLineLevel($workspace.settings);
   });
   const depth = $derived(new Map(lineTree($workspace).map((x) => [x.unit.id, x.depth])));
   const people = $derived(
@@ -60,7 +77,7 @@
     parentId = of?.parentId ?? (offered ? under! : '');
     // New units and units of older files show their derived level; it is only stored once the
     // user picks another one, so a unit without a stored level can still get units below it.
-    kind = of ? lineKind($workspace, of.id) : leafLineLevel($workspace.settings);
+    kind = of ? lineKind($workspace, of.id) : lowestLineLevel($workspace.settings);
     shownKind = kind;
     managerId = of?.managerPersonId ?? '';
     familyId =

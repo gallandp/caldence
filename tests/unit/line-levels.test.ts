@@ -145,4 +145,35 @@ describe('own line levels (#408)', () => {
     expect(lineKind(ws, 'l1')).toBe('c');
     expect(newLineLevelId(ws)).toBe('ll1');
   });
+
+  it('keeps files of #399 valid: a stored group below a stored group', () => {
+    const ws = lined();
+    ws.people[1]!.lineUnitId = 'c';
+    ws.lineUnits = [
+      { id: 'a', name: 'A', kind: 'group' },
+      { id: 'b', name: 'B', parentId: 'a', kind: 'group' },
+      { id: 'c', name: 'C', parentId: 'b' },
+    ];
+    expect(validate(ws).ok).toBe(true);
+    // Opening B's dialog offers A as its parent.
+    expect(parentChoices(ws, 'b', 'group').map((u) => u.id)).toEqual(['a']);
+    // And own levels can be set on top of it.
+    expect(setLineLevels(ws, [...lineLevels(ws.settings)]).ok).toBe(true);
+  });
+
+  it('sets own levels on a three-deep tree without stored levels', () => {
+    const ws = lined();
+    ws.people[1]!.lineUnitId = 'c';
+    ws.lineUnits = [
+      { id: 'a', name: 'Bereich' },
+      { id: 'b', name: 'Fachgruppe', parentId: 'a' },
+      { id: 'c', name: 'Team', parentId: 'b' },
+    ];
+    const w1 = ok(setLineLevels(ws, [...lineLevels(ws.settings)]));
+    expect(w1.lineUnits!.map((u) => u.kind)).toEqual(['group', 'group', 'team']);
+    // A stored level under a parent without one is offered that parent.
+    const w2 = structuredClone(ws);
+    w2.lineUnits![1]!.kind = 'group';
+    expect(parentChoices(w2, 'b', 'group').map((u) => u.id)).toEqual(['a']);
+  });
 });

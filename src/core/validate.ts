@@ -558,7 +558,7 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
     if (isStr(o.id) && isStr(o.parentId)) parent.set(o.id, o.parentId);
   });
   // A unit chosen on the lowest level has no units below it (#399), and a unit's chosen level is
-  // below its parent's (#408).
+  // never above its parent's (#408); a level may hold units below units of the same level.
   unitList.forEach((o, i) => {
     if (isObj(o) && isStr(o.parentId)) {
       const above = unitList.find((u) => isObj(u) && u.id === o.parentId);
@@ -567,7 +567,9 @@ function checkLine(c: Checker, w: Obj, ids: { roles: Set<string>; people: Set<st
       else if (
         isStr(o.kind) &&
         isStr(above.kind) &&
-        levels.indexOf(above.kind) >= levels.indexOf(o.kind)
+        levels.includes(o.kind) &&
+        levels.includes(above.kind) &&
+        levels.indexOf(above.kind) > levels.indexOf(o.kind)
       )
         c.err(`lineUnits.${i}.kind`, 'error.line.levelOrder');
     }

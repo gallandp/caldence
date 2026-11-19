@@ -1,6 +1,7 @@
 import { get, writable } from 'svelte/store';
 import {
   hasOrgLevel,
+  LINE_ROOT,
   ORG_UNIT,
   selectedLineUnit,
   type SavedView,
@@ -24,17 +25,19 @@ export const currentView = {
 
 /**
  * The area's page. An area opens on its overview (#337); only a new area starts on the structure.
- * The matrix (#396) is a third page while the file has a line.
+ * The matrix (#396) is a view of its own in both worlds.
  */
-export const areaPage = writable<'structure' | 'overview' | 'matrix'>('overview');
+export const areaPage = writable<'structure' | 'overview'>('overview');
 
 /** The pages an area or the organisation can show, for the address (#401). */
 export const AREA_PAGES: readonly string[] = ['structure', 'overview'];
 
-/** A unit this workspace can select: a team, an area, the organisation or a line unit. */
+/** A unit this workspace can select: a team, an area, the organisation, the line or a line unit. */
 export function knownUnit(ws: Workspace, unit: string | undefined): boolean {
   return (
     (unit === ORG_UNIT && hasOrgLevel(ws)) ||
+    // The root of the line world (#395), while the file has a line.
+    (unit === LINE_ROOT && (ws.lineUnits?.length ?? 0) > 0) ||
     (unit !== undefined && !!ws.lineUnits?.some((u) => u.id === selectedLineUnit(unit))) ||
     [...ws.teams, ...ws.areas].some((u) => u.id === unit)
   );
