@@ -10,6 +10,7 @@
   "error.share.range": "The share at {path} must be between 0 and 1",
   "error.participant.both": "A participant is either a role or a person ({path})",
   "error.fromTeams.team": "Only {levelAreaLc} meetings can invite a role from every {levelTeamLc} ({path})",
+  "error.fromAreas.org": "Only meetings of the {levelOrgLc} can invite a role from every {levelAreaLc} ({path})",
   "error.weekday.range": "Invalid weekday at {path} (allowed: 1 to 7)",
   "error.enum.invalid": "Invalid value at {path}",
   "error.horizon.order": "The end of the planning horizon at {path} is before its start",

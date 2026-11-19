@@ -143,6 +143,6 @@ describe('meetings on site with travel time (#309)', () => {
   it('opens a schema 6 file unchanged but for the version', () => {
     const old = { ...workspace(review()), schemaVersion: 6 };
     const r = migrate(old);
-    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 8 });
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 9 });
   });
 });

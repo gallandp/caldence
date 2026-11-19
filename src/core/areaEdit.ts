@@ -1,4 +1,4 @@
-import type { Area, RoleLink, Workspace } from './model';
+import { ORG_UNIT, orgArea, storeOrg, type Area, type RoleLink, type Workspace } from './model';
 import { record } from './record';
 import { validate, type Result } from './validate';
 
@@ -9,6 +9,14 @@ const unknown = <T>(areaId: string): Result<T> => ({
 
 /** A copy of the workspace with one area changed; refuses an unknown area or an invalid result. */
 function mapArea(ws: Workspace, areaId: string, fn: (a: Area) => void): Result<Workspace> {
+  if (areaId === ORG_UNIT) {
+    // The organisation's people are edited as an area's (#328).
+    const out = structuredClone(ws);
+    const org = orgArea(out);
+    fn(org);
+    storeOrg(out, org);
+    return validate(out);
+  }
   if (!ws.areas.some((a) => a.id === areaId)) return unknown(areaId);
   const out = structuredClone(ws);
   for (const a of out.areas) if (a.id === areaId) fn(a);

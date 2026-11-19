@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 8;
+export const CURRENT_SCHEMA = 9;
 /**
  * Caldence 2 (branch release/v2, served at /v2/) writes `schemaVersion` 1000 + n (#344). 1.x
  * never opens such a file and says where it belongs, so its new data is never lost on save.
@@ -69,12 +69,14 @@ export type Rule =
 
 /**
  * A role invited to a meeting: everyone with the role in the unit. In an area, `fromTeams` also
- * invites everyone with the role in every team of the area ("Product Owner from every team").
+ * invites everyone with the role in every team of the area ("Product Owner from every team"); in
+ * the organisation, in every team, and `fromAreas` everyone with the role in every area (#328).
  */
 export interface RoleParticipant {
   roleId: string;
   share: number;
   fromTeams?: boolean;
+  fromAreas?: boolean;
   personId?: undefined;
 }
 
@@ -87,6 +89,7 @@ export interface PersonParticipant {
   share: number;
   roleId?: undefined;
   fromTeams?: undefined;
+  fromAreas?: undefined;
 }
 
 /** Who attends a meeting: a role or one person. */
@@ -202,8 +205,16 @@ export interface Workspace {
   view?: SavedView;
 }
 
+/**
+ * The organisation (#313) with, like an area, people with a role at its level and meetings of
+ * its own (#328). Every field is optional: a file without them has none. Its hours are extra to
+ * team and area time, so a missing entry means 0 hours. See `orgArea` for the area it acts as.
+ */
 export interface Organisation {
-  name: string;
+  name?: string;
+  members?: { personId: string; roleId: string }[];
+  memberHours?: Record<string, number>;
+  events?: CalEvent[];
 }
 
 /**
@@ -254,6 +265,56 @@ export function emptyWorkspace(today: ISODate): Workspace {
   };
 }
 
+/**
+ * The organisation seen as an area (#328), so that people, meetings, load and cost code treat it
+ * as one more area: its teams are all teams, and it takes the role links of every area, so that
+ * "from every team" reaches a team's linked role as in its own area. It has no cadence or cycles.
+ */
+export function orgArea(ws: Workspace): Area {
+  const o = ws.organisation;
+  return {
+    id: ORG_UNIT,
+    name: o?.name ?? '',
+    teamIds: ws.teams.map((t) => t.id),
+    members: o?.members ?? [],
+    memberHours: o?.memberHours ?? {},
+    cycles: [],
+    events: o?.events ?? [],
+    roleLinks: ws.areas.flatMap((a) => a.roleLinks ?? []),
+  };
+}
+
+/**
+ * Writes the people and meetings of an organisation seen as an area (see `orgArea`) back to the
+ * workspace, in place. Empty lists are left out, and an organisation without anything is removed,
+ * so a file only holds what was set.
+ */
+export function storeOrg(ws: Workspace, area: Area): void {
+  const o: Organisation = {};
+  if (ws.organisation?.name) o.name = ws.organisation.name;
+  if (area.members.length > 0) o.members = area.members;
+  if (Object.keys(area.memberHours).length > 0) o.memberHours = area.memberHours;
+  if (area.events.length > 0) o.events = area.events;
+  if (Object.keys(o).length > 0) ws.organisation = o;
+  else delete ws.organisation;
+}
+
+/** The organisation has people or meetings of its own. */
+function orgHasOwn(ws: Workspace): boolean {
+  const o = ws.organisation;
+  return !!(o?.members?.length || o?.events?.length || Object.keys(o?.memberHours ?? {}).length);
+}
+
+/** The areas, then the organisation as an area once it has people or meetings of its own. */
+export function areaUnits(ws: Workspace): Area[] {
+  return orgHasOwn(ws) ? [...ws.areas, orgArea(ws)] : ws.areas;
+}
+
+/** An area by id; ORG_UNIT gives the organisation as an area. */
+export function findArea(ws: Workspace, id: string | null | undefined): Area | undefined {
+  return id === ORG_UNIT ? orgArea(ws) : ws.areas.find((a) => a.id === id);
+}
+
 /** The teams a selected unit stands for: all teams, an area's teams, or the team itself. */
 export function unitTeamIds(ws: Workspace, unitId: string): string[] {
   if (unitId === ORG_UNIT) return ws.teams.map((t) => t.id);
@@ -265,7 +326,8 @@ export function unitTeamIds(ws: Workspace, unitId: string): string[] {
  * and the area itself (its own meetings), or the team itself. Keys of WeekLoad.byTeamPerson.
  */
 export function unitLoadIds(ws: Workspace, unitId: string): string[] {
-  if (unitId === ORG_UNIT) return [...ws.teams.map((t) => t.id), ...ws.areas.map((a) => a.id)];
+  if (unitId === ORG_UNIT)
+    return [...ws.teams.map((t) => t.id), ...ws.areas.map((a) => a.id), ORG_UNIT];
   const area = ws.areas.find((a) => a.id === unitId);
   return area ? [...area.teamIds, area.id] : [unitId];
 }
@@ -295,9 +357,9 @@ export function areaAsTeam(area: Area): Team {
   };
 }
 
-/** Every unit with meetings: the teams, then the areas seen as teams. */
+/** Every unit with meetings: the teams, then the areas (and the organisation) seen as teams. */
 export function units(ws: Workspace): Team[] {
-  return [...ws.teams, ...ws.areas.map(areaAsTeam)];
+  return [...ws.teams, ...areaUnits(ws).map(areaAsTeam)];
 }
 
 /**
@@ -309,7 +371,7 @@ export function units(ws: Workspace): Team[] {
 export function holders(ws: Workspace, unitId: string, p: Participant): string[] {
   if (p.personId !== undefined)
     return ws.people.some((x) => x.id === p.personId) ? [p.personId] : [];
-  const area = ws.areas.find((a) => a.id === unitId);
+  const area = findArea(ws, unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
   const ids = (own?.members ?? []).flatMap((m) => (m.roleId === p.roleId ? [m.personId] : []));
   if (area && p.fromTeams)
@@ -318,6 +380,9 @@ export function holders(ws: Workspace, unitId: string, p: Participant): string[]
       const roles = teamRolesFor(area, t.id, p.roleId);
       for (const m of t.members) if (roles.includes(m.roleId)) ids.push(m.personId);
     }
+  if (unitId === ORG_UNIT && p.fromAreas)
+    for (const a of ws.areas)
+      for (const m of a.members) if (m.roleId === p.roleId) ids.push(m.personId);
   return [...new Set(ids)];
 }
 
@@ -360,7 +425,7 @@ export function invitesRole(
 ): boolean {
   if (p.roleId === roleId) return true;
   if (p.personId !== undefined || !p.fromTeams) return false;
-  const area = ws.areas.find((a) => a.id === unitId);
+  const area = findArea(ws, unitId);
   return !!area?.roleLinks?.some((l) => l.roleId === p.roleId && l.teamRoleId === roleId);
 }
 
@@ -371,7 +436,7 @@ export function invitesRole(
 export function participantRoles(ws: Workspace, unitId: string, p: Participant): string[] {
   if (p.personId !== undefined) return [];
   if (!p.fromTeams) return [p.roleId];
-  const area = ws.areas.find((a) => a.id === unitId);
+  const area = findArea(ws, unitId);
   const linked = (area?.roleLinks ?? []).flatMap((l) =>
     l.roleId === p.roleId && area!.teamIds.includes(l.teamId) ? [l.teamRoleId] : [],
   );
@@ -391,11 +456,14 @@ export function roleAttendees(
   roleId: string,
 ): string[] {
   if (p.personId !== undefined || !invitesRole(ws, unitId, p, roleId)) return [];
-  const area = ws.areas.find((a) => a.id === unitId);
+  const area = findArea(ws, unitId);
   const own = area ?? ws.teams.find((t) => t.id === unitId);
   const ids = new Set(
     p.roleId === roleId
-      ? (own?.members ?? []).flatMap((m) => (m.roleId === roleId ? [m.personId] : []))
+      ? [
+          ...(own?.members ?? []),
+          ...(unitId === ORG_UNIT && p.fromAreas ? ws.areas.flatMap((a) => a.members) : []),
+        ].flatMap((m) => (m.roleId === roleId ? [m.personId] : []))
       : [],
   );
   if (area && p.fromTeams)
@@ -430,7 +498,10 @@ export function eventAttendees(ws: Workspace, unitId: string, event: CalEvent): 
   return [...new Set(event.participants.flatMap((p) => attendees(ws, unitId, p, event)))];
 }
 
-/** Teams of the area in which nobody holds a role that the meeting invites "from every team". */
+/**
+ * Teams of the area in which nobody holds a role that the meeting invites "from every team"; in
+ * the organisation also areas without a role it invites "from every area" (`teamId` is the area).
+ */
 export function missingRoles(
   ws: Workspace,
   area: Area,
@@ -438,7 +509,12 @@ export function missingRoles(
 ): { teamId: string; roleId: string }[] {
   const out: { teamId: string; roleId: string }[] = [];
   for (const p of event.participants) {
-    if (p.personId !== undefined || !p.fromTeams) continue;
+    if (p.personId !== undefined) continue;
+    if (area.id === ORG_UNIT && p.fromAreas)
+      for (const a of ws.areas)
+        if (!a.members.some((m) => m.roleId === p.roleId))
+          out.push({ teamId: a.id, roleId: p.roleId });
+    if (!p.fromTeams) continue;
     for (const t of ws.teams) {
       if (!area.teamIds.includes(t.id)) continue;
       const roles = teamRolesFor(area, t.id, p.roleId);
@@ -452,14 +528,14 @@ export function missingRoles(
 /**
  * The areas whose own meetings a filter counts: with a person filter the areas where the person
  * attends a meeting, with a team filter the selected area (none for a team), otherwise (also for
- * the organisation) all.
+ * the organisation) all. The organisation counts as an area once it has its own (#328).
  */
 export function areasInScope(
   ws: Workspace,
   filter: { teamId?: string; personId?: string },
 ): Team[] {
   const { personId, teamId } = filter;
-  return ws.areas
+  return areaUnits(ws)
     .filter((a) =>
       personId
         ? a.events.some((e) => eventAttendees(ws, a.id, e).includes(personId))

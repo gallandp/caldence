@@ -10,6 +10,7 @@
   "error.share.range": "Der Anteil bei {path} muss zwischen 0 und 1 liegen",
   "error.participant.both": "Ein Teilnehmer ist entweder eine Rolle oder eine Person ({path})",
   "error.fromTeams.team": "Eine Rolle aus allen {levelTeams} lässt sich nur auf Ebene {levelArea} einladen ({path})",
+  "error.fromAreas.org": "Eine Rolle aus allen {levelAreas} lässt sich nur auf Ebene {levelOrg} einladen ({path})",
   "error.weekday.range": "Ungültiger Wochentag bei {path} (erlaubt: 1 bis 7)",
   "error.enum.invalid": "Ungültiger Wert bei {path}",
   "error.horizon.order": "Das Ende des Planungszeitraums bei {path} liegt vor dem Beginn",

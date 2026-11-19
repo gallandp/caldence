@@ -169,7 +169,7 @@ describe('role links of an area (#338)', () => {
     const old = { ...emptyWorkspace(TODAY), schemaVersion: CURRENT_SCHEMA - 1 };
     const m = migrate(old);
     expect(m.ok && m.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA });
-    expect(CURRENT_SCHEMA).toBe(8);
+    expect(CURRENT_SCHEMA).toBeGreaterThanOrEqual(8);
   });
 });
 

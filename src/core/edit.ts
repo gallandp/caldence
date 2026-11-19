@@ -1,7 +1,10 @@
 import { mondayOf, type ISODate } from './date';
 import {
   areaAsTeam,
+  ORG_UNIT,
+  orgArea,
   participantKey,
+  storeOrg,
   type Cadence,
   type CalEvent,
   type Category,
@@ -54,6 +57,11 @@ function mapTeam(ws: Workspace, teamId: string, fn: (t: Team) => Team): Workspac
 function mapUnit(ws: Workspace, unitId: string, fn: (t: Team) => Team): Workspace {
   if (ws.teams.some((t) => t.id === unitId)) return mapTeam(ws, unitId, fn);
   const out = structuredClone(ws);
+  if (unitId === ORG_UNIT) {
+    const org = orgArea(out);
+    storeOrg(out, { ...org, events: fn(areaAsTeam(org)).events });
+    return out;
+  }
   out.areas = out.areas.map((a) => {
     if (a.id !== unitId) return a;
     const { cycles, events } = fn(areaAsTeam(a));
@@ -68,6 +76,7 @@ function findUnit(ws: Workspace, unitId: string): { unit: Team; path: string } |
   if (ti >= 0) return { unit: ws.teams[ti]!, path: `teams.${ti}` };
   const ai = ws.areas.findIndex((a) => a.id === unitId);
   if (ai >= 0) return { unit: areaAsTeam(ws.areas[ai]!), path: `areas.${ai}` };
+  if (unitId === ORG_UNIT) return { unit: areaAsTeam(orgArea(ws)), path: 'organisation' };
   return undefined;
 }
 
@@ -146,6 +155,7 @@ function mergeParticipants(list: CalEvent['participants']): CalEvent['participan
       hit.share = Math.min(1, hit.share + p.share);
       // "From every team" reaches the area's members too, so the merged entry keeps it.
       if (p.fromTeams) hit.fromTeams = true;
+      if (p.fromAreas) hit.fromAreas = true;
     } else out.push({ ...p });
   }
   return out;
@@ -169,8 +179,9 @@ export function removeItem(
   const out = structuredClone(ws);
   (out[kind] as Item[]).splice(index, 1);
 
-  // Teams and areas hold members, hours and events the same way.
-  const units = [...out.teams, ...out.areas];
+  // Teams, areas and the organisation hold members, hours and events the same way.
+  const org = orgArea(out);
+  const units = [...out.teams, ...out.areas, org];
 
   if (kind === 'people') {
     for (const t of units) {
@@ -192,6 +203,7 @@ export function removeItem(
           ),
         );
     }
+    storeOrg(out, org);
     return { ok: true, value: out };
   }
 
@@ -235,6 +247,7 @@ export function removeItem(
       for (const e of t.events) if (e.categoryId === id) e.categoryId = replacementId;
     }
   }
+  storeOrg(out, org);
   return { ok: true, value: out };
 }
 
@@ -337,12 +350,16 @@ export function renameArea(ws: Workspace, areaId: string, name: string): Result<
   return v.ok ? { ok: true, value: out } : v;
 }
 
-/** Names the organisation (#313); an empty name removes it, so the level's name shows again. */
+/**
+ * Names the organisation (#313); an empty name removes it, so the level's name shows again. Its
+ * people and meetings stay (#328).
+ */
 export function renameOrganisation(ws: Workspace, name: string): Result<Workspace> {
   const out = structuredClone(ws);
   const text = name.trim();
-  if (text === '') delete out.organisation;
-  else out.organisation = { name: text };
+  if (text === '') delete out.organisation?.name;
+  else out.organisation = { ...out.organisation, name: text };
+  storeOrg(out, orgArea(out));
   const v = validate(out);
   return v.ok ? { ok: true, value: out } : v;
 }
