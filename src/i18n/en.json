@@ -1876,6 +1876,12 @@
   "view.staffing": "Staffing",
   "view.matrix": "Matrix",
   "view.lineOverview": "Overview",
+  "world.back": "Back to {name}",
+  "cross.openLine": "Open {name} in the line",
+  "cross.openProduct": "Open {name}",
+  "cross.noLine": "no line",
+  "cross.fromLine": "From the line",
+  "cross.matrix": "Open the matrix for {name}",
   "world.label": "World",
   "world.product": "Products",
   "world.line": "Line"

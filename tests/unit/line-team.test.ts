@@ -21,6 +21,7 @@ import {
   parentChoices,
   personCompanyId,
   staffRows,
+  supplyingUnits,
   unitStats,
 } from '../../src/core/lineStaff';
 import {
@@ -324,5 +325,17 @@ describe('the level of a line unit (#399)', () => {
     const w2 = removeCompany(w1, co);
     expect(w2.lineUnits!.find((u) => u.id === 'g1')).not.toHaveProperty('kind');
     expect(validate(w2).ok).toBe(true);
+  });
+});
+
+describe('cross links between the worlds (#397)', () => {
+  it('lists the line units a product draws on, each once, in line order', () => {
+    const ws = lined();
+    expect(supplyingUnits(ws, 't2').map((u) => u.id)).toEqual(['l1']);
+    // Team A: Alex has no line unit, Ines comes from Orvalis Ware.
+    expect(supplyingUnits(ws, ws.teams[0]!.id).map((u) => u.id)).toEqual(['l1']);
+    ws.teams[1]!.members.push({ personId: 'p4', roleId: 'r1' });
+    expect(supplyingUnits(ws, 't2').map((u) => u.id)).toEqual(['g1', 'l1']);
+    expect(supplyingUnits(ws, 'nope')).toEqual([]);
   });
 });

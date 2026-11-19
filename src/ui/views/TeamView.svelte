@@ -21,6 +21,8 @@
   import DemandCard from '../components/DemandCard.svelte';
   import ImpactCheck from '../components/ImpactCheck.svelte';
   import ImpactTag from '../components/ImpactTag.svelte';
+  import UnitChip from '../components/UnitChip.svelte';
+  import { lineSelection } from '../../core/model';
   import { productMeetings } from '../../core/demand';
   import { hasOwnerRoles } from '../../core/owners';
   import FieldError from '../components/FieldError.svelte';
@@ -38,6 +40,13 @@
     (id: string) => $workspace.people.find((p) => p.id === id)?.name ?? id,
   );
   const roleName = $derived((id: string) => $workspace.roles.find((r) => r.id === id)?.name ?? id);
+  /** Members come from the line (#397): their line unit links there, while the file has a line. */
+  const hasLine = $derived(($workspace.lineUnits?.length ?? 0) > 0);
+  const lineUnitOf = $derived.by(() => {
+    const units = new Map(($workspace.lineUnits ?? []).map((u) => [u.id, u]));
+    const byPerson = new Map($workspace.people.map((p) => [p.id, p.lineUnitId]));
+    return (personId: string) => units.get(byPerson.get(personId) ?? '');
+  });
 
   const problems = new Problems(uid);
   const { commit, fail, clear: clearError, describe } = problems;
@@ -425,6 +434,14 @@
                   >
                   <span class="who">
                     <span class="name">{name}</span>
+                    {#if hasLine}
+                      {@const unit = lineUnitOf(member.personId)}
+                      {#if unit}
+                        <UnitChip selection={lineSelection(unit.id)} name={unit.name} line />
+                      {:else if !$presenting}
+                        <span class="no-line">{$t('cross.noLine')}</span>
+                      {/if}
+                    {/if}
                     {#each member.roleIds as roleId (roleId)}
                       {#if assignmentOf($workspace, team.id, member.personId, roleId)}
                         <ImpactTag
@@ -782,6 +799,15 @@
 />
 
 <style>
+  .who > :global(.unit-chip),
+  .no-line {
+    align-self: flex-start;
+    margin-top: 0.15rem;
+  }
+  .no-line {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
   .impact-preview {
     margin-top: 0.75rem;
     padding: 0.9rem 1rem;
