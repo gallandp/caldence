@@ -76,7 +76,7 @@
     </div>
     {#if personId === NEW}
       <div class="field">
-        <label for="{uid}-name">{$t('team.dialog.name')}</label>
+        <label for="{uid}-name">{$t('line.person.name')}</label>
         <input id="{uid}-name" type="text" bind:value={name} oninput={() => (error = '')} />
       </div>
     {/if}
@@ -93,7 +93,7 @@
       />
     </div>
     {#if error}
-      <p class="field-error" role="alert">{$t(error, { path: $t('team.dialog.name') })}</p>
+      <p class="field-error" role="alert">{$t(error, { path: $t('line.person.name') })}</p>
     {/if}
     <div class="actions">
       <button type="submit" class="primary">{$t('line.person.addConfirm')}</button>

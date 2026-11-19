@@ -177,7 +177,7 @@
   </form>
 
   {#if error}
-    <p class="field-error" role="alert">{$t(error, { path: $t('team.dialog.name') })}</p>
+    <p class="field-error" role="alert">{$t(error, { path: $t('line.skills.name') })}</p>
   {/if}
   <div class="actions">
     <button type="button" class="primary" onclick={() => dialog?.close()}

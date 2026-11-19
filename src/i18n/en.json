@@ -1448,5 +1448,8 @@
   "line.skills.addFamily": "Add family",
   "line.skills.noFamilies": "No skill family yet. Add one first, e.g. for a specialist group.",
   "line.skills.done": "Done",
-  "cal.legend.hours.line": "{hours} = meeting hours of the day (people of this line unit)"
+  "cal.legend.hours.line": "{hours} = meeting hours of the day (people of this line unit)",
+  "line.unit.name": "Name of the line unit",
+  "line.person.name": "Name of the person",
+  "line.skills.name": "Name"
 }

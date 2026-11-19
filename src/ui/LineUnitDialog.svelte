@@ -83,7 +83,7 @@
       {unit ? $t('line.unit.edit', { name: unit.name }) : $t('line.unit.add')}
     </h2>
     <div class="field">
-      <label for="{uid}-name">{$t('team.dialog.name')}</label>
+      <label for="{uid}-name">{$t('line.unit.name')}</label>
       <input
         id="{uid}-name"
         type="text"
@@ -93,7 +93,7 @@
         oninput={() => (error = '')}
       />
       {#if error}
-        <p class="field-error" id="{uid}-err">{$t(error, { path: $t('team.dialog.name') })}</p>
+        <p class="field-error" id="{uid}-err">{$t(error, { path: $t('line.unit.name') })}</p>
       {/if}
     </div>
     <div class="field">

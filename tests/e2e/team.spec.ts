@@ -265,7 +265,7 @@ for (const locale of ['de', 'en'] as const) {
     expect((await axe()).violations).toEqual([]);
 
     // Name dialog, with an error shown.
-    await page.locator('.switcher .menu button').nth(3).click();
+    await page.locator('.switcher .menu button').nth(4).click();
     await page.getByRole('dialog').getByRole('textbox').fill('');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog').getByRole('textbox')).toHaveAttribute(
@@ -277,7 +277,7 @@ for (const locale of ['de', 'en'] as const) {
 
     // Confirm dialog.
     await page.locator('.switcher .toggle').click();
-    await page.locator('.switcher .menu button').nth(5).click();
+    await page.locator('.switcher .menu button').nth(6).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     expect((await axe()).violations).toEqual([]);
     await page.keyboard.press('Escape');

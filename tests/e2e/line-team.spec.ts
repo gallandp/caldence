@@ -128,7 +128,7 @@ test('line units and skills are managed in place', async ({ page }) => {
   await page.getByRole('button', { name: 'Team actions' }).click();
   await page.locator('.switcher').getByRole('button', { name: 'Add line team' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add line team' });
-  await dialog.getByLabel('Name').fill('Orvalis Markt');
+  await dialog.getByLabel('Name of the line unit').fill('Orvalis Markt');
   await dialog.getByLabel('Belongs to').selectOption({ label: 'Orvalis' });
   await dialog.getByLabel('Line manager').selectOption({ label: 'Ruth' });
   await dialog.getByRole('button', { name: 'Add', exact: true }).click();
@@ -139,7 +139,7 @@ test('line units and skills are managed in place', async ({ page }) => {
   await expect(view.getByText('Nobody in this line team yet')).toBeVisible();
   await view.getByRole('button', { name: '+ Person' }).click();
   const add = page.getByRole('dialog', { name: 'Add a person to Orvalis Markt' });
-  await add.getByLabel('Name').fill('Tilda');
+  await add.getByLabel('Name of the person').fill('Tilda');
   await add.getByLabel('Contract (FTE)').fill('0.6');
   await add.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(view.locator('tbody tr')).toContainText(['Tilda']);

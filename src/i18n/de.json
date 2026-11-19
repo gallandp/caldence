@@ -1448,5 +1448,8 @@
   "line.skills.addFamily": "Familie anlegen",
   "line.skills.noFamilies": "Noch keine Skill-Familie. Legen Sie zuerst eine an, z. B. für eine Fachgruppe.",
   "line.skills.done": "Fertig",
-  "cal.legend.hours.line": "{hours} = Termin-Stunden des Tages (Personen dieser Linieneinheit)"
+  "cal.legend.hours.line": "{hours} = Termin-Stunden des Tages (Personen dieser Linieneinheit)",
+  "line.unit.name": "Name der Linieneinheit",
+  "line.person.name": "Name der Person",
+  "line.skills.name": "Name"
 }
