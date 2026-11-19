@@ -400,7 +400,7 @@ function devMeeting(ws: ReturnType<typeof areaWorkspace>) {
   });
 }
 
-test('a team row and the cost card name unfilled roles that only add cost (#264)', async ({
+test('a team row and the cost card name unfilled roles, counted as one person (#264, #335)', async ({
   page,
 }) => {
   const overview = await openOverview(page, 100, devMeeting);
@@ -409,13 +409,17 @@ test('a team row and the cost card name unfilled roles that only add cost (#264)
     'incl. 1 unfilled role: Developer',
   );
   await expect(table.locator('[data-cost-row="team-delta"] [data-unfilled]')).toHaveCount(0);
+  // The hours count the Developer as one person too: hours × rate = cost (#335).
+  const gamma = table.locator('[data-cost-row="team-gamma"] td.num');
+  await expect(gamma.nth(0)).toHaveText('6.8 h');
+  await expect(gamma.nth(1)).toContainText('678');
   const axe = await new AxeBuilder({ page }).include('[data-area-overview]').analyze();
   expect(axe.violations).toEqual([]);
 
   await table.getByRole('button', { name: 'Open Team Gamma in Meetings & cadence' }).click();
   const card = page.locator('[data-costs]');
   await expect(card.locator('[data-cost-unfilled]')).toHaveText(
-    'Includes 1 unfilled role (Developer), counted as one person. It adds cost but no hours.',
+    'Includes 1 unfilled role (Developer), counted as one person in the cost and the hours.',
   );
   const axe2 = await new AxeBuilder({ page }).include('[data-costs]').analyze();
   expect(axe2.violations).toEqual([]);
