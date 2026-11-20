@@ -20,7 +20,12 @@
     type StepReason,
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
-  import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
+  import {
+    areaHours as hoursInArea,
+    capacity,
+    loadPerWeek,
+    peopleOverLimit,
+  } from '../../core/load';
   import { areaAsTeam, ORG_UNIT, type Area, type Cadence, type CalEvent } from '../../core/model';
   import { clashes, clashTime } from '../../core/views';
   import {
@@ -38,6 +43,7 @@
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
   import RateInvite from '../components/RateInvite.svelte';
+  import WhatIfSheet from '../components/WhatIfSheet.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
@@ -81,6 +87,9 @@
   const WEEKS = 12;
 
   const uid = $props.id();
+
+  /** While presenting, each cadence row opens its what-if here; the coach stays on the Overview (#444). */
+  let whatIf = $state.raw<{ unitId: string; opener: HTMLElement }>();
   const ws = $derived($workspace);
   const teams = $derived(area.teamIds.flatMap((id) => ws.teams.filter((x) => x.id === id)));
 
@@ -102,10 +111,10 @@
   const comparison = $derived(
     summary ? compareOrgCadences(ws, from, weekCount) : compareCadences(ws, area, from, weekCount),
   );
+  const allWeeks = $derived(loadPerWeek(ws, $index));
   const weeks = $derived.by(() => {
-    const all = loadPerWeek(ws, $index);
-    const start = all.findIndex((w) => w.monday === from);
-    return start < 0 ? [] : all.slice(start, start + weekCount);
+    const start = allWeeks.findIndex((w) => w.monday === from);
+    return start < 0 ? [] : allWeeks.slice(start, start + weekCount);
   });
   const load = $derived(new Map(teams.map((team) => [team.id, teamLoad(ws, team, weeks)])));
   /** People only in the area get their own row, so the tile counts them too (#334). */
@@ -140,6 +149,12 @@
     ]),
   );
   const people = $derived(personIds.size);
+  /**
+   * Who is over the limit, judged like the people table in Meeting load: their average over the
+   * planning horizon, all their meetings ÷ all their weekly hours (#334, #448). An average of
+   * everyone must not hide anyone over the limit.
+   */
+  const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
 
   /**
    * Clashes of the area's people in the window that touch the area or its teams (#339): the
@@ -240,6 +255,9 @@
   const maxFte = $derived(ws.settings.thresholds.maxFte);
   const list = (items: string[]) =>
     new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }).format(items);
+  /** Up to three items for a tag, "…" when there are more; the same in every tile (#448). */
+  const firstThree = (items: string[]) =>
+    items.length > 3 ? items.slice(0, 3).join(', ') + ' …' : list(items);
   const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
   /** "incl. 2 unfilled roles: PO, SM" for a cost row, or '' (#264). */
@@ -401,6 +419,23 @@
 
 {#snippet ownIcon()}{#if org}<OrgIcon />{:else}<AreaIcon />{/if}{/snippet}
 
+{#snippet whatIfButton(unitId: string, name: string)}
+  {#if $presenting}
+    <button
+      type="button"
+      class="whatif"
+      data-whatif-unit={unitId}
+      data-no-print
+      title={$t('whatif.open')}
+      aria-label={$t('whatif.open.named', { name })}
+      onclick={(e) => (whatIf = { unitId, opener: e.currentTarget })}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
+      >
+    </button>
+  {/if}
+{/snippet}
+
 <div class="overview stack" data-area-overview>
   <p class="lead">{summary ? orgLead : lead}</p>
 
@@ -426,11 +461,24 @@
       <span class="label">{$t('overview.kpi.load')}</span>
       <b>{shareText(costs.total)}</b>
       <span class="label">{$t('overview.kpi.load.sub')}</span>
-      <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
-        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
-          max: percent(maxFte),
-        })}</span
-      >
+      {#if overPeople.length > 0}
+        <span class="tag warn" data-over-people
+          >{$t(
+            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+            {
+              n: formatNumber($locale, overPeople.length, 0),
+              max: percent(maxFte),
+              names: firstThree(overPeople.map(personName)),
+            },
+          )}</span
+        >
+      {:else}
+        <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
+          >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+            max: percent(maxFte),
+          })}</span
+        >
+      {/if}
     </div>
     {#if !summary}
       <div class="card kpi" data-kpi="warn">
@@ -444,8 +492,7 @@
           class:warn={warnedMondays.length > 0}
           class:ok={warnedMondays.length === 0}
           >{warnedMondays.length > 0
-            ? list(warnedMondays.slice(0, 3).map(weekLabel)) +
-              (warnedMondays.length > 3 ? ' …' : '')
+            ? firstThree(warnedMondays.map(weekLabel))
             : $t('overview.kpi.warn.none')}</span
         >
       </div>
@@ -814,7 +861,12 @@
 
           {#if area.cadence}
             <div class="name">
-              <span class="area-name"><AreaIcon /> {area.name}</span>
+              <span class="who area-name"
+                ><AreaIcon /><span class="n">{area.name}</span>{@render whatIfButton(
+                  area.id,
+                  area.name,
+                )}</span
+              >
               <small>{cadenceText(area.cadence)}</small>
             </div>
             <div class="row">
@@ -834,7 +886,12 @@
 
           {#each comparison.rows as row (row.teamId)}
             <div class="name" data-team-row={row.teamId}>
-              <span>{teamName(row.teamId)}</span>
+              <span class="who"
+                ><span class="n">{teamName(row.teamId)}</span>{@render whatIfButton(
+                  row.teamId,
+                  teamName(row.teamId),
+                )}</span
+              >
               <small>{cadenceText(row.cadence)}</small>
               <small class:off={!row.inStep} class:in={row.inStep}
                 >{row.inStep
@@ -1022,6 +1079,16 @@
     </section>
   {/if}
 </div>
+
+{#if whatIf}
+  <WhatIfSheet
+    target={{ kind: 'cadence', unitId: whatIf.unitId }}
+    onclose={() => {
+      whatIf?.opener.focus();
+      whatIf = undefined;
+    }}
+  />
+{/if}
 
 <style>
   .overview {
@@ -1395,6 +1462,57 @@
   }
   .name small.in {
     color: var(--ok);
+  }
+  /* The pencil of a what-if, as on Meetings (#444); coarse pointers get 44 px from theme.css. */
+  :global(#app) .name .whatif {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    margin: -0.25rem 0;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  :global(#app) .name .whatif:hover {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  .whatif svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* Name and pencil stay on one line; a long name wraps beside the pencil (#444). */
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+  .who .n {
+    min-width: 0;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  /* On touch screens the pencil keeps its size; an invisible ::after takes the taps around it. */
+  @media (pointer: coarse) {
+    :global(#app) .name .whatif {
+      position: relative;
+      min-width: 0 !important;
+      min-height: 0 !important;
+    }
+    :global(#app) .name .whatif::after {
+      content: '';
+      position: absolute;
+      inset: calc((100% - 44px) / 2);
+    }
   }
   .area-name {
     display: inline-flex;

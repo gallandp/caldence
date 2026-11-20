@@ -26,9 +26,12 @@ const nextDates: Record<string, string | undefined> = {
   kickoff: undefined,
 };
 const costs: Record<string, number> = { daily: 131, planning: 1890, review: 263, kickoff: 263 };
+// Weekly averages: same order as per occurrence here, so the tie-break shows.
+const weekCosts: Record<string, number> = { daily: 131, planning: 945, review: 263, kickoff: 263 };
 const ctx = {
   next: (e: CalEvent) => nextDates[e.id],
   cost: (e: CalEvent) => costs[e.id]!,
+  weekCost: (e: CalEvent) => weekCosts[e.id]!,
   locale: 'en',
 };
 const ids = (list: CalEvent[]) => list.map((e) => e.id);
@@ -61,6 +64,41 @@ describe('sorting the meetings table', () => {
       'review',
       'kickoff',
       'daily',
+    ]);
+  });
+
+  it('ranks by cost per week, as the area Overview does; one-off meetings last (#443)', () => {
+    // Kick-off: one-off €640, no weekly average. Release: €300 per milestone. Update: €100 a
+    // month (≈ €23 a week). Sync: €40 every week.
+    const once = event('once', 'Kick-off', '10:00');
+    const milestone = event('milestone', 'Release Readiness', '13:00');
+    const monthly = event('monthly', 'Stakeholder Update', '15:00');
+    const weekly = event('weekly', 'Weekly Sync', '09:30');
+    const perMeeting: Record<string, number> = {
+      once: 640,
+      milestone: 300,
+      monthly: 100,
+      weekly: 40,
+    };
+    const perWeek: Record<string, number> = { once: 0, milestone: 0, monthly: 23, weekly: 40 };
+    const c = {
+      ...ctx,
+      next: () => '2027-01-07',
+      cost: (e: CalEvent) => perMeeting[e.id]!,
+      weekCost: (e: CalEvent) => perWeek[e.id]!,
+    };
+    const list = [once, milestone, monthly, weekly];
+    expect(ids(sortMeetings(list, 'cost', -1, c))).toEqual([
+      'weekly',
+      'monthly',
+      'once',
+      'milestone',
+    ]);
+    expect(ids(sortMeetings(list, 'cost', 1, c))).toEqual([
+      'milestone',
+      'once',
+      'monthly',
+      'weekly',
     ]);
   });
 

@@ -199,6 +199,8 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     stop: 'file.present.stop',
     hideNames: 'present.hideNames',
     reset: 'whatif.reset',
+    overview: 'area.view.overview',
+    aligned: 'overview.kpi.cadence',
   },
   'help.files.print': { print: 'file.print' },
 };

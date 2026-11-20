@@ -307,6 +307,50 @@ test('presenting, an area without meetings opens on its overview, not an empty l
   await expect(page.locator('.area-teams')).toHaveCount(0);
 });
 
+test('presenting, a cadence row opens its what-if; a new start aligns the team (#444)', async ({
+  page,
+}) => {
+  // Without Gamma, only Delta differs: its periods start on Wednesdays.
+  const overview = await openOverview(page, undefined, (ws) => {
+    (ws.areas[0] as { teamIds: string[] }).teamIds = ['team-alpha', 'team-beta', 'team-delta'];
+  });
+  const kpi = overview.locator('[data-kpi="cadence"]');
+  await expect(kpi.locator('b')).toHaveText('2 of 3');
+  // Editing the file has no what-if: the pencil is for presenting only.
+  await expect(overview.locator('[data-whatif-unit]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(overview).toBeVisible();
+
+  const open = overview.getByRole('button', { name: 'What if: Team Delta', exact: true });
+  await open.click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Delta' });
+  await expect(sheet.getByLabel('Start date')).toHaveValue('2027-01-06');
+  // Without a start date there is nothing to apply.
+  await sheet.getByLabel('Start date').fill('');
+  await expect(sheet.getByText('Enter a valid start date.')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Apply' })).toBeDisabled();
+  await sheet.getByLabel('Start date').fill('2027-01-04');
+  await expect(sheet).toContainText('2 → 3 of 3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(open).toBeFocused();
+
+  // Still on the Overview, now aligned; the what-if bar counts the change.
+  await expect(kpi.locator('b')).toHaveText('3 of 3');
+  await expect(kpi.locator('.tag')).toHaveText('All aligned');
+  await expect(overview.locator('[data-team-row="team-delta"]')).toContainText('aligned');
+  await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
+
+  // The area row has its what-if too; ending the presentation discards the change.
+  await expect(overview.getByRole('button', { name: 'What if: Payments' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Present', exact: true })).toBeVisible();
+  await expect(kpi.locator('b')).toHaveText('2 of 3');
+  await expect(overview.locator('[data-team-row="team-delta"]')).toContainText(
+    'starts on Wednesday',
+  );
+});
+
 test('the team-pick hint is on Structure, the cost explanation folds', async ({ page }) => {
   const overview = await openOverview(page, 100);
   await expect(page.locator('.area-teams')).toHaveCount(0);
@@ -595,4 +639,34 @@ test('printing shows the "How is this counted?" text without the summary', async
   const how = overview.locator('[data-area-costs] details.how');
   await expect(how.locator('summary')).toBeHidden();
   await expect(how.getByText(/counts only the meetings of that unit/)).toBeVisible();
+});
+
+test('the load tile names who is over the limit instead of the average (#448)', async ({
+  page,
+}) => {
+  // Pia attends area meetings without weekly hours anywhere: over the limit, like in Meeting load.
+  const overview = await openOverview(page);
+  const tag = overview.locator('[data-kpi="load"] .tag');
+  await expect(tag).toHaveText('1 person over the 60% limit: Pia');
+  await expect(tag).toHaveClass(/warn/);
+
+  // Hide names in present mode hides them here too.
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  await expect(tag).toHaveText(/^1 person over the 60% limit: Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: the count and the first three, highest share first.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  await expect(tag).toHaveText(/^5 people over the 12% limit: \w+, \w+, \w+ …$/);
+
+  // Nobody over: the average again.
+  await openOverview(page, undefined, (ws) => {
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  await expect(tag).toHaveText('below the 60% limit');
+  await expect(tag).toHaveClass(/ok/);
 });
