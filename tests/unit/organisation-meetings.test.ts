@@ -276,9 +276,9 @@ describe('organisation meetings and people (#328)', () => {
   });
 
   it('loads older files unchanged and bumps the schema', () => {
-    expect(CURRENT_SCHEMA).toBe(9);
+    expect(CURRENT_SCHEMA).toBeGreaterThanOrEqual(9);
     const old = { ...workspace(), schemaVersion: 8, organisation: { name: 'Nordlicht' } };
     const m = migrate(old);
-    expect(m.ok && m.value).toEqual({ ...old, schemaVersion: 9 });
+    expect(m.ok && m.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA });
   });
 });

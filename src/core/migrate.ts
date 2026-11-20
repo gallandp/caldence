@@ -56,6 +56,9 @@ export const MIGRATIONS: Record<number, (w: unknown) => unknown> = {
   // 8 -> 9: the organisation can hold people and meetings of its own (#328); existing files have
   // none, so only the version changes, which keeps older apps from dropping or ignoring them.
   8: (w) => w,
+  // 9 -> 10: a meeting can name its room or online link (#442); existing meetings have none, so
+  // only the version changes, which keeps older apps from dropping the place on save.
+  9: (w) => w,
 };
 
 export type MigrateResult =

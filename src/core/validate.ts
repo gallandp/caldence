@@ -286,6 +286,7 @@ function checkEvent(
     const os = c.obj(e.onSite, `${p}.onSite`);
     if (os) c.num(os, 'travel', `${p}.onSite`, { min: 0, int: true, max: LIMITS.minutes });
   }
+  if (e.place !== undefined) c.str(e, 'place', p);
   if (e.scaling !== undefined) {
     const sc = c.obj(e.scaling, `${p}.scaling`);
     if (sc) {

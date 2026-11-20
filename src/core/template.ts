@@ -314,9 +314,14 @@ export function teamToTemplate(
   const team = ws.teams.find((t) => t.id === teamId);
   if (!team) throw new Error(`unknown team ${teamId}`);
   const area = ws.areas.find((a) => a.teamIds.includes(teamId));
-  // A template has no people: meetings keep only their roles (#285).
+  // A template has no people: meetings keep only their roles (#285), and no room or call link of
+  // this team (#442).
   const roleOnly = (list: CalEvent[]): CalEvent[] =>
-    list.map((e) => ({ ...e, participants: e.participants.filter((p) => p.roleId !== undefined) }));
+    list.map((e) => {
+      const out = { ...e, participants: e.participants.filter((p) => p.roleId !== undefined) };
+      delete out.place;
+      return out;
+    });
   const events = [...team.events, ...(area?.events ?? [])];
   const roleIds = new Set([
     ...events.flatMap((e) =>
