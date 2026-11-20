@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { capacity, hoursLeft, placesOf, suggestedHours } from '../../core/load';
+  import { capacity, hoursLeft, placeHours, placesOf, suggestedHours } from '../../core/load';
   import { record } from '../../core/record';
-  import { setupTeam, type SetupMember } from '../../core/setup';
+  import { fittedHours, setupTeam, type SetupMember } from '../../core/setup';
   import { areaRoleIds, templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
   import { formatDisplayDate, levels, locale, translate as t } from '../../i18n';
@@ -86,6 +86,9 @@
       key: string;
       name: string;
       places: string;
+      personId: string;
+      /** The teams and areas where the person has hours: the ones lowered to fit (#446). */
+      booked: string;
       hours: number;
       left: number;
       suggested: number;
@@ -103,6 +106,11 @@
         key,
         name: person.name,
         places: places.join(', '),
+        personId: person.id,
+        booked: placeHours(ws, person.id, $levels.org)
+          .filter((p) => p.hours > 0)
+          .map((p) => p.name)
+          .join(', '),
         hours: capacity(ws, person.id),
         left: hoursLeft(ws, person.id),
         suggested: suggestedHours(ws, person.id),
@@ -110,6 +118,19 @@
     }
     return out;
   });
+  /** The hours typed here for a person, or the proposal while the field is empty. */
+  const hoursOf = (a: { key: string; suggested: number }): number => {
+    const raw = hoursHere[a.key] ?? '';
+    return raw.trim() === '' ? a.suggested : Number(raw);
+  };
+  /** "Team Gamma 21.5 h, Team Delta 5.5 h": what the other teams keep (#446). */
+  const fittedText = (a: { key: string; personId: string; suggested: number }): string => {
+    const here = hoursOf(a);
+    if (!Number.isFinite(here) || here < 0) return '';
+    return fittedHours($workspace, a.personId, here, undefined, $levels.org)
+      .map((p) => `${p.name} ${num(p.hours)} h`)
+      .join(', ');
+  };
   const num = (n: number) => new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const zones = supportedZones();
   const zoneOptions = $derived(
@@ -191,8 +212,7 @@
     const trimmed = name.trim();
     const hours = record<number>();
     for (const [i, a] of already.entries()) {
-      const raw = hoursHere[a.key] ?? '';
-      const n = raw.trim() === '' ? a.suggested : Number(raw);
+      const n = hoursOf(a);
       if (!Number.isFinite(n) || n < 0) {
         problem = {
           key: 'error.number.invalid',
@@ -366,18 +386,26 @@
                 }}
               />{$t('settings.people.unit')}</span
             >
-            {#if a.left === 0}
+            {#if a.left === 0 && a.booked !== ''}
+              {@const fitted = fittedText(a)}
               <label class="check fit">
                 <input
                   type="checkbox"
                   checked={!keepOthers[a.key]}
+                  aria-describedby="{uid}-fitted-{i}"
                   onchange={(e) => (keepOthers[a.key] = !e.currentTarget.checked)}
                 />
                 {$t('setup.people.fit', {
-                  units: a.places,
+                  units: a.booked,
                   hpw: num($workspace.settings.hoursPerWeek),
                 })}
               </label>
+              <!-- Always present, so screen readers announce the new hours as they change. -->
+              <p class="fitted hint" id="{uid}-fitted-{i}" aria-live="polite">
+                {fitted !== '' && !keepOthers[a.key]
+                  ? $t('setup.people.fitted', { hours: fitted })
+                  : ''}
+              </p>
             {/if}
           </div>
         {/each}
@@ -555,6 +583,14 @@
   .already .fit {
     flex: 1 1 100%;
     margin: 0;
+  }
+  .already .fitted {
+    flex: 1 1 100%;
+    margin: 0 0 0 1.75rem;
+    font-size: 0.875rem;
+  }
+  .already .fitted:empty {
+    display: none;
   }
   .already .fit input {
     width: auto;

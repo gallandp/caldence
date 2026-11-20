@@ -1,7 +1,7 @@
 import type { ISODate } from './date';
 import { addItem, addTeam, updateSettings } from './edit';
-import { capacity, halfHours } from './load';
-import type { Settings, Workspace } from './model';
+import { placeHours, type PlaceHours } from './load';
+import { ORG_UNIT, type Settings, type Workspace } from './model';
 import { applyTemplate, areaRoleIds, type Template } from './template';
 import { validate, type Result } from './validate';
 
@@ -92,7 +92,7 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
       input.fit?.includes(norm(person.name)) &&
       team.members.some((m) => m.personId === person.id)
     )
-      fitOthers(out, teamId, person.id);
+      fitOthers(out, teamId, person.id, team.memberHours[person.id] ?? out.settings.hoursPerWeek);
 
   const checked = validate(out);
   if (!checked.ok) return checked;
@@ -100,20 +100,45 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
 }
 
 /**
- * Lowers a person's hours in all teams and areas but `teamId` in proportion, in half hours, so
- * that all their hours add up to at most the Settings weekly hours. Hours that fit stay (#446).
+ * The hours a person keeps in their other teams and areas (all but `exceptId`) when they work
+ * `here` hours in one more team (#446): lowered in proportion to fit the Settings weekly hours,
+ * in half hours, with the half hours rounding leaves over going to the largest remainders so the
+ * total is exactly what is left. Empty when nothing needs to change: the hours already fit, or
+ * `here` alone takes all weekly hours (the over-hours flag says so instead). Places at 0 h stay.
  */
-function fitOthers(ws: Workspace, teamId: string, personId: string): void {
+export function fittedHours(
+  ws: Workspace,
+  personId: string,
+  here: number,
+  exceptId?: string,
+  org = '',
+): PlaceHours[] {
   const weekly = ws.settings.hoursPerWeek;
-  const here = capacity(ws, personId, teamId);
-  const others = capacity(ws, personId) - here;
-  const room = Math.max(0, weekly - here);
-  if (others <= room) return;
-  const scale = (h: number) => halfHours((h * room) / others);
-  for (const t of ws.teams)
-    if (t.id !== teamId && t.members.some((m) => m.personId === personId))
-      t.memberHours[personId] = scale(capacity(ws, personId, t.id));
-  const areaHours = [...ws.areas.map((a) => a.memberHours), ws.organisation?.memberHours];
-  for (const hours of areaHours)
-    if (hours && Object.hasOwn(hours, personId)) hours[personId] = scale(hours[personId]!);
+  const places = placeHours(ws, personId, org).filter((p) => p.id !== exceptId && p.hours > 0);
+  const others = places.reduce((sum, p) => sum + p.hours, 0);
+  const room = weekly - here;
+  if (room <= 0 || others <= room) return [];
+  const halves = Math.floor(room * 2 + 1e-9);
+  const exact = places.map((p) => (p.hours * halves) / others);
+  const out = exact.map((x) => Math.floor(x + 1e-9));
+  let left = halves - out.reduce((sum, n) => sum + n, 0);
+  const order = exact.map((x, i) => i).sort((a, b) => (exact[b]! % 1) - (exact[a]! % 1) || a - b);
+  for (const i of order) {
+    if (left <= 0) break;
+    out[i]!++;
+    left--;
+  }
+  return places.map((p, i) => ({ ...p, hours: out[i]! / 2 }));
+}
+
+/** Writes the fitted hours of a person into their other teams and areas (#446). */
+function fitOthers(ws: Workspace, teamId: string, personId: string, here: number): void {
+  for (const place of fittedHours(ws, personId, here, teamId)) {
+    const team = ws.teams.find((t) => t.id === place.id);
+    if (team) team.memberHours[personId] = place.hours;
+    const area = ws.areas.find((a) => a.id === place.id);
+    if (area) area.memberHours[personId] = place.hours;
+    if (place.id === ORG_UNIT && ws.organisation?.memberHours)
+      ws.organisation.memberHours[personId] = place.hours;
+  }
 }

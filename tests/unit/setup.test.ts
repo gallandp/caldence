@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyWorkspace } from '../../src/core/model';
-import { setupTeam } from '../../src/core/setup';
+import { evenShare } from '../../src/core/load';
+import { fittedHours, setupTeam } from '../../src/core/setup';
 import { builtinTemplate } from '../../src/data/templates';
 
 const today = '2027-01-04';
@@ -260,5 +261,66 @@ describe('setupTeam', () => {
     });
     if (!r.ok) throw new Error('setup');
     expect(r.value[0].teams[0]!.memberHours).toEqual({ [ws.people[0]!.id]: 10 });
+  });
+
+  it('keeps the other hours when the hours here take the whole week', () => {
+    const first = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'Alpha',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+    });
+    if (!first.ok) throw new Error('setup');
+    const r = setupTeam(first.value[0], {
+      template: scrum,
+      name: 'Beta',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+      hours: { sam: 40 },
+      fit: ['sam'],
+    });
+    if (!r.ok) throw new Error('setup');
+    expect(r.value[0].teams[0]!.memberHours).toEqual({});
+  });
+});
+
+describe('fittedHours (#446)', () => {
+  function robin(gamma: number, delta: number) {
+    const ws = emptyWorkspace(today);
+    ws.people.push({ id: 'p', name: 'Robin' });
+    const team = (id: string, hours: number) => ({
+      id,
+      name: id,
+      cadence: { kind: 'sprint' as const, lengthWeeks: 2, start: today },
+      members: [{ personId: 'p', roleId: 'r' }],
+      memberHours: { p: hours },
+      assumptions: {},
+      cycles: [],
+      events: [],
+    });
+    ws.teams.push(team('Gamma', gamma), team('Delta', delta));
+    return ws;
+  }
+
+  it('hands the half hours rounding leaves to the largest remainders, so the total fits', () => {
+    // 27 h left for 32 h and 8 h: 21.6 h and 5.4 h, in half hours 21.5 h and 5.5 h.
+    const out = fittedHours(robin(32, 8), 'p', 13);
+    expect(out.map((p) => [p.name, p.hours])).toEqual([
+      ['Gamma', 21.5],
+      ['Delta', 5.5],
+    ]);
+    expect(out.reduce((sum, p) => sum + p.hours, 0)).toBe(27);
+  });
+
+  it('changes nothing when the hours fit or the hours here take the whole week', () => {
+    expect(fittedHours(robin(20, 10), 'p', 10)).toEqual([]);
+    expect(fittedHours(robin(32, 8), 'p', 40)).toEqual([]);
+    expect(fittedHours(robin(32, 8), 'p', 45)).toEqual([]);
+  });
+
+  it('leaves out places at 0 h, also for the even split', () => {
+    const ws = robin(40, 0);
+    expect(fittedHours(ws, 'p', 20).map((p) => [p.name, p.hours])).toEqual([['Gamma', 20]]);
+    expect(evenShare(ws, 'p')).toBe(20);
   });
 });

@@ -212,12 +212,35 @@ export function hoursLeft(ws: Workspace, personId: string): number {
 /** Hours rounded down to half hours, the step of the hours fields. */
 export const halfHours = (h: number): number => Math.floor(h * 2 + 1e-9) / 2;
 
+/** A team or area (or the organisation) a person works in, with their weekly hours there. */
+export interface PlaceHours {
+  id: string;
+  name: string;
+  hours: number;
+}
+
+/** The teams and areas a person works in, as `placesOf`, with their hours in each (#446). */
+export function placeHours(ws: Workspace, personId: string, org = ''): PlaceHours[] {
+  return [
+    ...ws.teams
+      .filter((t) => t.members.some((m) => m.personId === personId))
+      .map((t) => ({ id: t.id, name: t.name, hours: capacity(ws, personId, t.id) })),
+    ...areaUnits(ws)
+      .filter(
+        (a) =>
+          Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId),
+      )
+      .map((a) => ({ id: a.id, name: a.name || org, hours: areaHours(ws, a.id, personId) })),
+  ];
+}
+
 /**
- * The Settings weekly hours split evenly over the person's teams and areas and one more, in half
- * hours (#446). Someone in no team gets them all.
+ * The Settings weekly hours split evenly over the teams and areas where the person has hours and
+ * one more, in half hours (#446). Someone with no hours anywhere gets them all.
  */
 export function evenShare(ws: Workspace, personId: string): number {
-  return halfHours(ws.settings.hoursPerWeek / (placesOf(ws, personId).length + 1));
+  const places = placeHours(ws, personId).filter((p) => p.hours > 0).length;
+  return halfHours(ws.settings.hoursPerWeek / (places + 1));
 }
 
 /**

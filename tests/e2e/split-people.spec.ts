@@ -60,6 +60,7 @@ test('I take part myself: the wizard asks for my hours too, and splits them when
     'Lower the hours in Team Alpha, Team Beta in proportion, so they add up to 40 h a week',
   );
   await expect(fit).toBeChecked();
+  await expect(fit).toHaveAccessibleDescription('Then: Team Alpha 13.5 h, Team Beta 13.5 h');
   // A negative number stops the form (min 0) and the field gets the focus.
   await hours.fill('-2');
   await dialog.getByRole('button', { name: 'Create team' }).click();
@@ -67,6 +68,7 @@ test('I take part myself: the wizard asks for my hours too, and splits them when
   await expect(hours).toBeFocused();
   // 4 h here leave 36 h: Alpha and Beta go from 20 h to 18 h each.
   await hours.fill('4');
+  await expect(fit).toHaveAccessibleDescription('Then: Team Alpha 18 h, Team Beta 18 h');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await openTeamView(page);
@@ -121,12 +123,19 @@ test('reusing a person in the wizard splits their hours and the area table follo
   await expect(
     dialog.getByLabel('Robin is already in Team Gamma, Team Delta (40 h). Hours here:'),
   ).toHaveValue('13');
+  // 21.6 h and 5.4 h, in half hours that still add up to 27 h.
+  await expect(dialog.getByText('Then: Team Gamma 21.5 h, Team Delta 5.5 h')).toBeVisible();
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await pickUnit(page, 'Team Gamma');
   await openTeamView(page);
   const robin = panel(page).getByLabel('Weekly hours of Robin in Team Gamma');
   await expect(robin).toHaveValue('21.5');
+  await pickUnit(page, 'Team Delta');
+  await openTeamView(page);
+  await expect(panel(page).getByLabel('Weekly hours of Robin in Team Delta')).toHaveValue('5.5');
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
 
   // Fewer hours in Gamma for the same meetings: its share goes up.
   await pickUnit(page, 'Commerce');

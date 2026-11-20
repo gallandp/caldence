@@ -541,6 +541,7 @@
         </thead>
         <tbody>
           {#each costs.teams as r (r.unitId)}
+            {@const zero = zeroNote(r.unitId)}
             <tr data-cost-row={r.unitId}>
               <th scope="row">
                 {#if onOpenUnit}
@@ -569,8 +570,8 @@
                   <span class="num" class:over={over(r)}>{shareText(r)}</span>
                   <span class="cap muted" aria-hidden="true">{$t('overview.cost.col.share')}</span>
                 </span>
-                {#if zeroNote(r.unitId)}
-                  <small data-zero-hours>{zeroNote(r.unitId)}</small>
+                {#if zero}
+                  <small data-zero-hours>{zero}</small>
                 {/if}
               </td>
               {#if rate && r.cost}
