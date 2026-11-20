@@ -665,22 +665,58 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   await expect(row(page, 'Weekly Sync')).toContainText('15 min');
   await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
 
-  // With a rate, the cost per week and in the planning horizon shows as well.
+  // With a rate, the cost per week, per sprint (Team Alpha: two weeks, #443) and in the
+  // planning horizon shows as well.
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Hourly rate (optional)').fill('100');
   await page.getByLabel('Hourly rate (optional)').press('Enter');
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
   await form.getByLabel('Duration (minutes)').fill('30');
-  await expect(effect).toContainText(/\+€50 per week · \+€[\d,]+ in the planning horizon/);
+  await expect(effect).toContainText(
+    /\+€50 per week · \+€100 per sprint · \+€[\d,]+ in the planning horizon/,
+  );
   // On a phone the box collapses to one line.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load Team Alpha: \d+%\s→\s\d+%$/),
+    effect.getByText(
+      /^\+0\.5 h · \+€50 per week · \+€100 per sprint · meeting load Team Alpha: \d+%\s→\s\d+%$/,
+    ),
   ).toBeVisible();
   await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(row(page, 'Weekly Sync')).toContainText('30 min');
+});
+
+test('the effect gives the cost per sprint of the team, also in an area; flow per week only (#443)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const ws = areaWorkspace();
+  ws.settings.locale = 'en';
+  (ws.settings as { hourlyRate?: number }).hourlyRate = 100;
+  await openWorkspaceFile(page, ws);
+  // Team Alpha in Payments: two-week sprints. The cost line is the area's; its sprint the team's.
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Meetings & cadence');
+  await panel(page).getByRole('button', { name: 'Edit Backlog Refinement' }).click();
+  let form = panel(page).getByRole('region', { name: 'Edit Backlog Refinement' });
+  await form.getByLabel('Duration (minutes)').fill('30');
+  await expect(form.locator('[data-effect-cost]')).toHaveText(
+    /^−€[\d,]+ per week · −€[\d,]+ per sprint of Team Alpha · −€[\d,]+ in the planning horizon/,
+  );
+  await form.getByRole('button', { name: 'Cancel' }).click();
+
+  // Team Beta works in flow: no fixed length, so per week only.
+  await pickUnit(page, 'Team Beta');
+  await showView(page, 'Meetings & cadence');
+  await panel(page).getByRole('button', { name: 'Edit Replenishment' }).click();
+  form = panel(page).getByRole('region', { name: 'Edit Replenishment' });
+  await form.getByLabel('Duration (minutes)').fill('90');
+  const cost = form.locator('[data-effect-cost]');
+  await expect(cost).toContainText(/\+€[\d,]+ per week · \+€[\d,]+ in the planning horizon/);
+  await expect(cost).not.toContainText('per sprint');
 });
 
 test('the effect names whose hours they are; on a phone a team in an area adds the area (#364)', async ({

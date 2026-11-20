@@ -845,6 +845,7 @@
           {after}
           {scopeName}
           team={own}
+          cadence={team.cadence}
           compact
           live={false}
           error={after ? undefined : tt('meet.effect.invalid')}

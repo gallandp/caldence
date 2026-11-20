@@ -25,6 +25,8 @@
 </script>
 
 <script lang="ts">
+  import type { Cadence } from '../../core/model';
+  import { costPerCadence } from '../../core/cost';
   /**
    * The effect box: what a change does to hours, cost, meeting load and teams in step, measured
    * in `scopeName`. `error` replaces the numbers; `note` adds one line, e.g. the meetings that move.
@@ -32,6 +34,7 @@
    * `live` false drops the live region, where the box follows every keystroke of a form.
    * `team`: a team in an area; its own meeting load comes first, then the area's (#340). The
    * area's hours and cost follow the area's line then, so they are not read as the team's.
+   * `cadence`: the edited unit's Takt; with a sprint or PI the cost also shows per one (#443).
    */
   let {
     before,
@@ -42,6 +45,7 @@
     compact = false,
     live = true,
     team,
+    cadence,
   }: {
     before?: Effect;
     after?: Effect;
@@ -51,6 +55,7 @@
     compact?: boolean;
     live?: boolean;
     team?: { name: string; before: Effect; after: Effect };
+    cadence?: Cadence;
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -62,14 +67,28 @@
   /** "16 % → 14 %", wrapping as a whole. */
   const arrow = (b: Effect, a: Effect) =>
     $t('whatif.arrow', { from: pct(b.share), to: pct(a.share) }).replace(/\s/g, ' ');
+  /** The Takt's short name ("sprint", "PI"); none for flow, which has no fixed length. */
+  const kind = $derived(
+    cadence && costPerCadence(0, cadence) !== undefined ? $t(`meet.kind.${cadence.kind}`) : '',
+  );
+  /** The change in cost per week, and per sprint or PI when the Takt has one. */
+  const costParams = (b: Effect, a: Effect) => {
+    const week = a.cost!.perWeek - b.cost!.perWeek;
+    const perCadence = cadence && costPerCadence(week, cadence);
+    return { week, cadence: perCadence === undefined ? '' : signed(perCadence, euro), kind };
+  };
   /** One line of hours, cost per week (with a rate) and meeting load. */
-  const own = (name: string, b: Effect, a: Effect) =>
-    $t(b.cost && a.cost ? 'whatif.line.cost' : 'whatif.line', {
+  const own = (name: string, b: Effect, a: Effect) => {
+    const c = b.cost && a.cost ? costParams(b, a) : undefined;
+    return $t(c ? (c.cadence ? 'whatif.line.cost.cadence' : 'whatif.line.cost') : 'whatif.line', {
       hours: signed(hoursDelta(b, a), hours),
-      cost: b.cost && a.cost ? signed(a.cost.perWeek - b.cost.perWeek, euro) : '',
+      cost: c ? signed(c.week, euro) : '',
+      cadence: c?.cadence ?? '',
+      kind,
       name,
       share: arrow(b, a),
     });
+  };
   /**
    * The compact one-line form. A team in an area shows its own change, then the area's meeting
    * load in short (#340, #364).
@@ -112,13 +131,25 @@
         </dd>
       </div>
       {#if before.cost && after.cost}
+        {@const c = costParams(before, after)}
         <div>
           <dt>{$t('whatif.effect.cost', { name: scopeName })}</dt>
-          <dd class:up={after.cost.perWeek - before.cost.perWeek > 0.004}>
-            {$t('whatif.effect.costValue', {
-              week: signed(after.cost.perWeek - before.cost.perWeek, euro),
-              horizon: signed(after.cost.horizon - before.cost.horizon, euro),
-            })}
+          <dd class:up={c.week > 0.004} data-effect-cost>
+            <!-- In an area the sprint is the team's: it names the team (#443). -->
+            {$t(
+              c.cadence
+                ? team
+                  ? 'whatif.effect.costValue.cadenceOf'
+                  : 'whatif.effect.costValue.cadence'
+                : 'whatif.effect.costValue',
+              {
+                week: signed(c.week, euro),
+                cadence: c.cadence,
+                kind,
+                team: team?.name ?? '',
+                horizon: signed(after.cost.horizon - before.cost.horizon, euro),
+              },
+            )}
           </dd>
         </div>
       {/if}

@@ -234,6 +234,7 @@
       ? sortMeetings(team.events, sortKey, sortDir, {
           next: (e) => next?.get(e.id),
           cost: costOf,
+          weekCost: weekCostOf,
           locale: $locale,
         })
       : [],
@@ -681,22 +682,34 @@
                     </td>
                     {#if rate}
                       {@const perWeek = occurrencesPerWeek(event.rule, team)}
+                      <!-- The headline is Ø per week, as the area Overview ranks; one meeting
+                           follows below (#443). Without a weekly average the headline names
+                           its period itself. -->
                       <td class="num cost c-cost" data-cost={event.id}>
-                        {euro(cost)}
                         {#if perWeek > 0}
                           {@const perCadence = costPerCadence(perWeek * cost, team.cadence)}
-                          <span class="sub"
+                          <span data-cost-avg
                             >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
+                          >
+                          <span class="sub" data-cost-each
+                            >{$t('meet.cost.each', { amount: euro(cost) })}</span
                           >
                           {#if perCadence !== undefined}
                             <span class="sub" data-cost-cadence
                               >{$t('meet.cost.cadence', { amount: euro(perCadence), kind })}</span
                             >
                           {/if}
-                        {:else if event.rule.type === 'once'}
-                          <span class="sub">{$t('meet.cost.once')}</span>
-                        {:else if event.rule.type === 'cycle-milestone'}
-                          <span class="sub">{$t('meet.cost.milestone')}</span>
+                        {:else}
+                          <span data-cost-each
+                            >{$t(
+                              event.rule.type === 'cycle-milestone'
+                                ? 'meet.cost.milestone'
+                                : event.rule.type === 'once'
+                                  ? 'meet.cost.once'
+                                  : 'meet.cost.each',
+                              { amount: euro(cost) },
+                            )}</span
+                          >
                         {/if}
                         {#if event.onSite?.travel}
                           <span class="sub" data-cost-travel
