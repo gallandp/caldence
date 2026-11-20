@@ -172,6 +172,7 @@ function toEvent(draft: Draft): IcsEvent | null {
   let end: DateTime | null = null;
   let duration: number | null = null;
   let msAllDay = false;
+  let unit = '';
   const ev: IcsEvent = {
     uid: '',
     summary: '',
@@ -191,6 +192,9 @@ function toEvent(draft: Draft): IcsEvent | null {
         break;
       case 'SUMMARY':
         ev.summary = unescapeText(p.value).trim();
+        break;
+      case 'DESCRIPTION':
+        unit = unescapeText(p.value).split('\n')[0]!.trim();
         break;
       case 'CATEGORIES':
         ev.categories.push(...textList(p.value));
@@ -236,6 +240,11 @@ function toEvent(draft: Draft): IcsEvent | null {
     // Same zone (or both UTC/floating): wall-clock difference. Otherwise the best estimate.
     ev.durationMinutes = Math.round(wallMinutes(end) - wallMinutes(start));
   } else if (ev.allDay) ev.durationMinutes = 1440;
+  // Caldence writes "<meeting> · <team or area>" with the team or area as the first line of
+  // DESCRIPTION (#442): the meeting's own name is what is imported and matched.
+  const suffix = ` · ${unit}`;
+  if (ev.uid.endsWith('@caldence') && unit !== '' && ev.summary.endsWith(suffix))
+    ev.summary = ev.summary.slice(0, -suffix.length).trim();
   return ev;
 }
 

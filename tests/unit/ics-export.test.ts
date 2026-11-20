@@ -202,7 +202,10 @@ describe('exportIcs structure', () => {
   it('writes summary, categories, description and transparency', () => {
     const sync = blocks(text, 'VEVENT').find((b) => prop(b, 'UID')?.startsWith('UID:ev-sync.'))!;
     expect(sync).toContain(
-      'SUMMARY:' + escapeText(valid.teams[0]!.events.find((e) => e.id === 'ev-sync')!.name),
+      'SUMMARY:' +
+        escapeText(
+          `${valid.teams[0]!.events.find((e) => e.id === 'ev-sync')!.name} · ${valid.teams[0]!.name}`,
+        ),
     );
     expect(prop(sync, 'CATEGORIES')).toBeDefined();
     const desc = prop(sync, 'DESCRIPTION')!;
@@ -709,7 +712,7 @@ describe('exportIcs as an update of an earlier export (#21)', () => {
     const cancelled = blocks(second.text, 'VEVENT').filter((b) => b.includes('STATUS:CANCELLED'));
     expect(cancelled).toHaveLength(1);
     expect(cancelled[0]).toContain(`UID:ev-sync.team-alpha.${ws.id}@caldence`);
-    expect(cancelled[0]).toContain('SUMMARY:Weekly Sync');
+    expect(cancelled[0]).toContain(`SUMMARY:Weekly Sync · ${alpha.name}`);
     // The cancelled entry is not remembered for the next export.
     expect(second.events.some((e) => e.uid.startsWith('ev-sync.'))).toBe(false);
     expect(build(ws, opts({ now: later, previous: second.events })).cancelled).toBe(0);
