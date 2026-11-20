@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import { areaShare } from '../../core/areaCosts';
   import { costSummary } from '../../core/cost';
   import { addDays, isoWeek } from '../../core/date';
@@ -401,6 +402,8 @@
   const unitLabel = $derived(scopeTeam?.name);
 
   const uid = $props.id();
+  /** The phone layout of the people table (#447): same breakpoint as its CSS. */
+  const phone = new MediaQuery('max-width: 600px');
 </script>
 
 <div class="load stack">
@@ -413,7 +416,10 @@
   {#snippet region(id: string, title: string, body: import('svelte').Snippet)}
     <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
     <div class="scroll" role="region" aria-labelledby="{uid}-{id}" tabindex="0">
-      <table>
+      <!-- Explicit roles: the people rows are drawn as grids on phones (#447), which some
+           browsers (Safari) take as losing the table semantics. -->
+      <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+      <table role="table">
         <caption id="{uid}-{id}">{title}</caption>
         {@render body()}
       </table>
@@ -481,12 +487,19 @@
   {/snippet}
 
   {#snippet personBody()}
-    <thead>
-      <tr>
-        <th scope="col">{$t('load.col.person')}</th>
-        <th scope="col">{$t('load.col.units')}</th>
-        <th scope="col" class="num">{$t('load.col.hours')}</th>
-        <th scope="col" class="sortable" aria-sort={sortBy === 'share' ? 'descending' : undefined}>
+    <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+    <thead role="rowgroup">
+      <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+      <tr role="row">
+        <th scope="col" role="columnheader">{$t('load.col.person')}</th>
+        <th scope="col" role="columnheader">{$t('load.col.units')}</th>
+        <th scope="col" role="columnheader" class="num">{$t('load.col.hours')}</th>
+        <th
+          scope="col"
+          role="columnheader"
+          class="sortable"
+          aria-sort={sortBy === 'share' ? 'descending' : undefined}
+        >
           <button type="button" class="sort" onclick={() => (sortBy = 'share')}
             >{$t('load.col.fte')}{#if sortBy !== 'share'}<span class="sr-only"
                 >, {$t('load.sort')}</span
@@ -494,10 +507,13 @@
           >
         </th>
         {#if showHere}
-          <th scope="col" class="num">{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th>
+          <th scope="col" role="columnheader" class="num"
+            >{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th
+          >
         {/if}
         <th
           scope="col"
+          role="columnheader"
           class="num sortable"
           aria-sort={sortBy === 'free' ? 'descending' : undefined}
         >
@@ -507,14 +523,16 @@
               >{/if}{#if sortBy === 'free'}<span aria-hidden="true"> ↓</span>{/if}</button
           >
         </th>
-        <th scope="col" class="num">{$t('load.col.peak')}</th>
+        <th scope="col" role="columnheader" class="num">{$t('load.col.peak')}</th>
       </tr>
     </thead>
-    <tbody>
+    <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+    <tbody role="rowgroup">
       {#each sorted as p (p.person.id)}
         {@const over = overMax(p.average, p.cap, maxFte)}
-        <tr data-person={p.person.id} class:open={openPerson === p.person.id}>
-          <th scope="row">
+        <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+        <tr role="row" data-person={p.person.id} class:open={openPerson === p.person.id}>
+          <th scope="row" role="rowheader">
             <button
               type="button"
               class="who"
@@ -535,7 +553,7 @@
               >
             {/if}
           </th>
-          <td class="units"
+          <td role="cell" class="units"
             >{p.units.length === 0
               ? '–'
               : p.units.every((u) => u.id === ORG_UNIT)
@@ -547,10 +565,10 @@
                       .map((u) => u.name)
                       .join(', ')}</td
           >
-          <td class="num nowrap hours"
+          <td role="cell" class="num nowrap hours"
             >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
           >
-          <td class="nowrap share-cell">
+          <td role="cell" class="nowrap share-cell">
             <span class="share">
               <span class="bar" aria-hidden="true"
                 ><i style:width="{barWidth(shareKey(p))}%" class:over></i><b></b></span
@@ -561,7 +579,10 @@
             </span>
           </td>
           {#if showHere}
-            <td class="num nowrap here" data-cap={$t(area ? 'load.col.hereArea' : 'load.col.here')}
+            <td
+              role="cell"
+              class="num nowrap here"
+              data-cap={$t(area ? 'load.col.hereArea' : 'load.col.here')}
               >{$t('load.here', {
                 hours: hours(p.here.hours),
                 of: hours(p.here.cap),
@@ -572,12 +593,16 @@
               })}</td
             >
           {/if}
-          <td class="num nowrap free" class:over={p.free < 0} data-cap={$t('load.col.free')}
+          <td
+            role="cell"
+            class="num nowrap free"
+            class:over={p.free < 0}
+            data-cap={$t('load.col.free')}
             >{p.free < 0
               ? $t('load.freeHours.over', { hours: hours(-p.free) })
               : $t('load.freeHours', { hours: hours(p.free) })}</td
           >
-          <td class="num nowrap peak" data-cap={$t('load.col.peak')}>
+          <td role="cell" class="num nowrap peak" data-cap={$t('load.col.peak')}>
             {#if p.peak}
               {@const [before, after] = $t('load.peak', {
                 week: '\uE000',
@@ -594,8 +619,14 @@
             {/if}
           </td>
         </tr>
-        <tr class="detail" id="{uid}-detail-{p.person.id}" hidden={openPerson !== p.person.id}>
-          <td colspan={showHere ? 7 : 6}>
+        <!-- svelte-ignore a11y_no_redundant_roles (Safari, see above) -->
+        <tr
+          role="row"
+          class="detail"
+          id="{uid}-detail-{p.person.id}"
+          hidden={openPerson !== p.person.id}
+        >
+          <td role="cell" colspan={showHere ? 7 : 6}>
             <!-- Stays in the visible part of a table that scrolls sideways (phones). -->
             <div class="detail-in">
               {#if openPerson === p.person.id}
@@ -749,7 +780,27 @@
       </div>
     </section>
   {/if}
-  <section class="card warn-card" aria-labelledby="{uid}-warn">
+  {#snippet peopleCard()}
+    {#if $workspace.people.length > 0}
+      <section class="card people">
+        {@render region('person', $t('load.table.person'), personBody)}
+        <p class="note below">
+          {#if !$filter.personId}
+            {area
+              ? $t('load.table.person.noteArea', { name: area.name })
+              : showHere
+                ? $t('load.table.person.note')
+                : ''}
+          {/if}
+          {$t('load.table.person.free', { max: formatPercent($locale, maxFte) })}
+        </p>
+      </section>
+    {/if}
+  {/snippet}
+  <!-- Phones: the people answer the reader's question, so they come before the warnings (#447);
+       in the source too, so reading and Tab order follow the screen. -->
+  {#if phone.current}{@render peopleCard()}{/if}
+  <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
       {#if warningItems.length + overlaps.length > 0}<span class="count" aria-hidden="true"
@@ -833,21 +884,7 @@
     {/if}
   </section>
 
-  {#if $workspace.people.length > 0}
-    <section class="card people">
-      {@render region('person', $t('load.table.person'), personBody)}
-      <p class="note below">
-        {#if !$filter.personId}
-          {area
-            ? $t('load.table.person.noteArea', { name: area.name })
-            : showHere
-              ? $t('load.table.person.note')
-              : ''}
-        {/if}
-        {$t('load.table.person.free', { max: formatPercent($locale, maxFte) })}
-      </p>
-    </section>
-  {/if}
+  {#if !phone.current}{@render peopleCard()}{/if}
 
   <div class="grid">
     <div class="col">
@@ -1252,7 +1289,7 @@
       text-align: left;
     }
     .people [data-cap]::before {
-      content: attr(data-cap);
+      content: attr(data-cap) / '';
       display: block;
       color: var(--text-muted);
       font-size: 0.75rem;
@@ -1287,16 +1324,6 @@
     .people .detail-in {
       position: static;
       max-width: none;
-    }
-    /* Phones: the people answer the reader's question, so they come before the warnings. */
-    .load > .people {
-      order: 1;
-    }
-    .load > .warn-card {
-      order: 2;
-    }
-    .load > .grid {
-      order: 3;
     }
   }
   .hints-title {

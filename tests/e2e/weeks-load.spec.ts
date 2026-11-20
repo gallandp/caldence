@@ -752,6 +752,17 @@ for (const scheme of ['light', 'dark'] as const) {
     const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
     const [list, warn] = [await people.boundingBox(), await warnings.boundingBox()];
     expect(list!.y).toBeLessThan(warn!.y);
+    // Also in the source, so Tab reaches the people first: the first focusable element of the
+    // people section comes before the first one of the warnings.
+    const follows = await panel.evaluate((el) => {
+      const focusable = 'button, a[href], [tabindex="0"]';
+      const inPeople = el.querySelector('section.people')!.querySelector(focusable)!;
+      const inWarnings = el.querySelector(
+        'section[aria-labelledby$="-warn"] :is(button, a[href])',
+      )!;
+      return !!(inPeople.compareDocumentPosition(inWarnings) & 4);
+    });
+    expect(follows).toBe(true);
     // A tap on the name opens the breakdown per team.
     const name = people.getByRole('button', { name: 'Alex', exact: true });
     await name.click();
