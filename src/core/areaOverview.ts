@@ -163,19 +163,36 @@ export function compareCadences(
   return { reference, areaSegments, rows };
 }
 
+/** The organisation's comparison, with what its lead line needs (#450). */
+export interface OrgComparison extends CadenceComparison {
+  /** Teams judged by their area's cadence. */
+  byArea: number;
+  /** Teams compared with the reference, the cadence most teams share. */
+  others: number;
+  /** Teams whose cadence equals the reference (1 when no two teams share one). */
+  sharing: number;
+}
+
 /**
  * Alignment of all teams for the organisation's page (#450). A team in an area with a cadence
  * takes the verdict of that area's Overview; every other team is compared with the cadence most
- * teams of the organisation share, as in an area without a cadence. Rows keep the order of the
- * teams; there are no area segments.
+ * teams of the organisation share (on a tie the first team's), as in an area without a cadence.
+ * Rows keep the order of the teams; there are no area segments.
  */
-export function compareOrgCadences(ws: Workspace, from: ISODate, weeks: number): CadenceComparison {
+export function compareOrgCadences(ws: Workspace, from: ISODate, weeks: number): OrgComparison {
   const all = compareCadences(ws, orgArea(ws), from, weeks);
   const byArea = new Map<string, CadenceRow>();
   for (const area of ws.areas)
     if (area.cadence)
       for (const row of compareCadences(ws, area, from, weeks).rows) byArea.set(row.teamId, row);
-  return { ...all, rows: all.rows.map((row) => byArea.get(row.teamId) ?? row) };
+  const ref = all.reference?.cadence;
+  return {
+    ...all,
+    rows: all.rows.map((row) => byArea.get(row.teamId) ?? row),
+    byArea: byArea.size,
+    others: all.rows.length - byArea.size,
+    sharing: ref ? ws.teams.filter((t) => sameCadence(t.cadence, ref)).length : 0,
+  };
 }
 
 export interface LoadCell {

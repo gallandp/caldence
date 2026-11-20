@@ -108,11 +108,12 @@
   );
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
-  const comparison = $derived(
-    summary ? compareOrgCadences(ws, from, weekCount) : compareCadences(ws, area, from, weekCount),
-  );
+  const orgComparison = $derived(summary ? compareOrgCadences(ws, from, weekCount) : undefined);
+  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount));
   const allWeeks = $derived(loadPerWeek(ws, $index));
+  // The summary shows no heat map or warned weeks: no load per team and week (#450).
   const weeks = $derived.by(() => {
+    if (summary) return [];
     const start = allWeeks.findIndex((w) => w.monday === from);
     return start < 0 ? [] : allWeeks.slice(start, start + weekCount);
   });
@@ -160,12 +161,15 @@
    * Clashes of the area's people in the window that touch the area or its teams (#339): the
    * calendar's overlap rule. The first one is the example.
    */
+  // The summary shows no clash line: no clashes of every person (#450).
   const windowClashes = $derived(
-    clashes(ws, $index, personIds, {
-      from,
-      to: addDays(from, weekCount * 7),
-      units: new Set([area.id, ...area.teamIds]),
-    }),
+    summary
+      ? []
+      : clashes(ws, $index, personIds, {
+          from,
+          to: addDays(from, weekCount * 7),
+          units: new Set([area.id, ...area.teamIds]),
+        }),
   );
   const clashDays = $derived(new Set(windowClashes.map((c) => c.date)).size);
   const clashLine = $derived(
@@ -303,17 +307,31 @@
   /**
    * The organisation's page names its teams and people in the tree, so only what the teams are
    * compared with: their area's cadence where it has one, else the one most teams share (#450).
+   * Empty without anything to compare.
    */
-  const orgLead = $derived(
-    comparison.reference?.teamId
-      ? $translate(
-          ws.areas.some((a) => a.cadence && a.teamIds.length > 0)
-            ? 'overview.lead.org.areas'
-            : 'overview.lead.org',
-          { team: teamName(comparison.reference.teamId) },
-        )
-      : '',
-  );
+  const orgLead = $derived.by(() => {
+    const c = orgComparison;
+    if (!c || c.rows.length < 2) return '';
+    const team = c.reference?.teamId ? teamName(c.reference.teamId) : '';
+    const most = c.sharing > 1;
+    return [
+      c.byArea > 0 ? $translate('overview.lead.org.areas') : '',
+      c.others > 0 && team
+        ? $translate(
+            c.byArea > 0
+              ? most
+                ? 'overview.lead.org.others'
+                : 'overview.lead.org.others.first'
+              : most
+                ? 'overview.lead.org'
+                : 'overview.lead.org.first',
+            { team },
+          )
+        : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+  });
 
   function reasonText(r: StepReason): string {
     switch (r.kind) {
@@ -437,7 +455,11 @@
 {/snippet}
 
 <div class="overview stack" data-area-overview>
-  <p class="lead">{summary ? orgLead : lead}</p>
+  {#if !summary}
+    <p class="lead">{lead}</p>
+  {:else if orgLead}
+    <p class="lead">{orgLead}</p>
+  {/if}
 
   <section class="kpis" class:three={summary} aria-label={$t('overview.kpis')}>
     <div class="card kpi" data-kpi="cadence">
