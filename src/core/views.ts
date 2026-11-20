@@ -9,7 +9,7 @@ import {
   type ISODate,
   type Time,
 } from './date';
-import { capacity, fte, loadBase, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
+import { capacity, fte, roleBase, occurrenceHours, weeklyBaseLoad, type LoadWarning } from './load';
 import {
   areasInScope,
   attendees,
@@ -383,9 +383,10 @@ export function loadSummary(
         const hours = roleHours[key] ?? 0;
         const ids = [...(holders[key] ?? [])];
         const empty = unfilled[key] ?? 0;
-        // A chosen person is measured like in the people table, at most the Settings hours (#342).
+        // A chosen person is measured against their hours in the role, at most the Settings hours
+        // (#342, #449).
         const hoursOf = (id: string) =>
-          filter.personId ? loadBase(ws, id) : capacity(ws, id, scope);
+          filter.personId ? roleBase(ws, id, key) : capacity(ws, id, scope);
         const weekly = ids.reduce((sum, id) => sum + hoursOf(id), empty * hpw);
         return {
           roleId: key,
