@@ -640,3 +640,33 @@ test('printing shows the "How is this counted?" text without the summary', async
   await expect(how.locator('summary')).toBeHidden();
   await expect(how.getByText(/counts only the meetings of that unit/)).toBeVisible();
 });
+
+test('the load tile names who is over the limit instead of the average (#448)', async ({
+  page,
+}) => {
+  // Pia attends area meetings without weekly hours anywhere: over the limit, like in Meeting load.
+  const overview = await openOverview(page);
+  const tag = overview.locator('[data-kpi="load"] .tag');
+  await expect(tag).toHaveText('1 person over the 60% limit: Pia');
+  await expect(tag).toHaveClass(/warn/);
+
+  // Hide names in present mode hides them here too.
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  await expect(tag).toHaveText(/^1 person over the 60% limit: Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: the count and the first three, highest share first.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  await expect(tag).toHaveText(/^5 people over the 12% limit: \w+, \w+, \w+ …$/);
+
+  // Nobody over: the average again.
+  await openOverview(page, undefined, (ws) => {
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  await expect(tag).toHaveText('below the 60% limit');
+  await expect(tag).toHaveClass(/ok/);
+});
