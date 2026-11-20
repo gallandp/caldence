@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { exportIcsWithCounts } from '../../src/core/ics';
+import { exportIcsWithCounts, sequenceOf, type ExportedEvent } from '../../src/core/ics';
+import { parseIcs, reviewImport } from '../../src/core/icsImport';
 import { migrate } from '../../src/core/migrate';
 import {
   CURRENT_SCHEMA,
+  ORG_UNIT,
   emptyWorkspace,
   type CalEvent,
   type Workspace,
@@ -49,15 +51,21 @@ function workspace(event: CalEvent): Workspace {
   return ws;
 }
 
-const icsOf = (ws: Workspace, scope = {}) =>
+const icsOf = (
+  ws: Workspace,
+  scope = {},
+  previous?: ExportedEvent[],
+  now = '2027-01-01T00:00:00Z',
+) =>
   exportIcsWithCounts(ws, noIndex(), {
     scope,
     from: '2027-01-04',
     to: '2027-01-31',
     reminderMinutes: 10,
     allDay: { holidays: false, schoolHolidays: false, milestones: false },
-    now: new Date('2027-01-01T00:00:00Z'),
+    now: new Date(now),
     locale: 'en',
+    ...(previous ? { previous } : {}),
   });
 
 const unfold = (text: string): string[] => text.replace(/\r\n[ \t]/g, '').split('\r\n');
@@ -149,5 +157,60 @@ describe('place or link of a meeting in the .ics export (#442)', () => {
     const old = { ...workspace(daily()), schemaVersion: 9 };
     const r = migrate(old);
     expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 10 });
+  });
+  it('puts a link into the notes too', () => {
+    const lines = unfold(icsOf(workspace(daily({ place: 'https://meet.example.com/d' }))).text);
+    expect(lines).toContain('DESCRIPTION:Alpha\\nDeveloper\\nhttps://meet.example.com/d');
+  });
+
+  it('adds nothing to the title of an organisation without a name', () => {
+    const ws = workspace(daily());
+    ws.organisation = { events: [daily({ id: 'e9', name: 'All hands', participants: [] })] };
+    const lines = unfold(icsOf(ws, { teamId: ORG_UNIT }).text);
+    expect(lines).toContain('SUMMARY:All hands');
+    ws.organisation.name = 'Northwind';
+    expect(unfold(icsOf(ws, { teamId: ORG_UNIT }).text)).toContain('SUMMARY:All hands · Northwind');
+  });
+
+  it('gives each entry of an earlier export a new SEQUENCE once', () => {
+    const ws = workspace(daily());
+    const now = icsOf(ws);
+    // What an export before #442 remembered: the bare name, another fingerprint.
+    const before: ExportedEvent[] = now.events.map((e) => ({
+      ...e,
+      summary: 'Daily Scrum',
+      sequence: 100,
+      hash: '00000000',
+    }));
+    const later = '2027-01-02T00:00:00Z';
+    const first = icsOf(ws, {}, before, later);
+    expect(first.events[0]!.sequence).toBe(sequenceOf(new Date(later)));
+    expect(first.events[0]!.summary).toBe('Daily Scrum · Alpha');
+    const again = icsOf(ws, {}, first.events, '2027-01-03T00:00:00Z');
+    expect(again.events[0]!.sequence).toBe(first.events[0]!.sequence);
+  });
+
+  it('imports its own export by the meeting name, also into another file', () => {
+    const ws = workspace(daily());
+    const parsed = parseIcs(icsOf(ws).text);
+    expect(parsed.ok).toBe(true);
+    const other = workspace(daily({ id: 'x1' }));
+    other.id = 'another-file';
+    const review = reviewImport(parsed.ok ? parsed.value : [], {
+      ws: other,
+      teamId: 'alpha',
+      today: '2027-01-04',
+    });
+    expect(review.candidates).toHaveLength(1);
+    expect(review.candidates[0]!.name).toBe('Daily Scrum');
+    expect(review.candidates[0]!.duplicateOf).toBe('x1');
+    // Another file's meeting with a name that only looks like the suffix keeps it.
+    const plain = parseIcs(
+      icsOf(workspace(daily({ name: 'Sync · Beta' }))).text.replace(
+        'DESCRIPTION:Alpha',
+        'DESCRIPTION:Gamma',
+      ),
+    );
+    expect(plain.ok && plain.value[0]!.summary).toBe('Sync · Beta · Alpha');
   });
 });

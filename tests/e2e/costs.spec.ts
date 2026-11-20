@@ -188,7 +188,7 @@ test('an on-site meeting adds its travel time to cost and load (#309)', async ({
 
   await sync.getByRole('button', { name: 'Edit Weekly Sync' }).click();
   const form = panel.getByRole('region', { name: /Weekly Sync/ });
-  const place = form.getByRole('group', { name: 'Place' });
+  const place = form.getByRole('group', { name: 'Format' });
   await expect(place.getByRole('button', { name: 'Remote' })).toHaveAttribute(
     'aria-pressed',
     'true',

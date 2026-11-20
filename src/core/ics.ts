@@ -500,8 +500,9 @@ export function exportIcsWithCounts(
       )
       .filter((n): n is string => n !== undefined);
     const category = categoryNames.get(event.categoryId);
-    // The team or area in the title tells apart the same meeting of two teams (#442).
-    const summary = `${event.name} · ${team.name}`;
+    // The team or area in the title tells apart the same meeting of two teams (#442); an
+    // organisation without a name adds nothing.
+    const summary = team.name.trim() === '' ? event.name : `${event.name} · ${team.name}`;
     // LOCATION only holds a real place or link (#442); "on site" and travel go to DESCRIPTION.
     const words = ON_SITE[opts.locale];
     const onSite = event.onSite
@@ -514,7 +515,8 @@ export function exportIcsWithCounts(
       ...(category !== undefined ? [`CATEGORIES:${escapeText(category)}`] : []),
       ...(place !== '' ? [`LOCATION:${escapeText(place)}`] : []),
       ...(link !== undefined ? [`URL:${link}`] : []),
-      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${onSite}`)}`,
+      // The link is in the notes too: not every calendar app shows URL (#442).
+      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${onSite}${link !== undefined ? `\n${link}` : ''}`)}`,
       'TRANSP:OPAQUE',
     ];
     // A series whose every occurrence in range is skipped is not written.
