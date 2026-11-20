@@ -10,6 +10,9 @@ import {
   filteredOccurrences,
   loadSummary,
   nextDates,
+  overlapPairs,
+  overviewWindow,
+  weekdayRuns,
   scopePeople,
   warnedWeeks,
   schoolHolidayGap,
@@ -318,6 +321,91 @@ describe('clashes', () => {
     const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 30));
     const out = clashes(ws, workspaceIndex(ws), ['p1', 'p1']);
     expect(out.map((c) => c.date)).toEqual(['2026-12-02']);
+  });
+});
+
+describe('overlapPairs', () => {
+  /** Two daily meetings of two teams at 09:15, Mon-Fri, for p1 and a second person p2. */
+  function dailies(): Workspace {
+    const daily = (id: string, time: string, duration: number): CalEvent => ({
+      ...ev(id, time, duration),
+      rule: { type: 'weekdays', weekdays: [1, 2, 3, 4, 5] },
+    });
+    const ws = twoTeams(daily('daily', '09:15', 15), daily('kanban', '09:00', 30));
+    ws.settings.horizon = { from: '2027-03-01', to: '2027-03-14' };
+    ws.people.push({ id: 'p2', name: 'Sam' });
+    for (const team of ws.teams) team.members.push({ personId: 'p2', roleId: 'r1' });
+    return ws;
+  }
+
+  it('groups the overlaps of every person by the meeting pair', () => {
+    const ws = dailies();
+    const pairs = overlapPairs(clashes(ws, workspaceIndex(ws), ['p1', 'p2']));
+    expect(pairs).toHaveLength(1);
+    const [pair] = pairs;
+    // The earlier meeting comes first; the time is when both run.
+    expect(pair).toMatchObject({
+      a: { teamId: 't2', eventId: 'kanban' },
+      b: { teamId: ws.teams[0]!.id, eventId: 'daily' },
+      weekdays: [1, 2, 3, 4, 5],
+      start: '09:15',
+      end: '09:30',
+      people: ['p1', 'p2'],
+      first: { date: '2027-03-01', personId: 'p1' },
+    });
+    // Ten weekdays in two weeks, each day once although two people are affected.
+    expect(pair!.dates).toHaveLength(10);
+  });
+
+  it('keeps separate pairs apart and lists the pair with the most days first', () => {
+    const ws = dailies();
+    const t1 = ws.teams[0]!;
+    t1.events.push({ ...ev('review', '09:20', 30), rule: { type: 'weekly', weekday: 3 } });
+    const pairs = overlapPairs(clashes(ws, workspaceIndex(ws), ['p1']));
+    expect(pairs.map((p) => `${p.a.eventId}×${p.b.eventId}`)).toEqual([
+      'kanban×daily',
+      'kanban×review',
+      'daily×review',
+    ]);
+    expect(pairs[1]).toMatchObject({ weekdays: [3], people: ['p1'] });
+    expect(pairs[1]!.dates).toEqual(['2027-03-03', '2027-03-10']);
+  });
+
+  it('gives no pair without an overlap', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '10:00', 60));
+    expect(overlapPairs(clashes(ws, workspaceIndex(ws), ['p1']))).toEqual([]);
+  });
+});
+
+describe('weekdayRuns', () => {
+  it('joins neighbouring weekdays into runs', () => {
+    expect(weekdayRuns([1, 2, 3, 4, 5])).toEqual([[1, 5]]);
+    expect(weekdayRuns([1, 3])).toEqual([
+      [1, 1],
+      [3, 3],
+    ]);
+    expect(weekdayRuns([1, 2, 4, 5, 6])).toEqual([
+      [1, 2],
+      [4, 6],
+    ]);
+    expect(weekdayRuns([])).toEqual([]);
+  });
+});
+
+describe('overviewWindow', () => {
+  const horizon = { from: '2027-01-01', to: '2027-12-31' };
+  it('starts this week and holds 12 weeks', () => {
+    expect(overviewWindow(horizon, '2027-03-03')).toEqual({ from: '2027-03-01', weeks: 12 });
+  });
+  it('starts with the horizon before it begins', () => {
+    expect(overviewWindow(horizon, '2026-06-01')).toEqual({ from: '2026-12-28', weeks: 12 });
+  });
+  it('ends with the horizon near its end', () => {
+    expect(overviewWindow(horizon, '2027-12-20')).toEqual({ from: '2027-10-11', weeks: 12 });
+  });
+  it('shrinks for a horizon shorter than 12 weeks', () => {
+    const short = { from: '2027-03-01', to: '2027-03-21' };
+    expect(overviewWindow(short, '2027-03-10')).toEqual({ from: '2027-03-01', weeks: 3 });
   });
 });
 

@@ -31,6 +31,7 @@ export const AREA_LABELS: Record<string, string> = {
   fromTeams: 'area.participants.fromTeams',
   fromAreas: 'org.participants.fromAreas',
   meetings: 'view.meetings',
+  load: 'view.load',
   org: 'view.org',
   rename: 'org.rename',
   settings: 'view.settings',

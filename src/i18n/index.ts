@@ -111,3 +111,10 @@ export function areaText(tr: Translate, w: LevelWords, areaId: string): Translat
   const org = { levelArea: w.org, levelAreaLc: w.orgLc, levelInArea: w.inOrg };
   return (key, params) => tr(key, { ...org, ...params });
 }
+
+/** "the next 12 weeks", or "the next week" for one (#445). */
+export function nextWeeks(tr: Translate, locale: Locale, weeks: number): string {
+  return weeks === 1
+    ? tr('period.nextWeeks.one')
+    : tr('period.nextWeeks.other', { n: formatNumber(locale, weeks, 0) });
+}
