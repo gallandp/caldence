@@ -636,18 +636,23 @@ test('the form shows the effect of a change before Save; Cancel keeps the file',
   await expect(row(page, 'Weekly Sync')).toContainText('15 min');
   await expect(page.getByText('● Unsaved changes')).toHaveCount(0);
 
-  // With a rate, the cost per week and in the planning horizon shows as well.
+  // With a rate, the cost per week, per sprint (Team Alpha: two weeks, #443) and in the
+  // planning horizon shows as well.
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await page.getByLabel('Hourly rate (optional)').fill('100');
   await page.getByLabel('Hourly rate (optional)').press('Enter');
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
   await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
   await form.getByLabel('Duration (minutes)').fill('30');
-  await expect(effect).toContainText(/\+€50 per week · \+€[\d,]+ in the planning horizon/);
+  await expect(effect).toContainText(
+    /\+€50 per week · \+€100 per sprint · \+€[\d,]+ in the planning horizon/,
+  );
   // On a phone the box collapses to one line.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    effect.getByText(/^\+0\.5 h · \+€50 per week · meeting load Team Alpha: \d+%\s→\s\d+%$/),
+    effect.getByText(
+      /^\+0\.5 h · \+€50 per week · \+€100 per sprint · meeting load Team Alpha: \d+%\s→\s\d+%$/,
+    ),
   ).toBeVisible();
   await expect(effect.locator('dl')).toHaveCSS('position', 'absolute');
   await form.getByRole('button', { name: 'Save' }).click();
