@@ -40,7 +40,7 @@ test('the setup wizard asks for the hours of a person already in another team', 
   await expect(panel(page).getByLabel('Weekly hours of Alex in Team Epsilon')).toHaveValue('6');
 });
 
-test('I take part myself: the wizard asks for my hours too, and says when none are left', async ({
+test('I take part myself: the wizard asks for my hours too, and splits them when none are left', async ({
   page,
 }) => {
   await openExample(page);
@@ -53,22 +53,105 @@ test('I take part myself: the wizard asks for my hours too, and says when none a
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByLabel('I take part myself').check();
   await dialog.getByLabel('Your name').fill('Sam');
-  // Sam has 20 h in Alpha and in Beta: nothing is left of 40.
+  // Sam has 20 h in Alpha and in Beta: nothing is left of 40, so 40 h over three teams (#446).
   const hours = dialog.getByLabel('Sam is already in Team Alpha, Team Beta (40 h). Hours here:');
-  await expect(hours).toHaveValue('0');
-  await expect(hours).toHaveAccessibleDescription(
-    "No hours left – meetings here count towards the person's whole load and are over the limit only if that total is.",
+  await expect(hours).toHaveValue('13');
+  const fit = dialog.getByLabel(
+    'Lower the hours in Team Alpha, Team Beta in proportion, so they add up to 40 h a week',
   );
+  await expect(fit).toBeChecked();
+  await expect(fit).toHaveAccessibleDescription('Then: Team Alpha 13.5 h, Team Beta 13.5 h');
   // A negative number stops the form (min 0) and the field gets the focus.
   await hours.fill('-2');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeVisible();
   await expect(hours).toBeFocused();
+  // 4 h here leave 36 h: Alpha and Beta go from 20 h to 18 h each.
   await hours.fill('4');
+  await expect(fit).toHaveAccessibleDescription('Then: Team Alpha 18 h, Team Beta 18 h');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await openTeamView(page);
   await expect(panel(page).getByLabel('Weekly hours of Sam in Team Epsilon')).toHaveValue('4');
+  await pickUnit(page, 'Team Alpha');
+  await openTeamView(page);
+  await expect(panel(page).getByLabel('Weekly hours of Sam in Team Alpha')).toHaveValue('18');
+});
+
+test('without the tick the other teams keep their hours', async ({ page }) => {
+  await openExample(page);
+  await openTeamView(page);
+  await teamAction(page, 'Plan another team');
+  const dialog = page.getByRole('dialog', { name: 'Plan another team' });
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Team name').fill('Team Epsilon');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.locator('input[type="text"]').first().fill('Sam');
+  await dialog
+    .getByRole('checkbox', { name: /Lower the hours in Team Alpha, Team Beta/ })
+    .uncheck();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  await openTeamView(page);
+  await expect(panel(page).getByLabel('Weekly hours of Sam in Team Epsilon')).toHaveValue('13');
+  await pickUnit(page, 'Team Alpha');
+  await openTeamView(page);
+  await expect(panel(page).getByLabel('Weekly hours of Sam in Team Alpha')).toHaveValue('20');
+});
+
+test('reusing a person in the wizard splits their hours and the area table follows (#446)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await pickUnit(page, 'Commerce');
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Overview');
+  const gamma = page.locator('[data-cost-row="team-gamma"]');
+  const share = gamma.locator('.share .num');
+  const before = await share.textContent();
+  await expect(gamma.locator('[data-zero-hours]')).toHaveCount(0);
+
+  // Robin has 32 h in Gamma and 8 h in Delta: 13 h in Epsilon leave 27 h for the two.
+  await teamAction(page, 'Plan another team');
+  const dialog = page.getByRole('dialog', { name: 'Plan another team' });
+  await dialog.getByRole('radio', { name: 'Kanban', exact: true }).check();
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Team name').fill('Team Epsilon');
+  await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.locator('input[type="text"]').first().fill('Robin');
+  await expect(
+    dialog.getByLabel('Robin is already in Team Gamma, Team Delta (40 h). Hours here:'),
+  ).toHaveValue('13');
+  // 21.6 h and 5.4 h, in half hours that still add up to 27 h.
+  await expect(dialog.getByText('Then: Team Gamma 21.5 h, Team Delta 5.5 h')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+  const robin = panel(page).getByLabel('Weekly hours of Robin in Team Gamma');
+  await expect(robin).toHaveValue('21.5');
+  await pickUnit(page, 'Team Delta');
+  await openTeamView(page);
+  await expect(panel(page).getByLabel('Weekly hours of Robin in Team Delta')).toHaveValue('5.5');
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+
+  // Fewer hours in Gamma for the same meetings: its share goes up.
+  await pickUnit(page, 'Commerce');
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Overview');
+  await expect(share).not.toHaveText(before ?? '');
+
+  // 0 h in Gamma: the table says so next to the share.
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+  await robin.fill('0');
+  await robin.press('Enter');
+  await pickUnit(page, 'Commerce');
+  await page.getByRole('tab', { name: 'Area', exact: true }).click();
+  await showAreaPage(page, 'Overview');
+  await expect(gamma.locator('[data-zero-hours]')).toHaveText('incl. Robin at 0 h');
 });
 
 test('a number typed in the Team view wins over the hours left', async ({ page }) => {

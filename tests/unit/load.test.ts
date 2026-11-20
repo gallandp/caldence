@@ -3,6 +3,8 @@ import {
   capacity,
   fte,
   hoursLeft,
+  evenShare,
+  suggestedHours,
   loadBase,
   loadPerWeek,
   overbooked,
@@ -355,6 +357,18 @@ describe('hours per team', () => {
     ws.teams[1]!.memberHours = {};
     expect(hoursLeft(ws, 'p1')).toBe(0);
     expect(overbooked(ws, 'p1')).toBe(true);
+  });
+
+  it('suggests the hours left, or an even split once none are left (#446)', () => {
+    const ws = twoTeams();
+    // 2 h are left of 40: they are proposed, as in #274.
+    expect(suggestedHours(ws, 'p1')).toBe(2);
+    // Beta without an entry: 20 + 40 h, nothing left; 40 h over three teams, in half hours.
+    ws.teams[1]!.memberHours = {};
+    expect(evenShare(ws, 'p1')).toBe(13);
+    expect(suggestedHours(ws, 'p1')).toBe(13);
+    // Someone in no team keeps all weekly hours.
+    expect(evenShare(ws, 'p2')).toBe(40);
   });
 
   it('counts hours per team and checks FTE over all teams (#273)', () => {
