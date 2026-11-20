@@ -5,7 +5,7 @@
   import {
     attendsUnitMeetings,
     exportIcsWithCounts,
-    exportStart,
+    exportIndexRange,
     holidayDrops,
     scopeHasEvents,
     type IcsExport,
@@ -202,8 +202,10 @@
   // also the long periods of an imported region.
   const exportIndex = $derived.by(() => {
     if (rangeInvalid) return null;
-    const range = { ...ws.settings, horizon: { from: addDays(from, -366), to: addDays(to, 366) } };
-    return workspaceIndex({ ...ws, settings: range });
+    return workspaceIndex({
+      ...ws,
+      settings: { ...ws.settings, horizon: exportIndexRange([], from, to) },
+    });
   });
   /** What holidays leave out of this file, named before the export (#341). */
   const drops = $derived(
@@ -216,10 +218,10 @@
   function build(filter: Filter) {
     const previous = lastExport(ws.id, filter);
     // A series exported earlier is written from its first start again (#441): the index covers it.
-    const start = exportStart(previous, from);
+    const range = exportIndexRange(previous, from, to);
     const index =
-      start < addDays(from, -366)
-        ? workspaceIndex({ ...ws, settings: { ...ws.settings, horizon: { from: start, to } } })
+      range.from < addDays(from, -366)
+        ? workspaceIndex({ ...ws, settings: { ...ws.settings, horizon: range } })
         : (exportIndex ?? workspaceIndex(ws));
     return exportIcsWithCounts(ws, index, {
       scope: filter,
@@ -881,7 +883,7 @@
     color: var(--danger);
   }
   .series-end {
-    margin: 0;
+    margin: 0.25rem 0 0.5rem;
     color: var(--text-muted);
     font-size: 0.875rem;
   }

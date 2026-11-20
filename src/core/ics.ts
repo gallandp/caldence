@@ -368,6 +368,20 @@ export function exportStart(previous: ExportedEvent[], from: ISODate): ISODate {
 }
 
 /**
+ * The period the holiday index of an export must cover: a year around from..to, so school
+ * holidays that cross its edges keep their real start and end, and back to `exportStart`.
+ */
+export function exportIndexRange(
+  previous: ExportedEvent[],
+  from: ISODate,
+  to: ISODate,
+): { from: ISODate; to: ISODate } {
+  const start = exportStart(previous, from);
+  const yearBefore = addDays(from, -366);
+  return { from: start < yearBefore ? start : yearBefore, to: addDays(to, 366) };
+}
+
+/**
  * The scoped events of the workspace in from..to as an iCalendar file (CRLF, folded).
  * `index` must cover from..to.
  */

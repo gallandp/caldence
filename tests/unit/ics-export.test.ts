@@ -5,6 +5,7 @@ import {
   contentLine,
   escapeText,
   exportIcs,
+  exportIndexRange,
   exportStart,
   exportIcsWithCounts,
   foldLine,
@@ -794,8 +795,8 @@ describe('exportIcs as an update of an earlier export (#21)', () => {
 describe('exportIcs: a later export keeps the past and unchanged entries (#441)', () => {
   /** The index covers the stored series starts, as the Import/Export view builds it. */
   function build(ws: Workspace, o: IcsExportOptions) {
-    const from = exportStart(o.previous ?? [], o.from);
-    const copy: Workspace = { ...ws, settings: { ...ws.settings, horizon: { from, to: o.to } } };
+    const horizon = exportIndexRange(o.previous ?? [], o.from, o.to);
+    const copy: Workspace = { ...ws, settings: { ...ws.settings, horizon } };
     return exportIcsWithCounts(ws, workspaceIndex(copy), o);
   }
   const later = new Date(Date.UTC(2027, 2, 1, 8, 0, 0));
@@ -879,6 +880,46 @@ describe('exportIcs: a later export keeps the past and unchanged entries (#441)'
     const uid = `UID:ev-sync.team-alpha.${ws.id}@caldence`;
     const seq = (t: string) => Number(prop(byUid(t).get(uid)!, 'SEQUENCE')!.slice(9));
     expect(seq(again.text)).toBe(seq(first.text) + 1);
+  });
+
+  it('bumps a legacy entry without SEQUENCE or fingerprint once, then keeps it', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const legacy = first.events.map(({ sequence: _s, hash: _h, ...e }) => e);
+    const second = build(ws, opts({ now: later, previous: legacy }));
+    const third = build(ws, opts({ now: new Date(Date.UTC(2027, 3, 1)), previous: second.events }));
+    const seqs = (t: string) => [...byUid(t).values()].map((b) => prop(b, 'SEQUENCE'));
+    expect(new Set(seqs(second.text))).toEqual(new Set(['SEQUENCE:226051200']));
+    expect(third.text).toBe(second.text);
+  });
+
+  it('writes a cancelled entry with a SEQUENCE above the stored one', () => {
+    const ws = example();
+    const first = build(ws, opts({ now: later }));
+    const alpha = ws.teams[0]!;
+    alpha.events = alpha.events.filter((e) => e.id !== 'ev-sync');
+    // The clock is behind the last export: the cancellation still is newer.
+    const second = build(ws, opts({ previous: first.events }));
+    const uid = `UID:ev-sync.team-alpha.${ws.id}@caldence`;
+    const seq = (t: string) => Number(prop(byUid(t).get(uid)!, 'SEQUENCE')!.slice(9));
+    expect(byUid(second.text).get(uid)).toContain('STATUS:CANCELLED');
+    expect(seq(second.text)).toBeGreaterThan(seq(first.text));
+  });
+
+  it('keeps school holidays whole after "To" when the stored start is over a year back', () => {
+    const ws = example();
+    const all = { holidays: false, schoolHolidays: true, milestones: false };
+    const first = build(ws, opts({ from: '2027-01-04', to: '2027-12-31', allDay: all }));
+    const o = { from: '2028-03-01', to: '2028-07-31', allDay: all, now: later };
+    const again = build(ws, opts({ ...o, previous: first.events }));
+    const fresh = build(ws, opts(o));
+    const school = (r: { events: { uid: string; end: string }[] }) =>
+      r.events.filter((e) => e.uid.startsWith('school-2028')).map((e) => [e.uid, e.end]);
+    expect(school(again).length).toBeGreaterThan(0);
+    expect(school(again)).toEqual(school(fresh));
+    const range = exportIndexRange(first.events, o.from, o.to);
+    expect(range).toEqual({ from: exportStart(first.events, o.from), to: '2029-08-01' });
+    expect(range.from < '2027-03-01').toBe(true);
   });
 
   it('names the earliest stored series start before "From"', () => {
