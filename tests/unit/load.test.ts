@@ -10,6 +10,8 @@ import {
   overbooked,
   peopleOverLimit,
   personMeetings,
+  roleBase,
+  roomBeforeLimit,
   warnings,
   weeklyBaseLoad,
 } from '../../src/core/load';
@@ -533,5 +535,83 @@ describe('personMeetings (#343)', () => {
     expect(personMeetings(ws, noIndex(), 'p1')).toEqual({
       area: [{ eventId: 'forum', hoursPerWeek: 1, hours: 3, oneOff: false }],
     });
+  });
+});
+
+describe('roomBeforeLimit (#448)', () => {
+  it('is the hours that still fit before the limit, negative when over', () => {
+    expect(roomBeforeLimit({ hours: 2, base: 10 }, 0.5)).toBeCloseTo(3);
+    expect(roomBeforeLimit({ hours: 7.3, base: 10 }, 0.6)).toBeCloseTo(-1.3);
+    // Meetings without weekly hours are over by all of them.
+    expect(roomBeforeLimit({ hours: 1, base: 0 }, 0.6)).toBe(-1);
+    expect(roomBeforeLimit({ hours: 0, base: 0 }, 0.6)).toBe(0);
+  });
+  it('is 0 when it rounds to 0.0 h, so no "−0.0 h" shows', () => {
+    expect(roomBeforeLimit({ hours: 6.04, base: 10 }, 0.6)).toBe(0);
+    expect(roomBeforeLimit({ hours: 5.96, base: 10 }, 0.6)).toBe(0);
+    expect(roomBeforeLimit({ hours: 6.06, base: 10 }, 0.6)).toBeCloseTo(-0.06);
+  });
+});
+
+describe('roleBase (#449)', () => {
+  /** Robin: 32 h Scrum Master in t1, 8 h Developer in t2. */
+  function robin(): Workspace {
+    const ws = workspace([
+      team([], { members: [{ personId: 'p1', roleId: 'sm' }], memberHours: { p1: 32 } }),
+      team([], {
+        id: 't2',
+        members: [{ personId: 'p1', roleId: 'dev' }],
+        memberHours: { p1: 8 },
+      }),
+    ]);
+    return ws;
+  }
+  it('is the hours in the teams where the person holds the role', () => {
+    const ws = robin();
+    expect(roleBase(ws, 'p1', 'sm')).toBe(32);
+    expect(roleBase(ws, 'p1', 'dev')).toBe(8);
+  });
+  it('counts area hours where the person holds the role there', () => {
+    const ws = robin();
+    ws.areas = [
+      {
+        id: 'a1',
+        name: 'Area',
+        teamIds: ['t1', 't2'],
+        members: [{ personId: 'p1', roleId: 'dev' }],
+        memberHours: { p1: 4 },
+        cycles: [],
+        events: [],
+      },
+    ];
+    expect(roleBase(ws, 'p1', 'dev')).toBe(12);
+  });
+  it('counts a team role an area links to the role (#338)', () => {
+    const ws = robin();
+    // The area's "art" role stands for "dev" in t2: Robin's 8 h there count for it.
+    ws.areas = [
+      {
+        id: 'a1',
+        name: 'Area',
+        teamIds: ['t1', 't2'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        events: [],
+        roleLinks: [{ teamId: 't2', roleId: 'art', teamRoleId: 'dev' }],
+      },
+    ];
+    expect(roleBase(ws, 'p1', 'art')).toBe(8);
+    // A link in another team does not count Robin's hours there.
+    ws.areas[0]!.roleLinks = [{ teamId: 't1', roleId: 'art', teamRoleId: 'dev' }];
+    expect(roleBase(ws, 'p1', 'art')).toBe(loadBase(ws, 'p1'));
+  });
+  it('is at most the load base, and the load base without hours in the role', () => {
+    const ws = robin();
+    ws.teams[0]!.memberHours = { p1: 40 };
+    expect(roleBase(ws, 'p1', 'sm')).toBe(40);
+    ws.teams[1]!.memberHours = { p1: 0 };
+    expect(roleBase(ws, 'p1', 'dev')).toBe(loadBase(ws, 'p1'));
+    expect(roleBase(ws, 'p1', 'person:p1')).toBe(loadBase(ws, 'p1'));
   });
 });

@@ -14,6 +14,7 @@
     overMax,
     personLoad,
     personMeetings,
+    roomBeforeLimit,
     warnings,
     type PersonMeeting,
   } from '../../core/load';
@@ -118,8 +119,11 @@
         cap,
         fte: share,
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
-        /** Hours per week that still fit into meetings before the limit (none without hours). */
-        free: Math.max(0, maxFte * cap - average),
+        /**
+         * Hours per week that still fit into meetings before the limit; negative when over (#448).
+         * Just over the limit (strict >) can round to 0.0 h, so the badge can show with Room 0.0 h.
+         */
+        free: roomBeforeLimit({ hours: average, base: cap }, maxFte),
         units: unitsOf(person.id),
         peak,
       };
@@ -568,8 +572,10 @@
               })}</td
             >
           {/if}
-          <td class="num nowrap free" data-cap={$t('load.col.free')}
-            >{$t('load.freeHours', { hours: hours(p.free) })}</td
+          <td class="num nowrap free" class:over={p.free < 0} data-cap={$t('load.col.free')}
+            >{p.free < 0
+              ? $t('load.freeHours.over', { hours: hours(-p.free) })
+              : $t('load.freeHours', { hours: hours(p.free) })}</td
           >
           <td class="num nowrap peak" data-cap={$t('load.col.peak')}>
             {#if p.peak}
@@ -662,11 +668,11 @@
   <ul class="tiles" aria-label={$t('load.summary')}>
     <li class="tile" data-total>
       <span class="label">{$t('load.kpi.total')}</span>
-      <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit')}</small></span>
+      <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit.typical')}</small></span>
       <span class="sub"
         >{$filter.personId
-          ? $t('load.kpi.week.person')
-          : $t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
+          ? ''
+          : $t('load.kpi.fte', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
         {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
             >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
               n: formatNumber($locale, summary.unfilled, 0),
@@ -678,7 +684,8 @@
       <li class="tile" data-role={r.roleId}>
         <span class="label">{roleName(r.roleId)}</span>
         <span class="value"
-          ><span class="hours">{hours(r.hours)}</span> <small>{$t('load.kpi.unit')}</small></span
+          ><span class="hours">{hours(r.hours)}</span>
+          <small>{$t('load.kpi.unit.typical')}</small></span
         >
         <span class="meter" aria-hidden="true"
           ><span style:width="{Math.min(100, r.percent)}%"></span></span
@@ -692,7 +699,7 @@
                 : 'load.kpi.share',
             {
               percent: formatPercent($locale, r.percent / 100),
-              hours: formatNumber($locale, r.weekly, 0),
+              hours: weekly(r.weekly),
               people: formatNumber($locale, r.people, 0),
               fte: formatNumber($locale, r.fte, 2),
             },

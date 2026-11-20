@@ -79,6 +79,8 @@
     /** On site rather than remote (#309), with travel minutes there and back for everyone. */
     onSite: boolean;
     travel: number | null;
+    /** Room or online link (#442); empty means none. */
+    place: string;
   }
 
   /** Travel time an on-site meeting starts with: half an hour there and back. */
@@ -122,6 +124,7 @@
       preparation: Math.round(e.preparation * 10000) / 100,
       onSite: e.onSite !== undefined,
       travel: e.onSite?.travel ?? DEFAULT_TRAVEL,
+      place: e.place ?? '',
     };
   }
 
@@ -303,6 +306,7 @@
         : Number((n(d.preparation) / 100).toFixed(4)),
     };
     if (d.onSite) out.onSite = { travel: n(d.travel) };
+    if (d.place.trim() !== '') out.place = d.place.trim();
     if (d.scaled)
       out.scaling = {
         base: n(d.base),
@@ -485,8 +489,8 @@
 
     <div class="row">
       <div class="field">
-        <span class="label" id={id('place')}>{tt('meet.place')}</span>
-        <div class="segmented" role="group" aria-labelledby={id('place')}>
+        <span class="label" id={id('place.kind')}>{tt('meet.place')}</span>
+        <div class="segmented" role="group" aria-labelledby={id('place.kind')}>
           <button
             type="button"
             data-field="place.remote"
@@ -518,6 +522,21 @@
           {@render err('onSite.travel', tt('meet.travel'))}
         </div>
       {/if}
+      <div class="field">
+        <label for={id('place')}>{tt('meet.placeText')}</label>
+        <input
+          id={id('place')}
+          type="text"
+          maxlength="200"
+          data-field="place"
+          bind:value={draft.place}
+          placeholder={tt(draft.onSite ? 'meet.placeText.room' : 'meet.placeText.link')}
+          aria-invalid={invalid('place')}
+          aria-describedby={describe('place', `${id('place')}-hint`)}
+        />
+        <p class="hint" id="{id('place')}-hint">{tt('meet.placeText.hint')}</p>
+        {@render err('place', tt('meet.placeText'))}
+      </div>
     </div>
 
     <!-- Areas have no assumptions to scale by. -->

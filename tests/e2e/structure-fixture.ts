@@ -99,7 +99,7 @@ export function structureWorkspace(opts: { teams?: 4 | 9; locale?: 'de' | 'en' }
     preparation: 0,
   });
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     id: '6f0b0e1c-56a8-4bd5-9d5b-0c3c1b1f1a11',
     settings: {
       locale: opts.locale ?? 'en',

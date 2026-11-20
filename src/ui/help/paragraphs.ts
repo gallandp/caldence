@@ -194,6 +194,7 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     settings: 'view.settings',
     toggle: 'holidayDrops.toggle',
   },
+  'help.ics.place': { place: 'meet.placeText' },
   'help.ics.note': {},
   'help.files.present': {
     present: 'file.present',
