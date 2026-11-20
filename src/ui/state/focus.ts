@@ -16,3 +16,9 @@ export const calendarDay = writable<ISODate | null>(null);
  * Calendar clears it once shown.
  */
 export const calendarWeek = writable<ISODate | null>(null);
+
+/**
+ * Brings Meeting load's list of overlapping meeting pairs into view, set from the area Overview's
+ * "N more pairs" (#445). Meeting load clears it once shown.
+ */
+export const loadOverlaps = writable(false);
