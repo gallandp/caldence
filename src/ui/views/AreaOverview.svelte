@@ -17,7 +17,12 @@
     type StepReason,
   } from '../../core/areaOverview';
   import { addDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
-  import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
+  import {
+    areaHours as hoursInArea,
+    capacity,
+    loadPerWeek,
+    peopleOverLimit,
+  } from '../../core/load';
   import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
   import { clashes, overlapPairs, overviewWindow } from '../../core/views';
   import {
@@ -66,10 +71,10 @@
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
   const comparison = $derived(compareCadences(ws, area, from, weekCount));
+  const allWeeks = $derived(loadPerWeek(ws, $index));
   const weeks = $derived.by(() => {
-    const all = loadPerWeek(ws, $index);
-    const start = all.findIndex((w) => w.monday === from);
-    return start < 0 ? [] : all.slice(start, start + weekCount);
+    const start = allWeeks.findIndex((w) => w.monday === from);
+    return start < 0 ? [] : allWeeks.slice(start, start + weekCount);
   });
   const load = $derived(new Map(teams.map((team) => [team.id, teamLoad(ws, team, weeks)])));
   /** People only in the area get their own row, so the tile counts them too (#334). */
@@ -104,6 +109,12 @@
     ]),
   );
   const people = $derived(personIds.size);
+  /**
+   * Who is over the limit, judged like the people table in Meeting load: their average over the
+   * planning horizon, all their meetings ÷ all their weekly hours (#334, #448). An average of
+   * everyone must not hide anyone over the limit.
+   */
+  const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
 
   /**
    * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
@@ -168,6 +179,9 @@
   const maxFte = $derived(ws.settings.thresholds.maxFte);
   const list = (items: string[]) =>
     new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }).format(items);
+  /** Up to three items for a tag, "…" when there are more; the same in every tile (#448). */
+  const firstThree = (items: string[]) =>
+    items.length > 3 ? items.slice(0, 3).join(', ') + ' …' : list(items);
   const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
   /** "incl. 2 unfilled roles: PO, SM" for a cost row, or '' (#264). */
@@ -338,11 +352,24 @@
       <span class="label">{$t('overview.kpi.load')}</span>
       <b>{shareText(costs.total)}</b>
       <span class="label">{$t('overview.kpi.load.sub')}</span>
-      <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
-        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
-          max: percent(maxFte),
-        })}</span
-      >
+      {#if overPeople.length > 0}
+        <span class="tag warn" data-over-people
+          >{$t(
+            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+            {
+              n: formatNumber($locale, overPeople.length, 0),
+              max: percent(maxFte),
+              names: firstThree(overPeople.map(personName)),
+            },
+          )}</span
+        >
+      {:else}
+        <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
+          >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+            max: percent(maxFte),
+          })}</span
+        >
+      {/if}
     </div>
     <div class="card kpi" data-kpi="warn">
       <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
@@ -352,7 +379,7 @@
       >
       <span class="tag" class:warn={warnedMondays.length > 0} class:ok={warnedMondays.length === 0}
         >{warnedMondays.length > 0
-          ? list(warnedMondays.slice(0, 3).map(weekLabel)) + (warnedMondays.length > 3 ? ' …' : '')
+          ? firstThree(warnedMondays.map(weekLabel))
           : $t('overview.kpi.warn.none')}</span
       >
     </div>
