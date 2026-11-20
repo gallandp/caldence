@@ -252,15 +252,16 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
     const tile = tiles.locator(`[data-role="${r.roleId}"]`);
     await expect(tile.locator('.label')).toHaveText(r.name);
     await expect(tile.locator('.hours')).toHaveText(fmt('en', r.hours));
+    await expect(tile.locator('.value')).toHaveText(`${fmt('en', r.hours)} h / typical week`);
     await expect(tile.locator('.sub')).toHaveText(
       `${pct('en', r.hours / r.weekly)} of ${r.weekly} h · ${fmt('en', r.hours / 40, 2)} FTE`,
     );
   }
   const total = ROLE_HOURS.reduce((sum, r) => sum + r.hours, 0);
-  await expect(tiles.locator('[data-total] .value')).toHaveText(`${fmt('en', total)} h / week`);
-  await expect(tiles.locator('[data-total] .sub')).toHaveText(
-    `typical week · ${fmt('en', total / 40, 2)} FTE`,
+  await expect(tiles.locator('[data-total] .value')).toHaveText(
+    `${fmt('en', total)} h / typical week`,
   );
+  await expect(tiles.locator('[data-total] .sub')).toHaveText(`${fmt('en', total / 40, 2)} FTE`);
   await expect(tiles.locator('[data-unfilled]')).toHaveCount(0);
   // Switching the language reformats the numbers.
   await setLanguage(page, 'de');
@@ -423,7 +424,8 @@ test('a person in two teams has the same share, room and tag in every scope (#27
   await expect(alexWarning).toHaveText(warningText!);
   const tiles = panel.getByRole('list', { name: 'Summary' });
   await expect(tiles).not.toContainText('FTE');
-  await expect(tiles.locator('[data-total] .sub')).toHaveText('typical week');
+  await expect(tiles.locator('[data-total] .value')).toContainText('h / typical week');
+  await expect(tiles.locator('[data-total] .sub')).toHaveText('');
 });
 
 test('the chart summarises the hours per week and marks weeks with a warning', async ({ page }) => {
@@ -632,7 +634,10 @@ test('the people list sorts by share or free hours and explains a person on clic
   const freeHours = await people
     .locator('tr[data-person]')
     .evaluateAll(
-      (rows, i) => rows.map((r) => parseFloat(r.children[i]!.textContent!.replace(',', '.'))),
+      (rows, i) =>
+        rows.map((r) =>
+          parseFloat(r.children[i]!.textContent!.replace(',', '.').replace('\u2212', '-')),
+        ),
       column,
     );
   expect(freeHours.length).toBeGreaterThan(1);
@@ -652,7 +657,7 @@ test('the people list sorts by share or free hours and explains a person on clic
   await expect(detail).toBeHidden();
 });
 
-test('the people list flags who is over the limit and leaves them no free hours', async ({
+test('the people list flags who is over the limit and says by how much (#448)', async ({
   page,
 }) => {
   const panel = await openView(page, 'load');
@@ -663,7 +668,34 @@ test('the people list flags who is over the limit and leaves them no free hours'
     .getByRole('table', { name: 'People' })
     .locator('tr[data-person="person-alex"]');
   await expect(alex.getByRole('rowheader')).toContainText('over the limit');
-  await expect(alex.getByRole('cell').nth(4)).toHaveText(`${fmt('en', 0)} h`);
+  // Room goes negative: 10 % of 32 h is 3.2 h, Alex has more on average.
+  const room = alex.getByRole('cell').nth(4);
+  await expect(room).toHaveText(`\u2212${fmt('en', ALEX.average - 0.1 * 32)} h over the limit`);
+  await expect(room).toHaveClass(/\bover\b/);
+  await setLanguage(page, 'de');
+  const roomDe = page.locator('tr[data-person="person-alex"]').getByRole('cell').nth(4);
+  await expect(roomDe).toHaveText(`\u2212${fmt('de', ALEX.average - 0.1 * 32)} h über der Grenze`);
+});
+
+test('with a person chosen, each role tile measures against the hours in that role (#449)', async ({
+  page,
+}) => {
+  const panel = await openView(page, 'load');
+  // Robin: 32 h Scrum Master in Gamma, 8 h Developer in Delta; not 40 h for each role.
+  await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Robin' });
+  const tiles = panel.getByRole('list', { name: 'Summary' });
+  for (const [role, base] of [
+    ['role-sm', 32],
+    ['role-dev', 8],
+  ] as const) {
+    const tile = tiles.locator(`[data-role="${role}"]`);
+    await expect(tile.locator('.sub')).toHaveText(new RegExp(`^\\d+% of ${base} h$`));
+    // The share is the tile's own hours (one decimal) ÷ the role's hours, so its figures agree.
+    const h = parseFloat((await tile.locator('.hours').textContent())!);
+    const percent = parseFloat((await tile.locator('.sub').textContent())!);
+    expect(h).toBeGreaterThan(0);
+    expect(Math.abs(percent - (h / base) * 100)).toBeLessThanOrEqual(1.5);
+  }
 });
 
 test('a person only in the area without area hours has 0 h, not the default (#265)', async ({
