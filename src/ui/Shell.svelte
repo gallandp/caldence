@@ -761,7 +761,10 @@
               </section>
             {:else if id === 'team' && activeOrg}
               {#if active === id}
-                <OrgView onOpen={(unit) => activeTeamId.set(unit)} />
+                <OrgView
+                  onOpen={(unit) => activeTeamId.set(unit)}
+                  onOpenUnit={(unit) => drillIn(unit, 'meetings')}
+                />
               {/if}
             {:else if id === 'team' && activeArea}
               {#if active === id}

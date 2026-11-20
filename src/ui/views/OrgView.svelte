@@ -8,6 +8,7 @@
   import AreaPersonAdd from '../components/AreaPersonAdd.svelte';
   import AreaPersonCard from '../components/AreaPersonCard.svelte';
   import OrgIcon from '../components/OrgIcon.svelte';
+  import AreaOverview from './AreaOverview.svelte';
   import { presenting } from '../state/present';
   import { structurePerson } from '../state/view';
   import { workspace } from '../state/workspace';
@@ -15,9 +16,17 @@
   /**
    * The organisation's page (#313): the tree organisation → areas → teams. A click on a card
    * opens that area or team, where it is edited. The organisation's own people (#328) are added
-   * and edited here with the dialogs of an area's structure.
+   * and edited here with the dialogs of an area's structure. Above the tree the area Overview's
+   * alignment, load and cost figures for all teams, below it the cost per team (#450).
    */
-  let { onOpen }: { onOpen: (unitId: string) => void } = $props();
+  let {
+    onOpen,
+    onOpenUnit,
+  }: {
+    onOpen: (unitId: string) => void;
+    /** Opens Meetings & cadence of a team, an area or the organisation. */
+    onOpenUnit?: (unitId: string) => void;
+  } = $props();
 
   const ws = $derived($workspace);
   const name = $derived(orgName(ws, $levels.org));
@@ -134,115 +143,122 @@
 
 <div class="org-view structure">
   <p class="subtitle">{$t('org.subtitle')}</p>
-  <ul class="tree" aria-label={$t('org.tree.label', { name })}>
-    <li class="root-item">
-      <section class="node root" aria-labelledby="org-root-name">
-        <div class="root-head">
-          <span class="badge" aria-hidden="true"><OrgIcon /></span>
-          <span class="text">
-            <span class="title" id="org-root-name">{name}</span>
-            <span class="meta">{$levels.org} · {total}</span>
-          </span>
-          <button
-            type="button"
-            class="secondary add"
-            data-no-present
-            bind:this={addButton}
-            onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
-          >
-        </div>
-        <div class="own" bind:this={ownBox}>
-          <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
-          {#if own.length > 0}
-            <ul class="people" bind:this={peopleList}>
-              {#each own as p (p.personId)}
-                {@const c = roleOf(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])?.colour ?? '#5340e6'}
-                <li>
-                  <button
-                    type="button"
-                    class="person"
-                    class:sel={selected === p.personId}
-                    data-p={p.personId}
-                    aria-pressed={selected === p.personId}
-                    onclick={(e) => pick(p.personId, e)}
-                  >
-                    <span class="av" style:background={c} style:color={inkOn(c)} aria-hidden="true"
-                      >{initials(personName(p.personId))}</span
-                    >
-                    <span class="tx"
-                      ><b>{personName(p.personId)}</b><small
-                        >{p.areaRoleIds.map((id) => roleOf(id)?.name ?? id).join(', ')}</small
-                      ></span
-                    >
-                    <span class="h">{hours(p.areaHours)}</span>
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {:else if invited.length === 0}
-            <p class="none">{$t('org.people.none')}</p>
-          {/if}
-          {#if invited.length > 0}
-            <div class="invited" data-org-invited>
-              <h4 class="lbl" id="org-invited">{$t('org.invited')} · {invited.length}</h4>
-              <ul class="chips" aria-labelledby="org-invited">
-                {#each invited as p (p.personId)}
+  <AreaOverview area={org} summary {onOpenUnit}>
+    <ul class="tree" aria-label={$t('org.tree.label', { name })}>
+      <li class="root-item">
+        <section class="node root" aria-labelledby="org-root-name">
+          <div class="root-head">
+            <span class="badge" aria-hidden="true"><OrgIcon /></span>
+            <span class="text">
+              <span class="title" id="org-root-name">{name}</span>
+              <span class="meta">{$levels.org} · {total}</span>
+            </span>
+            <button
+              type="button"
+              class="secondary add"
+              data-no-present
+              bind:this={addButton}
+              onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
+            >
+          </div>
+          <div class="own" bind:this={ownBox}>
+            <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
+            {#if own.length > 0}
+              <ul class="people" bind:this={peopleList}>
+                {#each own as p (p.personId)}
+                  {@const c =
+                    roleOf(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])?.colour ?? '#5340e6'}
                   <li>
-                    {#if $presenting}
-                      <span class="chip">{personName(p.personId)}</span>
-                    {:else}
-                      <button
-                        type="button"
-                        class="chip"
-                        data-p={p.personId}
-                        aria-label={$t('load.hint.setHours', {
-                          person: personName(p.personId),
-                          area: inSentence,
-                        })}
-                        onclick={(e) => pick(p.personId, e, true)}>{personName(p.personId)}</button
+                    <button
+                      type="button"
+                      class="person"
+                      class:sel={selected === p.personId}
+                      data-p={p.personId}
+                      aria-pressed={selected === p.personId}
+                      onclick={(e) => pick(p.personId, e)}
+                    >
+                      <span
+                        class="av"
+                        style:background={c}
+                        style:color={inkOn(c)}
+                        aria-hidden="true">{initials(personName(p.personId))}</span
                       >
-                    {/if}
+                      <span class="tx"
+                        ><b>{personName(p.personId)}</b><small
+                          >{p.areaRoleIds.map((id) => roleOf(id)?.name ?? id).join(', ')}</small
+                        ></span
+                      >
+                      <span class="h">{hours(p.areaHours)}</span>
+                    </button>
                   </li>
                 {/each}
               </ul>
-            </div>
-          {/if}
-        </div>
-      </section>
-      {#if ws.areas.length === 0}
-        <p class="hint">{$t('org.noAreas')}</p>
-      {/if}
-      <ul class="columns">
-        {#each ws.areas as area (area.id)}
-          {@const teams = teamsOf(area.teamIds)}
-          <li class="column">
-            <button type="button" class="node area" onclick={() => onOpen(area.id)}>
-              <span class="badge" aria-hidden="true"><AreaIcon /></span>
-              <span class="text">
-                <span class="title">{area.name}</span>
-                <span class="meta">{areaMeta(area, teams)}</span>
-              </span>
-            </button>
-            {#if teams.length > 0}
-              <ul class="kids">
-                {#each teams as team (team.id)}{@render teamCard(team)}{/each}
-              </ul>
-            {:else}
-              <p class="empty">{$t('org.emptyArea')}</p>
+            {:else if invited.length === 0}
+              <p class="none">{$t('org.people.none')}</p>
             {/if}
-          </li>
-        {/each}
-        {#if ungrouped.length > 0}
-          <li class="column loose">
-            <p class="group">{$t('area.ungrouped')}</p>
-            <ul class="kids">
-              {#each ungrouped as team (team.id)}{@render teamCard(team)}{/each}
-            </ul>
-          </li>
+            {#if invited.length > 0}
+              <div class="invited" data-org-invited>
+                <h4 class="lbl" id="org-invited">{$t('org.invited')} · {invited.length}</h4>
+                <ul class="chips" aria-labelledby="org-invited">
+                  {#each invited as p (p.personId)}
+                    <li>
+                      {#if $presenting}
+                        <span class="chip">{personName(p.personId)}</span>
+                      {:else}
+                        <button
+                          type="button"
+                          class="chip"
+                          data-p={p.personId}
+                          aria-label={$t('load.hint.setHours', {
+                            person: personName(p.personId),
+                            area: inSentence,
+                          })}
+                          onclick={(e) => pick(p.personId, e, true)}
+                          >{personName(p.personId)}</button
+                        >
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+          </div>
+        </section>
+        {#if ws.areas.length === 0}
+          <p class="hint">{$t('org.noAreas')}</p>
         {/if}
-      </ul>
-    </li>
-  </ul>
+        <ul class="columns">
+          {#each ws.areas as area (area.id)}
+            {@const teams = teamsOf(area.teamIds)}
+            <li class="column">
+              <button type="button" class="node area" onclick={() => onOpen(area.id)}>
+                <span class="badge" aria-hidden="true"><AreaIcon /></span>
+                <span class="text">
+                  <span class="title">{area.name}</span>
+                  <span class="meta">{areaMeta(area, teams)}</span>
+                </span>
+              </button>
+              {#if teams.length > 0}
+                <ul class="kids">
+                  {#each teams as team (team.id)}{@render teamCard(team)}{/each}
+                </ul>
+              {:else}
+                <p class="empty">{$t('org.emptyArea')}</p>
+              {/if}
+            </li>
+          {/each}
+          {#if ungrouped.length > 0}
+            <li class="column loose">
+              <p class="group">{$t('area.ungrouped')}</p>
+              <ul class="kids">
+                {#each ungrouped as team (team.id)}{@render teamCard(team)}{/each}
+              </ul>
+            </li>
+          {/if}
+        </ul>
+      </li>
+    </ul>
+  </AreaOverview>
 </div>
 
 <AreaPersonCard
