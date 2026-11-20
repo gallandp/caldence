@@ -12,7 +12,7 @@
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
-  import { calendarDay, calendarWeek, loadWeek } from './state/focus';
+  import { calendarDay, calendarWeek, loadOverlaps, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -226,6 +226,13 @@
     filter.set({ teamId });
     loadWeek.set({ teamId, monday });
     drillIn(teamId, 'load');
+  }
+
+  /** Meeting load of an area at its overlapping meeting pairs, for everyone (#445). */
+  function openOverlaps(areaId: string) {
+    filter.set({ teamId: areaId });
+    loadOverlaps.set(true);
+    drillIn(areaId, 'load');
   }
 
   /**
@@ -773,6 +780,7 @@
                     <AreaOverview
                       area={activeArea}
                       onOpenLoad={openLoad}
+                      onOpenOverlaps={openOverlaps}
                       onOpenMeeting={(unitId, eventId) => {
                         showRequest = eventId;
                         drillIn(unitId, 'meetings');
