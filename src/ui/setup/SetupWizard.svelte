@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { capacity, hoursLeft, placesOf } from '../../core/load';
+  import { capacity, hoursLeft, placesOf, suggestedHours } from '../../core/load';
   import { record } from '../../core/record';
   import { setupTeam, type SetupMember } from '../../core/setup';
   import { areaRoleIds, templateStart, type Template } from '../../core/template';
@@ -46,6 +46,8 @@
   let hoursHere = $state<Record<string, string>>({});
   /** The name whose hours are not a valid number, if any. */
   let badHours = $state<string | null>(null);
+  /** Names whose other teams are not to be lowered, though they have no hours left (#446). */
+  let keepOthers = $state<Record<string, boolean>>({});
 
   const template = $derived<Template | null>(
     choice === 'none' ? null : builtinTemplate(choice, $locale),
@@ -80,7 +82,14 @@
   const already = $derived.by(() => {
     const ws = $workspace;
     const seen: string[] = [];
-    const out: { key: string; name: string; places: string; hours: number; left: number }[] = [];
+    const out: {
+      key: string;
+      name: string;
+      places: string;
+      hours: number;
+      left: number;
+      suggested: number;
+    }[] = [];
     // Someone entered only for an area role (SAFe RTE) does not join the team: no hours asked.
     const areaOnly = template ? areaRoleIds(template) : new Set<string>();
     for (const m of members().filter((x) => !areaOnly.has(x.roleId))) {
@@ -96,6 +105,7 @@
         places: places.join(', '),
         hours: capacity(ws, person.id),
         left: hoursLeft(ws, person.id),
+        suggested: suggestedHours(ws, person.id),
       });
     }
     return out;
@@ -121,6 +131,7 @@
     startPicked = false;
     names = {};
     hoursHere = {};
+    keepOthers = {};
     badHours = null;
     me = false;
     myName = '';
@@ -181,7 +192,7 @@
     const hours = record<number>();
     for (const [i, a] of already.entries()) {
       const raw = hoursHere[a.key] ?? '';
-      const n = raw.trim() === '' ? a.left : Number(raw);
+      const n = raw.trim() === '' ? a.suggested : Number(raw);
       if (!Number.isFinite(n) || n < 0) {
         problem = {
           key: 'error.number.invalid',
@@ -193,12 +204,15 @@
       }
       hours[a.key] = n;
     }
+    // Someone without hours left is split evenly: their other teams go down to fit (#446).
+    const fit = already.filter((a) => a.left === 0 && !keepOthers[a.key]).map((a) => a.key);
     const input = {
       template,
       name: trimmed,
       start: start || localToday(),
       members: members(),
       hours,
+      fit,
       ...(withFrame ? { settings: { timezone, region, horizon: { from, to } } } : {}),
     };
     const result = workspace.apply((ws) => setupTeam(ws, input));
@@ -344,9 +358,8 @@
                 type="number"
                 min="0"
                 step="0.5"
-                value={hoursHere[a.key] ?? String(a.left)}
+                value={hoursHere[a.key] ?? String(a.suggested)}
                 aria-invalid={badHours === a.key ? 'true' : undefined}
-                aria-describedby={a.left === 0 ? `${uid}-none-${i}` : undefined}
                 oninput={(e) => {
                   hoursHere[a.key] = e.currentTarget.value;
                   if (badHours === a.key) badHours = null;
@@ -354,7 +367,17 @@
               />{$t('settings.people.unit')}</span
             >
             {#if a.left === 0}
-              <p class="none-left" id="{uid}-none-{i}">{$t('team.people.noneLeft')}</p>
+              <label class="check fit">
+                <input
+                  type="checkbox"
+                  checked={!keepOthers[a.key]}
+                  onchange={(e) => (keepOthers[a.key] = !e.currentTarget.checked)}
+                />
+                {$t('setup.people.fit', {
+                  units: a.places,
+                  hpw: num($workspace.settings.hoursPerWeek),
+                })}
+              </label>
             {/if}
           </div>
         {/each}
@@ -529,10 +552,12 @@
   .already input {
     width: 5rem;
   }
-  .none-left {
-    flex-basis: 100%;
+  .already .fit {
+    flex: 1 1 100%;
     margin: 0;
-    color: var(--warn);
+  }
+  .already .fit input {
+    width: auto;
   }
   .check {
     display: flex;

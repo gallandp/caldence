@@ -173,4 +173,92 @@ describe('setupTeam', () => {
     const sam = out.people.find((p) => p.name === 'Sam')!.id;
     expect(out.teams.find((t) => t.id === teamId)!.memberHours).toEqual({ [sam]: 10 });
   });
+
+  it('lowers the other teams to fit the weekly hours when asked (#446)', () => {
+    const first = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'Alpha',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+    });
+    if (!first.ok) throw new Error('setup');
+    const [ws, alphaId] = first.value;
+    // Sam has the default 40 h in Alpha: an even split gives 20 h here and 20 h there.
+    const r = setupTeam(ws, {
+      template: scrum,
+      name: 'Beta',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+      hours: { sam: 20 },
+      fit: ['sam'],
+    });
+    if (!r.ok) throw new Error('setup');
+    const [out, betaId] = r.value;
+    const sam = out.people.find((p) => p.name === 'Sam')!.id;
+    expect(out.teams.find((t) => t.id === betaId)!.memberHours).toEqual({ [sam]: 20 });
+    expect(out.teams.find((t) => t.id === alphaId)!.memberHours).toEqual({ [sam]: 20 });
+  });
+
+  it('lowers several places in proportion, in half hours, and leaves others as they are', () => {
+    const ws = emptyWorkspace(today);
+    const a = setupTeam(ws, {
+      template: scrum,
+      name: 'Alpha',
+      start: today,
+      members: [
+        { name: 'Sam', roleId: roleId('Developers') },
+        { name: 'Kim', roleId: roleId('Developers') },
+      ],
+    });
+    if (!a.ok) throw new Error('setup');
+    const b = setupTeam(a.value[0], {
+      template: scrum,
+      name: 'Beta',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+      hours: { sam: 20 },
+    });
+    if (!b.ok) throw new Error('setup');
+    const [, alphaId] = a.value;
+    const [ws2, betaId] = b.value;
+    // Sam: 40 h in Alpha (default) and 20 h in Beta. 13 h in Gamma leave 27 h for the two.
+    const r = setupTeam(ws2, {
+      template: scrum,
+      name: 'Gamma',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+      hours: { sam: 13 },
+      fit: ['sam'],
+    });
+    if (!r.ok) throw new Error('setup');
+    const [out] = r.value;
+    const sam = out.people.find((p) => p.name === 'Sam')!.id;
+    const kim = out.people.find((p) => p.name === 'Kim')!.id;
+    const alpha = out.teams.find((t) => t.id === alphaId)!;
+    expect(alpha.memberHours[sam]).toBe(18);
+    expect(out.teams.find((t) => t.id === betaId)!.memberHours[sam]).toBe(9);
+    expect(Object.hasOwn(alpha.memberHours, kim)).toBe(false);
+  });
+
+  it('leaves the other teams alone when the hours still fit', () => {
+    const first = setupTeam(emptyWorkspace(today), {
+      template: scrum,
+      name: 'Alpha',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+    });
+    if (!first.ok) throw new Error('setup');
+    const ws = first.value[0];
+    ws.teams[0]!.memberHours = { [ws.people[0]!.id]: 10 };
+    const r = setupTeam(ws, {
+      template: scrum,
+      name: 'Beta',
+      start: today,
+      members: [{ name: 'Sam', roleId: roleId('Developers') }],
+      hours: { sam: 30 },
+      fit: ['sam'],
+    });
+    if (!r.ok) throw new Error('setup');
+    expect(r.value[0].teams[0]!.memberHours).toEqual({ [ws.people[0]!.id]: 10 });
+  });
 });

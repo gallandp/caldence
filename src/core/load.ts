@@ -209,6 +209,25 @@ export function hoursLeft(ws: Workspace, personId: string): number {
   return Math.max(0, ws.settings.hoursPerWeek - used);
 }
 
+/** Hours rounded down to half hours, the step of the hours fields. */
+export const halfHours = (h: number): number => Math.floor(h * 2 + 1e-9) / 2;
+
+/**
+ * The Settings weekly hours split evenly over the person's teams and areas and one more, in half
+ * hours (#446). Someone in no team gets them all.
+ */
+export function evenShare(ws: Workspace, personId: string): number {
+  return halfHours(ws.settings.hoursPerWeek / (placesOf(ws, personId).length + 1));
+}
+
+/**
+ * The hours proposed for a person joining one more team: what is left of the weekly hours
+ * (#274), or an even split once nothing is left (#446).
+ */
+export function suggestedHours(ws: Workspace, personId: string): number {
+  return hoursLeft(ws, personId) || evenShare(ws, personId);
+}
+
 /** The person's hours in all teams and areas add up to more than the Settings weekly hours. */
 export function overbooked(ws: Workspace, personId: string): boolean {
   return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;

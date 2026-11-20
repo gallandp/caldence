@@ -1,5 +1,6 @@
 import type { ISODate } from './date';
 import { addItem, addTeam, updateSettings } from './edit';
+import { capacity, halfHours } from './load';
 import type { Settings, Workspace } from './model';
 import { applyTemplate, areaRoleIds, type Template } from './template';
 import { validate, type Result } from './validate';
@@ -18,6 +19,11 @@ export interface SetupInput {
   members: SetupMember[];
   /** Weekly hours in the new team by name (trimmed, lower case), for people already in the file. */
   hours?: Record<string, number>;
+  /**
+   * Names (trimmed, lower case) whose hours in their other teams and areas are lowered in
+   * proportion, so that all their hours stay within the Settings weekly hours (#446).
+   */
+  fit?: string[];
   /** Workspace settings confirmed in the wizard, such as time zone, region and horizon. */
   settings?: Partial<Settings>;
 }
@@ -81,8 +87,33 @@ export function setupTeam(ws: Workspace, input: SetupInput): Result<[Workspace, 
     if (team.members.some((m) => m.personId === person.id))
       team.memberHours[person.id] = input.hours[key]!;
   }
+  for (const person of out.people)
+    if (
+      input.fit?.includes(norm(person.name)) &&
+      team.members.some((m) => m.personId === person.id)
+    )
+      fitOthers(out, teamId, person.id);
 
   const checked = validate(out);
   if (!checked.ok) return checked;
   return { ok: true, value: [checked.value, teamId] };
+}
+
+/**
+ * Lowers a person's hours in all teams and areas but `teamId` in proportion, in half hours, so
+ * that all their hours add up to at most the Settings weekly hours. Hours that fit stay (#446).
+ */
+function fitOthers(ws: Workspace, teamId: string, personId: string): void {
+  const weekly = ws.settings.hoursPerWeek;
+  const here = capacity(ws, personId, teamId);
+  const others = capacity(ws, personId) - here;
+  const room = Math.max(0, weekly - here);
+  if (others <= room) return;
+  const scale = (h: number) => halfHours((h * room) / others);
+  for (const t of ws.teams)
+    if (t.id !== teamId && t.members.some((m) => m.personId === personId))
+      t.memberHours[personId] = scale(capacity(ws, personId, t.id));
+  const areaHours = [...ws.areas.map((a) => a.memberHours), ws.organisation?.memberHours];
+  for (const hours of areaHours)
+    if (hours && Object.hasOwn(hours, personId)) hours[personId] = scale(hours[personId]!);
 }
