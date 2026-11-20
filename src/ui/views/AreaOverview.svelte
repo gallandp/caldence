@@ -4,6 +4,8 @@
 </script>
 
 <script lang="ts">
+  import type { Snippet } from 'svelte';
+  import { toStore } from 'svelte/store';
   import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
   import type { UnfilledRole } from '../../core/cost';
   import {
@@ -11,6 +13,7 @@
     areaOnlyLoad,
     areaOnlyPeople,
     compareCadences,
+    compareOrgCadences,
     teamLoad,
     zeroHourMembers,
     type LoadCell,
@@ -24,20 +27,23 @@
     loadPerWeek,
     peopleOverLimit,
   } from '../../core/load';
-  import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
+  import { areaAsTeam, ORG_UNIT, type Area, type Cadence, type CalEvent } from '../../core/model';
   import { clashes, overlapPairs, overviewWindow } from '../../core/views';
   import {
     formatDisplayDate,
     formatEuro,
     formatNumber,
     formatPercent,
+    areaText,
+    levels,
     locale,
     nextWeeks,
-    translate as t,
+    translate,
   } from '../../i18n';
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
+  import OrgIcon from '../components/OrgIcon.svelte';
   import OverlapList from '../components/OverlapList.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WhatIfSheet from '../components/WhatIfSheet.svelte';
@@ -61,9 +67,27 @@
     onOpenUnit?: (unitId: string) => void;
     /** Opens the calendar's week of `date` with one person chosen. */
     onOpenCalendar?: (personId: string, date: ISODate) => void;
+    /**
+     * The organisation's page (#450): only the alignment, load and cost figures and the cost per
+     * team; `children` (the tree) sits between the figures and the table.
+     */
+    summary?: boolean;
+    children?: Snippet;
   }
-  let { area, onOpenLoad, onOpenOverlaps, onOpenMeeting, onOpenUnit, onOpenCalendar }: Props =
-    $props();
+  let {
+    area,
+    onOpenLoad,
+    onOpenOverlaps,
+    onOpenMeeting,
+    onOpenUnit,
+    onOpenCalendar,
+    summary = false,
+    children,
+  }: Props = $props();
+
+  /** For the organisation, "{levelArea}" and "{levelInArea}" name the organisation (#328). */
+  const t = toStore(() => areaText($translate, $levels, area.id));
+  const org = $derived(area.id === ORG_UNIT);
 
   const uid = $props.id();
 
@@ -78,9 +102,12 @@
   const weekCount = $derived(span.weeks);
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
-  const comparison = $derived(compareCadences(ws, area, from, weekCount));
+  const orgComparison = $derived(summary ? compareOrgCadences(ws, from, weekCount) : undefined);
+  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount));
   const allWeeks = $derived(loadPerWeek(ws, $index));
+  // The summary shows no heat map or warned weeks: no load per team and week (#450).
   const weeks = $derived.by(() => {
+    if (summary) return [];
     const start = allWeeks.findIndex((w) => w.monday === from);
     return start < 0 ? [] : allWeeks.slice(start, start + weekCount);
   });
@@ -128,20 +155,24 @@
    * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
    * touch the area or its teams, with the calendar's overlap rule (#339).
    */
+  // The summary shows no overlaps: no clash search over every person (#450).
   const overlaps = $derived(
-    overlapPairs(
-      clashes(ws, $index, personIds, {
-        from,
-        to: addDays(from, weekCount * 7),
-        units: new Set([area.id, ...area.teamIds]),
-      }),
-    ),
+    summary
+      ? []
+      : overlapPairs(
+          clashes(ws, $index, personIds, {
+            from,
+            to: addDays(from, weekCount * 7),
+            units: new Set([area.id, ...area.teamIds]),
+          }),
+        ),
   );
 
   // ---------- time and cost per team (M3) ----------
 
   const rate = $derived(ws.settings.hourlyRate);
-  const costs = $derived(areaCosts(ws, $index, area, rate));
+  // The summary lists each area's own meetings in a row, so no team gets an area share note.
+  const costs = $derived(areaCosts(ws, $index, area, rate, !summary));
   const allMeetings = $derived(rate ? meetingCosts(ws, $index, area, rate) : []);
   /** Over the limit, or meeting hours without weekly hours to measure them against. */
   const over = (r: { share: number; noHours: boolean }) => r.noHours || r.share > maxFte;
@@ -162,7 +193,8 @@
   const barWidth = (share: number) =>
     maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
   const unitName = (id: string) =>
-    id === area.id ? area.name : (ws.teams.find((x) => x.id === id)?.name ?? id);
+    id === area.id ? area.name : ([...ws.teams, ...ws.areas].find((x) => x.id === id)?.name ?? id);
+  const areaById = (id: string) => ws.areas.find((a) => a.id === id);
   const unitOf = (id: string) =>
     id === area.id ? unit : (ws.teams.find((x) => x.id === id) ?? unit);
   /** Rule and minutes of a costly meeting; its cost includes travel, so that is named (#309). */
@@ -240,6 +272,34 @@
           : $t('overview.lead.none'),
     ].join(' · '),
   );
+  /**
+   * The organisation's page names its teams and people in the tree, so only what the teams are
+   * compared with: their area's cadence where it has one, else the one most teams share (#450).
+   * Empty without anything to compare.
+   */
+  const orgLead = $derived.by(() => {
+    const c = orgComparison;
+    if (!c || c.rows.length < 2) return '';
+    const team = c.reference?.teamId ? teamName(c.reference.teamId) : '';
+    const most = c.sharing > 1;
+    return [
+      c.byArea > 0 ? $translate('overview.lead.org.areas') : '',
+      c.others > 0 && team
+        ? $translate(
+            c.byArea > 0
+              ? most
+                ? 'overview.lead.org.others'
+                : 'overview.lead.org.others.first'
+              : most
+                ? 'overview.lead.org'
+                : 'overview.lead.org.first',
+            { team },
+          )
+        : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+  });
 
   function reasonText(r: StepReason): string {
     switch (r.kind) {
@@ -343,6 +403,8 @@
     });
 </script>
 
+{#snippet ownIcon()}{#if org}<OrgIcon />{:else}<AreaIcon />{/if}{/snippet}
+
 {#snippet whatIfButton(unitId: string, name: string)}
   {#if $presenting}
     <button
@@ -361,9 +423,13 @@
 {/snippet}
 
 <div class="overview stack" data-area-overview>
-  <p class="lead">{lead}</p>
+  {#if !summary}
+    <p class="lead">{lead}</p>
+  {:else if orgLead}
+    <p class="lead">{orgLead}</p>
+  {/if}
 
-  <section class="kpis" aria-label={$t('overview.kpis')}>
+  <section class="kpis" class:three={summary} aria-label={$t('overview.kpis')}>
     <div class="card kpi" data-kpi="cadence">
       <span class="label">{$t('overview.kpi.cadence')}</span>
       <b
@@ -404,18 +470,23 @@
         >
       {/if}
     </div>
-    <div class="card kpi" data-kpi="warn">
-      <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
-      <b>{formatNumber($locale, warnedMondays.length, 0)}</b>
-      <span class="label"
-        >{$t('overview.kpi.warn.sub', { period: nextWeeks($t, $locale, weekCount) })}</span
-      >
-      <span class="tag" class:warn={warnedMondays.length > 0} class:ok={warnedMondays.length === 0}
-        >{warnedMondays.length > 0
-          ? firstThree(warnedMondays.map(weekLabel))
-          : $t('overview.kpi.warn.none')}</span
-      >
-    </div>
+    {#if !summary}
+      <div class="card kpi" data-kpi="warn">
+        <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
+        <b>{formatNumber($locale, warnedMondays.length, 0)}</b>
+        <span class="label"
+          >{$t('overview.kpi.warn.sub', { period: nextWeeks($t, $locale, weekCount) })}</span
+        >
+        <span
+          class="tag"
+          class:warn={warnedMondays.length > 0}
+          class:ok={warnedMondays.length === 0}
+          >{warnedMondays.length > 0
+            ? firstThree(warnedMondays.map(weekLabel))
+            : $t('overview.kpi.warn.none')}</span
+        >
+      </div>
+    {/if}
     {#if rate && costs.total.cost}
       <div class="card kpi" data-kpi="cost">
         <span class="label">{$t('overview.kpi.cost')}</span>
@@ -433,6 +504,12 @@
         {/if}
         <span class="tag neutral">{$t('overview.kpi.cost.rate', { rate: euro(rate) })}</span>
       </div>
+    {:else if summary}
+      <div class="card kpi" data-kpi="time">
+        <span class="label">{$t('overview.kpi.time')}</span>
+        <b>{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</b>
+        <span class="label">{$t('overview.kpi.cost.week')}</span>
+      </div>
     {:else}
       <div class="card kpi" data-kpi="area">
         <span class="label">{$t('overview.kpi.area')}</span>
@@ -447,7 +524,9 @@
     {/if}
   </section>
 
-  {#if teams.length > 0}
+  {#if summary}
+    {@render children?.()}
+  {:else if teams.length > 0}
     <OverlapList
       pairs={overlaps}
       weeks={weekCount}
@@ -469,7 +548,7 @@
           <p class="note">
             {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
                 >{' ' + $t('overview.cost.hint.person')}</span
-              >{' ' + $t('overview.cost.hint.areaShare')}{/if}
+              >{#if !summary}{' ' + $t('overview.cost.hint.areaShare')}{/if}{/if}
           </p>
           <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
@@ -561,41 +640,83 @@
               {/if}
             </tr>
           {/each}
-          <tr class="area-row" data-cost-row={area.id}>
-            <th scope="row">
-              {#if onOpenUnit}
-                <button
-                  type="button"
-                  class="link area-name"
-                  aria-label={$t('overview.cost.open', {
-                    name: $t('overview.cost.areaRow'),
-                    view: $t('view.meetings'),
-                  })}
-                  onclick={() => onOpenUnit(area.id)}
-                  ><AreaIcon /> {$t('overview.cost.areaRow')}</button
+          {#each costs.areas as r (r.unitId)}
+            {@const a = areaById(r.unitId)}
+            <tr class="area-row" data-cost-row={r.unitId}>
+              <th scope="row">
+                {#if onOpenUnit}
+                  <button
+                    type="button"
+                    class="link area-name"
+                    aria-label={$t('overview.cost.open', {
+                      name: unitName(r.unitId),
+                      view: $t('view.meetings'),
+                    })}
+                    onclick={() => onOpenUnit(r.unitId)}><AreaIcon /> {unitName(r.unitId)}</button
+                  >
+                {:else}
+                  <span class="area-name"><AreaIcon /> {unitName(r.unitId)}</span>
+                {/if}
+                {#if a && a.events.length > 0}
+                  <small>{a.events.map((e) => e.name).join(', ')}</small>
+                {/if}
+                {#if rate && unfilledNote(r.cost?.unfilled)}
+                  <small data-unfilled>{unfilledNote(r.cost?.unfilled)}</small>
+                {/if}
+              </th>
+              <td class="extra">{cadenceShort(a?.cadence)}</td>
+              <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
+              <td></td>
+              {#if rate && r.cost}
+                <td class="num strong cost">{euro(costOf(r.cost))}</td>
+                <td class="num muted extra"
+                  >{r.invited > 0 ? euro(costOf(r.cost) / r.invited) : '–'}</td
                 >
-              {:else}
-                <span class="area-name"><AreaIcon /> {$t('overview.cost.areaRow')}</span>
               {/if}
-              {#if area.events.length > 0}
-                <small>{area.events.map((e) => e.name).join(', ')}</small>
-              {/if}
-              {#if rate && unfilledNote(costs.area.cost?.unfilled)}
-                <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
-              {/if}
-            </th>
-            <td class="extra">{cadenceShort(area.cadence)}</td>
-            <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
-            <td></td>
-            {#if rate && costs.area.cost}
-              <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
-              <td class="num muted extra"
-                >{costs.area.invited > 0
-                  ? euro(costOf(costs.area.cost) / costs.area.invited)
-                  : '–'}</td
+            </tr>
+          {/each}
+          {#if !summary || area.events.length > 0}
+            <tr class="area-row" data-cost-row={area.id}>
+              <th scope="row">
+                {#if onOpenUnit}
+                  <button
+                    type="button"
+                    class="link area-name"
+                    class:org
+                    aria-label={$t('overview.cost.open', {
+                      name: $t('overview.cost.areaRow'),
+                      view: $t('view.meetings'),
+                    })}
+                    onclick={() => onOpenUnit(area.id)}
+                    >{@render ownIcon()} {$t('overview.cost.areaRow')}</button
+                  >
+                {:else}
+                  <span class="area-name" class:org
+                    >{@render ownIcon()} {$t('overview.cost.areaRow')}</span
+                  >
+                {/if}
+                {#if area.events.length > 0}
+                  <small>{area.events.map((e) => e.name).join(', ')}</small>
+                {/if}
+                {#if rate && unfilledNote(costs.area.cost?.unfilled)}
+                  <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
+                {/if}
+              </th>
+              <td class="extra">{cadenceShort(area.cadence)}</td>
+              <td class="num"
+                >{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td
               >
-            {/if}
-          </tr>
+              <td></td>
+              {#if rate && costs.area.cost}
+                <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
+                <td class="num muted extra"
+                  >{costs.area.invited > 0
+                    ? euro(costOf(costs.area.cost) / costs.area.invited)
+                    : '–'}</td
+                >
+              {/if}
+            </tr>
+          {/if}
         </tbody>
         <tfoot>
           <tr data-cost-total>
@@ -622,7 +743,7 @@
   </section>
 
   {#if rate}
-    {#if costly.length > 0}
+    {#if costly.length > 0 && !summary}
       <section class="card" aria-labelledby="{uid}-costly" data-costly>
         <div class="head">
           <div>
@@ -701,7 +822,7 @@
   {/if}
 
   <!-- Without teams there is nothing to compare; the choice of teams is offered above. -->
-  {#if teams.length > 0}
+  {#if teams.length > 0 && !summary}
     <section class="card" aria-labelledby="{uid}-strip">
       <h3 id="{uid}-strip">{$t('overview.strip.title')}</h3>
       <p class="note">{$t('overview.strip.hint', { n: formatNumber($locale, weekCount, 0) })}</p>
@@ -851,94 +972,96 @@
     </section>
   {/if}
 
-  <section class="card" aria-labelledby="{uid}-steer">
-    <h3 id="{uid}-steer">{$t('overview.steer.title')}</h3>
-    <p class="note">{$t('overview.steer.hint')}</p>
-    <div class="steer">
-      <div>
-        <h4 class="part" id="{uid}-roles">{$t('overview.steer.roles')}</h4>
-        {#if steering.length === 0}
-          <p class="empty">{$t('overview.steer.noRoles')}</p>
-        {:else}
-          <ul class="people" aria-labelledby="{uid}-roles" data-area-roles>
-            {#each steering as s (s.personId)}
-              <li>
-                <span class="avatar" aria-hidden="true">{initials(personName(s.personId))}</span>
-                <div>
-                  <span class="person">{personName(s.personId)}</span>
-                  <small>
-                    {s.roleIds.map(roleName).join(', ')} ·
-                    {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
-                        hours: hours(s.areaHours),
-                      })}{:else}<span class="unset"
-                        >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
-                            >{$t('area.hours.unset')}</span
-                          ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
-                      >{/if}{teamHours(s.teams)}
-                  </small>
-                </div>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
-      <div>
-        <h4 class="part" id="{uid}-meetings">{$t('overview.steer.meetings')}</h4>
-        {#if area.events.length === 0}
-          <p class="empty">{$t('overview.steer.noMeetings')}</p>
-        {:else}
-          <table class="meetings" aria-labelledby="{uid}-meetings" data-area-meetings>
-            <thead>
-              <tr>
-                <th scope="col">{$t('overview.steer.col.meeting')}</th>
-                <th scope="col">{$t('overview.steer.col.who')}</th>
-                <th scope="col" class="num"
-                  ><abbr title={$t('overview.steer.col.hours.long')}
-                    >{$t('overview.steer.col.hours')}</abbr
-                  ></th
-                >
-              </tr>
-            </thead>
-            <tbody>
-              {#each area.events as event, i (event.id)}
-                {@const m = meetings[i]}
-                <tr data-meeting={event.id}>
-                  <td class="what">
-                    {#if onOpenMeeting}
-                      <button
-                        type="button"
-                        class="title link"
-                        aria-label={$t('overview.steer.open', {
-                          name: event.name,
-                          view: $t('view.meetings'),
-                        })}
-                        onclick={() => onOpenMeeting(area.id, event.id)}>{event.name}</button
-                      >
-                    {:else}
-                      <span class="title">{event.name}</span>
-                    {/if}
-                    <small>{whenText(event)}</small>
-                  </td>
-                  <td class="who">
-                    <AreaMeetingWho {area} {event} />
-                  </td>
-                  <td class="num">
-                    {#if m && m.recurring}
-                      {hours(m.perWeek)}
-                    {:else}
-                      <span aria-hidden="true">–</span><span class="sr-only"
-                        >{$t('overview.steer.irregular')}</span
-                      >
-                    {/if}
-                  </td>
-                </tr>
+  {#if !summary}
+    <section class="card" aria-labelledby="{uid}-steer">
+      <h3 id="{uid}-steer">{$t('overview.steer.title')}</h3>
+      <p class="note">{$t('overview.steer.hint')}</p>
+      <div class="steer">
+        <div>
+          <h4 class="part" id="{uid}-roles">{$t('overview.steer.roles')}</h4>
+          {#if steering.length === 0}
+            <p class="empty">{$t('overview.steer.noRoles')}</p>
+          {:else}
+            <ul class="people" aria-labelledby="{uid}-roles" data-area-roles>
+              {#each steering as s (s.personId)}
+                <li>
+                  <span class="avatar" aria-hidden="true">{initials(personName(s.personId))}</span>
+                  <div>
+                    <span class="person">{personName(s.personId)}</span>
+                    <small>
+                      {s.roleIds.map(roleName).join(', ')} ·
+                      {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
+                          hours: hours(s.areaHours),
+                        })}{:else}<span class="unset"
+                          >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
+                              >{$t('area.hours.unset')}</span
+                            ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
+                        >{/if}{teamHours(s.teams)}
+                    </small>
+                  </div>
+                </li>
               {/each}
-            </tbody>
-          </table>
-        {/if}
+            </ul>
+          {/if}
+        </div>
+        <div>
+          <h4 class="part" id="{uid}-meetings">{$t('overview.steer.meetings')}</h4>
+          {#if area.events.length === 0}
+            <p class="empty">{$t('overview.steer.noMeetings')}</p>
+          {:else}
+            <table class="meetings" aria-labelledby="{uid}-meetings" data-area-meetings>
+              <thead>
+                <tr>
+                  <th scope="col">{$t('overview.steer.col.meeting')}</th>
+                  <th scope="col">{$t('overview.steer.col.who')}</th>
+                  <th scope="col" class="num"
+                    ><abbr title={$t('overview.steer.col.hours.long')}
+                      >{$t('overview.steer.col.hours')}</abbr
+                    ></th
+                  >
+                </tr>
+              </thead>
+              <tbody>
+                {#each area.events as event, i (event.id)}
+                  {@const m = meetings[i]}
+                  <tr data-meeting={event.id}>
+                    <td class="what">
+                      {#if onOpenMeeting}
+                        <button
+                          type="button"
+                          class="title link"
+                          aria-label={$t('overview.steer.open', {
+                            name: event.name,
+                            view: $t('view.meetings'),
+                          })}
+                          onclick={() => onOpenMeeting(area.id, event.id)}>{event.name}</button
+                        >
+                      {:else}
+                        <span class="title">{event.name}</span>
+                      {/if}
+                      <small>{whenText(event)}</small>
+                    </td>
+                    <td class="who">
+                      <AreaMeetingWho {area} {event} />
+                    </td>
+                    <td class="num">
+                      {#if m && m.recurring}
+                        {hours(m.perWeek)}
+                      {:else}
+                        <span aria-hidden="true">–</span><span class="sr-only"
+                          >{$t('overview.steer.irregular')}</span
+                        >
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {/if}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  {/if}
 </div>
 
 {#if whatIf}
@@ -976,6 +1099,9 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.75rem;
+  }
+  .kpis.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   :global(#app) .overview .kpi {
     display: flex;
@@ -1363,6 +1489,13 @@
     gap: 0.3rem;
     color: var(--area);
   }
+  .area-name.org {
+    color: var(--org);
+  }
+  /* The row names keep to one line, so the column takes their width (#450). */
+  [data-area-costs] th .area-name {
+    white-space: nowrap;
+  }
   .seg {
     display: flex;
     align-items: center;
@@ -1623,8 +1756,13 @@
   }
 
   @media (max-width: 1100px) {
-    .kpis {
+    .kpis,
+    .kpis.three {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    /* Three figures: the last one takes the whole row instead of half of it. */
+    .kpis.three > :nth-child(3) {
+      grid-column: 1 / -1;
     }
     .steer {
       grid-template-columns: 1fr;
@@ -1632,6 +1770,9 @@
   }
   /* Phones: the meetings become cards (name and hours on top, who below). */
   @media (max-width: 640px) {
+    [data-area-costs] th .area-name {
+      white-space: normal;
+    }
     .overview {
       --label: 6.75rem;
     }
