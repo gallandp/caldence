@@ -35,11 +35,18 @@ export interface ExportedEvent {
   start: string;
   end: string;
   summary: string;
+  /** SEQUENCE it was written with; kept by the next export when the entry is unchanged (#441). */
+  sequence?: number;
+  /** Fingerprint of its content (all lines but UID, DTSTAMP, SEQUENCE and LAST-MODIFIED). */
+  hash?: string;
 }
 
 export interface IcsExportOptions {
   scope: Filter;
-  /** What the last export of this scope wrote; what is gone now is written as cancelled. */
+  /**
+   * What the last export of this scope wrote; what is gone now is written as cancelled, what is
+   * unchanged keeps its SEQUENCE, and a series keeps its start (#441).
+   */
   previous?: ExportedEvent[];
   from: ISODate;
   to: ISODate;
@@ -330,13 +337,34 @@ export type IcsExport = {
   events: ExportedEvent[];
 };
 
+const EPOCH = Date.UTC(2020, 0, 1);
+
 /**
- * SEQUENCE of every VEVENT: the seconds since 2020, so each export is newer than the one before
- * and calendars that honour updates replace the earlier version instead of adding a copy.
+ * SEQUENCE of a changed VEVENT: the seconds since 2020, so each change is newer than the one
+ * before and calendars that honour updates replace the earlier version instead of adding a copy.
  * Stays below 2^31 until 2088.
  */
 export function sequenceOf(now: Date): number {
-  return Math.max(0, Math.floor((now.getTime() - Date.UTC(2020, 0, 1)) / 1000));
+  return Math.max(0, Math.floor((now.getTime() - EPOCH) / 1000));
+}
+
+/** FNV-1a of the lines: tells a changed entry from an unchanged one, nothing more. */
+function fingerprint(lines: string[]): string {
+  let h = 0x811c9dc5;
+  for (const ch of lines.join('\n')) {
+    h ^= ch.codePointAt(0) ?? 0;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+/**
+ * Where an export of from..to starts reading meetings: the earliest start of a series the last
+ * export wrote before `from`, since that series is written from there again (#441). The holiday
+ * index passed to the export must cover this date too.
+ */
+export function exportStart(previous: ExportedEvent[], from: ISODate): ISODate {
+  return previous.reduce((min, e) => (e.series && e.date < min ? e.date : min), from);
 }
 
 /**
@@ -365,13 +393,44 @@ export function exportIcsWithCounts(
   const writtenKeys = new Set<string>();
   const tz = ws.settings.timezone;
   const tzid = paramValue(tz);
-  const dtstamp = `DTSTAMP:${utcStamp(opts.now)}`;
-  // Every VEVENT of this export carries the same version, so a re-export updates all of them.
-  const version = [`SEQUENCE:${sequenceOf(opts.now)}`, `LAST-MODIFIED:${utcStamp(opts.now)}`];
+  const previous = new Map((opts.previous ?? []).map((e) => [e.uid, e]));
+  const nowSequence = sequenceOf(opts.now);
+  /**
+   * DTSTAMP, SEQUENCE and LAST-MODIFIED of an entry. One the last export wrote with the same
+   * content is written exactly as then, so calendars leave it (and what was added there) alone;
+   * a changed one gets a SEQUENCE newer than now and than the last one (#441).
+   */
+  const versionOf = (uid: string, body: string[]) => {
+    const hash = fingerprint(body);
+    const old = previous.get(uid);
+    const oldSeq =
+      old?.sequence !== undefined && Number.isSafeInteger(old.sequence) && old.sequence >= 0
+        ? old.sequence
+        : undefined;
+    const sequence =
+      oldSeq !== undefined && old?.hash === hash
+        ? oldSeq
+        : Math.max(nowSequence, (oldSeq ?? -1) + 1);
+    const at = utcStamp(new Date(EPOCH + sequence * 1000));
+    return {
+      sequence,
+      hash,
+      lines: [`DTSTAMP:${at}`, `SEQUENCE:${sequence}`, `LAST-MODIFIED:${at}`],
+    };
+  };
+  /** One VEVENT with its version; returns what to remember about the version. */
+  const vevent = (uid: string, body: string[]) => {
+    const v = versionOf(uid, body);
+    lines.push('BEGIN:VEVENT', `UID:${uid}`, ...v.lines, ...body, 'END:VEVENT');
+    return { sequence: v.sequence, hash: v.hash };
+  };
   const personNames = new Map(ws.people.map((p) => [p.id, p.name]));
   const roleNames = new Map(ws.roles.map((r) => [r.id, r.name]));
   const categoryNames = new Map(ws.categories.map((c) => [c.id, c.name]));
-  const fromYear = Number(opts.from.slice(0, 4));
+  // A series the last export wrote from an earlier date is written from there again, with the
+  // current rules: a later "From" never takes earlier occurrences out of the calendar (#441).
+  const start = exportStart(opts.previous ?? [], opts.from);
+  const fromYear = Number(start.slice(0, 4));
   const toYear = Number(opts.to.slice(0, 4));
 
   const lines: string[] = [
@@ -395,11 +454,16 @@ export function exportIcsWithCounts(
           'END:VALARM',
         ];
 
-  for (const { team, event, occs } of scopedMeetings(ws, index, opts.scope, opts.from, opts.to)) {
+  for (const meeting of scopedMeetings(ws, index, opts.scope, start, opts.to)) {
+    const { team, event } = meeting;
     scopeKeys.add(`${event.id}.${team.id}`);
+    const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
+    const stored = previous.get(`${uid}@caldence`);
+    const isSeries = event.rule.type !== 'once' && event.rule.type !== 'cycle-milestone';
+    const since = isSeries && stored?.series && stored.date < opts.from ? stored.date : opts.from;
+    const occs = meeting.occs.filter((o) => o.date >= since);
     const first = occs[0];
     if (!first) continue;
-    const uid = [event.id, team.id, ws.id].map(uidPart).join('.');
     const key = `${event.id}.${team.id}`;
     // Roles, then the people invited by name (#285).
     const roles = event.participants
@@ -429,41 +493,17 @@ export function exportIcsWithCounts(
         const start = `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`;
         const end = `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`;
         const id = `${uid}-${occ.date}@caldence`;
-        events.push({ uid: id, key, date: occ.date, start, end, summary: event.name });
+        const v = vevent(id, [start, end, ...common, ...alarm(event.name)]);
+        events.push({ uid: id, key, date: occ.date, start, end, summary: event.name, ...v });
         writtenKeys.add(key);
-        lines.push(
-          'BEGIN:VEVENT',
-          `UID:${id}`,
-          dtstamp,
-          ...version,
-          start,
-          end,
-          ...common,
-          ...alarm(event.name),
-          'END:VEVENT',
-        );
       }
       continue;
     }
     series++;
-    const start = `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`;
+    const dtstart = `DTSTART;TZID=${tzid}:${localStamp(first.date, first.start)}`;
     const end = `DTEND;TZID=${tzid}:${plusMinutes(first.date, first.start, first.duration)}`;
-    events.push({
-      uid: `${uid}@caldence`,
-      key,
-      series: true,
-      date: first.date,
-      start,
-      end,
-      summary: event.name,
-    });
-    writtenKeys.add(key);
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:${uid}@caldence`,
-      dtstamp,
-      ...version,
-      start,
+    const v = vevent(`${uid}@caldence`, [
+      dtstart,
       end,
       rule,
       ...occs
@@ -471,8 +511,18 @@ export function exportIcsWithCounts(
         .map((o) => `EXDATE;TZID=${tzid}:${localStamp(o.date, o.start)}`),
       ...common,
       ...alarm(event.name),
-      'END:VEVENT',
-    );
+    ]);
+    events.push({
+      uid: `${uid}@caldence`,
+      key,
+      series: true,
+      date: first.date,
+      start: dtstart,
+      end,
+      summary: event.name,
+      ...v,
+    });
+    writtenKeys.add(key);
   }
 
   const allDay = (
@@ -487,19 +537,14 @@ export function exportIcsWithCounts(
     const id = `${uidPart(uid)}.${uidPart(ws.id)}@caldence`;
     const start = `DTSTART;VALUE=DATE:${compactDate(from)}`;
     const end = `DTEND;VALUE=DATE:${compactDate(toExclusive)}`;
-    events.push({ uid: id, date: from, start, end, summary, ...(shared ? { shared } : {}) });
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:${id}`,
-      dtstamp,
-      ...version,
+    const v = vevent(id, [
       start,
       end,
       `SUMMARY:${escapeText(summary)}`,
       ...(desc !== undefined ? [`DESCRIPTION:${escapeText(desc)}`] : []),
       'TRANSP:TRANSPARENT',
-      'END:VEVENT',
-    );
+    ]);
+    events.push({ uid: id, date: from, start, end, summary, ...(shared ? { shared } : {}), ...v });
   };
   const inRange = (d: ISODate) => d >= opts.from && d <= opts.to;
 
@@ -579,18 +624,13 @@ export function exportIcsWithCounts(
     cancelled++;
     // The stored lines name the time zone of their export; this file defines the current one.
     const zone = (line: string) => line.replace(/;TZID=[^:;]*/, `;TZID=${tzid}`);
-    lines.push(
-      'BEGIN:VEVENT',
-      `UID:${old.uid}`,
-      dtstamp,
-      ...version,
+    vevent(old.uid, [
       zone(old.start),
       zone(old.end),
       `SUMMARY:${escapeText(old.summary)}`,
       'STATUS:CANCELLED',
       'TRANSP:TRANSPARENT',
-      'END:VEVENT',
-    );
+    ]);
   }
 
   lines.push('END:VCALENDAR');

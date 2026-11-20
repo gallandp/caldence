@@ -5,6 +5,7 @@
   import {
     attendsUnitMeetings,
     exportIcsWithCounts,
+    exportStart,
     holidayDrops,
     scopeHasEvents,
     type IcsExport,
@@ -213,9 +214,16 @@
   );
 
   function build(filter: Filter) {
-    return exportIcsWithCounts(ws, exportIndex ?? workspaceIndex(ws), {
+    const previous = lastExport(ws.id, filter);
+    // A series exported earlier is written from its first start again (#441): the index covers it.
+    const start = exportStart(previous, from);
+    const index =
+      start < addDays(from, -366)
+        ? workspaceIndex({ ...ws, settings: { ...ws.settings, horizon: { from: start, to } } })
+        : (exportIndex ?? workspaceIndex(ws));
+    return exportIcsWithCounts(ws, index, {
       scope: filter,
-      previous: lastExport(ws.id, filter),
+      previous,
       from,
       to,
       reminderMinutes: reminder === '' ? null : Number(reminder),
@@ -588,7 +596,8 @@
             type="date"
             value={to}
             aria-invalid={toEmpty || inverted ? 'true' : undefined}
-            aria-describedby={dateError(toEmpty, 'to')}
+            aria-describedby={dateError(toEmpty, 'to') ??
+              (rangeInvalid ? undefined : `${uid}-to-end`)}
             oninput={(e) => (toDraft = e.currentTarget.value)}
           />
           {#if toEmpty}
@@ -607,6 +616,11 @@
       </div>
       {#if inverted}
         <p class="field-error" id="{uid}-range-err">{$t('exchange.export.range')}</p>
+      {:else if !rangeInvalid}
+        <!-- Every series ends at "To" (COUNT): say so where the date is chosen (#441). -->
+        <p class="series-end" id="{uid}-to-end">
+          {$t('exchange.export.seriesEnd', { date: formatDisplayDate($locale, to, 'short') })}
+        </p>
       {/if}
       <fieldset>
         <legend>{$t('exchange.export.include')}</legend>
@@ -865,6 +879,11 @@
   .error,
   .field-error {
     color: var(--danger);
+  }
+  .series-end {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
   }
   .field-error {
     margin: 0.25rem 0 0;
