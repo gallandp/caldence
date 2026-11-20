@@ -56,6 +56,37 @@ test('exporting the example team downloads a file that matches the status', asyn
   expect(status).toContain('caldence-team-alpha.ics');
 });
 
+test('a re-export with a later From keeps the series start and says when the series end', async ({
+  page,
+}) => {
+  await openExchange(page);
+  await panel(page).getByLabel('Selected team').selectOption({ label: 'Team Alpha' });
+  const to = panel(page).getByLabel('To', { exact: true });
+  await to.fill('2027-06-30');
+  await expect(to).toHaveAccessibleDescription(
+    'The series end on 06/30/2027; export again before then.',
+  );
+  const starts = (text: string) =>
+    text
+      .split('BEGIN:VEVENT')
+      .filter((b) => b.includes('RRULE:'))
+      .map((b) => /DTSTART[^\r\n]*/.exec(b)![0])
+      .sort();
+  const first = await exportText(page);
+  await panel(page).getByLabel('From', { exact: true }).fill('2027-03-01');
+  const second = await exportText(page);
+  expect(starts(second.text)).toEqual(starts(first.text));
+  expect(starts(first.text).some((s) => s < 'DTSTART;TZID=Europe/Berlin:20270301')).toBe(true);
+  // Nothing changed, so every entry keeps its SEQUENCE.
+  const seq = (text: string) =>
+    new Map(
+      [...text.matchAll(/UID:(\S+)\r\nDTSTAMP:\S+\r\nSEQUENCE:(\d+)/g)].map((m) => [m[1], m[2]]),
+    );
+  const before = seq(first.text);
+  expect(seq(second.text).size).toBeGreaterThan(0);
+  for (const [uid, n] of seq(second.text)) expect(n).toBe(before.get(uid));
+});
+
 test('one file per person comes as a ZIP with a calendar for each person', async ({ page }) => {
   await openExchange(page);
   await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();

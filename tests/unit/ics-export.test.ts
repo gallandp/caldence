@@ -5,6 +5,8 @@ import {
   contentLine,
   escapeText,
   exportIcs,
+  exportIndexRange,
+  exportStart,
   exportIcsWithCounts,
   foldLine,
   holidayDrops,
@@ -787,5 +789,155 @@ describe('exportIcs as an update of an earlier export (#21)', () => {
     );
     expect(short.cancelled).toBe(0);
     expect(short.events.map((e) => e.uid)).toContain(kickoff!.uid);
+  });
+});
+
+describe('exportIcs: a later export keeps the past and unchanged entries (#441)', () => {
+  /** The index covers the stored series starts, as the Import/Export view builds it. */
+  function build(ws: Workspace, o: IcsExportOptions) {
+    const horizon = exportIndexRange(o.previous ?? [], o.from, o.to);
+    const copy: Workspace = { ...ws, settings: { ...ws.settings, horizon } };
+    return exportIcsWithCounts(ws, workspaceIndex(copy), o);
+  }
+  const later = new Date(Date.UTC(2027, 2, 1, 8, 0, 0));
+  const byUid = (text: string) =>
+    new Map(blocks(text, 'VEVENT').map((b) => [b.find((l) => l.startsWith('UID:'))!, b]));
+
+  it('keeps the stored DTSTART of a series when "From" moves later', () => {
+    const ws = example();
+    const first = build(ws, opts({ from: '2026-11-20' }));
+    const again = build(ws, opts({ from: '2027-03-01', now: later, previous: first.events }));
+    const series = first.events.filter((e) => e.series);
+    expect(series.length).toBeGreaterThan(0);
+    const blocksNow = byUid(again.text);
+    for (const old of series) {
+      const block = blocksNow.get(`UID:${old.uid}`)!;
+      expect(block).toBeDefined();
+      expect(prop(block, 'DTSTART')).toBe(old.start);
+      // Same rules, same end: the series is written as before.
+      expect(prop(block, 'RRULE')).toBe(prop(byUid(first.text).get(`UID:${old.uid}`)!, 'RRULE'));
+    }
+    // Remembered with the old start, so a third export keeps it too.
+    for (const old of series)
+      expect(again.events.find((e) => e.uid === old.uid)?.date).toBe(old.date);
+    // Nothing is cancelled and no series is split.
+    expect(again.cancelled).toBe(0);
+    expect(again.series).toBe(first.series);
+  });
+
+  it('starts single entries at "From", not at the stored start', () => {
+    const ws = example();
+    const first = build(ws, opts({ from: '2026-11-20' }));
+    const again = build(ws, opts({ from: '2027-03-01', now: later, previous: first.events }));
+    for (const e of again.events.filter((x) => !x.series && x.key))
+      if (!first.events.some((f) => f.uid === e.uid)) expect(e.date >= '2027-03-01').toBe(true);
+    const written = blocks(again.text, 'VEVENT').filter((b) => !prop(b, 'RRULE'));
+    for (const b of written.filter((x) => !x.includes('STATUS:CANCELLED')))
+      expect(prop(b, 'DTSTART')!.replace(/^.*:/, '') >= '20270301').toBe(true);
+  });
+
+  it('starts a series at the new "From" when it lies before the stored start', () => {
+    const ws = example();
+    const first = build(ws, opts({ from: '2027-03-01' }));
+    const again = build(ws, opts({ from: '2027-01-01', now: later, previous: first.events }));
+    const old = first.events.find((e) => e.series)!;
+    expect(again.events.find((e) => e.uid === old.uid)!.date < old.date).toBe(true);
+  });
+
+  it('writes an unchanged entry exactly as last time, SEQUENCE included', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const again = build(ws, opts({ now: later, previous: first.events }));
+    const before = byUid(first.text);
+    for (const [uid, block] of byUid(again.text)) expect(block).toEqual(before.get(uid));
+  });
+
+  it('raises SEQUENCE only for a changed meeting', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const sync = ws.teams[0]!.events.find((e) => e.id === 'ev-sync')!;
+    sync.name = 'Weekly Sync (new)';
+    const again = build(ws, opts({ now: later, previous: first.events }));
+    const before = byUid(first.text);
+    const seq = (b: string[]) => Number(prop(b, 'SEQUENCE')!.slice(9));
+    let changed = 0;
+    for (const [uid, block] of byUid(again.text)) {
+      const old = before.get(uid)!;
+      if (uid.startsWith('UID:ev-sync.team-alpha.')) {
+        changed++;
+        expect(seq(block)).toBeGreaterThan(seq(old));
+        expect(prop(block, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20270301T080000Z');
+      } else expect(seq(block)).toBe(seq(old));
+    }
+    expect(changed).toBe(1);
+  });
+
+  it('raises SEQUENCE above the stored one even when the clock is behind', () => {
+    const ws = example();
+    const first = build(ws, opts({ now: later }));
+    ws.teams[0]!.events.find((e) => e.id === 'ev-sync')!.time = '07:30';
+    const again = build(ws, opts({ previous: first.events }));
+    const uid = `UID:ev-sync.team-alpha.${ws.id}@caldence`;
+    const seq = (t: string) => Number(prop(byUid(t).get(uid)!, 'SEQUENCE')!.slice(9));
+    expect(seq(again.text)).toBe(seq(first.text) + 1);
+  });
+
+  it('bumps a legacy entry without SEQUENCE or fingerprint once, then keeps it', () => {
+    const ws = example();
+    const first = build(ws, opts());
+    const legacy = first.events.map((e) => {
+      const old = { ...e };
+      delete old.sequence;
+      delete old.hash;
+      return old;
+    });
+    const second = build(ws, opts({ now: later, previous: legacy }));
+    const third = build(ws, opts({ now: new Date(Date.UTC(2027, 3, 1)), previous: second.events }));
+    const seqs = (t: string) => [...byUid(t).values()].map((b) => prop(b, 'SEQUENCE'));
+    expect(new Set(seqs(second.text))).toEqual(new Set(['SEQUENCE:226051200']));
+    expect(third.text).toBe(second.text);
+  });
+
+  it('writes a cancelled entry with a SEQUENCE above the stored one', () => {
+    const ws = example();
+    const first = build(ws, opts({ now: later }));
+    const alpha = ws.teams[0]!;
+    alpha.events = alpha.events.filter((e) => e.id !== 'ev-sync');
+    // The clock is behind the last export: the cancellation still is newer.
+    const second = build(ws, opts({ previous: first.events }));
+    const uid = `UID:ev-sync.team-alpha.${ws.id}@caldence`;
+    const seq = (t: string) => Number(prop(byUid(t).get(uid)!, 'SEQUENCE')!.slice(9));
+    expect(byUid(second.text).get(uid)).toContain('STATUS:CANCELLED');
+    expect(seq(second.text)).toBeGreaterThan(seq(first.text));
+  });
+
+  it('keeps school holidays whole after "To" when the stored start is over a year back', () => {
+    const ws = example();
+    const all = { holidays: false, schoolHolidays: true, milestones: false };
+    const first = build(ws, opts({ from: '2027-01-04', to: '2027-12-31', allDay: all }));
+    const o = { from: '2028-03-01', to: '2028-07-31', allDay: all, now: later };
+    const again = build(ws, opts({ ...o, previous: first.events }));
+    const fresh = build(ws, opts(o));
+    const school = (r: { events: { uid: string; end: string }[] }) =>
+      r.events.filter((e) => e.uid.startsWith('school-2028')).map((e) => [e.uid, e.end]);
+    expect(school(again).length).toBeGreaterThan(0);
+    expect(school(again)).toEqual(school(fresh));
+    const range = exportIndexRange(first.events, o.from, o.to);
+    expect(range).toEqual({ from: exportStart(first.events, o.from), to: '2029-08-01' });
+    expect(range.from < '2027-03-01').toBe(true);
+  });
+
+  it('names the earliest stored series start before "From"', () => {
+    const e = {
+      uid: 'a@caldence',
+      date: '2026-05-04',
+      start: 'DTSTART:x',
+      end: 'DTEND:x',
+      summary: 'a',
+    };
+    expect(exportStart([], '2027-01-01')).toBe('2027-01-01');
+    expect(exportStart([{ ...e, series: true }], '2027-01-01')).toBe('2026-05-04');
+    expect(exportStart([e], '2027-01-01')).toBe('2027-01-01');
+    expect(exportStart([{ ...e, series: true }], '2026-01-01')).toBe('2026-01-01');
   });
 });

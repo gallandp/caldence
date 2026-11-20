@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, pickUnit, setLanguage } from './helpers';
+import { openExample, pickUnit, setLanguage, showView } from './helpers';
 
 test.use({ locale: 'en-US' });
 
@@ -75,6 +75,63 @@ test('costs show per sprint and the preparation share; flow teams per week only'
   await setLanguage(page, 'de');
   await expect(sync.locator('[data-cost-cadence]')).toHaveText('Ø 100 € / Sprint');
   await expect(planning.locator('[data-cost-prep]')).toHaveText('inkl. 25 % Vorbereitung');
+});
+
+test('a row leads with the cost per week, and Cost ranks as the area Overview does (#443)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await setRate(page, '100');
+  await tab(page, 'Meetings & cadence');
+  const panel = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  const titles = () => panel.locator('tr.row .title').allTextContents();
+  // Sprint Planning: €500 a meeting, every two weeks.
+  const planning = panel.getByRole('row', { name: /Sprint Planning/ });
+  await expect(planning.locator('[data-cost-avg]')).toHaveText('Ø €250 / week');
+  await expect(planning.locator('[data-cost-each]')).toHaveText('€500 per meeting');
+  await expect(planning.locator('[data-cost-cadence]')).toHaveText('Ø €500 / sprint');
+  const kickoff = panel.getByRole('row', { name: /Kick-off Workshop/ });
+  await expect(kickoff.locator('[data-cost-each]')).toHaveText('€800 one-off');
+  await expect(kickoff.locator('[data-cost-avg]')).toHaveCount(0);
+  const release = panel.getByRole('row', { name: /Release Readiness Review/ });
+  await expect(release.locator('[data-cost-each]')).toHaveText('€375 per milestone');
+
+  // Most expensive per week first; one-off and milestone meetings have no weekly average.
+  await panel.getByRole('button', { name: /^Cost/ }).click();
+  expect(await titles()).toEqual([
+    'Sprint Planning',
+    'Sprint Review',
+    'Backlog Refinement',
+    'Weekly Sync',
+    'Stakeholder Update',
+    'Kick-off Workshop',
+    'Release Readiness Review',
+  ]);
+
+  // The area Overview's "Most expensive meetings" list the same order for every unit.
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Area');
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
+  const rows = page.locator('[data-costly] tbody tr');
+  await expect(rows.first()).toBeVisible();
+  const ranked = await rows.evaluateAll((trs) =>
+    trs.map((tr) => ({
+      name: tr.querySelector('th')!.textContent!.trim(),
+      unit: tr.querySelector('td.where')!.textContent!.trim(),
+    })),
+  );
+  const units = [...new Set(ranked.map((r) => r.unit))];
+  expect(units.length).toBeGreaterThan(1);
+  for (const unit of units) {
+    await pickUnit(page, unit);
+    await showView(page, 'Meetings & cadence');
+    // The sort order may stay from the last unit; Cost starts with the most expensive.
+    const th = panel.getByRole('columnheader', { name: /^Cost/ });
+    if ((await th.getAttribute('aria-sort')) !== 'descending') await th.getByRole('button').click();
+    await expect(th).toHaveAttribute('aria-sort', 'descending');
+    const names = ranked.filter((r) => r.unit === unit).map((r) => r.name);
+    expect((await titles()).filter((n) => names.includes(n))).toEqual(names);
+  }
 });
 
 test('an hourly rate of 0 shows an error and is not committed', async ({ page }) => {
