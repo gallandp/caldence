@@ -13,14 +13,19 @@ export const DAY_HOURS: Record<string, number> = {
 /** First day with two overlapping meetings of Alex (Sprint Planning 10:00 and Replenishment 11:00). */
 export const ALEX_OVERLAP_DAY = '2027-01-07';
 
-/** Clashes of Alex (Team Alpha and Team Beta) in the whole planning horizon (#339). */
-export const ALEX_CLASHES = 27;
+/**
+ * Days on which Team Alpha's Sprint Planning and Team Beta's Replenishment overlap (for Alex and
+ * Sam), in the 12 weeks from Monday 2027-01-04: Team Alpha's only overlapping pair (#445).
+ */
+export const ALPHA_PAIR_DAYS = 6;
 
 /**
  * Days with a clash of a Commerce person that touches Commerce or its teams, in the 12 weeks from
  * Monday 2027-01-04; the first is Robin's on that Monday (#339).
  */
 export const COMMERCE_CLASH_DAYS = 12;
+/** Overlapping meeting pairs of Commerce in the same window, on those days (#445). */
+export const COMMERCE_PAIRS = 2;
 export const COMMERCE_FIRST_CLASH = '2027-01-04';
 
 export const fmt = (locale: 'de' | 'en', n: number): string =>

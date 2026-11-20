@@ -81,6 +81,7 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     hpw: 'settings.hoursPerWeek',
     person: 'load.table.person',
     warnings: 'load.warnings',
+    overlaps: 'load.overlaps',
     peak: 'load.col.peak',
     personFilter: 'filter.person',
     costs: 'cost.title',

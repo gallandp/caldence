@@ -16,10 +16,10 @@
     type Segment,
     type StepReason,
   } from '../../core/areaOverview';
-  import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
+  import { addDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
   import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
   import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
-  import { clashes, clashTime } from '../../core/views';
+  import { clashes, overlapPairs, overviewWindow } from '../../core/views';
   import {
     formatDisplayDate,
     formatEuro,
@@ -31,6 +31,7 @@
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
+  import OverlapList from '../components/OverlapList.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
@@ -53,26 +54,14 @@
   }
   let { area, onOpenLoad, onOpenMeeting, onOpenUnit, onOpenCalendar }: Props = $props();
 
-  /** Weeks on the axis. */
-  const WEEKS = 12;
-
   const uid = $props.id();
   const ws = $derived($workspace);
   const teams = $derived(area.teamIds.flatMap((id) => ws.teams.filter((x) => x.id === id)));
 
-  /** The window starts this week, inside the horizon, and holds up to WEEKS weeks of it. */
-  const from = $derived.by(() => {
-    const today = mondayOf(localToday());
-    const first = mondayOf(ws.settings.horizon.from);
-    const last = mondayOf(ws.settings.horizon.to);
-    // Near the end of the horizon the window ends with it instead of shrinking.
-    const latest = addDays(last, -(WEEKS - 1) * 7);
-    const end = latest > first ? latest : first;
-    return today < first ? first : today > end ? end : today;
-  });
-  const weekCount = $derived(
-    Math.max(1, Math.min(WEEKS, diffDays(mondayOf(ws.settings.horizon.to), from) / 7 + 1)),
-  );
+  /** The window starts this week, inside the horizon, and holds up to 12 weeks of it. */
+  const span = $derived(overviewWindow(ws.settings.horizon, localToday()));
+  const from = $derived(span.from);
+  const weekCount = $derived(span.weeks);
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
   const comparison = $derived(compareCadences(ws, area, from, weekCount));
@@ -116,52 +105,18 @@
   const people = $derived(personIds.size);
 
   /**
-   * Clashes of the area's people in the window that touch the area or its teams (#339): the
-   * calendar's overlap rule. The first one is the example.
+   * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
+   * touch the area or its teams, with the calendar's overlap rule (#339).
    */
-  const windowClashes = $derived(
-    clashes(ws, $index, personIds, {
-      from,
-      to: addDays(from, weekCount * 7),
-      units: new Set([area.id, ...area.teamIds]),
-    }),
-  );
-  const clashDays = $derived(new Set(windowClashes.map((c) => c.date)).size);
-  const clashLine = $derived(
-    $t('overview.clashes', {
-      n: formatNumber($locale, weekCount, 0),
-      days:
-        clashDays === 0
-          ? $t('overview.clashes.none')
-          : $t(clashDays === 1 ? 'overview.clashes.one' : 'overview.clashes.other', {
-              n: formatNumber($locale, clashDays, 0),
-            }),
-    }),
-  );
-  const clashExample = $derived.by(() => {
-    const c = windowClashes[0];
-    if (!c) return undefined;
-    const time = clashTime(c);
-    // A clash may involve a unit outside the area, such as a second area of the person.
-    const unitAt = (id: string) => [...ws.areas, ...ws.teams].find((u) => u.id === id);
-    const eventName = (o: { teamId: string; eventId: string }) =>
-      unitAt(o.teamId)?.events.find((e) => e.id === o.eventId)?.name ?? o.eventId;
-    return {
-      personId: c.personId,
-      date: c.date,
-      text: $t('overview.clashes.example', {
-        person: personName(c.personId),
-        a: eventName(c.a),
-        unitA: unitAt(c.a.teamId)?.name ?? c.a.teamId,
-        b: eventName(c.b),
-        unitB: unitAt(c.b.teamId)?.name ?? c.b.teamId,
-        day: weekdayShort($locale, weekday(c.date)),
-        date: formatDisplayDate($locale, c.date, 'short'),
-        from: time.start,
-        to: time.end,
+  const overlaps = $derived(
+    overlapPairs(
+      clashes(ws, $index, personIds, {
+        from,
+        to: addDays(from, weekCount * 7),
+        units: new Set([area.id, ...area.teamIds]),
       }),
-    };
-  });
+    ),
+  );
 
   // ---------- time and cost per team (M3) ----------
 
@@ -432,23 +387,7 @@
   </section>
 
   {#if teams.length > 0}
-    <p class="clashes" class:found={clashDays > 0} data-clashes>
-      <span class="what">{clashLine}</span>
-      {#if clashExample}
-        {#if onOpenCalendar}
-          <button
-            type="button"
-            class="link"
-            aria-label={$t('overview.clashes.open', {
-              example: clashExample.text,
-              person: personName(clashExample.personId),
-            })}
-            onclick={() => onOpenCalendar(clashExample.personId, clashExample.date)}
-            >{clashExample.text}</button
-          >
-        {:else}<span>{clashExample.text}</span>{/if}
-      {/if}
-    </p>
+    <OverlapList pairs={overlaps} weeks={weekCount} limit={3} onOpen={onOpenCalendar} />
   {/if}
 
   <section class="card" aria-labelledby="{uid}-cost" data-area-costs>
@@ -942,28 +881,6 @@
   }
 
   /* ---------- key figures ---------- */
-  .clashes {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.25rem 0.6rem;
-    margin: 0;
-    padding: 0.6rem 0.8rem;
-    border-radius: var(--radius);
-    background: var(--surface-2);
-    color: var(--text-muted);
-  }
-  .clashes .what {
-    font-weight: 650;
-  }
-  .clashes.found {
-    background: var(--warn-soft);
-    color: var(--text);
-  }
-  .clashes.found .what::before {
-    content: '⚠ ';
-    color: var(--warn);
-  }
   .kpis {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
