@@ -237,8 +237,8 @@ export function personLoad(
 }
 
 /**
- * The people who are over the limit on average over these weeks, highest share first: the one
- * rule of the people table in Meeting load (#334, #448).
+ * The people who are over the limit on average over these weeks, highest share first, then by
+ * name: the one rule of the people table in Meeting load (#334, #448).
  */
 export function peopleOverLimit(
   ws: Workspace,
@@ -246,12 +246,14 @@ export function peopleOverLimit(
   personIds: Iterable<string>,
 ): string[] {
   const { maxFte } = ws.settings.thresholds;
-  // Meetings without any weekly hours rank first; Infinity - Infinity is NaN, so `|| 0`.
+  // Meetings without any weekly hours rank first; Infinity - Infinity is NaN, so
+  // two of them fall through to the name.
   const rank = (p: { base: number; share: number }) => (p.base > 0 ? p.share : Infinity);
+  const name = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
   return [...personIds]
-    .map((id) => ({ id, ...personLoad(ws, weeks, id) }))
+    .map((id) => ({ id, name: name(id), ...personLoad(ws, weeks, id) }))
     .filter((p) => overMax(p.hours, p.base, maxFte))
-    .sort((a, b) => rank(b) - rank(a) || 0)
+    .sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name))
     .map((p) => p.id);
 }
 

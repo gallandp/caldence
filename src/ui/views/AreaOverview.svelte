@@ -223,6 +223,9 @@
   const maxFte = $derived(ws.settings.thresholds.maxFte);
   const list = (items: string[]) =>
     new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }).format(items);
+  /** Up to three items for a tag, "…" when there are more; the same in every tile (#448). */
+  const firstThree = (items: string[]) =>
+    items.length > 3 ? items.slice(0, 3).join(', ') + ' …' : list(items);
   const teamName = (id: string) => ws.teams.find((x) => x.id === id)?.name ?? id;
   const roleName = (id: string) => ws.roles.find((r) => r.id === id)?.name ?? id;
   /** "incl. 2 unfilled roles: PO, SM" for a cost row, or '' (#264). */
@@ -400,10 +403,7 @@
             {
               n: formatNumber($locale, overPeople.length, 0),
               max: percent(maxFte),
-              names:
-                overPeople.length > 3
-                  ? overPeople.slice(0, 3).map(personName).join(', ') + ' …'
-                  : list(overPeople.map(personName)),
+              names: firstThree(overPeople.map(personName)),
             },
           )}</span
         >
@@ -423,7 +423,7 @@
       >
       <span class="tag" class:warn={warnedMondays.length > 0} class:ok={warnedMondays.length === 0}
         >{warnedMondays.length > 0
-          ? list(warnedMondays.slice(0, 3).map(weekLabel)) + (warnedMondays.length > 3 ? ' …' : '')
+          ? firstThree(warnedMondays.map(weekLabel))
           : $t('overview.kpi.warn.none')}</span
       >
     </div>

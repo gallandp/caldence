@@ -260,9 +260,9 @@ describe('warnings', () => {
 });
 
 describe('peopleOverLimit (#448)', () => {
-  const week = (monday: string, p1: number, p2 = 0) => ({
+  const week = (monday: string, p1: number, p2 = 0, p3 = 0) => ({
     monday,
-    byPerson: { p1, p2 },
+    byPerson: { p1, p2, p3 },
     regularByPerson: {},
     byTeamRole: {},
     byTeamPerson: {},
@@ -278,12 +278,47 @@ describe('peopleOverLimit (#448)', () => {
       }),
     ]);
     ws.settings.thresholds = { warnFactor: 100, maxFte: 0.5 };
-    // 40 h each: Pat averages 22 h (55 %), Sam 30 h (75 %); one week over does not count alone.
-    const weeks = [week('2027-01-04', 24, 30), week('2027-01-11', 20, 30)];
+    // 40 h each: Pat averages 22 h (55 %), Sam 30 h (75 %). Pat's 28 h week is 70 %, but one week
+    // over does not count alone: the average decides.
+    const weeks = [week('2027-01-04', 28, 30), week('2027-01-11', 16, 30)];
     expect(peopleOverLimit(ws, weeks, ['p1', 'p2'])).toEqual(['p2', 'p1']);
     ws.settings.thresholds.maxFte = 0.6;
     expect(peopleOverLimit(ws, weeks, ['p1', 'p2'])).toEqual(['p2']);
     expect(peopleOverLimit(ws, weeks, ['p1'])).toEqual([]);
+  });
+
+  it('puts people with meetings but no weekly hours first, ties by name', () => {
+    const ws = workspace([
+      team([], {
+        members: [
+          { personId: 'p1', roleId: 'r1' },
+          { personId: 'p2', roleId: 'r1' },
+          { personId: 'p3', roleId: 'r1' },
+        ],
+        // Pat and Ari have 0 h set on purpose: any meeting is over the limit.
+        memberHours: { p1: 0, p3: 0 },
+      }),
+    ]);
+    ws.people.push({ id: 'p3', name: 'Ari' });
+    ws.settings.thresholds = { warnFactor: 100, maxFte: 0.5 };
+    const weeks = [week('2027-01-04', 1, 30, 2), week('2027-01-11', 1, 30, 2)];
+    // Two without hours (Infinity - Infinity is NaN) fall back to the name.
+    expect(peopleOverLimit(ws, weeks, ['p2', 'p1', 'p3'])).toEqual(['p3', 'p1', 'p2']);
+    expect(peopleOverLimit(ws, weeks, ['p2', 'p1'])).toEqual(['p1', 'p2']);
+  });
+
+  it('breaks equal shares by name', () => {
+    const ws = workspace([
+      team([], {
+        members: [
+          { personId: 'p1', roleId: 'r1' },
+          { personId: 'p2', roleId: 'r1' },
+        ],
+      }),
+    ]);
+    ws.settings.thresholds = { warnFactor: 100, maxFte: 0.5 };
+    // Sam and Pat both 75 %: Pat first.
+    expect(peopleOverLimit(ws, [week('2027-01-04', 30, 30)], ['p2', 'p1'])).toEqual(['p1', 'p2']);
   });
 });
 
