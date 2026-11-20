@@ -380,6 +380,26 @@ describe('loadSummary', () => {
   });
 });
 
+describe('role tiles of a chosen person (#449)', () => {
+  it("measure each role against the person's hours in that role", () => {
+    // p1: 32 h in r1 in t1, 8 h in r2 in t2; one weekly hour in each.
+    const ws = twoTeams(
+      { ...ev('a', '09:00', 60), rule: { type: 'weekly', weekday: 1 } },
+      { ...ev('b', '09:00', 60, 'r2'), rule: { type: 'weekly', weekday: 2 } },
+    );
+    ws.roles.push({ id: 'r2', name: 'Dev', colour: '#112233' });
+    ws.teams[0]!.members = [{ personId: 'p1', roleId: 'r1' }];
+    ws.teams[0]!.memberHours = { p1: 32 };
+    ws.teams[1]!.members = [{ personId: 'p1', roleId: 'r2' }];
+    ws.teams[1]!.memberHours = { p1: 8 };
+    const s = loadSummary(ws, { personId: 'p1' });
+    expect(s.byRole.map((r) => [r.roleId, r.weekly, r.percent])).toEqual([
+      ['r1', 32, (1 / 32) * 100],
+      ['r2', 8, (1 / 8) * 100],
+    ]);
+  });
+});
+
 describe('several people in one role (#272)', () => {
   /** Team t1: p1 (32 h) and p2 (40 h) in role r1, nobody in r2; one weekly hour for both roles. */
   function team(): Workspace {

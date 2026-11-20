@@ -13,6 +13,7 @@
     overMax,
     personLoad,
     personMeetings,
+    roomBeforeLimit,
     warnings,
     type PersonMeeting,
   } from '../../core/load';
@@ -112,8 +113,8 @@
         cap,
         fte: share,
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
-        /** Hours per week that still fit into meetings before the limit (none without hours). */
-        free: Math.max(0, maxFte * cap - average),
+        /** Hours per week that still fit into meetings before the limit; negative when over (#448). */
+        free: roomBeforeLimit({ hours: average, base: cap }, maxFte),
         units: unitsOf(person.id),
         peak,
       };
@@ -585,7 +586,11 @@
               })}</td
             >
           {/if}
-          <td class="num nowrap">{$t('load.freeHours', { hours: hours(p.free) })}</td>
+          <td class="num nowrap" class:over={p.free < 0}
+            >{p.free < 0
+              ? $t('load.freeHours.over', { hours: hours(-p.free) })
+              : $t('load.freeHours', { hours: hours(p.free) })}</td
+          >
           <td class="num nowrap">
             {#if p.peak}
               {@const [before, after] = $t('load.peak', {
@@ -693,7 +698,8 @@
       <li class="tile" data-role={r.roleId}>
         <span class="label">{roleName(r.roleId)}</span>
         <span class="value"
-          ><span class="hours">{hours(r.hours)}</span> <small>{$t('load.kpi.unit')}</small></span
+          ><span class="hours">{hours(r.hours)}</span>
+          <small>{$t('load.kpi.unit.typical')}</small></span
         >
         <span class="meter" aria-hidden="true"
           ><span style:width="{Math.min(100, r.percent)}%"></span></span
@@ -707,7 +713,7 @@
                 : 'load.kpi.share',
             {
               percent: formatPercent($locale, r.percent / 100),
-              hours: formatNumber($locale, r.weekly, 0),
+              hours: weekly(r.weekly),
               people: formatNumber($locale, r.people, 0),
               fte: formatNumber($locale, r.fte, 2),
             },
