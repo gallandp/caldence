@@ -6,6 +6,7 @@ import { loadPerWeek, weeklyHoursByPerson } from '../../src/core/load';
 import { migrate } from '../../src/core/migrate';
 import {
   attendees,
+  CURRENT_SCHEMA,
   emptyWorkspace,
   eventAttendees,
   participantName,
@@ -201,6 +202,6 @@ describe('people invited by name (#285)', () => {
   it('opens a schema 5 file unchanged but for the version', () => {
     const old = { ...workspace(refinement()), schemaVersion: 5 };
     const r = migrate(old);
-    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 9 });
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA });
   });
 });

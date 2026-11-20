@@ -387,6 +387,35 @@ test('preparation of 25 % is stored as 0.25', async ({ page }) => {
   expect(saved?.preparation).toBe(0.25);
 });
 
+test('a place or link is saved, reopened and exported with the team in the title (#442)', async ({
+  page,
+}) => {
+  await openMeetings(page);
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  let form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  const place = form.getByLabel('Place or link');
+  await expect(place).toHaveValue('');
+  await expect(place).toHaveAttribute('placeholder', /https:/);
+  await form.getByRole('button', { name: 'On site' }).click();
+  await expect(place).toHaveAttribute('placeholder', /Room/);
+  await place.fill('  Room 2.14, east wing  ');
+  await form.getByRole('button', { name: 'Save' }).click();
+
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  await expect(form.getByLabel('Place or link')).toHaveValue('Room 2.14, east wing');
+  await form.getByRole('button', { name: 'Cancel' }).click();
+
+  await page.getByRole('tab', { name: 'Import / Export', exact: true }).click();
+  const exchange = page.getByRole('tabpanel', { name: 'Import / Export' });
+  const download = page.waitForEvent('download');
+  await exchange.getByRole('button', { name: 'Export .ics…' }).click();
+  const text = readFileSync((await (await download).path())!, 'utf8').replace(/\r\n[ \t]/g, '');
+  expect(text).toContain('SUMMARY:Weekly Sync · Team Alpha\r\n');
+  expect(text).toContain('LOCATION:Room 2.14\\, east wing\r\n');
+  expect(text).not.toContain('LOCATION:On site');
+});
+
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
   const form = await startNew(page, 'Cycle check');

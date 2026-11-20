@@ -3,7 +3,7 @@ import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
 import type { Region } from './regions';
 
-export const CURRENT_SCHEMA = 9;
+export const CURRENT_SCHEMA = 10;
 /**
  * Caldence 2 (branch release/v2, served at /v2/) writes `schemaVersion` 1000 + n (#344). 1.x
  * never opens such a file and says where it belongs, so its new data is never lost on save.
@@ -133,6 +133,11 @@ export interface CalEvent {
    * travels `travel` minutes per occurrence, there and back together.
    */
   onSite?: { travel: number };
+  /**
+   * Where the meeting is held (#442): a room for on site, a link for remote; free text, written
+   * to the .ics export as LOCATION (and URL when it is a web link). Missing or empty means none.
+   */
+  place?: string;
 }
 
 export interface Team {

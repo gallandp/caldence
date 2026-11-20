@@ -4,7 +4,12 @@ import { duplicateEvent } from '../../src/core/edit';
 import { exportIcsWithCounts } from '../../src/core/ics';
 import { loadPerWeek, occurrenceHours, weeklyBaseLoad } from '../../src/core/load';
 import { migrate } from '../../src/core/migrate';
-import { emptyWorkspace, type CalEvent, type Workspace } from '../../src/core/model';
+import {
+  CURRENT_SCHEMA,
+  emptyWorkspace,
+  type CalEvent,
+  type Workspace,
+} from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
 import { teamToTemplate, validateTemplate } from '../../src/core/template';
 import { validate } from '../../src/core/validate';
@@ -119,16 +124,19 @@ describe('meetings on site with travel time (#309)', () => {
     expect(errorsOf('yes')).toContainEqual(expect.stringMatching(/^teams\.0\.events\.0\.onSite /));
   });
 
-  it('exports the place and travel time; remote meetings as before', () => {
+  it('exports on site and travel time in the description; remote meetings as before', () => {
     const remote = icsOf(workspace(review()), 'en');
     expect(remote).not.toContain('LOCATION');
     expect(remote).toContain('DESCRIPTION:Alpha\\nDeveloper\r\n');
+    // Without a place there is no LOCATION (#442); "on site" stays in the description.
     const en = icsOf(workspace(review({ onSite: { travel: 30 } })), 'en');
-    expect(en).toContain('LOCATION:On site');
-    expect(en).toContain('DESCRIPTION:Alpha\\nDeveloper\\nTravel: 30 min (there and back)');
+    expect(en).not.toContain('LOCATION');
+    expect(en).toContain(
+      'DESCRIPTION:Alpha\\nDeveloper\\nOn site · Travel: 30 min (there and back)',
+    );
     const de = icsOf(workspace(review({ onSite: { travel: 0 } })), 'de');
-    expect(de).toContain('LOCATION:Vor Ort');
-    expect(de).toContain('DESCRIPTION:Alpha\\nDeveloper\r\n');
+    expect(de).not.toContain('LOCATION');
+    expect(de).toContain('DESCRIPTION:Alpha\\nDeveloper\\nVor Ort\r\n');
   });
 
   it('keeps place and travel in templates and duplicates', () => {
@@ -143,6 +151,6 @@ describe('meetings on site with travel time (#309)', () => {
   it('opens a schema 6 file unchanged but for the version', () => {
     const old = { ...workspace(review()), schemaVersion: 6 };
     const r = migrate(old);
-    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: 9 });
+    expect(r.ok && r.value).toEqual({ ...old, schemaVersion: CURRENT_SCHEMA });
   });
 });

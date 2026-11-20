@@ -56,6 +56,20 @@ export interface IcsExportOptions {
   locale: 'de' | 'en';
 }
 
+/**
+ * The place of a meeting as a web link for URL (#442): an http(s) address without spaces, or
+ * undefined when it is a room or any other text.
+ */
+export function placeLink(place: string): string | undefined {
+  const v = place.trim();
+  if (!/^https?:\/\/\S+$/i.test(v)) return undefined;
+  try {
+    return new URL(v).href;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Words for an on-site meeting (#309); the export has no i18n of its own. */
 const ON_SITE = {
   de: { place: 'Vor Ort', travel: (m: number) => `Anreise: ${m} Min. (hin und zurück)` },
@@ -486,14 +500,21 @@ export function exportIcsWithCounts(
       )
       .filter((n): n is string => n !== undefined);
     const category = categoryNames.get(event.categoryId);
-    // Remote meetings are written as before, so existing subscriptions do not change (#309).
+    // The team or area in the title tells apart the same meeting of two teams (#442).
+    const summary = `${event.name} · ${team.name}`;
+    // LOCATION only holds a real place or link (#442); "on site" and travel go to DESCRIPTION.
     const words = ON_SITE[opts.locale];
-    const travel = event.onSite?.travel ? `\n${words.travel(event.onSite.travel)}` : '';
+    const onSite = event.onSite
+      ? `\n${words.place}${event.onSite.travel ? ` · ${words.travel(event.onSite.travel)}` : ''}`
+      : '';
+    const place = event.place?.trim() ?? '';
+    const link = placeLink(place);
     const common = [
-      `SUMMARY:${escapeText(event.name)}`,
+      `SUMMARY:${escapeText(summary)}`,
       ...(category !== undefined ? [`CATEGORIES:${escapeText(category)}`] : []),
-      ...(event.onSite ? [`LOCATION:${escapeText(words.place)}`] : []),
-      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${travel}`)}`,
+      ...(place !== '' ? [`LOCATION:${escapeText(place)}`] : []),
+      ...(link !== undefined ? [`URL:${link}`] : []),
+      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${onSite}`)}`,
       'TRANSP:OPAQUE',
     ];
     // A series whose every occurrence in range is skipped is not written.
@@ -507,8 +528,8 @@ export function exportIcsWithCounts(
         const start = `DTSTART;TZID=${tzid}:${localStamp(occ.date, occ.start)}`;
         const end = `DTEND;TZID=${tzid}:${plusMinutes(occ.date, occ.start, occ.duration)}`;
         const id = `${uid}-${occ.date}@caldence`;
-        const v = vevent(id, [start, end, ...common, ...alarm(event.name)]);
-        events.push({ uid: id, key, date: occ.date, start, end, summary: event.name, ...v });
+        const v = vevent(id, [start, end, ...common, ...alarm(summary)]);
+        events.push({ uid: id, key, date: occ.date, start, end, summary, ...v });
         writtenKeys.add(key);
       }
       continue;
@@ -524,7 +545,7 @@ export function exportIcsWithCounts(
         .filter((o) => o.skippedHoliday)
         .map((o) => `EXDATE;TZID=${tzid}:${localStamp(o.date, o.start)}`),
       ...common,
-      ...alarm(event.name),
+      ...alarm(summary),
     ]);
     events.push({
       uid: `${uid}@caldence`,
@@ -533,7 +554,7 @@ export function exportIcsWithCounts(
       date: first.date,
       start: dtstart,
       end,
-      summary: event.name,
+      summary,
       ...v,
     });
     writtenKeys.add(key);
