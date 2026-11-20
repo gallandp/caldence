@@ -1,13 +1,13 @@
 <script lang="ts" module>
   import type { CalEvent } from '../../core/model';
 
-  /** What a what-if changes: one meeting's duration and rhythm, or a unit's cadence length. */
+  /** What a what-if changes: one meeting's duration and rhythm, or a unit's cadence length and start. */
   export type WhatIfTarget =
     { kind: 'meeting'; unitId: string; event: CalEvent } | { kind: 'cadence'; unitId: string };
 </script>
 
 <script lang="ts">
-  import { setCadenceLength, shiftedDays, upsertEvent } from '../../core/edit';
+  import { setCadenceLength, setCadenceStart, shiftedDays, upsertEvent } from '../../core/edit';
   import { areaAsTeam, findArea, unitName, type Workspace } from '../../core/model';
   import { validate } from '../../core/validate';
   import { workspaceIndex } from '../../core/views';
@@ -39,12 +39,14 @@
       duration: event?.duration ?? null,
       rule: ruleDraft(event?.rule, u!, localToday()),
       length: u?.cadence.lengthWeeks ?? null,
+      start: u?.cadence.start ?? '',
     };
   }
   const first = initial();
   let duration = $state<number | null>(first.duration);
   let rule = $state<RuleDraft>(first.rule);
   let length = $state<number | null>(first.length);
+  let start = $state<string>(first.start);
   const ruleTypes = RULE_TYPES.filter(
     (r) => r !== 'cycle-milestone' || (unit?.cycles.length ?? 0) > 0,
   );
@@ -75,14 +77,18 @@
         return { error: 'whatif.error.length' };
       const n = length;
       const next = setCadenceLength(ws, unit.id, n);
-      if (next.ok) {
-        const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, n);
-        return { ws: next.value, moved: movedText(unit.events, days, $t) };
+      if (!next.ok) {
+        const error = next.errors[0];
+        return error?.key === 'team.cadence.dayBeyond'
+          ? { error: error.key, params: error.params }
+          : { error: 'whatif.error.length' };
       }
-      const error = next.errors[0];
-      return error?.key === 'team.cadence.dayBeyond'
-        ? { error: error.key, params: error.params }
-        : { error: 'whatif.error.length' };
+      // A new start moves no meeting: they keep their day of the cadence (#444).
+      const moved =
+        start === unit.cadence.start ? next : setCadenceStart(next.value, unit.id, start);
+      if (!moved.ok) return { error: 'whatif.error.start' };
+      const days = shiftedDays(unit.events, unit.cadence.lengthWeeks, n);
+      return { ws: moved.value, moved: movedText(unit.events, days, $t) };
     },
   );
 
@@ -165,6 +171,10 @@
         <div class="field">
           <label for="{uid}-length">{$t('team.cadence.length')}</label>
           <input id="{uid}-length" type="number" min="1" max="52" step="1" bind:value={length} />
+        </div>
+        <div class="field">
+          <label for="{uid}-start">{$t('team.cadence.start')}</label>
+          <input id="{uid}-start" type="date" bind:value={start} />
         </div>
       {/if}
     </div>

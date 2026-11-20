@@ -454,6 +454,15 @@ export function setCadenceLength(ws: Workspace, unitId: string, weeks: number): 
   return validate(out);
 }
 
+/** Moves the start of a team's or an area's cadence; its meetings keep their cadence days (#444). */
+export function setCadenceStart(ws: Workspace, unitId: string, start: ISODate): Result<Workspace> {
+  const out = structuredClone(ws);
+  const unit = out.teams.find((t) => t.id === unitId) ?? out.areas.find((a) => a.id === unitId);
+  if (!unit?.cadence) return fail(`teams.${unitId}`, 'error.ref.unknown');
+  unit.cadence.start = start;
+  return validate(out);
+}
+
 /** Removes an area with its own people, cycles and meetings; its teams stay, without an area. */
 export function removeArea(ws: Workspace, areaId: string): Workspace {
   const out = structuredClone(ws);

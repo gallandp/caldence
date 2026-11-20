@@ -32,6 +32,7 @@
   import AreaIcon from '../components/AreaIcon.svelte';
   import AreaMeetingWho from '../components/AreaMeetingWho.svelte';
   import RateInvite from '../components/RateInvite.svelte';
+  import WhatIfSheet from '../components/WhatIfSheet.svelte';
   import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
@@ -57,6 +58,9 @@
   const WEEKS = 12;
 
   const uid = $props.id();
+
+  /** While presenting, each cadence row opens its what-if here; the coach stays on the Overview (#444). */
+  let whatIf = $state.raw<{ unitId: string; opener: HTMLElement }>();
   const ws = $derived($workspace);
   const teams = $derived(area.teamIds.flatMap((id) => ws.teams.filter((x) => x.id === id)));
 
@@ -356,6 +360,23 @@
       minutes: formatNumber($locale, e.duration, 0),
     });
 </script>
+
+{#snippet whatIfButton(unitId: string, name: string)}
+  {#if $presenting}
+    <button
+      type="button"
+      class="whatif"
+      data-whatif-unit={unitId}
+      data-no-print
+      title={$t('whatif.open')}
+      aria-label={$t('whatif.open.named', { name })}
+      onclick={(e) => (whatIf = { unitId, opener: e.currentTarget })}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
+      >
+    </button>
+  {/if}
+{/snippet}
 
 <div class="overview stack" data-area-overview>
   <p class="lead">{lead}</p>
@@ -714,7 +735,9 @@
 
           {#if area.cadence}
             <div class="name">
-              <span class="area-name"><AreaIcon /> {area.name}</span>
+              <span class="area-name"
+                ><AreaIcon /> {area.name}{@render whatIfButton(area.id, area.name)}</span
+              >
               <small>{cadenceText(area.cadence)}</small>
             </div>
             <div class="row">
@@ -734,7 +757,12 @@
 
           {#each comparison.rows as row (row.teamId)}
             <div class="name" data-team-row={row.teamId}>
-              <span>{teamName(row.teamId)}</span>
+              <span
+                >{teamName(row.teamId)}{@render whatIfButton(
+                  row.teamId,
+                  teamName(row.teamId),
+                )}</span
+              >
               <small>{cadenceText(row.cadence)}</small>
               <small class:off={!row.inStep} class:in={row.inStep}
                 >{row.inStep
@@ -920,6 +948,16 @@
     </div>
   </section>
 </div>
+
+{#if whatIf}
+  <WhatIfSheet
+    target={{ kind: 'cadence', unitId: whatIf.unitId }}
+    onclose={() => {
+      whatIf?.opener.focus();
+      whatIf = undefined;
+    }}
+  />
+{/if}
 
 <style>
   .overview {
@@ -1291,8 +1329,36 @@
   .name small.in {
     color: var(--ok);
   }
+  /* The pencil of a what-if, as on Meetings (#444); coarse pointers get 44 px from theme.css. */
+  :global(#app) .name .whatif {
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.25rem 0 -0.25rem 0.15rem;
+    padding: 0;
+    vertical-align: middle;
+    color: var(--text-muted);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  :global(#app) .name .whatif:hover {
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  .whatif svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
   .area-name {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.3rem;
     color: var(--area);
