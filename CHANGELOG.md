@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 1.50.0 – 2026-11-20
+
+### Added
+
+- While presenting, each cadence row on the area Overview opens a what-if for that cadence, and the cadence what-if can change the start date, so "Aligned" shows the effect of a new start on the spot (#444) (#455)
+- The setup wizard proposes an even split for a person with no hours left and, unless unticked, lowers their hours in their other teams to match, showing what those teams keep (#446) (#457)
+- The area Overview names team members at 0 h under the team's meeting share (#446) (#457)
+- The Organisation page shows how many teams are aligned (also teams without an area), the meeting load and cost, and the cost per team, per area and of the organisation's own meetings, with the same total as Meeting load (#450) (#458)
+- Meetings can name their room or online link ("Place or link"); the `.ics` export writes it as the entry's location, and a web link also into the notes (#442) (#460)
+
+### Changed
+
+- The Meeting load tile on the area Overview names who is over the limit instead of saying "below the limit" on the average (#448) (#451)
+- Exporting an .ics file again keeps past meetings of a series, even with a later "From", and leaves unchanged entries as they are in the calendar; the export names the date its series end (#441) (#453)
+- Meetings & cadence shows each meeting's cost as Ø per week, with the cost per meeting below it, and sorts by cost per week, in the same order as the area Overview's most expensive meetings (#443) (#454)
+- While you edit a meeting, the effect also shows the change in cost per sprint or PI (#443) (#454)
+- The area Overview and Meeting load count overlaps the same way: overlapping meeting pairs and the days affected in the next 12 weeks, with one line per pair naming its weekdays, time and people, and an example week (#445) (#456)
+- Meeting load: the role tiles show weekly hours with one decimal and say "typical week". With a person chosen, each role is measured against the person's hours in that role (#449) (#459)
+- Meeting load: "Room before limit" goes negative and says by how much a person is over the limit (#448) (#459)
+- Exported calendar entries are titled "<meeting> · <team or area>", and on-site meetings without a place no longer get "On site" as their location; every entry is updated once on the next export (#442) (#460)
+- On phones the Meeting load people table shows each person as one stacked row with share, room before the limit and the over-the-limit tag, and comes before the warnings (#447) (#461)
+
 ## 1.49.0 – 2026-11-19
 
 ### Added
