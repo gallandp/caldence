@@ -5,6 +5,7 @@ import {
   isoWeek,
   mondayOf,
   toMinutes,
+  weekday,
   type ISODate,
   type Time,
 } from './date';
@@ -490,6 +491,101 @@ export function clashTime(c: { a: Occurrence; b: Occurrence }): { start: Time; e
   const start = Math.max(toMinutes(c.a.start), toMinutes(c.b.start));
   const end = Math.min(toMinutes(c.a.start) + c.a.duration, toMinutes(c.b.start) + c.b.duration);
   return { start: fromMinutes(start), end: fromMinutes(end % (24 * 60)) };
+}
+
+/** One meeting by its unit and id. */
+export interface MeetingRef {
+  teamId: string;
+  eventId: string;
+}
+
+/** The clashes of one pair of meetings, whoever has them (#445). */
+export interface OverlapPair {
+  key: string;
+  /** The meeting that starts first on the first day, then the other. */
+  a: MeetingRef;
+  b: MeetingRef;
+  /** The weekdays (1 = Monday) on which they overlap, ascending. */
+  weekdays: number[];
+  /** When both run on the first day. */
+  start: Time;
+  end: Time;
+  /** The people affected, in the order of the clashes. */
+  people: string[];
+  /** The days affected, ascending, each once. */
+  dates: ISODate[];
+  /** The first clash: the example that opens its week. */
+  first: { date: ISODate; personId: string };
+}
+
+/**
+ * The clashes grouped by the pair of meetings that causes them (#445): the unit that Meeting load
+ * and the area Overview count. The pair with the most days comes first, otherwise the earlier.
+ */
+export function overlapPairs(found: readonly Clash[]): OverlapPair[] {
+  const ref = (o: Occurrence) => `${o.teamId}/${o.eventId}`;
+  const byKey = new Map<string, OverlapPair>();
+  for (const c of found) {
+    const key = [ref(c.a), ref(c.b)].sort().join(' × ');
+    let pair = byKey.get(key);
+    if (!pair) {
+      const time = clashTime(c);
+      pair = {
+        key,
+        a: { teamId: c.a.teamId, eventId: c.a.eventId },
+        b: { teamId: c.b.teamId, eventId: c.b.eventId },
+        weekdays: [],
+        start: time.start,
+        end: time.end,
+        people: [],
+        dates: [],
+        first: { date: c.date, personId: c.personId },
+      };
+      byKey.set(key, pair);
+    }
+    if (!pair.people.includes(c.personId)) pair.people.push(c.personId);
+    // `clashes` comes sorted by date, so a new day is the last one or none.
+    if (pair.dates[pair.dates.length - 1] !== c.date) pair.dates.push(c.date);
+    const day = weekday(c.date);
+    if (!pair.weekdays.includes(day)) pair.weekdays.push(day);
+  }
+  const pairs = [...byKey.values()];
+  for (const p of pairs) p.weekdays.sort((x, y) => x - y);
+  // A stable sort keeps the earlier pair first among equals.
+  return pairs.sort((x, y) => y.dates.length - x.dates.length);
+}
+
+/** Neighbouring weekdays as runs, [first, last]: [1, 2, 3, 5] gives [[1, 3], [5, 5]]. */
+export function weekdayRuns(days: readonly number[]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const d of days) {
+    const last = out[out.length - 1];
+    if (last && last[1] === d - 1) last[1] = d;
+    else out.push([d, d]);
+  }
+  return out;
+}
+
+/** Weeks in the window of the area Overview and of the overlaps in Meeting load. */
+export const WINDOW_WEEKS = 12;
+
+/**
+ * The window of the area Overview (#168), also the period of the overlaps (#445): it starts in the
+ * week of `today`, inside the horizon, and holds up to WINDOW_WEEKS weeks of it. Near the end of
+ * the horizon it ends with it instead of shrinking.
+ */
+export function overviewWindow(
+  horizon: { from: ISODate; to: ISODate },
+  today: ISODate,
+): { from: ISODate; weeks: number } {
+  const week = mondayOf(today);
+  const first = mondayOf(horizon.from);
+  const last = mondayOf(horizon.to);
+  const latest = addDays(last, -(WINDOW_WEEKS - 1) * 7);
+  const end = latest > first ? latest : first;
+  const from = week < first ? first : week > end ? end : week;
+  const weeks = Math.max(1, Math.min(WINDOW_WEEKS, diffDays(last, from) / 7 + 1));
+  return { from, weeks };
 }
 
 /**

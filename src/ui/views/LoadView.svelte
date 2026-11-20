@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { areaShare } from '../../core/areaCosts';
   import { costSummary } from '../../core/cost';
-  import { isoWeek, weekday } from '../../core/date';
+  import { addDays, isoWeek } from '../../core/date';
   import {
     areaHints,
     areaHours,
@@ -29,9 +30,11 @@
   import { record } from '../../core/record';
   import {
     clashes,
-    clashTime,
     loadSummary,
+    overlapPairs,
+    overviewWindow,
     scopePeople,
+    scopeUnits,
     warnedWeeks,
     weekRows,
   } from '../../core/views';
@@ -42,13 +45,16 @@
     areaText,
     levels,
     locale,
+    nextWeeks,
     translate as t,
   } from '../../i18n';
   import CostCard from '../components/CostCard.svelte';
+  import OverlapList from '../components/OverlapList.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
-  import { ruleSummary, weekdayShort } from '../meetings/rules';
-  import { filter, index, workspace } from '../state/workspace';
+  import { ruleSummary } from '../meetings/rules';
+  import { loadOverlaps } from '../state/focus';
+  import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
     /** Opens a week in the Calendar with the Person filter on that person (#343). */
@@ -333,56 +339,29 @@
   });
 
   /**
-   * One warning per person whose meetings clash in the planning horizon (#339): how many, between
-   * which teams or areas, and the first one as an example. The calendar's overlap rule.
+   * The overlaps of the people in scope by meeting pair (#445), in the area Overview's window, so
+   * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
-  const clashItems = $derived.by(() => {
+  const OVERLAP_ROWS = 50;
+  let overlapsBox: HTMLElement | undefined = $state();
+  // Brought into view when asked for from the area Overview (#445).
+  $effect(() => {
+    if (!$loadOverlaps || !overlapsBox) return;
+    loadOverlaps.set(false);
+    void tick().then(() => overlapsBox?.scrollIntoView({ block: 'start' }));
+  });
+  const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
+  const overlaps = $derived.by(() => {
     const ws = $workspace;
-    const byPerson = record<ReturnType<typeof clashes>>();
-    for (const c of clashes(ws, $index, scopePeople(ws, $filter)))
-      (byPerson[c.personId] ??= []).push(c);
-    const units = allUnits(ws);
-    const list = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
-    const eventName = (o: { teamId: string; eventId: string }) =>
-      units.find((u) => u.id === o.teamId)?.events.find((e) => e.id === o.eventId)?.name ??
-      o.eventId;
-    return Object.entries(byPerson)
-      .map(([personId, found]) => {
-        const ids = new Set(found.flatMap((c) => [c.a.teamId, c.b.teamId]));
-        const names = units
-          .filter((u) => ids.has(u.id))
-          .map((u) => unitName(ws, u.id, $levels.org));
-        const first = found[0]!;
-        const time = clashTime(first);
-        const person = ws.people.find((p) => p.id === personId)?.name ?? personId;
-        // The example's date links to its week (#375): a marker in the text, split out below.
-        const [before = '', after = ''] = $t(
-          names.length === 1 ? 'load.warn.clash.in' : 'load.warn.clash.between',
-          {
-            person,
-            count: $t(found.length === 1 ? 'load.warn.clash.one' : 'load.warn.clash.other', {
-              n: formatNumber($locale, found.length, 0),
-            }),
-            units: list.format(names),
-            a: eventName(first.a),
-            b: eventName(first.b),
-            day: weekdayShort($locale, weekday(first.date)),
-            date: '\uE000',
-            from: time.start,
-            to: time.end,
-          },
-        ).split('\uE000');
-        return {
-          key: `clash/${personId}`,
-          personId,
-          person,
-          before,
-          after,
-          date: first.date,
-          label: formatDisplayDate($locale, first.date, 'short'),
-        };
-      })
-      .sort((a, b) => a.person.localeCompare(b.person, $locale));
+    const { from, weeks } = overlapWindow;
+    const units = $filter.personId ? undefined : new Set(scopeUnits(ws, $filter).map((u) => u.id));
+    return overlapPairs(
+      clashes(ws, $index, scopePeople(ws, $filter), {
+        from,
+        to: addDays(from, weeks * 7),
+        units,
+      }),
+    );
   });
 
   // ---------- summary tiles and chart ----------
@@ -769,17 +748,18 @@
   <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
-      {#if warningItems.length + clashItems.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length + clashItems.length}</span
+      {#if warningItems.length + overlaps.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length + overlaps.length}</span
         >{/if}
     </h3>
     <p class="note">
       {$t('load.warnings.rule', {
         factor: formatNumber($locale, $workspace.settings.thresholds.warnFactor, 1),
         limit: formatPercent($locale, $workspace.settings.thresholds.maxFte),
+        period: nextWeeks($t, $locale, overlapWindow.weeks),
       })}
     </p>
-    {#if warningItems.length + clashItems.length === 0}
+    {#if warningItems.length + overlaps.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
     {/if}
     {#if warningItems.length > 0}
@@ -798,23 +778,20 @@
         {/each}
       </ul>
     {/if}
-    {#if clashItems.length > 0}
+    {#if overlaps.length > 0}
       <h4 class="hints-title">{$t('load.overlaps')}</h4>
-      <ul class="warnings overlaps">
-        {#each clashItems as w (w.key)}
-          <li class="warning" data-clash>
-            <span
-              >{w.before}{@render weekLink(
-                w.personId,
-                w.person,
-                w.date,
-                w.label,
-                `${weekLabel(w.date)}, ${w.label}`,
-              )}{w.after}</span
-            >
-          </li>
-        {/each}
-      </ul>
+      <div class="overlaps" bind:this={overlapsBox}>
+        <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget);
+             another scope starts with the first ones again. -->
+        {#key `${$filter.teamId}/${$filter.roleId}/${$filter.personId}`}
+          <OverlapList
+            pairs={overlaps}
+            weeks={overlapWindow.weeks}
+            limit={OVERLAP_ROWS}
+            onOpen={onOpenWeek}
+          />
+        {/key}
+      </div>
     {/if}
     {#if hintItems.length > 0}
       <h4 class="hints-title">
