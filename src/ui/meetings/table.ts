@@ -21,9 +21,10 @@ interface SortContext {
 
 /**
  * Meetings sorted by the chosen column. Cost ranks by Ø per week, as the area Overview's most
- * expensive meetings do (#443); meetings without a weekly average follow by their cost each. Ties go by next date, then start time, then name, so
- * same-day meetings always show in the order they take place, in either direction. Meetings without a next date stay
- * last in either direction.
+ * expensive meetings do (#443); meetings without a weekly average follow by their cost each.
+ * Ties go by next date, then start time, then name, so same-day meetings always show in the
+ * order they take place, in either direction. Meetings without a next date stay last in either
+ * direction.
  */
 export function sortMeetings(
   events: readonly CalEvent[],

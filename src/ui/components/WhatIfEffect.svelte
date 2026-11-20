@@ -135,12 +135,21 @@
         <div>
           <dt>{$t('whatif.effect.cost', { name: scopeName })}</dt>
           <dd class:up={c.week > 0.004} data-effect-cost>
-            {$t(c.cadence ? 'whatif.effect.costValue.cadence' : 'whatif.effect.costValue', {
-              week: signed(c.week, euro),
-              cadence: c.cadence,
-              kind,
-              horizon: signed(after.cost.horizon - before.cost.horizon, euro),
-            })}
+            <!-- In an area the sprint is the team's: it names the team (#443). -->
+            {$t(
+              c.cadence
+                ? team
+                  ? 'whatif.effect.costValue.cadenceOf'
+                  : 'whatif.effect.costValue.cadence'
+                : 'whatif.effect.costValue',
+              {
+                week: signed(c.week, euro),
+                cadence: c.cadence,
+                kind,
+                team: team?.name ?? '',
+                horizon: signed(after.cost.horizon - before.cost.horizon, euro),
+              },
+            )}
           </dd>
         </div>
       {/if}
