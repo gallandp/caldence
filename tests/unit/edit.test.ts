@@ -24,6 +24,7 @@ import {
   roleByName,
   setAreaCadence,
   setCadenceLength,
+  setCadenceStart,
   setAreaTeams,
   shiftedDays,
   updateItem,
@@ -707,5 +708,28 @@ describe('cadence length', () => {
     const next = ok(setCadenceLength(ws, areaId, 12));
     expect(next.areas[0]!.events[0]!.rule).toEqual({ type: 'cadence-day', day: 80 });
     expect(setCadenceLength(ws, 'nope', 3).ok).toBe(false);
+  });
+});
+
+describe('cadence start (#444)', () => {
+  it('moves the start of a team or an area cadence and keeps its meetings', () => {
+    const ws = base();
+    const events = structuredClone(ws.teams[0]!.events);
+    const next = ok(setCadenceStart(ws, 't1', '2027-01-06'));
+    expect(next.teams[0]!.cadence.start).toBe('2027-01-06');
+    expect(next.teams[0]!.events).toEqual(events);
+    expect(ws.teams[0]!.cadence.start).not.toBe('2027-01-06');
+    const [withArea, areaId] = ok(addArea(ws, 'A', []));
+    const area = ok(
+      setAreaCadence(withArea, areaId, { kind: 'pi', lengthWeeks: 10, start: '2026-11-09' }),
+    );
+    expect(ok(setCadenceStart(area, areaId, '2026-11-16')).areas[0]!.cadence?.start).toBe(
+      '2026-11-16',
+    );
+  });
+
+  it('refuses a date that is not one and an unknown unit', () => {
+    expect(setCadenceStart(base(), 't1', '2027-02-30').ok).toBe(false);
+    expect(setCadenceStart(base(), 'nope', '2027-01-04').ok).toBe(false);
   });
 });
