@@ -695,3 +695,53 @@ test('a person only in the area without area hours has 0 h, not the default (#26
   const axe = await new AxeBuilder({ page }).include('[data-person="person-jordan"]').analyze();
   expect(axe.violations).toEqual([]);
 });
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(`on phones each person is one stacked row, before the warnings (#447, ${scheme})`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const panel = await openView(page, 'load');
+    const people = panel.getByRole('table', { name: 'People' });
+    const alex = people.locator('tr[data-person="person-alex"]');
+    await expect(alex).toHaveCSS('display', 'grid');
+    // Nothing scrolls sideways: not the page, not the table region.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    const region = panel.locator('section.people [role="region"]');
+    expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    // Name, share and room all in view in the row; the sort buttons stay.
+    await alex.scrollIntoViewIfNeeded();
+    for (const part of ['th', '.share-cell', '.free'])
+      await expect(alex.locator(part)).toBeInViewport({ ratio: 1 });
+    await expect(alex.locator('.free')).toHaveText(/\d h/);
+    await expect(people.getByRole('button', { name: /Room before limit/ })).toBeVisible();
+    // The people come before the warnings.
+    const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
+    const [list, warn] = [await people.boundingBox(), await warnings.boundingBox()];
+    expect(list!.y).toBeLessThan(warn!.y);
+    // A tap on the name opens the breakdown per team.
+    const name = people.getByRole('button', { name: 'Alex', exact: true });
+    await name.click();
+    const detail = page.locator(`#${await name.getAttribute('aria-controls')}`);
+    await expect(detail).toBeVisible();
+    await expect(detail.getByRole('listitem').first()).toContainText('Team Alpha');
+    expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const result = await new AxeBuilder({ page })
+      .include('section.people')
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(result.violations).toEqual([]);
+  });
+}
+
+test('on desktop the people list stays a table after the warnings (#447)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const panel = await openView(page, 'load');
+  const people = panel.getByRole('table', { name: 'People' });
+  await expect(people.locator('tr[data-person]').first()).toHaveCSS('display', 'table-row');
+  await expect(people.locator('thead th').first()).toBeVisible();
+  const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
+  const [list, warn] = [await people.boundingBox(), await warnings.boundingBox()];
+  expect(list!.y).toBeGreaterThan(warn!.y);
+});
