@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaCosts } from '../../src/core/areaCosts';
-import { compareCadences } from '../../src/core/areaOverview';
+import { compareOrgCadences } from '../../src/core/areaOverview';
 import { costSummary } from '../../src/core/cost';
 import { ORG_UNIT, orgArea, type Workspace } from '../../src/core/model';
 import type { HolidayIndex } from '../../src/core/regions';
@@ -15,14 +15,21 @@ const ws = () => structuredClone(example) as unknown as Workspace;
 
 /** The organisation's summary on its page (#450): the area Overview's figures for all teams. */
 describe('organisation summary', () => {
-  it('compares every team, also those without an area, with the cadence most share', () => {
+  it('takes the area verdict where the area has a cadence, else the cadence most share', () => {
     const w = ws();
-    const c = compareCadences(w, orgArea(w), '2027-01-04', 12);
+    const c = compareOrgCadences(w, '2027-01-04', 12);
     expect(c.rows.map((r) => r.teamId)).toEqual(w.teams.map((t) => t.id));
-    expect(c.reference?.fromArea).toBe(false);
-    const off = c.rows.filter((r) => !r.inStep).map((r) => r.teamId);
-    // Team Alpha starts on Thursday; Team Gamma runs 2-week sprints against 1-week flow.
-    expect(off).toEqual(['team-alpha', 'team-gamma']);
+    // Team Beta and Team Delta share the 1-week cadence that most teams have.
+    expect(c.reference?.teamId).toBe('team-beta');
+    // Team Gamma's 2-week sprints fit Commerce's 10-week PI; Team Alpha starts on Thursday.
+    expect(c.rows.filter((r) => !r.inStep).map((r) => r.teamId)).toEqual(['team-alpha']);
+    // Without the area cadence Team Gamma is compared with the common cadence too.
+    delete w.areas[0]!.cadence;
+    const peer = compareOrgCadences(w, '2027-01-04', 12);
+    expect(peer.rows.filter((r) => !r.inStep).map((r) => r.teamId)).toEqual([
+      'team-alpha',
+      'team-gamma',
+    ]);
   });
 
   it('has a cost row per team and per area, and its total equals Meeting load', () => {

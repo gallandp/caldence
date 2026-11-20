@@ -12,6 +12,7 @@ import {
 import {
   areaAsTeam,
   attendees,
+  orgArea,
   unfilled,
   type Area,
   type Cadence,
@@ -160,6 +161,21 @@ export function compareCadences(
     return { teamId: team.id, cadence: team.cadence, inStep, reasons, segments: segs };
   });
   return { reference, areaSegments, rows };
+}
+
+/**
+ * Alignment of all teams for the organisation's page (#450). A team in an area with a cadence
+ * takes the verdict of that area's Overview; every other team is compared with the cadence most
+ * teams of the organisation share, as in an area without a cadence. Rows keep the order of the
+ * teams; there are no area segments.
+ */
+export function compareOrgCadences(ws: Workspace, from: ISODate, weeks: number): CadenceComparison {
+  const all = compareCadences(ws, orgArea(ws), from, weeks);
+  const byArea = new Map<string, CadenceRow>();
+  for (const area of ws.areas)
+    if (area.cadence)
+      for (const row of compareCadences(ws, area, from, weeks).rows) byArea.set(row.teamId, row);
+  return { ...all, rows: all.rows.map((row) => byArea.get(row.teamId) ?? row) };
 }
 
 export interface LoadCell {

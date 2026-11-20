@@ -88,9 +88,12 @@ test('the organisation shows alignment and cost per team, also without an area (
 
   // Every team is compared with the cadence most of them share; those without an area too.
   const kpi = summary.locator('[data-kpi="cadence"]');
-  await expect(kpi.locator('b')).toHaveText('2 of 4');
-  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha and Team Gamma');
-  await expect(summary.locator('.lead')).toContainText('the cadence of Team Beta');
+  // Team Gamma fits Commerce's PI; Team Alpha, without an area, starts on Thursday.
+  await expect(kpi.locator('b')).toHaveText('3 of 4');
+  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha');
+  await expect(summary.locator('.lead')).toHaveText(
+    'Teams in an area with a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
   // The key figures come before the tree, the cost table after it.
   const order = await page.evaluate(() =>
     ['.kpis', '.tree', '[data-area-costs]'].map(
@@ -99,13 +102,12 @@ test('the organisation shows alignment and cost per team, also without an area (
   );
   expect(order).toEqual([...order].sort((a, b) => a - b));
 
-  // One row per team, one for the area's own meetings, one for the organisation's.
+  // One row per team and one for the area's own meetings; the organisation has none of its own.
   const costs = summary.locator('[data-area-costs]');
   for (const id of ['team-gamma', 'team-delta', 'team-alpha', 'team-beta', 'area-commerce'])
     await expect(costs.locator(`[data-cost-row="${id}"]`)).toHaveCount(1);
-  await expect(costs.locator('[data-cost-row="@organisation"]')).toContainText(
-    'Meetings in the organisation',
-  );
+  await expect(costs.locator('[data-cost-row="@organisation"]')).toHaveCount(0);
+  await expect(costs.locator('[data-area-share]')).toHaveCount(0);
   const week = (await costs.locator('[data-cost-total] .cost').textContent())!.trim();
   await expect(summary.locator('[data-kpi="cost"] b')).toHaveText(week);
   await costs.getByRole('button', { name: 'In the planning horizon' }).click();
@@ -135,6 +137,10 @@ test('the organisation summary fits a phone and prints (#450)', async ({ page })
   const summary = page.locator('[data-area-overview]');
   await expect(summary.locator('[data-kpi="cadence"]')).toBeVisible();
   await expect(summary.locator('[data-area-costs]')).toBeVisible();
+  // Without an hourly rate the third figure is the time in all meetings, as in the table.
+  await expect(summary.locator('[data-kpi="time"] b')).toHaveText(
+    (await summary.locator('[data-cost-total] td.num').first().textContent())!.trim(),
+  );
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

@@ -5,6 +5,7 @@
 
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { toStore } from 'svelte/store';
   import { areaCosts, costliest, meetingCosts } from '../../core/areaCosts';
   import type { UnfilledRole } from '../../core/cost';
   import {
@@ -12,6 +13,7 @@
     areaOnlyLoad,
     areaOnlyPeople,
     compareCadences,
+    compareOrgCadences,
     teamLoad,
     type LoadCell,
     type Segment,
@@ -29,7 +31,7 @@
     areaText,
     levels,
     locale,
-    translate as t,
+    translate,
   } from '../../i18n';
   import { initials } from '../avatar';
   import AreaIcon from '../components/AreaIcon.svelte';
@@ -72,7 +74,7 @@
   }: Props = $props();
 
   /** For the organisation, "{levelArea}" and "{levelInArea}" name the organisation (#328). */
-  const tx = $derived(areaText($t, $levels, area.id));
+  const t = toStore(() => areaText($translate, $levels, area.id));
   const org = $derived(area.id === ORG_UNIT);
 
   /** Weeks on the axis. */
@@ -97,10 +99,10 @@
   );
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
-  const comparison = $derived(compareCadences(ws, area, from, weekCount));
+  const comparison = $derived(
+    summary ? compareOrgCadences(ws, from, weekCount) : compareCadences(ws, area, from, weekCount),
+  );
   const weeks = $derived.by(() => {
-    // The summary has no strip, so it skips the weekly load of every person.
-    if (summary) return [];
     const all = loadPerWeek(ws, $index);
     const start = all.findIndex((w) => w.monday === from);
     return start < 0 ? [] : all.slice(start, start + weekCount);
@@ -144,22 +146,20 @@
    * calendar's overlap rule. The first one is the example.
    */
   const windowClashes = $derived(
-    summary
-      ? []
-      : clashes(ws, $index, personIds, {
-          from,
-          to: addDays(from, weekCount * 7),
-          units: new Set([area.id, ...area.teamIds]),
-        }),
+    clashes(ws, $index, personIds, {
+      from,
+      to: addDays(from, weekCount * 7),
+      units: new Set([area.id, ...area.teamIds]),
+    }),
   );
   const clashDays = $derived(new Set(windowClashes.map((c) => c.date)).size);
   const clashLine = $derived(
-    tx('overview.clashes', {
+    $t('overview.clashes', {
       n: formatNumber($locale, weekCount, 0),
       days:
         clashDays === 0
-          ? tx('overview.clashes.none')
-          : tx(clashDays === 1 ? 'overview.clashes.one' : 'overview.clashes.other', {
+          ? $t('overview.clashes.none')
+          : $t(clashDays === 1 ? 'overview.clashes.one' : 'overview.clashes.other', {
               n: formatNumber($locale, clashDays, 0),
             }),
     }),
@@ -175,7 +175,7 @@
     return {
       personId: c.personId,
       date: c.date,
-      text: tx('overview.clashes.example', {
+      text: $t('overview.clashes.example', {
         person: personName(c.personId),
         a: eventName(c.a),
         unitA: unitAt(c.a.teamId)?.name ?? c.a.teamId,
@@ -192,12 +192,13 @@
   // ---------- time and cost per team (M3) ----------
 
   const rate = $derived(ws.settings.hourlyRate);
-  const costs = $derived(areaCosts(ws, $index, area, rate));
+  // The summary lists each area's own meetings in a row, so no team gets an area share note.
+  const costs = $derived(areaCosts(ws, $index, area, rate, !summary));
   const allMeetings = $derived(rate ? meetingCosts(ws, $index, area, rate) : []);
   /** Over the limit, or meeting hours without weekly hours to measure them against. */
   const over = (r: { share: number; noHours: boolean }) => r.noHours || r.share > maxFte;
   const shareText = (r: { share: number; noHours: boolean }) =>
-    r.noHours ? tx('overview.cost.noHours') : percent(r.share);
+    r.noHours ? $t('overview.cost.noHours') : percent(r.share);
   let period = $state(rememberedPeriod);
   const costly = $derived(costliest(allMeetings, period));
   const euro = (n: number) => formatEuro($locale, n);
@@ -208,7 +209,7 @@
     period === 'week' && a.perCadence !== undefined
       ? 'overview.cost.areaShare.cadence'
       : 'overview.cost.areaShare.' + period;
-  const kindOf = (id: string) => tx(`meet.kind.${unitOf(id).cadence.kind}`);
+  const kindOf = (id: string) => $t(`meet.kind.${unitOf(id).cadence.kind}`);
   /** Bars run from 0 to 1.5 × the limit, with a tick at the limit (one scale everywhere). */
   const barWidth = (share: number) =>
     maxFte > 0 ? Math.min(100, (share / (1.5 * maxFte)) * 100) : 0;
@@ -219,17 +220,17 @@
     id === area.id ? unit : (ws.teams.find((x) => x.id === id) ?? unit);
   /** Rule and minutes of a costly meeting; its cost includes travel, so that is named (#309). */
   function costlyWhen(event: CalEvent, unitId: string): string {
-    const when = tx('overview.costly.when', {
+    const when = $t('overview.costly.when', {
       rule: ruleShort(event.rule, unitOf(unitId), $t, $locale),
       minutes: formatNumber($locale, event.duration, 0),
     });
     const travel = event.onSite?.travel;
-    return travel ? tx('overview.costly.travel', { when, n: travel }) : when;
+    return travel ? $t('overview.costly.travel', { when, n: travel }) : when;
   }
   const cadenceShort = (c: Cadence | undefined) =>
     c
-      ? tx('overview.cost.cadence', {
-          kind: tx('meet.kind.' + c.kind),
+      ? $t('overview.cost.cadence', {
+          kind: $t('meet.kind.' + c.kind),
           n: formatNumber($locale, c.lengthWeeks, 0),
         })
       : '–';
@@ -245,7 +246,7 @@
   const unfilledNote = (list: UnfilledRole[] | undefined) => {
     const roles = (list ?? []).filter((u) => u[period]).map((u) => u.roleId);
     return roles.length > 0
-      ? tx(roles.length === 1 ? 'overview.cost.unfilled.one' : 'overview.cost.unfilled.other', {
+      ? $t(roles.length === 1 ? 'overview.cost.unfilled.one' : 'overview.cost.unfilled.other', {
           n: formatNumber($locale, roles.length, 0),
           roles: roles.map(roleName).join(', '),
         })
@@ -255,80 +256,88 @@
   const percent = (n: number) => formatPercent($locale, n);
   const hours = (n: number) => formatNumber($locale, n, 1);
   const weekLabel = (monday: ISODate) =>
-    tx('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
+    $t('weeks.week', { n: formatNumber($locale, isoWeek(monday), 0) });
   const lengthText = (c: Cadence) =>
-    tx(c.lengthWeeks === 1 ? 'meet.cadence.weeks.one' : 'meet.cadence.weeks.other', {
+    $t(c.lengthWeeks === 1 ? 'meet.cadence.weeks.one' : 'meet.cadence.weeks.other', {
       n: formatNumber($locale, c.lengthWeeks, 0),
     });
-  const cadenceText = (c: Cadence) => `${tx('meet.kind.' + c.kind)}, ${lengthText(c)}`;
+  const cadenceText = (c: Cadence) => `${$t('meet.kind.' + c.kind)}, ${lengthText(c)}`;
 
-  const cadenceLead = $derived(
-    area.cadence
-      ? tx('overview.lead.cadence', {
-          kind: tx('meet.kind.' + area.cadence.kind),
-          weeks: lengthText(area.cadence),
-          date: formatDisplayDate($locale, area.cadence.start, 'long'),
-        })
-      : comparison.reference?.teamId
-        ? tx('overview.lead.peer', { team: teamName(comparison.reference.teamId) })
-        : tx('overview.lead.none'),
-  );
-  /** The organisation's page names its teams and people in the tree, so only the cadence. */
   const lead = $derived(
-    summary
-      ? cadenceLead
-      : [
-          tx(teams.length === 1 ? 'area.count.one' : 'area.count.other', {
-            n: formatNumber($locale, teams.length, 0),
-          }),
-          tx(people === 1 ? 'overview.people.one' : 'overview.people.other', {
-            n: formatNumber($locale, people, 0),
-          }),
-          cadenceLead,
-        ].join(' · '),
+    [
+      $t(teams.length === 1 ? 'area.count.one' : 'area.count.other', {
+        n: formatNumber($locale, teams.length, 0),
+      }),
+      $t(people === 1 ? 'overview.people.one' : 'overview.people.other', {
+        n: formatNumber($locale, people, 0),
+      }),
+      area.cadence
+        ? $t('overview.lead.cadence', {
+            kind: $t('meet.kind.' + area.cadence.kind),
+            weeks: lengthText(area.cadence),
+            date: formatDisplayDate($locale, area.cadence.start, 'long'),
+          })
+        : comparison.reference?.teamId
+          ? $t('overview.lead.peer', { team: teamName(comparison.reference.teamId) })
+          : $t('overview.lead.none'),
+    ].join(' · '),
+  );
+  /**
+   * The organisation's page names its teams and people in the tree, so only what the teams are
+   * compared with: their area's cadence where it has one, else the one most teams share (#450).
+   */
+  const orgLead = $derived(
+    comparison.reference?.teamId
+      ? $translate(
+          ws.areas.some((a) => a.cadence && a.teamIds.length > 0)
+            ? 'overview.lead.org.areas'
+            : 'overview.lead.org',
+          { team: teamName(comparison.reference.teamId) },
+        )
+      : '',
   );
 
   function reasonText(r: StepReason): string {
     switch (r.kind) {
       case 'weekday':
-        return tx('overview.reason.weekday', { weekday: weekdayName($locale, r.weekday) });
+        return $t('overview.reason.weekday', { weekday: weekdayName($locale, r.weekday) });
       case 'length':
-        return tx(
+        return $t(
           comparison.reference?.fromArea
             ? 'overview.reason.length.area'
             : 'overview.reason.length.peer',
           { n: formatNumber($locale, r.weeks, 0), m: formatNumber($locale, r.reference, 0) },
         );
       case 'offset':
-        return tx(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
+        return $t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
           n: formatNumber($locale, r.weeks, 0),
         });
     }
   }
 
   function segLabel(c: Cadence, s: Segment, first = false): string {
-    const label = tx('overview.seg.' + c.kind, { n: formatNumber($locale, s.number, 0) });
+    const label = $t('overview.seg.' + c.kind, { n: formatNumber($locale, s.number, 0) });
     if (!s.off || !comparison.reference) return label;
     // The bar says why: the other start day on the first one, the end week on one that runs over.
     const ref = comparison.reference.cadence;
     if (first && weekday(s.start) !== weekday(ref.start))
       return `${label} · ${weekdayShort($locale, weekday(s.start))}`;
     if (comparison.reference.fromArea && weekday(s.start) === weekday(ref.start))
-      return `${label} · ${tx('overview.seg.ends', {
+      return `${label} · ${$t('overview.seg.ends', {
         week: weekLabel(mondayOf(addDays(s.start, c.lengthWeeks * 7 - 1))),
       })}`;
     return label;
   }
   function segDates(c: Cadence, s: Segment): string {
-    return tx('overview.seg.dates', {
+    return $t('overview.seg.dates', {
       from: formatDisplayDate($locale, s.start, 'short'),
       to: formatDisplayDate($locale, addDays(s.start, c.lengthWeeks * 7 - 1), 'short'),
     });
   }
   function segTitle(c: Cadence, s: Segment): string {
     const end = addDays(s.start, c.lengthWeeks * 7 - 1);
-    return tx('overview.seg.title', {
-      kind: tx('meet.kind.' + c.kind),
+    return $t('overview.seg.title', {
+      kind: $t('meet.kind.' + c.kind),
       n: formatNumber($locale, s.number, 0),
       from: formatDisplayDate($locale, s.start, 'short'),
       to: formatDisplayDate($locale, end, 'short'),
@@ -347,8 +356,8 @@
     return r < 0.33 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : 4;
   }
   function cellLabel(teamId: string, cell: LoadCell): string {
-    return tx(cell.warn ? 'overview.cell.warn' : 'overview.cell', {
-      team: teamId === area.id ? tx('area.group.areaOnly') : teamName(teamId),
+    return $t(cell.warn ? 'overview.cell.warn' : 'overview.cell', {
+      team: teamId === area.id ? $t('area.group.areaOnly') : teamName(teamId),
       week: weekLabel(cell.monday),
       share: percent(cell.share),
       max: percent(maxFte),
@@ -378,12 +387,12 @@
   const teamHours = (list: { id: string; hours: number }[]) =>
     list
       .map(
-        (x) => ', ' + tx('overview.steer.inTeam', { hours: hours(x.hours), team: teamName(x.id) }),
+        (x) => ', ' + $t('overview.steer.inTeam', { hours: hours(x.hours), team: teamName(x.id) }),
       )
       .join('');
   const unit = $derived(areaAsTeam(area));
   const whenText = (e: Area['events'][number]) =>
-    tx('overview.steer.when', {
+    $t('overview.steer.when', {
       rule: ruleShort(e.rule, unit, $t, $locale),
       time: e.time,
       minutes: formatNumber($locale, e.duration, 0),
@@ -393,42 +402,42 @@
 {#snippet ownIcon()}{#if org}<OrgIcon />{:else}<AreaIcon />{/if}{/snippet}
 
 <div class="overview stack" data-area-overview>
-  <p class="lead">{lead}</p>
+  <p class="lead">{summary ? orgLead : lead}</p>
 
-  <section class="kpis" class:three={summary} aria-label={tx('overview.kpis')}>
+  <section class="kpis" class:three={summary} aria-label={$t('overview.kpis')}>
     <div class="card kpi" data-kpi="cadence">
-      <span class="label">{tx('overview.kpi.cadence')}</span>
+      <span class="label">{$t('overview.kpi.cadence')}</span>
       <b
-        >{tx('overview.kpi.cadence.value', {
+        >{$t('overview.kpi.cadence.value', {
           n: formatNumber($locale, inStep.length, 0),
           total: formatNumber($locale, comparison.rows.length, 0),
         })}</b
       >
-      <span class="label">{tx('overview.kpi.cadence.sub')}</span>
+      <span class="label">{$t('overview.kpi.cadence.sub')}</span>
       {#if comparison.rows.length > 0}
         <span class="tag" class:warn={offTeams.length > 0} class:ok={offTeams.length === 0}
           >{offTeams.length > 0
-            ? tx('overview.kpi.cadence.off', { list: list(offTeams) })
-            : tx('overview.kpi.cadence.all')}</span
+            ? $t('overview.kpi.cadence.off', { list: list(offTeams) })
+            : $t('overview.kpi.cadence.all')}</span
         >
       {/if}
     </div>
     <div class="card kpi" data-kpi="load">
-      <span class="label">{tx('overview.kpi.load')}</span>
+      <span class="label">{$t('overview.kpi.load')}</span>
       <b>{shareText(costs.total)}</b>
-      <span class="label">{tx('overview.kpi.load.sub')}</span>
+      <span class="label">{$t('overview.kpi.load.sub')}</span>
       <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
-        >{tx(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
           max: percent(maxFte),
         })}</span
       >
     </div>
     {#if !summary}
       <div class="card kpi" data-kpi="warn">
-        <span class="label">{tx('overview.kpi.warn', { max: percent(maxFte) })}</span>
+        <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
         <b>{formatNumber($locale, warnedMondays.length, 0)}</b>
         <span class="label"
-          >{tx('overview.kpi.warn.sub', { n: formatNumber($locale, weekCount, 0) })}</span
+          >{$t('overview.kpi.warn.sub', { n: formatNumber($locale, weekCount, 0) })}</span
         >
         <span
           class="tag"
@@ -437,37 +446,43 @@
           >{warnedMondays.length > 0
             ? list(warnedMondays.slice(0, 3).map(weekLabel)) +
               (warnedMondays.length > 3 ? ' …' : '')
-            : tx('overview.kpi.warn.none')}</span
+            : $t('overview.kpi.warn.none')}</span
         >
       </div>
     {/if}
     {#if rate && costs.total.cost}
       <div class="card kpi" data-kpi="cost">
-        <span class="label">{tx('overview.kpi.cost')}</span>
+        <span class="label">{$t('overview.kpi.cost')}</span>
         <b>{euro(costs.total.cost.perWeek)}</b>
-        <span class="label">{tx('overview.kpi.cost.week')}</span>
+        <span class="label">{$t('overview.kpi.cost.week')}</span>
         <span class="label"
-          >{tx('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}</span
+          >{$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}</span
         >
         {#if costs.total.invited > 0}
           <span class="label"
-            >{tx('overview.kpi.cost.person', {
+            >{$t('overview.kpi.cost.person', {
               amount: euro(costs.total.cost.perWeek / costs.total.invited),
             })}</span
           >
         {/if}
-        <span class="tag neutral">{tx('overview.kpi.cost.rate', { rate: euro(rate) })}</span>
+        <span class="tag neutral">{$t('overview.kpi.cost.rate', { rate: euro(rate) })}</span>
+      </div>
+    {:else if summary}
+      <div class="card kpi" data-kpi="time">
+        <span class="label">{$t('overview.kpi.time')}</span>
+        <b>{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</b>
+        <span class="label">{$t('overview.kpi.cost.week')}</span>
       </div>
     {:else}
       <div class="card kpi" data-kpi="area">
-        <span class="label">{tx('overview.kpi.area')}</span>
-        <b>{tx('overview.kpi.area.value', { hours: hours(areaHours) })}</b>
+        <span class="label">{$t('overview.kpi.area')}</span>
+        <b>{$t('overview.kpi.area.value', { hours: hours(areaHours) })}</b>
         <span class="label"
-          >{tx(areaPeople === 1 ? 'overview.kpi.area.sub.one' : 'overview.kpi.area.sub.other', {
+          >{$t(areaPeople === 1 ? 'overview.kpi.area.sub.one' : 'overview.kpi.area.sub.other', {
             n: formatNumber($locale, areaPeople, 0),
           })}</span
         >
-        <span class="tag area">{tx('area.kpi.areaTime')}</span>
+        <span class="tag area">{$t('area.kpi.areaTime')}</span>
       </div>
     {/if}
   </section>
@@ -482,7 +497,7 @@
           <button
             type="button"
             class="link"
-            aria-label={tx('overview.clashes.open', {
+            aria-label={$t('overview.clashes.open', {
               example: clashExample.text,
               person: personName(clashExample.personId),
             })}
@@ -498,30 +513,27 @@
     <div class="head">
       <div>
         <h3 id="{uid}-cost" tabindex="-1">
-          {tx(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
+          {$t(rate ? 'overview.cost.title' : 'overview.cost.title.time')}
         </h3>
         <!-- One line on the first screen; the counting rules unfold (#277). -->
         <details class="how">
-          <summary>{tx('overview.how')}</summary>
+          <summary>{$t('overview.how')}</summary>
           <p class="note">
-            {tx('overview.cost.hint')}{#if rate}<span class="person-hint"
-                >{' ' + tx('overview.cost.hint.person')}</span
-              >{' ' +
-                $t(
-                  summary ? 'overview.cost.hint.areaShare.org' : 'overview.cost.hint.areaShare',
-                )}{/if}
+            {$t('overview.cost.hint')}{#if rate}<span class="person-hint"
+                >{' ' + $t('overview.cost.hint.person')}</span
+              >{#if !summary}{' ' + $t('overview.cost.hint.areaShare')}{/if}{/if}
           </p>
-          <p class="note scale">{tx('overview.cost.scale', { max: percent(maxFte) })}</p>
+          <p class="note scale">{$t('overview.cost.scale', { max: percent(maxFte) })}</p>
         </details>
       </div>
       {#if rate}
-        <div class="period" data-no-print role="group" aria-label={tx('overview.cost.period')}>
+        <div class="period" data-no-print role="group" aria-label={$t('overview.cost.period')}>
           {#each ['week', 'horizon'] as const as p (p)}
             <button
               type="button"
               aria-pressed={period === p}
               onclick={() => (rememberedPeriod = period = p)}
-              >{tx('overview.cost.period.' + p)}</button
+              >{$t('overview.cost.period.' + p)}</button
             >
           {/each}
         </div>
@@ -531,21 +543,21 @@
     <div
       class="table-scroll"
       role="region"
-      aria-label={tx('overview.table.region', {
-        title: tx(rate ? 'overview.cost.title' : 'overview.cost.title.time'),
+      aria-label={$t('overview.table.region', {
+        title: $t(rate ? 'overview.cost.title' : 'overview.cost.title.time'),
       })}
       tabindex="0"
     >
       <table class="costs" aria-labelledby="{uid}-cost">
         <thead>
           <tr>
-            <th scope="col">{tx('overview.cost.col.unit')}</th>
-            <th scope="col" class="extra">{tx('overview.cost.col.cadence')}</th>
-            <th scope="col" class="num">{tx('overview.cost.col.hours')}</th>
-            <th scope="col">{tx('overview.cost.col.share')}</th>
+            <th scope="col">{$t('overview.cost.col.unit')}</th>
+            <th scope="col" class="extra">{$t('overview.cost.col.cadence')}</th>
+            <th scope="col" class="num">{$t('overview.cost.col.hours')}</th>
+            <th scope="col">{$t('overview.cost.col.share')}</th>
             {#if rate}
-              <th scope="col" class="num">{tx('overview.cost.col.cost.' + period)}</th>
-              <th scope="col" class="num extra">{tx('overview.cost.col.person')}</th>
+              <th scope="col" class="num">{$t('overview.cost.col.cost.' + period)}</th>
+              <th scope="col" class="num extra">{$t('overview.cost.col.person')}</th>
             {/if}
           </tr>
         </thead>
@@ -557,9 +569,9 @@
                   <button
                     type="button"
                     class="link"
-                    aria-label={tx('overview.cost.open', {
+                    aria-label={$t('overview.cost.open', {
                       name: unitName(r.unitId),
-                      view: tx('view.meetings'),
+                      view: $t('view.meetings'),
                     })}
                     onclick={() => onOpenUnit(r.unitId)}>{unitName(r.unitId)}</button
                   >
@@ -569,7 +581,7 @@
                 {/if}
               </th>
               <td class="extra">{cadenceShort(unitOf(r.unitId).cadence)}</td>
-              <td class="num">{tx('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
+              <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
               <td>
                 <span class="share">
                   <span class="bar" aria-hidden="true"
@@ -577,7 +589,7 @@
                     ></i><b></b></span
                   >
                   <span class="num" class:over={over(r)}>{shareText(r)}</span>
-                  <span class="cap muted" aria-hidden="true">{tx('overview.cost.col.share')}</span>
+                  <span class="cap muted" aria-hidden="true">{$t('overview.cost.col.share')}</span>
                 </span>
               </td>
               {#if rate && r.cost}
@@ -605,9 +617,9 @@
                   <button
                     type="button"
                     class="link area-name"
-                    aria-label={tx('overview.cost.open', {
+                    aria-label={$t('overview.cost.open', {
                       name: unitName(r.unitId),
-                      view: tx('view.meetings'),
+                      view: $t('view.meetings'),
                     })}
                     onclick={() => onOpenUnit(r.unitId)}><AreaIcon /> {unitName(r.unitId)}</button
                   >
@@ -622,7 +634,7 @@
                 {/if}
               </th>
               <td class="extra">{cadenceShort(a?.cadence)}</td>
-              <td class="num">{tx('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
+              <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
               <td></td>
               {#if rate && r.cost}
                 <td class="num strong cost">{euro(costOf(r.cost))}</td>
@@ -632,54 +644,58 @@
               {/if}
             </tr>
           {/each}
-          <tr class="area-row" data-cost-row={area.id}>
-            <th scope="row">
-              {#if onOpenUnit}
-                <button
-                  type="button"
-                  class="link area-name"
-                  class:org
-                  aria-label={tx('overview.cost.open', {
-                    name: tx('overview.cost.areaRow'),
-                    view: tx('view.meetings'),
-                  })}
-                  onclick={() => onOpenUnit(area.id)}
-                  >{@render ownIcon()} {tx('overview.cost.areaRow')}</button
-                >
-              {:else}
-                <span class="area-name" class:org
-                  >{@render ownIcon()} {tx('overview.cost.areaRow')}</span
-                >
-              {/if}
-              {#if area.events.length > 0}
-                <small>{area.events.map((e) => e.name).join(', ')}</small>
-              {/if}
-              {#if rate && unfilledNote(costs.area.cost?.unfilled)}
-                <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
-              {/if}
-            </th>
-            <td class="extra">{cadenceShort(area.cadence)}</td>
-            <td class="num">{tx('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
-            <td></td>
-            {#if rate && costs.area.cost}
-              <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
-              <td class="num muted extra"
-                >{costs.area.invited > 0
-                  ? euro(costOf(costs.area.cost) / costs.area.invited)
-                  : '–'}</td
+          {#if !summary || area.events.length > 0}
+            <tr class="area-row" data-cost-row={area.id}>
+              <th scope="row">
+                {#if onOpenUnit}
+                  <button
+                    type="button"
+                    class="link area-name"
+                    class:org
+                    aria-label={$t('overview.cost.open', {
+                      name: $t('overview.cost.areaRow'),
+                      view: $t('view.meetings'),
+                    })}
+                    onclick={() => onOpenUnit(area.id)}
+                    >{@render ownIcon()} {$t('overview.cost.areaRow')}</button
+                  >
+                {:else}
+                  <span class="area-name" class:org
+                    >{@render ownIcon()} {$t('overview.cost.areaRow')}</span
+                  >
+                {/if}
+                {#if area.events.length > 0}
+                  <small>{area.events.map((e) => e.name).join(', ')}</small>
+                {/if}
+                {#if rate && unfilledNote(costs.area.cost?.unfilled)}
+                  <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
+                {/if}
+              </th>
+              <td class="extra">{cadenceShort(area.cadence)}</td>
+              <td class="num"
+                >{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td
               >
-            {/if}
-          </tr>
+              <td></td>
+              {#if rate && costs.area.cost}
+                <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
+                <td class="num muted extra"
+                  >{costs.area.invited > 0
+                    ? euro(costOf(costs.area.cost) / costs.area.invited)
+                    : '–'}</td
+                >
+              {/if}
+            </tr>
+          {/if}
         </tbody>
         <tfoot>
           <tr data-cost-total>
-            <th scope="row">{tx('overview.cost.total')}</th>
+            <th scope="row">{$t('overview.cost.total')}</th>
             <td class="extra"></td>
-            <td class="num">{tx('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
+            <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.total.hours) })}</td
             >
             <td
               ><b>{shareText(costs.total)}</b>
-              <span class="muted">{tx('overview.kpi.load')}</span></td
+              <span class="muted">{$t('overview.kpi.load')}</span></td
             >
             {#if rate && costs.total.cost}
               <td class="num cost">{euro(costOf(costs.total.cost))}</td>
@@ -700,30 +716,30 @@
       <section class="card" aria-labelledby="{uid}-costly" data-costly>
         <div class="head">
           <div>
-            <h3 id="{uid}-costly">{tx('overview.costly.title')}</h3>
+            <h3 id="{uid}-costly">{$t('overview.costly.title')}</h3>
             <details class="how">
-              <summary>{tx('overview.how')}</summary>
-              <p class="note">{tx('overview.costly.hint')}</p>
+              <summary>{$t('overview.how')}</summary>
+              <p class="note">{$t('overview.costly.hint')}</p>
             </details>
           </div>
-          <span class="muted">{tx('overview.costly.period.' + period)}</span>
+          <span class="muted">{$t('overview.costly.period.' + period)}</span>
         </div>
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
         <div
           class="table-scroll"
           role="region"
-          aria-label={tx('overview.table.region', { title: tx('overview.costly.title') })}
+          aria-label={$t('overview.table.region', { title: $t('overview.costly.title') })}
           tabindex="0"
         >
           <table class="costs" aria-labelledby="{uid}-costly">
             <thead>
               <tr>
-                <th scope="col">{tx('overview.steer.col.meeting')}</th>
-                <th scope="col">{tx('overview.costly.col.where')}</th>
-                <th scope="col">{tx('overview.costly.col.when')}</th>
-                <th scope="col" class="num">{tx('overview.costly.col.invited')}</th>
-                <th scope="col" class="num">{tx('overview.cost.col.cost.' + period)}</th>
-                <th scope="col" class="num">{tx('overview.costly.col.share')}</th>
+                <th scope="col">{$t('overview.steer.col.meeting')}</th>
+                <th scope="col">{$t('overview.costly.col.where')}</th>
+                <th scope="col">{$t('overview.costly.col.when')}</th>
+                <th scope="col" class="num">{$t('overview.costly.col.invited')}</th>
+                <th scope="col" class="num">{$t('overview.cost.col.cost.' + period)}</th>
+                <th scope="col" class="num">{$t('overview.costly.col.share')}</th>
               </tr>
             </thead>
             <tbody>
@@ -734,9 +750,9 @@
                       <button
                         type="button"
                         class="link"
-                        aria-label={tx('overview.steer.open', {
+                        aria-label={$t('overview.steer.open', {
                           name: m.event.name,
-                          view: tx('view.meetings'),
+                          view: $t('view.meetings'),
                         })}
                         onclick={() => onOpenMeeting(m.unitId, m.event.id)}>{m.event.name}</button
                       >
@@ -748,10 +764,10 @@
                   </td>
                   <td class="muted when">{costlyWhen(m.event, m.unitId)}</td>
                   <td class="num invited"
-                    >{tx('overview.costly.people', {
+                    >{$t('overview.costly.people', {
                       n: formatNumber($locale, m.invited, 0),
                     })}{#if m.unfilled.length > 0}<small class="unfilled"
-                        >{tx('overview.costly.unfilled', {
+                        >{$t('overview.costly.unfilled', {
                           roles: m.unfilled.map(roleName).join(', '),
                         })}</small
                       >{/if}</td
@@ -760,7 +776,7 @@
                   <td class="num share-all"
                     >{percent(m.shareOfAll)}
                     <span class="cap muted" aria-hidden="true"
-                      >{tx('overview.costly.col.share')}</span
+                      >{$t('overview.costly.col.share')}</span
                     ></td
                   >
                 </tr>
@@ -777,18 +793,18 @@
   <!-- Without teams there is nothing to compare; the choice of teams is offered above. -->
   {#if teams.length > 0 && !summary}
     <section class="card" aria-labelledby="{uid}-strip">
-      <h3 id="{uid}-strip">{tx('overview.strip.title')}</h3>
-      <p class="note">{tx('overview.strip.hint', { n: formatNumber($locale, weekCount, 0) })}</p>
+      <h3 id="{uid}-strip">{$t('overview.strip.title')}</h3>
+      <p class="note">{$t('overview.strip.hint', { n: formatNumber($locale, weekCount, 0) })}</p>
 
       <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
       <div
         class="scroll"
         role="region"
-        aria-label={tx('overview.strip.region')}
+        aria-label={$t('overview.strip.region')}
         tabindex="0"
         style:--weeks={weekCount}
       >
-        <p class="part">{tx('overview.strip.cadence')}</p>
+        <p class="part">{$t('overview.strip.cadence')}</p>
         <div class="grid" data-cadence>
           <span></span>
           {#each mondays as m (m)}
@@ -822,7 +838,7 @@
               <small>{cadenceText(row.cadence)}</small>
               <small class:off={!row.inStep} class:in={row.inStep}
                 >{row.inStep
-                  ? tx('overview.inStep')
+                  ? $t('overview.inStep')
                   : row.reasons.map(reasonText).join(', ')}</small
               >
             </div>
@@ -834,7 +850,7 @@
                   style:grid-column="{s.fromWeek + 1} / span {s.span}"
                   title={segTitle(row.cadence, s)}
                   >{segLabel(row.cadence, s, i === 0)}<span class="sr-only"
-                    >, {segDates(row.cadence, s)}{s.off ? `, ${tx('overview.seg.off')}` : ''}</span
+                    >, {segDates(row.cadence, s)}{s.off ? `, ${$t('overview.seg.off')}` : ''}</span
                   ></span
                 >
               {/each}
@@ -844,7 +860,7 @@
         </div>
 
         <p class="part">
-          {tx('overview.strip.load')}
+          {$t('overview.strip.load')}
         </p>
         <table class="grid heat" data-load>
           <thead>
@@ -854,7 +870,7 @@
                 <th scope="col" class="wk">{weekLabel(m)}</th>
               {/each}
               <th scope="col" class="wk avg"
-                ><abbr title={tx('overview.avg.label')}>{tx('overview.avg')}</abbr></th
+                ><abbr title={$t('overview.avg.label')}>{$t('overview.avg')}</abbr></th
               >
             </tr>
           </thead>
@@ -882,32 +898,32 @@
               {@render heatRow(team.id, team.name, load.get(team.id) ?? [])}
             {/each}
             {#if areaOnly.length > 0}
-              {@render heatRow(area.id, tx('area.group.areaOnly'), areaOnly)}
+              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly)}
             {/if}
           </tbody>
         </table>
       </div>
 
       <ul class="legend">
-        <li><i class="key fits" aria-hidden="true"></i>{tx('overview.legend.fits')}</li>
-        <li><i class="key off" aria-hidden="true"></i>{tx('overview.legend.off')}</li>
+        <li><i class="key fits" aria-hidden="true"></i>{$t('overview.legend.fits')}</li>
+        <li><i class="key off" aria-hidden="true"></i>{$t('overview.legend.off')}</li>
         {#if area.cadence}
-          <li><i class="key area" aria-hidden="true"></i>{tx('overview.legend.area')}</li>
+          <li><i class="key area" aria-hidden="true"></i>{$t('overview.legend.area')}</li>
         {/if}
         <li>
           <i class="key swatch l1" aria-hidden="true"></i><i
             class="key swatch l2"
             aria-hidden="true"
-          ></i><i class="key swatch l4" aria-hidden="true"></i>{tx('overview.legend.load')}
+          ></i><i class="key swatch l4" aria-hidden="true"></i>{$t('overview.legend.load')}
         </li>
         <li data-legend-avg>
-          {tx('overview.legend.avg', {
-            avg: tx('overview.avg'),
-            share: tx('overview.cost.col.share'),
+          {$t('overview.legend.avg', {
+            avg: $t('overview.avg'),
+            share: $t('overview.cost.col.share'),
           })}
         </li>
         <li>
-          <i class="key swatch warn" aria-hidden="true"></i>{tx('overview.legend.warn', {
+          <i class="key swatch warn" aria-hidden="true"></i>{$t('overview.legend.warn', {
             max: percent(maxFte),
           })}
         </li>
@@ -917,13 +933,13 @@
 
   {#if !summary}
     <section class="card" aria-labelledby="{uid}-steer">
-      <h3 id="{uid}-steer">{tx('overview.steer.title')}</h3>
-      <p class="note">{tx('overview.steer.hint')}</p>
+      <h3 id="{uid}-steer">{$t('overview.steer.title')}</h3>
+      <p class="note">{$t('overview.steer.hint')}</p>
       <div class="steer">
         <div>
-          <h4 class="part" id="{uid}-roles">{tx('overview.steer.roles')}</h4>
+          <h4 class="part" id="{uid}-roles">{$t('overview.steer.roles')}</h4>
           {#if steering.length === 0}
-            <p class="empty">{tx('overview.steer.noRoles')}</p>
+            <p class="empty">{$t('overview.steer.noRoles')}</p>
           {:else}
             <ul class="people" aria-labelledby="{uid}-roles" data-area-roles>
               {#each steering as s (s.personId)}
@@ -933,12 +949,12 @@
                     <span class="person">{personName(s.personId)}</span>
                     <small>
                       {s.roleIds.map(roleName).join(', ')} ·
-                      {#if s.areaHours > 0}{tx('overview.steer.areaHours', {
+                      {#if s.areaHours > 0}{$t('overview.steer.areaHours', {
                           hours: hours(s.areaHours),
                         })}{:else}<span class="unset"
-                          >{#if $presenting}{tx('area.hours.none')}{:else}<span data-no-print
-                              >{tx('area.hours.unset')}</span
-                            ><span data-print-only>{tx('area.hours.none')}</span>{/if}</span
+                          >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
+                              >{$t('area.hours.unset')}</span
+                            ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
                         >{/if}{teamHours(s.teams)}
                     </small>
                   </div>
@@ -948,18 +964,18 @@
           {/if}
         </div>
         <div>
-          <h4 class="part" id="{uid}-meetings">{tx('overview.steer.meetings')}</h4>
+          <h4 class="part" id="{uid}-meetings">{$t('overview.steer.meetings')}</h4>
           {#if area.events.length === 0}
-            <p class="empty">{tx('overview.steer.noMeetings')}</p>
+            <p class="empty">{$t('overview.steer.noMeetings')}</p>
           {:else}
             <table class="meetings" aria-labelledby="{uid}-meetings" data-area-meetings>
               <thead>
                 <tr>
-                  <th scope="col">{tx('overview.steer.col.meeting')}</th>
-                  <th scope="col">{tx('overview.steer.col.who')}</th>
+                  <th scope="col">{$t('overview.steer.col.meeting')}</th>
+                  <th scope="col">{$t('overview.steer.col.who')}</th>
                   <th scope="col" class="num"
-                    ><abbr title={tx('overview.steer.col.hours.long')}
-                      >{tx('overview.steer.col.hours')}</abbr
+                    ><abbr title={$t('overview.steer.col.hours.long')}
+                      >{$t('overview.steer.col.hours')}</abbr
                     ></th
                   >
                 </tr>
@@ -973,9 +989,9 @@
                         <button
                           type="button"
                           class="title link"
-                          aria-label={tx('overview.steer.open', {
+                          aria-label={$t('overview.steer.open', {
                             name: event.name,
-                            view: tx('view.meetings'),
+                            view: $t('view.meetings'),
                           })}
                           onclick={() => onOpenMeeting(area.id, event.id)}>{event.name}</button
                         >
@@ -992,7 +1008,7 @@
                         {hours(m.perWeek)}
                       {:else}
                         <span aria-hidden="true">–</span><span class="sr-only"
-                          >{tx('overview.steer.irregular')}</span
+                          >{$t('overview.steer.irregular')}</span
                         >
                       {/if}
                     </td>
@@ -1200,13 +1216,9 @@
   /* A team's people in the area's meetings: informative, not part of the total (#336). */
   [data-area-share] {
     display: block;
-    max-width: 16rem;
-    margin-left: auto;
     color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 400;
-    /* Wraps instead of widening the table past its card (#450). */
-    white-space: normal;
   }
   .unfilled {
     display: block;
