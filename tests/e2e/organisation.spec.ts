@@ -92,7 +92,7 @@ test('the organisation shows alignment and cost per team, also without an area (
   await expect(kpi.locator('b')).toHaveText('3 of 4');
   await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha');
   await expect(summary.locator('.lead')).toHaveText(
-    'Teams in an area with a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
   );
   // The key figures come before the tree, the cost table after it.
   const order = await page.evaluate(() =>
