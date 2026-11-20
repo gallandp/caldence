@@ -236,6 +236,25 @@ export function personLoad(
   return { hours, base, share: fte(hours, base) };
 }
 
+/**
+ * The people who are over the limit on average over these weeks, highest share first: the one
+ * rule of the people table in Meeting load (#334, #448).
+ */
+export function peopleOverLimit(
+  ws: Workspace,
+  weeks: WeekLoad[],
+  personIds: Iterable<string>,
+): string[] {
+  const { maxFte } = ws.settings.thresholds;
+  // Meetings without any weekly hours rank first; Infinity - Infinity is NaN, so `|| 0`.
+  const rank = (p: { base: number; share: number }) => (p.base > 0 ? p.share : Infinity);
+  return [...personIds]
+    .map((id) => ({ id, ...personLoad(ws, weeks, id) }))
+    .filter((p) => overMax(p.hours, p.base, maxFte))
+    .sort((a, b) => rank(b) - rank(a) || 0)
+    .map((p) => p.id);
+}
+
 /** A person's hours in a week in these teams. */
 export function hoursIn(week: WeekLoad, teamIds: readonly string[], personId: string): number {
   return teamIds.reduce((sum, id) => sum + (week.byTeamPerson[id]?.[personId] ?? 0), 0);

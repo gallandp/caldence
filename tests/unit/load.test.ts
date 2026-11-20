@@ -6,6 +6,7 @@ import {
   loadBase,
   loadPerWeek,
   overbooked,
+  peopleOverLimit,
   personMeetings,
   warnings,
   weeklyBaseLoad,
@@ -255,6 +256,34 @@ describe('warnings', () => {
       { monday: '2027-01-04', personId: 'p2', kind: 'above-fte' },
       { monday: '2027-01-11', personId: 'p2', kind: 'above-fte' },
     ]);
+  });
+});
+
+describe('peopleOverLimit (#448)', () => {
+  const week = (monday: string, p1: number, p2 = 0) => ({
+    monday,
+    byPerson: { p1, p2 },
+    regularByPerson: {},
+    byTeamRole: {},
+    byTeamPerson: {},
+  });
+
+  it('names the people whose average share is over the limit, highest share first', () => {
+    const ws = workspace([
+      team([], {
+        members: [
+          { personId: 'p1', roleId: 'r1' },
+          { personId: 'p2', roleId: 'r1' },
+        ],
+      }),
+    ]);
+    ws.settings.thresholds = { warnFactor: 100, maxFte: 0.5 };
+    // 40 h each: Pat averages 22 h (55 %), Sam 30 h (75 %); one week over does not count alone.
+    const weeks = [week('2027-01-04', 24, 30), week('2027-01-11', 20, 30)];
+    expect(peopleOverLimit(ws, weeks, ['p1', 'p2'])).toEqual(['p2', 'p1']);
+    ws.settings.thresholds.maxFte = 0.6;
+    expect(peopleOverLimit(ws, weeks, ['p1', 'p2'])).toEqual(['p2']);
+    expect(peopleOverLimit(ws, weeks, ['p1'])).toEqual([]);
   });
 });
 

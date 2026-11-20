@@ -17,7 +17,12 @@
     type StepReason,
   } from '../../core/areaOverview';
   import { addDays, diffDays, isoWeek, mondayOf, weekday, type ISODate } from '../../core/date';
-  import { areaHours as hoursInArea, capacity, loadPerWeek } from '../../core/load';
+  import {
+    areaHours as hoursInArea,
+    capacity,
+    loadPerWeek,
+    peopleOverLimit,
+  } from '../../core/load';
   import { areaAsTeam, type Area, type Cadence, type CalEvent } from '../../core/model';
   import { clashes, clashTime } from '../../core/views';
   import {
@@ -76,10 +81,10 @@
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
   const comparison = $derived(compareCadences(ws, area, from, weekCount));
+  const allWeeks = $derived(loadPerWeek(ws, $index));
   const weeks = $derived.by(() => {
-    const all = loadPerWeek(ws, $index);
-    const start = all.findIndex((w) => w.monday === from);
-    return start < 0 ? [] : all.slice(start, start + weekCount);
+    const start = allWeeks.findIndex((w) => w.monday === from);
+    return start < 0 ? [] : allWeeks.slice(start, start + weekCount);
   });
   const load = $derived(new Map(teams.map((team) => [team.id, teamLoad(ws, team, weeks)])));
   /** People only in the area get their own row, so the tile counts them too (#334). */
@@ -114,6 +119,12 @@
     ]),
   );
   const people = $derived(personIds.size);
+  /**
+   * Who is over the limit, judged like the people table in Meeting load: their average over the
+   * planning horizon, all their meetings ÷ all their weekly hours (#334, #448). An average of
+   * everyone must not hide anyone over the limit.
+   */
+  const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
 
   /**
    * Clashes of the area's people in the window that touch the area or its teams (#339): the
@@ -382,11 +393,27 @@
       <span class="label">{$t('overview.kpi.load')}</span>
       <b>{shareText(costs.total)}</b>
       <span class="label">{$t('overview.kpi.load.sub')}</span>
-      <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
-        >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
-          max: percent(maxFte),
-        })}</span
-      >
+      {#if overPeople.length > 0}
+        <span class="tag warn" data-over-people
+          >{$t(
+            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+            {
+              n: formatNumber($locale, overPeople.length, 0),
+              max: percent(maxFte),
+              names:
+                overPeople.length > 3
+                  ? overPeople.slice(0, 3).map(personName).join(', ') + ' …'
+                  : list(overPeople.map(personName)),
+            },
+          )}</span
+        >
+      {:else}
+        <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
+          >{$t(over(costs.total) ? 'overview.kpi.load.high' : 'overview.kpi.load.ok', {
+            max: percent(maxFte),
+          })}</span
+        >
+      {/if}
     </div>
     <div class="card kpi" data-kpi="warn">
       <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
