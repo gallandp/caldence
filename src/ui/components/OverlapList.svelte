@@ -3,7 +3,14 @@
   import { isoWeek } from '../../core/date';
   import { unitName, units } from '../../core/model';
   import { weekdayRuns, type MeetingRef, type OverlapPair } from '../../core/views';
-  import { formatDisplayDate, formatNumber, levels, locale, translate as t } from '../../i18n';
+  import {
+    formatDisplayDate,
+    formatNumber,
+    levels,
+    locale,
+    nextWeeks,
+    translate as t,
+  } from '../../i18n';
   import { weekdayShort } from '../meetings/rules';
   import { workspace } from '../state/workspace';
 
@@ -16,12 +23,17 @@
     pairs: OverlapPair[];
     /** Weeks in the window. */
     weeks: number;
-    /** Pairs shown; the rest are counted. */
+    /** Pairs shown at first; the rest are offered with a button. */
     limit?: number;
     /** Opens the calendar's week of `date` with the person chosen. */
     onOpen?: (personId: string, date: ISODate) => void;
+    /** Opens the full list elsewhere (Meeting load) instead of showing it here. */
+    onMore?: () => void;
   }
-  let { pairs, weeks, limit = Infinity, onOpen }: Props = $props();
+  let { pairs, weeks, limit = Infinity, onOpen, onMore }: Props = $props();
+
+  /** Every pair, after "Show all" (a whole line can have thousands, #316 budget). */
+  let showAll = $state(false);
 
   /** People named per pair; the rest are counted. */
   const NAMED = 3;
@@ -31,23 +43,25 @@
   const days = $derived(new Set(pairs.flatMap((p) => p.dates)).size);
   const summary = $derived(
     pairs.length === 0
-      ? $t('overlaps.none', { weeks: n(weeks) })
+      ? $t('overlaps.none', { period: nextWeeks($t, $locale, weeks) })
       : $t('overlaps.summary', {
-          weeks: n(weeks),
+          period: nextWeeks($t, $locale, weeks),
           pairs: $t(pairs.length === 1 ? 'overlaps.pairs.one' : 'overlaps.pairs.other', {
             n: n(pairs.length),
           }),
           days: $t(days === 1 ? 'overlaps.days.one' : 'overlaps.days.other', { n: n(days) }),
         }),
   );
-  const shown = $derived(pairs.slice(0, limit));
+  const shown = $derived(showAll ? pairs : pairs.slice(0, limit));
   const hidden = $derived(pairs.length - shown.length);
 
-  const all = $derived(units(ws));
+  const unitById = $derived(new Map(units(ws).map((u) => [u.id, u])));
   const meeting = (m: MeetingRef) =>
-    all.find((u) => u.id === m.teamId)?.events.find((e) => e.id === m.eventId)?.name ?? m.eventId;
+    unitById.get(m.teamId)?.events.find((e) => e.id === m.eventId)?.name ?? m.eventId;
   const unit = (m: MeetingRef) => unitName(ws, m.teamId, $levels.org) || m.teamId;
-  const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+  const nameById = $derived(new Map(ws.people.map((p) => [p.id, p.name])));
+  const personName = (id: string) => nameById.get(id) ?? id;
+  const list = $derived(new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }));
 
   function when(p: OverlapPair): string {
     const weekdays = weekdayRuns(p.weekdays)
@@ -64,7 +78,7 @@
     const names = p.people.slice(0, NAMED).map(personName);
     const rest = p.people.length - names.length;
     if (rest > 0) names.push($t('overlaps.people.more', { n: n(rest) }));
-    return new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }).format(names);
+    return list.format(names);
   }
 
   const dateLabel = (date: ISODate) => formatDisplayDate($locale, date, 'short');
@@ -108,13 +122,28 @@
     </ul>
   {/if}
   {#if hidden > 0}
-    <p class="more">
-      {$t(hidden === 1 ? 'overlaps.more.one' : 'overlaps.more.other', { n: n(hidden) })}
-    </p>
+    {#if onMore}
+      <p class="more">
+        <button type="button" class="link" data-more-clashes onclick={onMore}
+          >{$t(hidden === 1 ? 'overlaps.more.one' : 'overlaps.more.other', {
+            n: n(hidden),
+          })}</button
+        >
+      </p>
+    {:else}
+      <p class="more">
+        <button type="button" class="secondary" data-all-clashes onclick={() => (showAll = true)}
+          >{$t('load.overlaps.all', { n: n(pairs.length) })}</button
+        >
+      </p>
+    {/if}
   {/if}
 </div>
 
 <style>
+  .more {
+    align-self: flex-start;
+  }
   .overlaps {
     display: flex;
     flex-direction: column;

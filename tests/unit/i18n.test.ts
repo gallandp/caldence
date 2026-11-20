@@ -9,7 +9,9 @@ import {
   formatHorizon,
   formatNumber,
   formatPercent,
+  nextWeeks,
   t,
+  type Translate,
 } from '../../src/i18n';
 import { levelParams, levelWords } from '../../src/i18n/levels';
 
@@ -150,5 +152,20 @@ describe('svelte markup', () => {
         .filter((v) => /\p{L}/u.test(v));
       expect(literals, f).toEqual([]);
     }
+  });
+});
+
+describe('nextWeeks', () => {
+  it('names one week in the singular (#445)', () => {
+    const en_: Translate = (key, params) => t('en', key, params);
+    const de_: Translate = (key, params) => t('de', key, params);
+    expect(nextWeeks(en_, 'en', 1)).toBe('the next week');
+    expect(nextWeeks(en_, 'en', 12)).toBe('the next 12 weeks');
+    expect(t('de', 'overlaps.none', { period: nextWeeks(de_, 'de', 1) })).toBe(
+      'Keine Überschneidungen in der nächsten Woche',
+    );
+    expect(t('de', 'overview.kpi.warn.sub', { period: nextWeeks(de_, 'de', 3) })).toBe(
+      'in den nächsten 3 Wochen',
+    );
   });
 });

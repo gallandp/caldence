@@ -43,6 +43,7 @@
     areaText,
     levels,
     locale,
+    nextWeeks,
     translate as t,
   } from '../../i18n';
   import CostCard from '../components/CostCard.svelte';
@@ -335,6 +336,7 @@
    * The overlaps of the people in scope by meeting pair (#445), in the area Overview's window, so
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
+  const OVERLAP_ROWS = 50;
   const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
   const overlaps = $derived.by(() => {
     const ws = $workspace;
@@ -736,6 +738,7 @@
       {$t('load.warnings.rule', {
         factor: formatNumber($locale, $workspace.settings.thresholds.warnFactor, 1),
         limit: formatPercent($locale, $workspace.settings.thresholds.maxFte),
+        period: nextWeeks($t, $locale, overlapWindow.weeks),
       })}
     </p>
     {#if warningItems.length + overlaps.length === 0}
@@ -760,7 +763,13 @@
     {#if overlaps.length > 0}
       <h4 class="hints-title">{$t('load.overlaps')}</h4>
       <div class="overlaps">
-        <OverlapList pairs={overlaps} weeks={overlapWindow.weeks} onOpen={onOpenWeek} />
+        <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget). -->
+        <OverlapList
+          pairs={overlaps}
+          weeks={overlapWindow.weeks}
+          limit={OVERLAP_ROWS}
+          onOpen={onOpenWeek}
+        />
       </div>
     {/if}
     {#if hintItems.length > 0}

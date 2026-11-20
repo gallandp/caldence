@@ -26,6 +26,7 @@
     formatNumber,
     formatPercent,
     locale,
+    nextWeeks,
     translate as t,
   } from '../../i18n';
   import { initials } from '../avatar';
@@ -347,7 +348,7 @@
       <span class="label">{$t('overview.kpi.warn', { max: percent(maxFte) })}</span>
       <b>{formatNumber($locale, warnedMondays.length, 0)}</b>
       <span class="label"
-        >{$t('overview.kpi.warn.sub', { n: formatNumber($locale, weekCount, 0) })}</span
+        >{$t('overview.kpi.warn.sub', { period: nextWeeks($t, $locale, weekCount) })}</span
       >
       <span class="tag" class:warn={warnedMondays.length > 0} class:ok={warnedMondays.length === 0}
         >{warnedMondays.length > 0
@@ -387,7 +388,13 @@
   </section>
 
   {#if teams.length > 0}
-    <OverlapList pairs={overlaps} weeks={weekCount} limit={3} onOpen={onOpenCalendar} />
+    <OverlapList
+      pairs={overlaps}
+      weeks={weekCount}
+      limit={3}
+      onOpen={onOpenCalendar}
+      onMore={onOpenLoad && (() => onOpenLoad(area.id, from))}
+    />
   {/if}
 
   <section class="card" aria-labelledby="{uid}-cost" data-area-costs>

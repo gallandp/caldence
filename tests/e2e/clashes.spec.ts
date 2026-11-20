@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { ALPHA_PAIR_DAYS, COMMERCE_CLASH_DAYS, COMMERCE_PAIRS } from './calendar-expected';
-import { openExample, pickUnit, setLanguage, showView, useFileFallback } from './helpers';
+import {
+  openExample,
+  openWorkspaceFile,
+  pickUnit,
+  setLanguage,
+  showView,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -87,4 +95,64 @@ test('Meeting load lists one line per overlapping meeting pair', async ({ page }
   await expect(page.locator('li[data-clash]')).toHaveText(
     `Sprint Planning (Team Alpha) × Replenishment (Team Beta): Do 11:00–12:00 · Alex · ${ALPHA_PAIR_DAYS} Tage · z. B. 07.01.2027`,
   );
+});
+
+test('the area overview and Meeting load show the same overlap figure', async ({ page }) => {
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Area');
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
+  const sentence = `${COMMERCE_PAIRS} overlapping meeting pairs on ${COMMERCE_CLASH_DAYS} days in the next 12 weeks`;
+  await expect(page.locator('[data-area-overview] [data-clashes] .what')).toHaveText(sentence);
+  await showView(page, 'Meeting load');
+  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
+  await expect(panel.locator('[data-clashes] .what')).toHaveText(sentence);
+});
+
+test('many pairs: the overview names three, Meeting load 50, then all', async ({ page }) => {
+  // Eleven fictional dailies of Team Gamma at the same time give 55 more pairs, for five people.
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  ws.settings.locale = 'en';
+  const gamma = ws.teams.find((x: { id: string }) => x.id === 'team-gamma');
+  for (const [id, name] of [
+    ['person-noa', 'Noa'],
+    ['person-ilka', 'Ilka'],
+    ['person-taro', 'Taro'],
+  ]) {
+    ws.people.push({ id, name });
+    gamma.members.push({ personId: id, roleId: 'role-po' });
+  }
+  for (let i = 1; i <= 11; i++)
+    gamma.events.push({
+      id: `ev-sync-${i}`,
+      name: `Sync ${i}`,
+      categoryId: gamma.events[0].categoryId,
+      rule: { type: 'weekdays', weekdays: [1, 2, 3, 4, 5] },
+      time: '08:00',
+      duration: 15,
+      participants: [
+        { roleId: 'role-po', share: 1 },
+        { roleId: 'role-sm', share: 1 },
+      ],
+      preparation: 0,
+    });
+  await openWorkspaceFile(page, ws);
+  await pickUnit(page, 'Commerce');
+  await showView(page, 'Area');
+  await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
+  const box = page.locator('[data-area-overview] [data-clashes]');
+  await expect(box.locator('.what')).toHaveText(/^57 overlapping meeting pairs on \d+ days/);
+  await expect(box.locator('li[data-clash]')).toHaveCount(3);
+  // The weekdays as one run, three people named and the rest counted.
+  await expect(box.locator('li[data-clash]').first()).toHaveText(
+    /^Sync 1 \(Team Gamma\) × Sync 2 \(Team Gamma\): Mon–Fri 08:00–08:15 · \w+, \w+, \w+, and 2 more · \d+ days · e\.g\. 01\/04\/2027$/,
+  );
+  await box.getByRole('button', { name: '54 more pairs: show all in Meeting load' }).click();
+
+  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
+  const list = panel.locator('[data-clashes]');
+  await expect(list.locator('.what')).toHaveText(/^57 overlapping meeting pairs/);
+  await expect(list.locator('li[data-clash]')).toHaveCount(50);
+  await list.getByRole('button', { name: 'Show all 57 overlapping meeting pairs' }).click();
+  await expect(list.locator('li[data-clash]')).toHaveCount(57);
+  await expect(list.locator('[data-all-clashes]')).toHaveCount(0);
 });
