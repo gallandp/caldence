@@ -146,12 +146,15 @@ test('many pairs: the overview names three, Meeting load 50, then all', async ({
   await expect(box.locator('li[data-clash]').first()).toHaveText(
     /^Sync 1 \(Team Gamma\) × Sync 2 \(Team Gamma\): Mon–Fri 08:00–08:15 · \w+, \w+, \w+, and 2 more · \d+ days · e\.g\. 01\/04\/2027$/,
   );
-  await box.getByRole('button', { name: '54 more pairs: show all in Meeting load' }).click();
+  await box.getByRole('button', { name: '54 more pairs: in Meeting load' }).click();
 
   const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
   const list = panel.locator('[data-clashes]');
   await expect(list.locator('.what')).toHaveText(/^57 overlapping meeting pairs/);
   await expect(list.locator('li[data-clash]')).toHaveCount(50);
+  // The list itself is brought into view, not a week (#445).
+  await expect(list).toBeInViewport();
+  await expect(page.locator('[data-week-focus]')).toHaveCount(0);
   await list.getByRole('button', { name: 'Show all 57 overlapping meeting pairs' }).click();
   await expect(list.locator('li[data-clash]')).toHaveCount(57);
   await expect(list.locator('[data-all-clashes]')).toHaveCount(0);

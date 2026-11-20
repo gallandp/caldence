@@ -51,6 +51,8 @@
     area: Area;
     /** Opens Load for one team, scrolled to one week. */
     onOpenLoad?: (teamId: string, monday: ISODate) => void;
+    /** Opens Meeting load of an area at its overlapping meeting pairs. */
+    onOpenOverlaps?: (areaId: string) => void;
     /** Opens a meeting of the area or one of its teams in Meetings & cadence. */
     onOpenMeeting?: (unitId: string, eventId: string) => void;
     /** Opens Meetings & cadence of a team or of the area. */
@@ -58,7 +60,8 @@
     /** Opens the calendar's week of `date` with one person chosen. */
     onOpenCalendar?: (personId: string, date: ISODate) => void;
   }
-  let { area, onOpenLoad, onOpenMeeting, onOpenUnit, onOpenCalendar }: Props = $props();
+  let { area, onOpenLoad, onOpenOverlaps, onOpenMeeting, onOpenUnit, onOpenCalendar }: Props =
+    $props();
 
   const uid = $props.id();
   const ws = $derived($workspace);
@@ -420,7 +423,7 @@
       weeks={weekCount}
       limit={3}
       onOpen={onOpenCalendar}
-      onMore={onOpenLoad && (() => onOpenLoad(area.id, from))}
+      onMore={onOpenOverlaps && (() => onOpenOverlaps(area.id))}
     />
   {/if}
 

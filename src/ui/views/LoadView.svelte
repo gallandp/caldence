@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { areaShare } from '../../core/areaCosts';
   import { costSummary } from '../../core/cost';
   import { addDays, isoWeek } from '../../core/date';
@@ -51,6 +52,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary } from '../meetings/rules';
+  import { loadOverlaps } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -337,6 +339,13 @@
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
   const OVERLAP_ROWS = 50;
+  let overlapsBox: HTMLElement | undefined = $state();
+  // Brought into view when asked for from the area Overview (#445).
+  $effect(() => {
+    if (!$loadOverlaps || !overlapsBox) return;
+    loadOverlaps.set(false);
+    void tick().then(() => overlapsBox?.scrollIntoView({ block: 'start' }));
+  });
   const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
   const overlaps = $derived.by(() => {
     const ws = $workspace;
@@ -762,14 +771,17 @@
     {/if}
     {#if overlaps.length > 0}
       <h4 class="hints-title">{$t('load.overlaps')}</h4>
-      <div class="overlaps">
-        <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget). -->
-        <OverlapList
-          pairs={overlaps}
-          weeks={overlapWindow.weeks}
-          limit={OVERLAP_ROWS}
-          onOpen={onOpenWeek}
-        />
+      <div class="overlaps" bind:this={overlapsBox}>
+        <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget);
+             another scope starts with the first ones again. -->
+        {#key `${$filter.teamId}/${$filter.roleId}/${$filter.personId}`}
+          <OverlapList
+            pairs={overlaps}
+            weeks={overlapWindow.weeks}
+            limit={OVERLAP_ROWS}
+            onOpen={onOpenWeek}
+          />
+        {/key}
       </div>
     {/if}
     {#if hintItems.length > 0}
