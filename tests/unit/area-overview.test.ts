@@ -7,6 +7,7 @@ import {
   areaOnlyPeople,
   stepReasons,
   teamLoad,
+  zeroHourMembers,
 } from '../../src/core/areaOverview';
 import { areaHints, capacity, loadPerWeek, overMax, warnings } from '../../src/core/load';
 import {
@@ -441,5 +442,16 @@ describe('areaMeetingHours', () => {
       attendees: [['p3'], ['p1', 'p2']],
     });
     expect(once).toMatchObject({ perWeek: 0, recurring: false });
+  });
+});
+
+describe('zeroHourMembers (#446)', () => {
+  it('names the members with 0 h in the team, each once', () => {
+    const ws = areaWorkspace() as unknown as Workspace;
+    const gamma = ws.teams.find((t) => t.id === 'team-gamma')!;
+    expect(zeroHourMembers(ws, gamma)).toEqual([]);
+    gamma.memberHours = { 'person-kim': 0, 'person-lou': 20 };
+    gamma.members.push({ personId: 'person-kim', roleId: 'role-po' });
+    expect(zeroHourMembers(ws, gamma)).toEqual(['person-kim']);
   });
 });

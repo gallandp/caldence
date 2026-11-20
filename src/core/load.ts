@@ -209,6 +209,48 @@ export function hoursLeft(ws: Workspace, personId: string): number {
   return Math.max(0, ws.settings.hoursPerWeek - used);
 }
 
+/** Hours rounded down to half hours, the step of the hours fields. */
+export const halfHours = (h: number): number => Math.floor(h * 2 + 1e-9) / 2;
+
+/** A team or area (or the organisation) a person works in, with their weekly hours there. */
+export interface PlaceHours {
+  id: string;
+  name: string;
+  hours: number;
+}
+
+/** The teams and areas a person works in, as `placesOf`, with their hours in each (#446). */
+export function placeHours(ws: Workspace, personId: string, org = ''): PlaceHours[] {
+  return [
+    ...ws.teams
+      .filter((t) => t.members.some((m) => m.personId === personId))
+      .map((t) => ({ id: t.id, name: t.name, hours: capacity(ws, personId, t.id) })),
+    ...areaUnits(ws)
+      .filter(
+        (a) =>
+          Object.hasOwn(a.memberHours, personId) || a.members.some((m) => m.personId === personId),
+      )
+      .map((a) => ({ id: a.id, name: a.name || org, hours: areaHours(ws, a.id, personId) })),
+  ];
+}
+
+/**
+ * The Settings weekly hours split evenly over the teams and areas where the person has hours and
+ * one more, in half hours (#446). Someone with no hours anywhere gets them all.
+ */
+export function evenShare(ws: Workspace, personId: string): number {
+  const places = placeHours(ws, personId).filter((p) => p.hours > 0).length;
+  return halfHours(ws.settings.hoursPerWeek / (places + 1));
+}
+
+/**
+ * The hours proposed for a person joining one more team: what is left of the weekly hours
+ * (#274), or an even split once nothing is left (#446).
+ */
+export function suggestedHours(ws: Workspace, personId: string): number {
+  return hoursLeft(ws, personId) || evenShare(ws, personId);
+}
+
 /** The person's hours in all teams and areas add up to more than the Settings weekly hours. */
 export function overbooked(ws: Workspace, personId: string): boolean {
   return placed(ws, personId) && capacity(ws, personId) > ws.settings.hoursPerWeek;

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { capacity, hoursLeft, placesOf } from '../../core/load';
+  import { capacity, hoursLeft, placeHours, placesOf, suggestedHours } from '../../core/load';
   import { record } from '../../core/record';
-  import { setupTeam, type SetupMember } from '../../core/setup';
+  import { fittedHours, setupTeam, type SetupMember } from '../../core/setup';
   import { areaRoleIds, templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
   import { formatDisplayDate, levels, locale, translate as t } from '../../i18n';
@@ -46,6 +46,8 @@
   let hoursHere = $state<Record<string, string>>({});
   /** The name whose hours are not a valid number, if any. */
   let badHours = $state<string | null>(null);
+  /** Names whose other teams are not to be lowered, though they have no hours left (#446). */
+  let keepOthers = $state<Record<string, boolean>>({});
 
   const template = $derived<Template | null>(
     choice === 'none' ? null : builtinTemplate(choice, $locale),
@@ -80,7 +82,17 @@
   const already = $derived.by(() => {
     const ws = $workspace;
     const seen: string[] = [];
-    const out: { key: string; name: string; places: string; hours: number; left: number }[] = [];
+    const out: {
+      key: string;
+      name: string;
+      places: string;
+      personId: string;
+      /** The teams and areas where the person has hours: the ones lowered to fit (#446). */
+      booked: string;
+      hours: number;
+      left: number;
+      suggested: number;
+    }[] = [];
     // Someone entered only for an area role (SAFe RTE) does not join the team: no hours asked.
     const areaOnly = template ? areaRoleIds(template) : new Set<string>();
     for (const m of members().filter((x) => !areaOnly.has(x.roleId))) {
@@ -94,12 +106,31 @@
         key,
         name: person.name,
         places: places.join(', '),
+        personId: person.id,
+        booked: placeHours(ws, person.id, $levels.org)
+          .filter((p) => p.hours > 0)
+          .map((p) => p.name)
+          .join(', '),
         hours: capacity(ws, person.id),
         left: hoursLeft(ws, person.id),
+        suggested: suggestedHours(ws, person.id),
       });
     }
     return out;
   });
+  /** The hours typed here for a person, or the proposal while the field is empty. */
+  const hoursOf = (a: { key: string; suggested: number }): number => {
+    const raw = hoursHere[a.key] ?? '';
+    return raw.trim() === '' ? a.suggested : Number(raw);
+  };
+  /** "Team Gamma 21.5 h, Team Delta 5.5 h": what the other teams keep (#446). */
+  const fittedText = (a: { key: string; personId: string; suggested: number }): string => {
+    const here = hoursOf(a);
+    if (!Number.isFinite(here) || here < 0) return '';
+    return fittedHours($workspace, a.personId, here, undefined, $levels.org)
+      .map((p) => `${p.name} ${num(p.hours)} h`)
+      .join(', ');
+  };
   const num = (n: number) => new Intl.NumberFormat($locale, { maximumFractionDigits: 1 }).format(n);
   const zones = supportedZones();
   const zoneOptions = $derived(
@@ -121,6 +152,7 @@
     startPicked = false;
     names = {};
     hoursHere = {};
+    keepOthers = {};
     badHours = null;
     me = false;
     myName = '';
@@ -180,8 +212,7 @@
     const trimmed = name.trim();
     const hours = record<number>();
     for (const [i, a] of already.entries()) {
-      const raw = hoursHere[a.key] ?? '';
-      const n = raw.trim() === '' ? a.left : Number(raw);
+      const n = hoursOf(a);
       if (!Number.isFinite(n) || n < 0) {
         problem = {
           key: 'error.number.invalid',
@@ -193,12 +224,15 @@
       }
       hours[a.key] = n;
     }
+    // Someone without hours left is split evenly: their other teams go down to fit (#446).
+    const fit = already.filter((a) => a.left === 0 && !keepOthers[a.key]).map((a) => a.key);
     const input = {
       template,
       name: trimmed,
       start: start || localToday(),
       members: members(),
       hours,
+      fit,
       ...(withFrame ? { settings: { timezone, region, horizon: { from, to } } } : {}),
     };
     const result = workspace.apply((ws) => setupTeam(ws, input));
@@ -344,17 +378,34 @@
                 type="number"
                 min="0"
                 step="0.5"
-                value={hoursHere[a.key] ?? String(a.left)}
+                value={hoursHere[a.key] ?? String(a.suggested)}
                 aria-invalid={badHours === a.key ? 'true' : undefined}
-                aria-describedby={a.left === 0 ? `${uid}-none-${i}` : undefined}
                 oninput={(e) => {
                   hoursHere[a.key] = e.currentTarget.value;
                   if (badHours === a.key) badHours = null;
                 }}
               />{$t('settings.people.unit')}</span
             >
-            {#if a.left === 0}
-              <p class="none-left" id="{uid}-none-{i}">{$t('team.people.noneLeft')}</p>
+            {#if a.left === 0 && a.booked !== ''}
+              {@const fitted = fittedText(a)}
+              <label class="check fit">
+                <input
+                  type="checkbox"
+                  checked={!keepOthers[a.key]}
+                  aria-describedby="{uid}-fitted-{i}"
+                  onchange={(e) => (keepOthers[a.key] = !e.currentTarget.checked)}
+                />
+                {$t('setup.people.fit', {
+                  units: a.booked,
+                  hpw: num($workspace.settings.hoursPerWeek),
+                })}
+              </label>
+              <!-- Always present, so screen readers announce the new hours as they change. -->
+              <p class="fitted hint" id="{uid}-fitted-{i}" aria-live="polite">
+                {fitted !== '' && !keepOthers[a.key]
+                  ? $t('setup.people.fitted', { hours: fitted })
+                  : ''}
+              </p>
             {/if}
           </div>
         {/each}
@@ -529,10 +580,20 @@
   .already input {
     width: 5rem;
   }
-  .none-left {
-    flex-basis: 100%;
+  .already .fit {
+    flex: 1 1 100%;
     margin: 0;
-    color: var(--warn);
+  }
+  .already .fitted {
+    flex: 1 1 100%;
+    margin: 0 0 0 1.75rem;
+    font-size: 0.875rem;
+  }
+  .already .fitted:empty {
+    display: none;
+  }
+  .already .fit input {
+    width: auto;
   }
   .check {
     display: flex;
