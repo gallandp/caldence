@@ -4,6 +4,7 @@ import {
   attendees,
   findArea,
   participantKey,
+  teamRolesFor,
   units,
   unitTeamIds,
   ORG_UNIT,
@@ -226,16 +227,23 @@ export function loadBase(ws: Workspace, personId: string): number {
 
 /**
  * A person's weekly hours in one role (#449): their hours in the teams and areas where they hold
- * it, at most their load base. Hours belong to a team, not a role, so two roles in one team each
+ * it, at most their load base. A team counts too where an area links the role to a team role the
+ * person holds there (#338). Hours belong to a team, not a role, so two roles in one team each
  * get that team's hours. Without hours there (a person invited by name, or 0 h where they hold the
  * role) it is their load base, as in the people table.
  */
 export function roleBase(ws: Workspace, personId: string, roleId: string): number {
-  const holds = (u: { members: { personId: string; roleId: string }[] }) =>
-    u.members.some((m) => m.personId === personId && m.roleId === roleId);
-  const inTeams = ws.teams.filter(holds).reduce((sum, t) => sum + capacity(ws, personId, t.id), 0);
+  const holds = (u: { members: { personId: string; roleId: string }[] }, roles = [roleId]) =>
+    u.members.some((m) => m.personId === personId && roles.includes(m.roleId));
+  const inTeams = ws.teams
+    .filter(
+      (t) =>
+        holds(t) ||
+        ws.areas.some((a) => a.teamIds.includes(t.id) && holds(t, teamRolesFor(a, t.id, roleId))),
+    )
+    .reduce((sum, t) => sum + capacity(ws, personId, t.id), 0);
   const hours = areaUnits(ws)
-    .filter(holds)
+    .filter((a) => holds(a))
     .reduce((sum, a) => sum + areaHours(ws, a.id, personId), inTeams);
   const base = loadBase(ws, personId);
   return hours > 0 ? Math.min(hours, base) : base;

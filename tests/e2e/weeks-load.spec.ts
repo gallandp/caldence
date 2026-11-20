@@ -258,10 +258,10 @@ test('the load tables equal loadSummary of Team Alpha in the example (constants 
     );
   }
   const total = ROLE_HOURS.reduce((sum, r) => sum + r.hours, 0);
-  await expect(tiles.locator('[data-total] .value')).toHaveText(`${fmt('en', total)} h / week`);
-  await expect(tiles.locator('[data-total] .sub')).toHaveText(
-    `typical week · ${fmt('en', total / 40, 2)} FTE`,
+  await expect(tiles.locator('[data-total] .value')).toHaveText(
+    `${fmt('en', total)} h / typical week`,
   );
+  await expect(tiles.locator('[data-total] .sub')).toHaveText(`${fmt('en', total / 40, 2)} FTE`);
   await expect(tiles.locator('[data-unfilled]')).toHaveCount(0);
   // Switching the language reformats the numbers.
   await setLanguage(page, 'de');
@@ -424,7 +424,8 @@ test('a person in two teams has the same share, room and tag in every scope (#27
   await expect(alexWarning).toHaveText(warningText!);
   const tiles = panel.getByRole('list', { name: 'Summary' });
   await expect(tiles).not.toContainText('FTE');
-  await expect(tiles.locator('[data-total] .sub')).toHaveText('typical week');
+  await expect(tiles.locator('[data-total] .value')).toContainText('h / typical week');
+  await expect(tiles.locator('[data-total] .sub')).toHaveText('');
 });
 
 test('the chart summarises the hours per week and marks weeks with a warning', async ({ page }) => {

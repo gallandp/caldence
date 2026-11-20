@@ -572,6 +572,26 @@ describe('roleBase (#449)', () => {
     ];
     expect(roleBase(ws, 'p1', 'dev')).toBe(12);
   });
+  it('counts a team role an area links to the role (#338)', () => {
+    const ws = robin();
+    // The area's "art" role stands for "dev" in t2: Robin's 8 h there count for it.
+    ws.areas = [
+      {
+        id: 'a1',
+        name: 'Area',
+        teamIds: ['t1', 't2'],
+        members: [],
+        memberHours: {},
+        cycles: [],
+        events: [],
+        roleLinks: [{ teamId: 't2', roleId: 'art', teamRoleId: 'dev' }],
+      },
+    ];
+    expect(roleBase(ws, 'p1', 'art')).toBe(8);
+    // A link in another team does not count Robin's hours there.
+    ws.areas[0]!.roleLinks = [{ teamId: 't1', roleId: 'art', teamRoleId: 'dev' }];
+    expect(roleBase(ws, 'p1', 'art')).toBe(loadBase(ws, 'p1'));
+  });
   it('is at most the load base, and the load base without hours in the role', () => {
     const ws = robin();
     ws.teams[0]!.memberHours = { p1: 40 };

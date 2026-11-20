@@ -113,7 +113,10 @@
         cap,
         fte: share,
         here: { hours: hereHours, cap: hereCap, share: fte(hereHours, hereCap) },
-        /** Hours per week that still fit into meetings before the limit; negative when over (#448). */
+        /**
+         * Hours per week that still fit into meetings before the limit; negative when over (#448).
+         * Just over the limit (strict >) can round to 0.0 h, so the badge can show with Room 0.0 h.
+         */
         free: roomBeforeLimit({ hours: average, base: cap }, maxFte),
         units: unitsOf(person.id),
         peak,
@@ -682,11 +685,11 @@
   <ul class="tiles" aria-label={$t('load.summary')}>
     <li class="tile" data-total>
       <span class="label">{$t('load.kpi.total')}</span>
-      <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit')}</small></span>
+      <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit.typical')}</small></span>
       <span class="sub"
         >{$filter.personId
-          ? $t('load.kpi.week.person')
-          : $t('load.kpi.week', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
+          ? ''
+          : $t('load.kpi.fte', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
         {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
             >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
               n: formatNumber($locale, summary.unfilled, 0),
