@@ -32,12 +32,16 @@ function isExported(v: unknown): v is ExportedEvent {
     text(e.uid) &&
     /^[^\r\n]+@caldence$/.test(e.uid as string) &&
     text(e.date) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(e.date as string) &&
     text(e.start) &&
     /^DTSTART[;:][^\r\n]*$/.test(e.start as string) &&
     text(e.end) &&
     /^DTEND[;:][^\r\n]*$/.test(e.end as string) &&
     text(e.summary) &&
-    (e.key === undefined || text(e.key))
+    (e.key === undefined || text(e.key)) &&
+    (e.sequence === undefined ||
+      (Number.isSafeInteger(e.sequence) && (e.sequence as number) >= 0)) &&
+    (e.hash === undefined || text(e.hash))
   );
 }
 
