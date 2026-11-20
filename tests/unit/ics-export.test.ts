@@ -885,7 +885,12 @@ describe('exportIcs: a later export keeps the past and unchanged entries (#441)'
   it('bumps a legacy entry without SEQUENCE or fingerprint once, then keeps it', () => {
     const ws = example();
     const first = build(ws, opts());
-    const legacy = first.events.map(({ sequence: _s, hash: _h, ...e }) => e);
+    const legacy = first.events.map((e) => {
+      const old = { ...e };
+      delete old.sequence;
+      delete old.hash;
+      return old;
+    });
     const second = build(ws, opts({ now: later, previous: legacy }));
     const third = build(ws, opts({ now: new Date(Date.UTC(2027, 3, 1)), previous: second.events }));
     const seqs = (t: string) => [...byUid(t).values()].map((b) => prop(b, 'SEQUENCE'));
