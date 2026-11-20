@@ -15,6 +15,7 @@
     compareCadences,
     compareOrgCadences,
     teamLoad,
+    zeroHourMembers,
     type LoadCell,
     type Segment,
     type StepReason,
@@ -234,6 +235,14 @@
       : '';
   };
   const personName = (id: string) => ws.people.find((p) => p.id === id)?.name ?? id;
+  /** Members at 0 h raise a team's share: their meetings count, their hours do not (#446). */
+  const zeroNote = (teamId: string) => {
+    const team = ws.teams.find((x) => x.id === teamId);
+    const ids = team ? zeroHourMembers(ws, team) : [];
+    return ids.length > 0
+      ? $t('overview.cost.zeroHours', { names: ids.map(personName).join(', ') })
+      : '';
+  };
   const percent = (n: number) => formatPercent($locale, n);
   const hours = (n: number) => formatNumber($locale, n, 1);
   const weekLabel = (monday: ISODate) =>
@@ -581,6 +590,7 @@
         </thead>
         <tbody>
           {#each costs.teams as r (r.unitId)}
+            {@const zero = zeroNote(r.unitId)}
             <tr data-cost-row={r.unitId}>
               <th scope="row">
                 {#if onOpenUnit}
@@ -609,6 +619,9 @@
                   <span class="num" class:over={over(r)}>{shareText(r)}</span>
                   <span class="cap muted" aria-hidden="true">{$t('overview.cost.col.share')}</span>
                 </span>
+                {#if zero}
+                  <small data-zero-hours>{zero}</small>
+                {/if}
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
@@ -1258,6 +1271,13 @@
   }
   .share .cap {
     display: none;
+  }
+  [data-zero-hours] {
+    display: block;
+    color: var(--warn);
+    font-size: 0.75rem;
+    font-weight: 400;
+    white-space: normal;
   }
   .share .num.over {
     color: var(--warn);

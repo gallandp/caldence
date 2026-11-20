@@ -252,6 +252,15 @@ export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell
   return unitLoad(ws, team.id, people, weeks, [...roles]);
 }
 
+/**
+ * Members with 0 h in the team (#446): their meetings count in "Meetings in the team", but their
+ * hours do not, so the share reads higher than for a team without such members.
+ */
+export function zeroHourMembers(ws: Workspace, team: Team): string[] {
+  const people = [...new Set(team.members.map((m) => m.personId))];
+  return people.filter((p) => capacity(ws, p, team.id) === 0);
+}
+
 /** People of the area in none of its teams, such as the head of area (the "only in" group). */
 export function areaOnlyPeople(ws: Workspace, area: Area): string[] {
   return areaStructure(ws, area)
