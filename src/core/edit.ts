@@ -458,7 +458,10 @@ export function setCadenceLength(ws: Workspace, unitId: string, weeks: number): 
 export function setCadenceStart(ws: Workspace, unitId: string, start: ISODate): Result<Workspace> {
   const out = structuredClone(ws);
   const unit = out.teams.find((t) => t.id === unitId) ?? out.areas.find((a) => a.id === unitId);
-  if (!unit?.cadence) return fail(`teams.${unitId}`, 'error.ref.unknown');
+  if (!unit?.cadence) {
+    const kind = out.areas.some((a) => a.id === unitId) ? 'areas' : 'teams';
+    return fail(`${kind}.${unitId}`, 'error.ref.unknown');
+  }
   unit.cadence.start = start;
   return validate(out);
 }

@@ -735,8 +735,11 @@
 
           {#if area.cadence}
             <div class="name">
-              <span class="area-name"
-                ><AreaIcon /> {area.name}{@render whatIfButton(area.id, area.name)}</span
+              <span class="who area-name"
+                ><AreaIcon /><span class="n">{area.name}</span>{@render whatIfButton(
+                  area.id,
+                  area.name,
+                )}</span
               >
               <small>{cadenceText(area.cadence)}</small>
             </div>
@@ -757,8 +760,8 @@
 
           {#each comparison.rows as row (row.teamId)}
             <div class="name" data-team-row={row.teamId}>
-              <span
-                >{teamName(row.teamId)}{@render whatIfButton(
+              <span class="who"
+                ><span class="n">{teamName(row.teamId)}</span>{@render whatIfButton(
                   row.teamId,
                   teamName(row.teamId),
                 )}</span
@@ -1333,11 +1336,11 @@
   :global(#app) .name .whatif {
     display: inline-grid;
     place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    margin: -0.25rem 0 -0.25rem 0.15rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    margin: -0.25rem 0;
     padding: 0;
-    vertical-align: middle;
     color: var(--text-muted);
     background: transparent;
     border-color: transparent;
@@ -1356,9 +1359,32 @@
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+  /* Name and pencil stay on one line; a long name wraps beside the pencil (#444). */
+  .who {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+  .who .n {
+    min-width: 0;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  /* On touch screens the pencil keeps its size; an invisible ::after takes the taps around it. */
+  @media (pointer: coarse) {
+    :global(#app) .name .whatif {
+      position: relative;
+      min-width: 0 !important;
+      min-height: 0 !important;
+    }
+    :global(#app) .name .whatif::after {
+      content: '';
+      position: absolute;
+      inset: calc((100% - 44px) / 2);
+    }
+  }
   .area-name {
     display: inline-flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 0.3rem;
     color: var(--area);

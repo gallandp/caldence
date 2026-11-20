@@ -83,7 +83,7 @@
           ? { error: error.key, params: error.params }
           : { error: 'whatif.error.length' };
       }
-      // A new start moves no meeting: they keep their day of the cadence (#444).
+      // A new start moves no meeting: it keeps each meeting's cadence day (#444).
       const moved =
         start === unit.cadence.start ? next : setCadenceStart(next.value, unit.id, start);
       if (!moved.ok) return { error: 'whatif.error.start' };

@@ -325,6 +325,10 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await open.click();
   const sheet = page.getByRole('dialog', { name: 'Cadence · Team Delta' });
   await expect(sheet.getByLabel('Start date')).toHaveValue('2027-01-06');
+  // Without a start date there is nothing to apply.
+  await sheet.getByLabel('Start date').fill('');
+  await expect(sheet.getByText('Enter a valid start date.')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Apply' })).toBeDisabled();
   await sheet.getByLabel('Start date').fill('2027-01-04');
   await expect(sheet).toContainText('2 → 3 of 3');
   await sheet.getByRole('button', { name: 'Apply' }).click();
