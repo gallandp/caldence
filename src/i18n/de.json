@@ -446,7 +446,7 @@
   "meet.effect.invalid": "Die Wirkung erscheint, sobald alle Angaben gültig sind.",
   "meet.overlaps": "Überschneidet sich in {period} mit: {list}",
   "meet.overlaps.meeting": "{name} ({when})",
-  "meet.overlaps.meetingOf": "{name}, {unit} ({when})",
+  "meet.overlaps.meetingOf": "{name} ({unit}, {when})",
   "meet.name": "Name",
   "meet.category": "Kategorie",
   "meet.time": "Uhrzeit (HH:MM)",

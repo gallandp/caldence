@@ -589,6 +589,9 @@ export function weekdayRuns(days: readonly number[]): [number, number][] {
   return out;
 }
 
+/** Overlap pairs listed at first in Meeting load, and named at most in the meeting form (#445, #477). */
+export const OVERLAP_ROWS = 50;
+
 /** Weeks in the window of the area Overview and of the overlaps in Meeting load. */
 export const WINDOW_WEEKS = 12;
 

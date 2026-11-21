@@ -1,6 +1,7 @@
 import { mondayOf } from '../../core/date';
 import type { CalEvent, Rule, Team } from '../../core/model';
-import { weekdayRuns as dayRuns, type OverlapPair } from '../../core/views';
+// Core's runs keep every neighbour together; the local `weekdayRuns` below splits short runs.
+import { weekdayRuns as overlapDayRuns, type OverlapPair } from '../../core/views';
 import { formatDisplayDate, formatNumber, type Locale } from '../../i18n';
 
 export const RULE_TYPES = [
@@ -198,7 +199,7 @@ export function overlapWhen(
   p: OverlapPair,
 ): string {
   const wd = (d: number) => weekdayShort(loc, d);
-  const weekdays = dayRuns(p.weekdays)
+  const weekdays = overlapDayRuns(p.weekdays)
     .map(([a, b]) => (a === b ? wd(a) : `${wd(a)}${b - a > 1 ? '–' : ', '}${wd(b)}`))
     .join(', ');
   return t('overlaps.when', { weekdays, from: p.start, to: p.end });

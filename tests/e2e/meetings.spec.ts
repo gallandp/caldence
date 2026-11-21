@@ -786,4 +786,23 @@ test('the form lists the meetings the draft overlaps, live while editing (#477)'
   await expect(note).toBeVisible();
   await form.getByLabel('Duration (minutes)').fill('15');
   await expect(note).toHaveCount(0);
+  // A half-typed time shows no false all-clear: the box asks for valid entries.
+  await form.getByLabel('Duration (minutes)').fill('60');
+  await form.getByLabel('Time (HH:MM)').fill('09:');
+  await expect(form.locator('.effect')).toContainText(
+    'The effect shows once all entries are valid.',
+  );
+  await expect(note).toHaveCount(0);
+});
+
+test('the form names the team of an overlapping meeting elsewhere (#477)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2027-03-17T12:00:00'));
+  await openMeetings(page);
+  // Alex is Product Owner of Team Alpha and Team Beta; Beta's Flow Review is Fri 13:30–14:00.
+  const form = await startNew(page, 'PO office hour');
+  await form.getByLabel('Weekday').selectOption({ label: 'Friday' });
+  await form.getByLabel('Time (HH:MM)').fill('13:00');
+  await expect(form.locator('[data-effect-note]')).toHaveText(
+    'Overlaps in the next 12 weeks with: Flow Review (Team Beta, Fri 13:30–14:00)',
+  );
 });

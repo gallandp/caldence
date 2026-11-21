@@ -13,7 +13,7 @@
   } from '../../core/model';
   import { areaHours } from '../../core/load';
   import { addDays } from '../../core/date';
-  import { meetingOverlaps, overviewWindow } from '../../core/views';
+  import { meetingOverlaps, OVERLAP_ROWS, overviewWindow } from '../../core/views';
   import { areaText, levels, locale, nextWeeks, translate } from '../../i18n';
   import { upsertEvent } from '../../core/edit';
   import { validate } from '../../core/validate';
@@ -348,8 +348,8 @@
   /**
    * The meetings the draft overlaps for the people it invites, as Meeting load counts them (#477):
    * same pairs, same window, at most OVERLAP_ROWS named. Time and weekday count here; the name not.
+   * Undefined while an entry is invalid: the box then says so instead of implying no overlap.
    */
-  const OVERLAP_ROWS = 50;
   const overlapKey = $derived(
     Object.keys(dupErrors()).length > 0
       ? ''
@@ -357,10 +357,10 @@
   );
   const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
   const overlapPairs = $derived.by(() => {
-    if (!overlapKey) return [];
+    if (!overlapKey) return undefined;
     const [next, eventId] = upsertEvent($workspace, team.id, JSON.parse(overlapKey));
     const checked = validate(next);
-    if (!checked.ok) return [];
+    if (!checked.ok) return undefined;
     const { from, weeks } = overlapWindow;
     return meetingOverlaps(checked.value, $index, team.id, eventId, {
       from,
@@ -368,8 +368,9 @@
     });
   });
   const overlapNote = $derived.by(() => {
-    if (overlapPairs.length === 0) return undefined;
+    if (!overlapPairs?.length) return undefined;
     const names = overlapPairs.slice(0, OVERLAP_ROWS).map((p) => {
+      // A meeting of another team or area names it: "Replenishment (Team Beta, Thu 11:00–12:00)".
       const other =
         p.b.teamId === team.id ? undefined : unitName($workspace, p.b.teamId, $levels.org);
       const name =
@@ -896,7 +897,7 @@
           cadence={team.cadence}
           compact
           live={false}
-          error={after ? undefined : tt('meet.effect.invalid')}
+          error={after && overlapPairs ? undefined : tt('meet.effect.invalid')}
           note={overlapNote}
           warn
         />

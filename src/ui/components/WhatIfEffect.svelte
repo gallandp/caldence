@@ -172,7 +172,9 @@
         </div>
       {/if}
     </dl>
-    {#if note}<p class="note" class:warn data-effect-note>{note}</p>{/if}
+    {#if note}<p class="note" class:warn role={warn ? 'status' : undefined} data-effect-note>
+        {note}
+      </p>{/if}
   {/if}
 </div>
 

@@ -446,7 +446,7 @@
   "meet.effect.invalid": "The effect shows once all entries are valid.",
   "meet.overlaps": "Overlaps in {period} with: {list}",
   "meet.overlaps.meeting": "{name} ({when})",
-  "meet.overlaps.meetingOf": "{name}, {unit} ({when})",
+  "meet.overlaps.meetingOf": "{name} ({unit}, {when})",
   "meet.name": "Name",
   "meet.category": "Category",
   "meet.time": "Time (HH:MM)",
