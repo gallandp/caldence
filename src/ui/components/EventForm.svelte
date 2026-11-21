@@ -323,7 +323,10 @@
   // The Wirkung box of present mode, live for the draft; nothing is committed here.
   const scope = $derived(effectScope($workspace, team.id));
   const rate = $derived($workspace.settings.hourlyRate);
-  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate) : undefined);
+  // While presenting, the area's peer reference stays the one from before the what-ifs (#470).
+  const presentBase = workspace.presentBase;
+  const saved = $derived($presentBase ?? $workspace);
+  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate, saved) : undefined);
   // Only the fields that change the numbers: typing a name, time or category recomputes nothing.
   const effectKey = $derived(
     Object.keys(dupErrors()).length > 0
@@ -335,7 +338,9 @@
     const checked = validate(upsertEvent($workspace, team.id, JSON.parse(effectKey))[0]);
     return checked.ok ? checked.value : undefined;
   });
-  const after = $derived(scope && drafted ? whatIfEffect(drafted, $index, scope, rate) : undefined);
+  const after = $derived(
+    scope && drafted ? whatIfEffect(drafted, $index, scope, rate, saved) : undefined,
+  );
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */
   const own = $derived.by(() => {
     if (!drafted || scope === team.id) return undefined;
