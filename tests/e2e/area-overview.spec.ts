@@ -756,3 +756,48 @@ test('the load tile names who is over the limit instead of the average (#448)', 
   await expect(tag).toHaveText('below the 60% limit');
   await expect(tag).toHaveClass(/ok/);
 });
+
+test('a name over the limit opens Meeting load at that person, also with hidden names (#462)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page);
+  const tag = overview.locator('[data-kpi="load"] .tag');
+  await expect(tag).toHaveText('1 person over the 60% limit: Pia');
+  await tag.getByRole('button', { name: 'Show Pia in Meeting load' }).click();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Payments');
+  const who = page.locator('#panel-load tr[data-person="person-pia"] button.who');
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toBeFocused();
+  await expect(who).toBeInViewport();
+
+  // Presenting with hidden names: the link keeps the hidden name and still opens the row.
+  await page.getByRole('button', { name: 'Payments overview' }).click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  const hidden = overview.locator('[data-kpi="load"] .tag button');
+  await expect(hidden).toHaveText(/^Person \d+$/);
+  await expect(hidden).toHaveAccessibleName(/^Show Person \d+ in Meeting load$/);
+  await hidden.click();
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toHaveText(/^Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: each of the first three names is a button, the third opens its own row.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  const names = overview.locator('[data-kpi="load"] .tag button');
+  await expect(names).toHaveCount(3);
+  const third = (await names.nth(2).textContent())!;
+  await names.nth(2).click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${third}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
+});
