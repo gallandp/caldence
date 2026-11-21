@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 1.51.0 – 2026-11-21
+
+### Added
+
+- The meeting form names the meetings a draft overlaps for the people it invites, with weekday and time, as Meeting load counts them (#477) (#482)
+- A role or person invited only part of the time is named in the .ics notes ("Developers: every other time (50%)") and in the Calendar's day details (#471) (#488)
+- On the area Overview, a name over the limit in the Meeting load figure opens Meeting load with that person's row open (#462) (#490)
+- Presenting, the cadence what-if of a team offers "Align with …": one tap fills in a length and start date that fit the area's cadence or the one most teams share (#463) (#491)
+- The area Overview and the Organisation page say why a team is not aligned in the cadence column of the cost table, also on phones; the names after "Differ:" lead to that row (#478) (#495)
+- Meetings & cadence shows a meeting's place or link in the row and phone card; a web link opens in a new tab (#466) (#499)
+- An .ics import fills a meeting's place from its location (#466) (#499)
+
+### Changed
+
+- Adding a fully booked person on the Team page proposes an even split and, unless unticked, lowers their hours in their other teams in proportion, with a preview, as the setup wizard does (#465) (#485)
+- German texts on the Organisation page say "Takt" instead of "Kadenz" (#470) (#486)
+- An area's cost card in Meetings & cadence says it counts only the area's own meetings and names the area total with all teams, the same figure as the area Overview, with a link there; the organisation's card does the same (#472) (#487)
+- Calendar cards and a person's meetings in Meeting load say "incl. X % preparation" when the hours include preparation; the Meeting load note says hours include preparation and travel to on-site meetings (#474) (#497)
+- Organisation page: the cost per team is grouped under each area, together with the area's own meetings; teams without an area and the organisation's own meetings come last (#467) (#500)
+
+### Fixed
+
+- The average per team in the area Overview heat map counts only full weeks inside the planning horizon from the team's cadence start, so it matches the table above; the footnote says so (#476) (#479)
+- Meeting load: the Role filter also narrows the people table to the people with that role, and the table title names the role and how many they are (#473) (#481)
+- A what-if on an area's reference team now shows that team as differing instead of the others; the area Overview says when no two teams share a cadence (#470) (#486)
+- Meeting load: the Total and Category columns of "Base load per week" stay in view however many roles there are, and with more than three roles the table takes the full width (#469) (#492)
+- Area Overview: all columns of the cost table fit at 1280 px; the "+ … in meetings in the area" line is left out at €0 and wraps (#469) (#492)
+- Meeting load: the Warnings badge counts only people over the limit or with a load spike; overlapping meetings have their own count (#475) (#493)
+
+### Security
+
+- Update development dependencies (#468) (#502)
+
 ## 1.50.0 – 2026-11-20
 
 ### Added
