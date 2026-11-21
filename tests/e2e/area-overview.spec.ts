@@ -340,7 +340,7 @@ test('a team that differs says why in its cadence cell; "Differ:" names lead the
 
   // The names in the key figure are links to the rows.
   const tag = overview.locator('[data-kpi="cadence"] .tag');
-  await tag.getByRole('button', { name: 'Team Delta' }).click();
+  await tag.getByRole('button', { name: 'Team Delta: why, in the table below' }).click();
   await expect(row('team-delta')).toBeInViewport();
   await expect(row('team-delta').locator('th button')).toBeFocused();
 
@@ -383,6 +383,7 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(kpi.locator('b')).toHaveText('3 of 3');
   await expect(kpi.locator('.tag')).toHaveText('All aligned');
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText('aligned');
+  await expect(overview.locator('[data-cost-row="team-delta"] [data-step-reason]')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
 
   // The area row has its what-if too; ending the presentation discards the change.

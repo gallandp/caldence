@@ -131,7 +131,9 @@
   const stepRow = $derived(new Map(comparison.rows.map((r) => [r.teamId, r])));
   /** "Differ: Team Gamma and Team Delta" in parts, each name with the team it links to (#478). */
   const offParts = $derived.by(() => {
-    const [before, after = ''] = $t('overview.kpi.cadence.off', { list: '\u0000' }).split('\u0000');
+    const [before = '', after = ''] = $t('overview.kpi.cadence.off', { list: '\u0000' }).split(
+      '\u0000',
+    );
     const names = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
     let i = 0;
     const parts = names
@@ -143,12 +145,8 @@
   /** A name in "Differ: …" goes to the team's row in the table, where its reason is (#478). */
   function showTeam(teamId: string) {
     const row = root?.querySelector<HTMLElement>(`[data-cost-row="${CSS.escape(teamId)}"]`);
-    const th = row?.querySelector<HTMLElement>('th');
-    if (!row || !th) return;
-    row.scrollIntoView({ block: 'center' });
-    const target = th.querySelector<HTMLElement>('button') ?? th;
-    if (target === th) th.tabIndex = -1;
-    target.focus({ preventScroll: true });
+    row?.scrollIntoView({ block: 'center' });
+    row?.querySelector<HTMLElement>('th button')?.focus({ preventScroll: true });
   }
   const cells = $derived([...load.values(), areaOnly].flat());
   const warnedMondays = $derived(
@@ -475,6 +473,7 @@
           >{#if offRows.length > 0}{#each offParts as p, i (i)}{#if p.teamId}<button
                   type="button"
                   class="link"
+                  aria-label={$t('overview.kpi.cadence.go', { name: p.text })}
                   onclick={() => showTeam(p.teamId)}>{p.text}</button
                 >{:else}{p.text}{/if}{/each}{:else}{$t('overview.kpi.cadence.all')}{/if}</span
         >
@@ -644,7 +643,9 @@
                 {/if}
               </th>
               <td class="extra" class:differs
-                >{cadenceShort(unitOf(r.unitId).cadence)}{#if differs}<small data-step-reason
+                >{cadenceShort(unitOf(r.unitId).cadence)}{#if differs}<span class="sr-only"
+                    >,
+                  </span><small data-step-reason
                     >{$t('overview.cost.differs', {
                       reasons: step.reasons.map(reasonText).join(', '),
                     })}</small
