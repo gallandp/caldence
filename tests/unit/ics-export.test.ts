@@ -944,3 +944,57 @@ describe('exportIcs: a later export keeps the past and unchanged entries (#441)'
     expect(exportStart([{ ...e, series: true }], '2026-01-01')).toBe('2026-01-01');
   });
 });
+
+describe('exportIcs names a share below 1 (#471)', () => {
+  const syncOf = (text: string) =>
+    blocks(text, 'VEVENT').find((b) => prop(b, 'UID')?.startsWith('UID:ev-sync.'))!;
+  const later = new Date(Date.UTC(2026, 10, 8, 9, 30, 0));
+
+  function shared(): Workspace {
+    const ws = example();
+    const sync = ws.teams[0]!.events.find((e) => e.id === 'ev-sync')!;
+    sync.participants = [
+      { roleId: 'role-po', share: 1 },
+      { roleId: 'role-sm', share: 0.5 },
+      { roleId: 'role-dev', share: 0.3 },
+    ];
+    return ws;
+  }
+
+  it('adds a line per role invited only part of the time, in English and German', () => {
+    const en = prop(syncOf(run(shared())), 'DESCRIPTION')!;
+    expect(en).toContain(
+      escapeText(
+        'Product Owner, Scrum Master, Developer\nScrum Master: every other time (50%)\nDeveloper: 30% of the time',
+      ),
+    );
+    const de = prop(syncOf(run(shared(), opts({ locale: 'de' }))), 'DESCRIPTION')!;
+    expect(de).toContain(
+      escapeText('Scrum Master: jedes zweite Mal (50 %)\nDeveloper: 30 % der Zeit'),
+    );
+  });
+
+  it('adds nothing when every role is always invited', () => {
+    expect(prop(syncOf(run(example())), 'DESCRIPTION')).not.toMatch(/of the time|every other/);
+  });
+
+  it('keeps one series, the UID, RRULE and TRANSP; the change is an update', () => {
+    const ws = example();
+    const first = exportIcsWithCounts(ws, workspaceIndex(ws), opts());
+    const changed = shared();
+    const again = exportIcsWithCounts(
+      changed,
+      workspaceIndex(changed),
+      opts({ now: later, previous: first.events }),
+    );
+    expect(again.series).toBe(first.series);
+    expect(again.cancelled).toBe(0);
+    const a = syncOf(first.text);
+    const b = syncOf(again.text);
+    for (const name of ['UID', 'RRULE', 'TRANSP', 'DTSTART'])
+      expect(prop(b, name)).toBe(prop(a, name));
+    expect(Number(prop(b, 'SEQUENCE')!.slice(9))).toBeGreaterThan(
+      Number(prop(a, 'SEQUENCE')!.slice(9)),
+    );
+  });
+});
