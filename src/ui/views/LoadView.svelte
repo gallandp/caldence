@@ -88,11 +88,13 @@
   const showHere = $derived(!!teamId && teamId !== ORG_UNIT);
   /** The team's id, or an area's teams and the area itself (its own meetings count there). */
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
+  /** The role filter narrows the list to the people with that role in scope (#473). */
+  const roleId = $derived($filter.personId ? undefined : $filter.roleId);
   const people = $derived(
     $filter.personId
       ? $workspace.people.filter((p) => p.id === $filter.personId)
-      : teamId
-        ? $workspace.people.filter((p) => scopePeople($workspace, { teamId }).has(p.id))
+      : teamId || roleId
+        ? $workspace.people.filter((p) => scopePeople($workspace, { teamId, roleId }).has(p.id))
         : $workspace.people,
   );
 
@@ -783,7 +785,16 @@
   {#snippet peopleCard()}
     {#if $workspace.people.length > 0}
       <section class="card people">
-        {@render region('person', $t('load.table.person'), personBody)}
+        {@render region(
+          'person',
+          roleId
+            ? $t('load.table.person.role', {
+                role: roleName(roleId),
+                count: formatNumber($locale, people.length, 0),
+              })
+            : $t('load.table.person'),
+          personBody,
+        )}
         <p class="note below">
           {#if !$filter.personId}
             {area
