@@ -128,13 +128,15 @@
           data-whatif-cadence
           data-no-print
           bind:this={whatIfButton}
-          onclick={() => (whatIf = true)}>{$t('whatif.open')}</button
+          onclick={() => (whatIf = true)}
         >
+          {$t('whatif.open')}
+        </button>
       {/if}
     {:else if none}
-      <button type="button" class="secondary" data-no-print onclick={addCadence}
-        >{$t('area.cadence.add')}</button
-      >
+      <button type="button" class="secondary" data-no-print onclick={addCadence}>
+        {$t('area.cadence.add')}
+      </button>
     {:else}<button
         type="button"
         class="secondary"
@@ -142,8 +144,10 @@
         aria-expanded={showFields}
         aria-controls="{uid}-fields"
         aria-label={showFields ? undefined : $t('meet.cadence.editLabel')}
-        onclick={toggle}>{$t(showFields ? 'meet.cadence.done' : 'meet.cadence.edit')}</button
-      >{/if}
+        onclick={toggle}
+      >
+        {$t(showFields ? 'meet.cadence.done' : 'meet.cadence.edit')}
+      </button>{/if}
   </div>
   <div id="{uid}-fields" hidden={!showFields}>
     {#if showFields}
@@ -197,9 +201,9 @@
         </div>
         {#if area}
           <p class="remove">
-            <button type="button" class="secondary" onclick={removeCadence}
-              >{$t('area.cadence.remove')}</button
-            >
+            <button type="button" class="secondary" onclick={removeCadence}>
+              {$t('area.cadence.remove')}
+            </button>
           </p>
           <FieldError {problems} id="cadence-remove" />
         {/if}

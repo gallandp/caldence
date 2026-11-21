@@ -443,18 +443,18 @@
         {#if area && areaTotal && area.teamIds.length > 0}
           <p class="area-total" data-cost-area-total>
             {$t(org ? 'cost.areaTotal.org' : 'cost.areaTotal')}
-            <b
-              >{$t('cost.areaTotal.figures', {
+            <b>
+              {$t('cost.areaTotal.figures', {
                 week: euro(areaTotal.perWeek),
                 horizon: euro(areaTotal.horizon),
-              })}</b
-            >
+              })}
+            </b>
             {#if onOpenOverview}
-              <button type="button" class="link" data-no-print onclick={onOpenOverview}
-                >{$t(org ? 'cost.areaTotal.open.org' : 'cost.areaTotal.open', {
+              <button type="button" class="link" data-no-print onclick={onOpenOverview}>
+                {$t(org ? 'cost.areaTotal.open.org' : 'cost.areaTotal.open', {
                   name: area.name,
-                })}</button
-              >
+                })}
+              </button>
             {/if}
           </p>
         {/if}
@@ -478,9 +478,9 @@
         </button>
         {#if team.events.length > 0}
           <label class="search">
-            <svg viewBox="0 0 24 24" aria-hidden="true"
-              ><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" /></svg
-            >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" />
+            </svg>
             <span class="sr-only">{$t('meet.filter')}</span>
             <input type="search" bind:value={query} placeholder={$t('meet.filter')} />
           </label>
@@ -506,9 +506,9 @@
             aria-pressed={grouped}
             onclick={() => (grouped = !grouped)}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"
-              ><path d="M4 6h16M4 12h10M4 18h10M17 15l3 3-3 3" /></svg
-            >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M4 12h10M4 18h10M17 15l3 3-3 3" />
+            </svg>
             <span class="label">{$t('meet.group')}</span>
           </button>
         {/if}
@@ -518,10 +518,11 @@
           data-tip={$t('meet.undo')}
           disabled={!$canUndo}
           onclick={() => workspace.undo()}
-          ><svg viewBox="0 0 24 24" aria-hidden="true" class="m-only"
-            ><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></svg
-          ><span class="label">{$t('meet.undo')}</span></button
         >
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="m-only">
+            <path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />
+          </svg><span class="label">{$t('meet.undo')}</span>
+        </button>
         {#if onExport && team.events.length > 0}
           <button
             type="button"
@@ -533,11 +534,11 @@
               onExport();
             }}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"
-              ><path
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
                 d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4M12 13v5M9.5 15.5L12 18l2.5-2.5"
-              /></svg
-            >
+              />
+            </svg>
             {$t('meet.toCalendar')}
           </button>
         {/if}
@@ -588,8 +589,10 @@
             type="button"
             class="primary"
             disabled={categories.length === 0}
-            onclick={() => open(blankEvent(), 'add')}>{$t('area.empty.meetings.add')}</button
+            onclick={() => open(blankEvent(), 'add')}
           >
+            {$t('area.empty.meetings.add')}
+          </button>
         </section>
       {:else if team.events.length === 0}
         <p class="empty">{$t('meet.empty')}</p>
@@ -597,9 +600,9 @@
         <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
         <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
           <table class:grouped>
-            <caption id="{uid}-caption" class="sr-only"
-              >{$t('meet.table.caption', { team: team.name })}</caption
-            >
+            <caption id="{uid}-caption" class="sr-only">
+              {$t('meet.table.caption', { team: team.name })}
+            </caption>
             <thead>
               <tr>
                 {#snippet sortable(key: SortKey, label: string, num = false)}
@@ -611,13 +614,13 @@
                       onclick={() => sortBy(key)}
                     >
                       {label}
-                      <svg viewBox="0 0 24 24" aria-hidden="true"
-                        >{#if sortKey !== key}<path
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {#if sortKey !== key}<path
                             d="M8 10l4-4 4 4M8 14l4 4 4-4"
                           />{:else if sortDir === 1}<path d="M8 14l4-4 4 4" />{:else}<path
                             d="M8 10l4 4 4-4"
-                          />{/if}</svg
-                      >
+                          />{/if}
+                      </svg>
                     </button>
                   </th>
                 {/snippet}
@@ -644,14 +647,14 @@
                           aria-hidden="true"
                         ></span>
                         {group.category?.name ?? '—'}
-                        <span class="count"
-                          >{$t(
+                        <span class="count">
+                          {$t(
                             group.events.length === 1
                               ? 'meet.group.count.one'
                               : 'meet.group.count.other',
                             { n: formatNumber($locale, group.events.length, 0) },
-                          )}</span
-                        >
+                          )}
+                        </span>
                       </span>
                     </th>
                     {#if rate}
@@ -688,49 +691,50 @@
                       <!-- The short text is for the eye; screen readers get the full rule. -->
                       <span class="when" aria-hidden="true">{shorts.get(event.id)}</span>
                       <span class="sr-only">{summaries.get(event.id)}</span>
-                      <span class="sub"
-                        >{event.time} · {$t(
+                      <span class="sub">
+                        {event.time} · {$t(
                           event.scaling ? 'meet.duration.scaled' : 'meet.duration.fixed',
                           { n: minutes },
-                        )}</span
-                      >
+                        )}
+                      </span>
                       {#if event.onSite || event.place}
                         {@const link = event.place ? placeLink(event.place) : undefined}
                         <!-- Format, then the place or link (#466); a web link opens in a new tab. -->
-                        <span class="sub place" data-place={event.id}
-                          >{#if event.onSite}<svg viewBox="0 0 24 24" aria-hidden="true"
-                              ><path
+                        <span class="sub place" data-place={event.id}>
+                          {#if event.onSite}<svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
                                 d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
-                              /><circle cx="12" cy="9.5" r="2.5" /></svg
-                            >{:else if link}<svg viewBox="0 0 24 24" aria-hidden="true"
-                              ><path
+                              /><circle cx="12" cy="9.5" r="2.5" />
+                            </svg>{:else if link}<svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path
                                 d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"
-                              /></svg
-                            >{/if}{#if event.onSite}<span
-                              >{event.onSite.travel > 0
+                              />
+                            </svg>{/if}{#if event.onSite}<span>
+                              {event.onSite.travel > 0
                                 ? $t('meet.place.travel', { n: event.onSite.travel })
-                                : $t('meet.place.onSite')}</span
-                            >{/if}{#if event.onSite && event.place}{PLACE_SEP}{/if}{#if link}<a
+                                : $t('meet.place.onSite')}
+                            </span>{/if}{#if event.onSite && event.place}{PLACE_SEP}{/if}{#if link}<a
                               href={link}
                               target="_blank"
                               rel="noopener noreferrer"
                               title={link}
                               aria-label={$t('meet.place.link', { place: event.place! })}
-                              >{event.place!.trim().replace(/^https?:\/\//i, '')}</a
-                            >{:else if event.place}<span>{event.place}</span>{/if}</span
-                        >
+                            >
+                              {event.place!.trim().replace(/^https?:\/\//i, '')}
+                            </a>{:else if event.place}<span>{event.place}</span>{/if}
+                        </span>
                       {/if}
                     </td>
                     <td class="next c-next">
                       <span class="m-label">{$t('meet.col.next')}</span>
                       {#if when}
-                        <time datetime={when} title={formatDisplayDate($locale, when, 'long')}
-                          >{nextLabel(when)}</time
-                        >
+                        <time datetime={when} title={formatDisplayDate($locale, when, 'long')}>
+                          {nextLabel(when)}
+                        </time>
                       {:else}
-                        <span class="none" title={$t('meet.next.none.hint')}
-                          >{$t('meet.next.none')}</span
-                        >
+                        <span class="none" title={$t('meet.next.none.hint')}>
+                          {$t('meet.next.none')}
+                        </span>
                       {/if}
                     </td>
                     {#if rate}
@@ -741,41 +745,41 @@
                       <td class="num cost c-cost" data-cost={event.id}>
                         {#if perWeek > 0}
                           {@const perCadence = costPerCadence(perWeek * cost, team.cadence)}
-                          <span data-cost-avg
-                            >{$t('meet.cost.week', { amount: euro(perWeek * cost) })}</span
-                          >
-                          <span class="sub" data-cost-each
-                            >{$t('meet.cost.each', { amount: euro(cost) })}</span
-                          >
+                          <span data-cost-avg>
+                            {$t('meet.cost.week', { amount: euro(perWeek * cost) })}
+                          </span>
+                          <span class="sub" data-cost-each>
+                            {$t('meet.cost.each', { amount: euro(cost) })}
+                          </span>
                           {#if perCadence !== undefined}
-                            <span class="sub" data-cost-cadence
-                              >{$t('meet.cost.cadence', { amount: euro(perCadence), kind })}</span
-                            >
+                            <span class="sub" data-cost-cadence>
+                              {$t('meet.cost.cadence', { amount: euro(perCadence), kind })}
+                            </span>
                           {/if}
                         {:else}
-                          <span data-cost-each
-                            >{$t(
+                          <span data-cost-each>
+                            {$t(
                               event.rule.type === 'cycle-milestone'
                                 ? 'meet.cost.milestone'
                                 : event.rule.type === 'once'
                                   ? 'meet.cost.once'
                                   : 'meet.cost.each',
                               { amount: euro(cost) },
-                            )}</span
-                          >
+                            )}
+                          </span>
                         {/if}
                         {#if event.onSite?.travel}
-                          <span class="sub" data-cost-travel
-                            >{$t('meet.cost.travel', { n: event.onSite.travel })}</span
-                          >
+                          <span class="sub" data-cost-travel>
+                            {$t('meet.cost.travel', { n: event.onSite.travel })}
+                          </span>
                         {/if}
                         {#if event.preparation > 0}
-                          <span class="sub" data-cost-prep
-                            >{$t('meet.cost.prep', {
+                          <span class="sub" data-cost-prep>
+                            {$t('meet.cost.prep', {
                               // Up to two decimals, as the form takes them (12.5 %).
                               percent: formatPercent($locale, event.preparation, 2),
-                            })}</span
-                          >
+                            })}
+                          </span>
                         {/if}
                       </td>
                     {/if}
@@ -809,13 +813,15 @@
                                 class:person
                                 style:background={person ? null : colour}
                                 style:color={person ? null : inkOn(colour)}
-                                aria-hidden="true">{initials(name)}</span
+                                aria-hidden="true"
                               >
-                              {#if p.share < 1}<span class="share" aria-hidden="true"
-                                  >{$t('meet.role.shareOnly', {
+                                {initials(name)}
+                              </span>
+                              {#if p.share < 1}<span class="share" aria-hidden="true">
+                                  {$t('meet.role.shareOnly', {
                                     share: formatNumber($locale, p.share * 100, 0),
-                                  })}</span
-                                >{/if}
+                                  })}
+                                </span>{/if}
                               <span class="sr-only">{label}</span>
                             </li>
                           {/each}
@@ -836,9 +842,9 @@
                           })}
                           onclick={() => open(event, event.id)}
                         >
-                          <svg viewBox="0 0 24 24" aria-hidden="true"
-                            ><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
-                          >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" />
+                          </svg>
                         </button>
                         <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
                         <div
@@ -857,13 +863,13 @@
                             aria-label={$t('meet.more.named', { name: event.name })}
                             onclick={() => toggleMenu(event.id)}
                           >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" class="dots"
-                              ><circle cx="5" cy="12" r="1.6" /><circle
+                            <svg viewBox="0 0 24 24" aria-hidden="true" class="dots">
+                              <circle cx="5" cy="12" r="1.6" /><circle
                                 cx="12"
                                 cy="12"
                                 r="1.6"
-                              /><circle cx="19" cy="12" r="1.6" /></svg
-                            >
+                              /><circle cx="19" cy="12" r="1.6" />
+                            </svg>
                           </button>
                           <div
                             class="menu"
@@ -881,9 +887,9 @@
                                 void focusSoon(moreSelector(event.id));
                               }}
                             >
-                              <svg viewBox="0 0 24 24" aria-hidden="true"
-                                ><path d="M8 8h11v11H8zM5 16V5h11" /></svg
-                              >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M8 8h11v11H8zM5 16V5h11" />
+                              </svg>
                               {$t('meet.duplicate')}
                             </button>
                             <button
@@ -896,11 +902,9 @@
                                 remove(event);
                               }}
                             >
-                              <svg viewBox="0 0 24 24" aria-hidden="true"
-                                ><path
-                                  d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6"
-                                /></svg
-                              >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6" />
+                              </svg>
                               {$t('meet.delete')}
                             </button>
                           </div>

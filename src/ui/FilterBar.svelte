@@ -64,9 +64,9 @@
     </div>
   {:else if org}
     <div class="field">
-      <label for="{uid}-team"
-        >{$t($workspace.areas.length > 0 ? 'filter.unit' : 'filter.team')}</label
-      >
+      <label for="{uid}-team">
+        {$t($workspace.areas.length > 0 ? 'filter.unit' : 'filter.team')}
+      </label>
       <select id="{uid}-team" bind:value={teamId} disabled={personId !== ''}>
         <option value="">{$t('filter.all')}</option>
         {#if $workspace.areas.length > 0}

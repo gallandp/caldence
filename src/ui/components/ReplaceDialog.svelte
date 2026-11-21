@@ -51,9 +51,9 @@
   {/if}
   <div class="actions">
     {#if options.length > 0}
-      <button type="button" class="primary" onclick={() => onreplace(chosen)}
-        >{$t('replace.confirm')}</button
-      >
+      <button type="button" class="primary" onclick={() => onreplace(chosen)}>
+        {$t('replace.confirm')}
+      </button>
     {/if}
     <button type="button" onclick={oncancel}>{$t('dialog.cancel')}</button>
   </div>

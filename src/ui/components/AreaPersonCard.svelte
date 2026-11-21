@@ -248,11 +248,13 @@
         <h2 id="{uid}-name" tabindex="-1">{name}</h2>
         <small>{mainRole}</small>
       </div>
-      <button type="button" class="icon-button x" onclick={close}
-        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg><span
-          class="sr-only">{tt('area.card.close')}</span
-        ></button
-      >
+      <button type="button" class="icon-button x" onclick={close}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg><span
+          class="sr-only"
+        >
+          {tt('area.card.close')}
+        </span>
+      </button>
     </header>
 
     <h3 class="section">{tt('area.card.hours')}</h3>
@@ -274,11 +276,9 @@
             aria-describedby={creating ? undefined : describe('area-role')}
             onchange={onRole}
           >
-            <option value=""
-              >{invite
-                ? tt('area.card.noRoleImplicit', { invite })
-                : tt('area.card.noRole')}</option
-            >
+            <option value="">
+              {invite ? tt('area.card.noRoleImplicit', { invite }) : tt('area.card.noRole')}
+            </option>
             {#each roles as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
             <option value={NEW}>{tt('area.role.new')}</option>
           </select>
@@ -336,9 +336,10 @@
     {/each}
     {#if p.otherHours > 0}
       <div class="row other">
-        <span>{tt('area.structure.otherTeams')}</span><span
-          >{num(p.otherHours)} {tt('area.card.unit')}</span
-        >
+        <span>{tt('area.structure.otherTeams')}</span><span>
+          {num(p.otherHours)}
+          {tt('area.card.unit')}
+        </span>
       </div>
     {/if}
     <div class="row sum">
@@ -361,13 +362,13 @@
 
     <div class="foot" data-no-present>
       {#if p.areaRoleIds.length > 0 || p.areaHours > 0}
-        <button type="button" class="remove" onclick={remove}
-          >{tt('area.card.remove', { name: unitText })}</button
-        >
+        <button type="button" class="remove" onclick={remove}>
+          {tt('area.card.remove', { name: unitText })}
+        </button>
       {:else if invite}
-        <button type="button" class="remove" disabled aria-describedby="{uid}-implicit"
-          >{tt('area.card.remove', { name: unitText })}</button
-        >
+        <button type="button" class="remove" disabled aria-describedby="{uid}-implicit">
+          {tt('area.card.remove', { name: unitText })}
+        </button>
         <p class="hint" id="{uid}-implicit">{tt('area.person.implicit', { invite })}</p>
       {/if}
     </div>

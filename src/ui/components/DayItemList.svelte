@@ -37,20 +37,21 @@
 <ul>
   {#each items as item (item.key)}
     <li style:--c={item.colour ?? 'var(--border-strong)'} class:skipped={item.skipped}>
-      <span class="name"
-        ><i class="dot" aria-hidden="true"></i>{#if item.area}<span class="area"><AreaIcon /></span
-          >{/if}<strong>{item.name}</strong><span class="hours"
-          >{$t('cal.hours', { hours: formatNumber($locale, item.hours, 1) })}</span
-        ></span
-      >
-      <span class="when"
-        >{$t(item.nextDay ? 'cal.item.when.nextDay' : 'cal.item.when', {
+      <span class="name">
+        <i class="dot" aria-hidden="true"></i>{#if item.area}<span class="area">
+            <AreaIcon />
+          </span>{/if}<strong>{item.name}</strong><span class="hours">
+          {$t('cal.hours', { hours: formatNumber($locale, item.hours, 1) })}
+        </span>
+      </span>
+      <span class="when">
+        {$t(item.nextDay ? 'cal.item.when.nextDay' : 'cal.item.when', {
           from: item.start,
           to: item.end,
-        })}{#if item.preparation > 0}<span class="prep"
-            >{` · ${$t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) })}`}</span
-          >{/if}</span
-      >
+        })}{#if item.preparation > 0}<span class="prep">
+            {` · ${$t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) })}`}
+          </span>{/if}
+      </span>
       <span class="meta">{item.about}</span>
       {#if item.roles}<span class="meta">{item.roles}</span>{/if}
       {#if item.skipped}<span class="meta note">{$t('cal.item.skipped')}</span>{/if}
@@ -61,9 +62,9 @@
           aria-label={$t('meet.edit.named', { name: item.name })}
           onclick={() => onedit(item)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true"
-            ><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" /></svg
-          >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4" />
+          </svg>
           {$t('meet.edit')}
         </button>
       {/if}

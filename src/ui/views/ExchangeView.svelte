@@ -481,9 +481,9 @@
   <div role="status" class="notice">
     {#if imported}
       <span>{$t('exchange.imported', { n: imported.n, team: imported.team })}</span>
-      <button type="button" bind:this={openButton} onclick={() => onOpenMeetings?.()}
-        >{$t('exchange.open')}</button
-      >
+      <button type="button" bind:this={openButton} onclick={() => onOpenMeetings?.()}>
+        {$t('exchange.open')}
+      </button>
     {:else if exported}
       {$t('exchange.exported', {
         name: exported.name,
@@ -509,9 +509,9 @@
   </div>
   {#if exported || sharedAll}
     <!-- Outside the live region: only the message is announced. -->
-    <button type="button" class="to-help" onclick={() => onOpenHelp?.()}
-      >{$t('exchange.exported.help')}</button
-    >
+    <button type="button" class="to-help" onclick={() => onOpenHelp?.()}>
+      {$t('exchange.exported.help')}
+    </button>
   {/if}
   <div role="alert" class="error">
     {#if problem}{$t(problem.key, { path: problem.path ?? '' })}{/if}
@@ -549,11 +549,9 @@
           </div>
         </fieldset>
         <div class="field">
-          <label for="{uid}-scope-pick"
-            >{$t(
-              'exchange.scope.pick.' + (kind === 'team' && ownAreas.length > 0 ? 'unit' : kind),
-            )}</label
-          >
+          <label for="{uid}-scope-pick">
+            {$t('exchange.scope.pick.' + (kind === 'team' && ownAreas.length > 0 ? 'unit' : kind))}
+          </label>
           <select
             id="{uid}-scope-pick"
             disabled={choices.length === 0}
@@ -627,18 +625,18 @@
       <fieldset>
         <legend>{$t('exchange.export.include')}</legend>
         <div class="checks">
-          <label class="check"
-            ><input type="checkbox" bind:checked={holidays} />
-            {$t('exchange.include.holidays')}</label
-          >
-          <label class="check"
-            ><input type="checkbox" bind:checked={schoolHolidays} />
-            {$t('exchange.include.school')}</label
-          >
-          <label class="check"
-            ><input type="checkbox" bind:checked={milestones} />
-            {$t('exchange.include.milestones')}</label
-          >
+          <label class="check">
+            <input type="checkbox" bind:checked={holidays} />
+            {$t('exchange.include.holidays')}
+          </label>
+          <label class="check">
+            <input type="checkbox" bind:checked={schoolHolidays} />
+            {$t('exchange.include.school')}
+          </label>
+          <label class="check">
+            <input type="checkbox" bind:checked={milestones} />
+            {$t('exchange.include.milestones')}
+          </label>
         </div>
       </fieldset>
       <HolidayDrops
@@ -657,11 +655,13 @@
             ? `${uid}-zone-hint`
             : noMeetings
               ? `${uid}-empty-hint`
-              : undefined}>{$t('exchange.export.button')}</button
+              : undefined}
         >
-        <button type="button" class:primary={areaEmpty} disabled={!canShareAll} onclick={shareAll}
-          >{zipLabel}</button
-        >
+          {$t('exchange.export.button')}
+        </button>
+        <button type="button" class:primary={areaEmpty} disabled={!canShareAll} onclick={shareAll}>
+          {zipLabel}
+        </button>
       </div>
       {#if noMeetings}
         <p class="empty" id="{uid}-empty-hint">
@@ -681,8 +681,10 @@
       type="button"
       disabled={!canWorkbook}
       aria-describedby="{uid}-xlsx-help"
-      onclick={exportWorkbook}>{$t('exchange.xlsx.button')}</button
+      onclick={exportWorkbook}
     >
+      {$t('exchange.xlsx.button')}
+    </button>
   </section>
 
   <section aria-labelledby="{uid}-import-h">
@@ -694,8 +696,10 @@
       type="button"
       disabled={teams.length === 0 || !zoneKnown}
       aria-describedby={zoneKnown ? undefined : `${uid}-zone-hint`}
-      onclick={chooseFile}>{$t('exchange.import.button')}</button
+      onclick={chooseFile}
     >
+      {$t('exchange.import.button')}
+    </button>
 
     {#if review && importTeam}
       <form class="review" onsubmit={submitImport}>
@@ -735,9 +739,9 @@
           <!-- svelte-ignore a11y_no_noninteractive_tabindex (scrollable region must be keyboard reachable) -->
           <div class="table-wrap" role="region" aria-labelledby="{uid}-caption" tabindex="0">
             <table>
-              <caption id="{uid}-caption"
-                >{$t('exchange.table.caption', { file: fileName })}</caption
-              >
+              <caption id="{uid}-caption">
+                {$t('exchange.table.caption', { file: fileName })}
+              </caption>
               <thead>
                 <tr>
                   <th scope="col" id="{uid}-h-on">{$t('exchange.col.import')}</th>
@@ -819,9 +823,9 @@
           </details>
         {/if}
         <div class="row">
-          <button type="submit" class="primary" disabled={count === 0}
-            >{$t('exchange.import.submit', { n: count })}</button
-          >
+          <button type="submit" class="primary" disabled={count === 0}>
+            {$t('exchange.import.submit', { n: count })}
+          </button>
         </div>
       </form>
     {/if}

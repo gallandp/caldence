@@ -549,14 +549,18 @@
             type="button"
             data-field="place.remote"
             aria-pressed={!draft.onSite}
-            onclick={() => (draft.onSite = false)}>{tt('meet.place.remote')}</button
+            onclick={() => (draft.onSite = false)}
           >
+            {tt('meet.place.remote')}
+          </button>
           <button
             type="button"
             data-field="place.onSite"
             aria-pressed={draft.onSite}
-            onclick={() => (draft.onSite = true)}>{tt('meet.place.onSite')}</button
+            onclick={() => (draft.onSite = true)}
           >
+            {tt('meet.place.onSite')}
+          </button>
         </div>
       </div>
       {#if draft.onSite}
@@ -642,9 +646,9 @@
                 assumptionKeys.length === 0 ? `${id('scaling.assumption')}-hint` : undefined,
               )}
             >
-              {#if assumptionKeys.length === 0 || staleAssumption}<option value=""
-                  >{tt('meet.option.none')}</option
-                >{/if}
+              {#if assumptionKeys.length === 0 || staleAssumption}<option value="">
+                  {tt('meet.option.none')}
+                </option>{/if}
               {#each assumptionKeys as k (k)}
                 <option value={k}>{k}</option>
               {/each}
@@ -688,9 +692,9 @@
         <!-- Column heads once; every field is named by its own aria-label. -->
         <div class="parts-wrap" class:in-area={!!area}>
           <div class="part-grid part-heads" aria-hidden="true">
-            <span>{tt('meet.participants.role')}</span>{#if area}<span
-                >{tt('area.participants.who')}</span
-              >{/if}<span>{tt('meet.participants.share')}</span>
+            <span>{tt('meet.participants.role')}</span>{#if area}<span>
+                {tt('area.participants.who')}
+              </span>{/if}<span>{tt('meet.participants.share')}</span>
           </div>
           <ul class="parts" bind:this={partsList}>
             {#each draft.participants as p, i (p.key)}
@@ -749,10 +753,11 @@
                   class="icon-button remove"
                   aria-label={tt('meet.participants.remove', { role: roleName(p.roleId) })}
                   onclick={() => removeParticipant(i)}
-                  ><svg viewBox="0 0 24 24" aria-hidden="true"
-                    ><path d="M6 6l12 12M18 6L6 18" /></svg
-                  ></button
                 >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
                 <!-- Errors span the row below its fields. -->
                 {@render err(`participants.${i}.roleId`, roleName(p.roleId))}
                 {@render err(`participants.${i}.share`, roleName(p.roleId))}
@@ -780,10 +785,11 @@
         bind:this={addButton}
         disabled={roles.length === 0 || draft.participants.length >= roles.length}
         onclick={addParticipant}
-        ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{tt(
-          'meet.participants.add',
-        )}</button
       >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{tt(
+          'meet.participants.add',
+        )}
+      </button>
     </fieldset>
 
     <fieldset class="people">
@@ -851,10 +857,11 @@
                   class="icon-button remove"
                   aria-label={tt('meet.people.remove', { name: personName(p.personId) })}
                   onclick={() => removePerson(i)}
-                  ><svg viewBox="0 0 24 24" aria-hidden="true"
-                    ><path d="M6 6l12 12M18 6L6 18" /></svg
-                  ></button
                 >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
                 {@render err(`people.${i}.personId`, personName(p.personId))}
                 {@render err(`people.${i}.share`, personName(p.personId))}
                 {#if also.length > 0}
@@ -867,9 +874,9 @@
                   <p class="also no-hours" role="note">
                     {tt('area.participants.noHours.one', { names: personName(p.personId) })}
                     {#if onSetHours}
-                      <button type="button" class="link" onclick={() => onSetHours(p.personId)}
-                        >{tt('area.participants.setHours')}</button
-                      >
+                      <button type="button" class="link" onclick={() => onSetHours(p.personId)}>
+                        {tt('area.participants.setHours')}
+                      </button>
                     {/if}
                   </p>
                 {/if}
@@ -884,12 +891,11 @@
         bind:this={addPersonButton}
         disabled={draft.people.length >= $workspace.people.length}
         onclick={addPerson}
-        ><svg viewBox="0 0 24 24" aria-hidden="true"
-          ><circle cx="10" cy="8" r="3.5" /><path
-            d="M3.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"
-          /></svg
-        >{tt('meet.people.add')}</button
       >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10" cy="8" r="3.5" /><path d="M3.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6" />
+        </svg>{tt('meet.people.add')}
+      </button>
     </fieldset>
 
     {#if scope}

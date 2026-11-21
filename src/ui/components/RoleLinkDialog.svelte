@@ -109,9 +109,9 @@
       {$t('area.roleLink.hint', { team: teamName, chooseTeams: $t('area.teams') })}
     </p>
     <div class="field">
-      <label for="{uid}-role"
-        >{$t('area.roleLinks.label', { role: roleName(roleId), team: teamName })}</label
-      >
+      <label for="{uid}-role">
+        {$t('area.roleLinks.label', { role: roleName(roleId), team: teamName })}
+      </label>
       <select
         id="{uid}-role"
         bind:value

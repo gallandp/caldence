@@ -67,15 +67,15 @@
   {#if areaShare}
     <p class="area-share" data-cost-area-share>
       {$t('cost.areaShare.own', { team })}
-      <b
-        >{$t(shareCadence === undefined ? 'cost.areaShare' : 'cost.areaShare.cadence', {
+      <b>
+        {$t(shareCadence === undefined ? 'cost.areaShare' : 'cost.areaShare.cadence', {
           week: euro(areaShare.perWeek),
           cadence: euro(shareCadence ?? 0),
           kind,
           horizon: euro(areaShare.horizon),
           team,
-        })}</b
-      >
+        })}
+      </b>
     </p>
   {/if}
   {#if summary.unfilled.length > 0}
@@ -91,13 +91,13 @@
     <ul class="bars" aria-labelledby="{uid}-cats">
       {#each summary.byCategory as c (c.categoryId)}
         <li data-category={c.categoryId}>
-          <span class="name"
-            ><span class="dot" aria-hidden="true" style:background={category(c.categoryId)?.colour}
-            ></span>{category(c.categoryId)?.name ?? c.categoryId}</span
-          >
-          <span class="track" aria-hidden="true"
-            ><span style:width="{max > 0 ? (c.perWeek / max) * 100 : 0}%"></span></span
-          >
+          <span class="name">
+            <span class="dot" aria-hidden="true" style:background={category(c.categoryId)?.colour}
+            ></span>{category(c.categoryId)?.name ?? c.categoryId}
+          </span>
+          <span class="track" aria-hidden="true">
+            <span style:width="{max > 0 ? (c.perWeek / max) * 100 : 0}%"></span>
+          </span>
           <span class="amount">{euro(c.perWeek)}</span>
         </li>
       {/each}

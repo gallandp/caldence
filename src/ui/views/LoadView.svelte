@@ -459,20 +459,22 @@
         class="week-link"
         aria-label={$t('load.openWeek', { week, person })}
         title={$t('load.openWeek', { week, person })}
-        onclick={() => onOpenWeek(personId, monday)}>{label}</button
-      >{:else}{label}{/if}
+        onclick={() => onOpenWeek(personId, monday)}
+      >
+        {label}
+      </button>{:else}{label}{/if}
   {/snippet}
 
   {#snippet unitLine(u: ReturnType<typeof unitsOf>[number])}
     <span class="unit-name">{u.name}</span>
-    <span class="muted"
-      >{[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(' · ')}</span
-    >
-    <span class="num"
-      >{u.meetings > 0
+    <span class="muted">
+      {[...u.roles, $t('load.detail.hours', { hours: hours(u.hours) })].join(' · ')}
+    </span>
+    <span class="num">
+      {u.meetings > 0
         ? $t('load.detail.meetings', { hours: hours(u.meetings) })
-        : $t('load.detail.noMeetings')}</span
-    >
+        : $t('load.detail.noMeetings')}
+    </span>
   {/snippet}
 
   {#snippet baseBody()}
@@ -489,13 +491,13 @@
       {#each summary.byCategory as c (c.categoryId)}
         <tr data-category={c.categoryId}>
           <th scope="row" class="nowrap start">
-            <span class="cat"
-              ><span
+            <span class="cat">
+              <span
                 class="dot"
                 aria-hidden="true"
                 style:background={$workspace.categories.find((x) => x.id === c.categoryId)?.colour}
-              ></span>{categoryName(c.categoryId)}</span
-            >
+              ></span>{categoryName(c.categoryId)}
+            </span>
           </th>
           {#each summary.byRole as r (r.roleId)}
             <td class="num">{hours(summary.matrix[c.categoryId]?.[r.roleId] ?? 0)}</td>
@@ -520,16 +522,16 @@
           class="sortable"
           aria-sort={sortBy === 'share' ? 'descending' : undefined}
         >
-          <button type="button" class="sort" onclick={() => (sortBy = 'share')}
-            >{$t('load.col.fte')}{#if sortBy !== 'share'}<span class="sr-only"
-                >, {$t('load.sort')}</span
-              >{/if}{#if sortBy === 'share'}<span aria-hidden="true"> ↓</span>{/if}</button
-          >
+          <button type="button" class="sort" onclick={() => (sortBy = 'share')}>
+            {$t('load.col.fte')}{#if sortBy !== 'share'}<span class="sr-only">
+                , {$t('load.sort')}
+              </span>{/if}{#if sortBy === 'share'}<span aria-hidden="true"> ↓</span>{/if}
+          </button>
         </th>
         {#if showHere}
-          <th scope="col" role="columnheader" class="num"
-            >{$t(area ? 'load.col.hereArea' : 'load.col.here')}</th
-          >
+          <th scope="col" role="columnheader" class="num">
+            {$t(area ? 'load.col.hereArea' : 'load.col.here')}
+          </th>
         {/if}
         <th
           scope="col"
@@ -537,11 +539,11 @@
           class="num sortable"
           aria-sort={sortBy === 'free' ? 'descending' : undefined}
         >
-          <button type="button" class="sort" onclick={() => (sortBy = 'free')}
-            >{$t('load.col.free')}{#if sortBy !== 'free'}<span class="sr-only"
-                >, {$t('load.sort')}</span
-              >{/if}{#if sortBy === 'free'}<span aria-hidden="true"> ↓</span>{/if}</button
-          >
+          <button type="button" class="sort" onclick={() => (sortBy = 'free')}>
+            {$t('load.col.free')}{#if sortBy !== 'free'}<span class="sr-only">
+                , {$t('load.sort')}
+              </span>{/if}{#if sortBy === 'free'}<span aria-hidden="true"> ↓</span>{/if}
+          </button>
         </th>
         <th scope="col" role="columnheader" class="num">{$t('load.col.peak')}</th>
       </tr>
@@ -559,22 +561,23 @@
               aria-expanded={openPerson === p.person.id}
               aria-controls="{uid}-detail-{p.person.id}"
               onclick={() => (openPerson = openPerson === p.person.id ? null : p.person.id)}
-              >{p.person.name}</button
             >
+              {p.person.name}
+            </button>
             {#if over}<span class="over-tag">{$t('load.over')}</span>{/if}
             {#if overbooked($workspace, p.person.id)}
               {@const total = weekly(capacity($workspace, p.person.id))}
-              <span class="overbooked" data-overbooked
-                ><span class="long"
-                  >{$t('team.people.over', { hours: total, max: weekly(hpw) })}</span
-                ><span class="short" aria-hidden="true"
-                  >{$t('team.people.overShort', { hours: total, max: weekly(hpw) })}</span
-                ></span
-              >
+              <span class="overbooked" data-overbooked>
+                <span class="long">
+                  {$t('team.people.over', { hours: total, max: weekly(hpw) })}
+                </span><span class="short" aria-hidden="true">
+                  {$t('team.people.overShort', { hours: total, max: weekly(hpw) })}
+                </span>
+              </span>
             {/if}
           </th>
-          <td role="cell" class="units"
-            >{p.units.length === 0
+          <td role="cell" class="units">
+            {p.units.length === 0
               ? '–'
               : p.units.every((u) => u.id === ORG_UNIT)
                 ? areaText($t, $levels, ORG_UNIT)('load.onlyArea')
@@ -583,19 +586,19 @@
                   : p.units
                       .filter((u) => !u.area)
                       .map((u) => u.name)
-                      .join(', ')}</td
-          >
-          <td role="cell" class="num nowrap hours"
-            >{$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}</td
-          >
+                      .join(', ')}
+          </td>
+          <td role="cell" class="num nowrap hours">
+            {$t('load.hoursOf', { hours: hours(p.average), of: hours(p.cap) })}
+          </td>
           <td role="cell" class="nowrap share-cell">
             <span class="share">
-              <span class="bar" aria-hidden="true"
-                ><i style:width="{barWidth(shareKey(p))}%" class:over></i><b></b></span
-              >
-              <span class="num" class:over
-                >{noHours(p) ? $t('load.noHours') : formatPercent($locale, p.fte)}</span
-              >
+              <span class="bar" aria-hidden="true">
+                <i style:width="{barWidth(shareKey(p))}%" class:over></i><b></b>
+              </span>
+              <span class="num" class:over>
+                {noHours(p) ? $t('load.noHours') : formatPercent($locale, p.fte)}
+              </span>
             </span>
           </td>
           {#if showHere}
@@ -603,25 +606,27 @@
               role="cell"
               class="num nowrap here"
               data-cap={$t(area ? 'load.col.hereArea' : 'load.col.here')}
-              >{$t('load.here', {
+            >
+              {$t('load.here', {
                 hours: hours(p.here.hours),
                 of: hours(p.here.cap),
                 percent:
                   p.here.cap > 0 || p.here.hours === 0
                     ? formatPercent($locale, p.here.share)
                     : $t('load.noHours'),
-              })}</td
-            >
+              })}
+            </td>
           {/if}
           <td
             role="cell"
             class="num nowrap free"
             class:over={p.free < 0}
             data-cap={$t('load.col.free')}
-            >{p.free < 0
-              ? $t('load.freeHours.over', { hours: hours(-p.free) })
-              : $t('load.freeHours', { hours: hours(p.free) })}</td
           >
+            {p.free < 0
+              ? $t('load.freeHours.over', { hours: hours(-p.free) })
+              : $t('load.freeHours', { hours: hours(p.free) })}
+          </td>
           <td role="cell" class="num nowrap peak" data-cap={$t('load.col.peak')}>
             {#if p.peak}
               {@const [before, after] = $t('load.peak', {
@@ -675,27 +680,27 @@
                               {#each list as m (m.eventId)}
                                 <li>
                                   <span>{m.name}</span>
-                                  <span class="muted"
-                                    >{m.rule}{#if m.oneOff}<span class="once"
-                                        >{$t('load.detail.oneOff')}</span
-                                      >{/if}</span
-                                  >
+                                  <span class="muted">
+                                    {m.rule}{#if m.oneOff}<span class="once">
+                                        {$t('load.detail.oneOff')}
+                                      </span>{/if}
+                                  </span>
                                   {#if m.oneOff}
-                                    <span class="num nowrap"
-                                      >{$t('load.detail.oneOffHours', { hours: hours(m.hours) })}
-                                      <span class="spread"
-                                        >{$t('load.detail.oneOffAvg', {
+                                    <span class="num nowrap">
+                                      {$t('load.detail.oneOffHours', { hours: hours(m.hours) })}
+                                      <span class="spread">
+                                        {$t('load.detail.oneOffAvg', {
                                           // Two digits: a one-off over the horizon is often below 0.1 h a week.
                                           hours: formatNumber($locale, m.hoursPerWeek, 2),
-                                        })}</span
-                                      ></span
-                                    >
+                                        })}
+                                      </span>
+                                    </span>
                                   {:else}
-                                    <span class="num nowrap"
-                                      >{$t('load.detail.perWeek', {
+                                    <span class="num nowrap">
+                                      {$t('load.detail.perWeek', {
                                         hours: hours(m.hoursPerWeek),
-                                      })}</span
-                                    >
+                                      })}
+                                    </span>
                                   {/if}
                                 </li>
                               {/each}
@@ -720,29 +725,29 @@
     <li class="tile" data-total>
       <span class="label">{$t('load.kpi.total')}</span>
       <span class="value">{hours(totalHours)} <small>{$t('load.kpi.unit.typical')}</small></span>
-      <span class="sub"
-        >{$filter.personId
+      <span class="sub">
+        {$filter.personId
           ? ''
           : $t('load.kpi.fte', { n: formatNumber($locale, fte(totalHours, hpw), 2) })}
-        {#if summary.unfilled > 0}<span class="unfilled" data-unfilled
-            >{$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
+        {#if summary.unfilled > 0}<span class="unfilled" data-unfilled>
+            {$t(summary.unfilled === 1 ? 'load.kpi.unfilled.one' : 'load.kpi.unfilled', {
               n: formatNumber($locale, summary.unfilled, 0),
-            })}</span
-          >{/if}</span
-      >
+            })}
+          </span>{/if}
+      </span>
     </li>
     {#each summary.byRole as r (r.roleId)}
       <li class="tile" data-role={r.roleId}>
         <span class="label">{roleName(r.roleId)}</span>
-        <span class="value"
-          ><span class="hours">{hours(r.hours)}</span>
-          <small>{$t('load.kpi.unit.typical')}</small></span
-        >
-        <span class="meter" aria-hidden="true"
-          ><span style:width="{Math.min(100, r.percent)}%"></span></span
-        >
-        <span class="sub"
-          >{$t(
+        <span class="value">
+          <span class="hours">{hours(r.hours)}</span>
+          <small>{$t('load.kpi.unit.typical')}</small>
+        </span>
+        <span class="meter" aria-hidden="true">
+          <span style:width="{Math.min(100, r.percent)}%"></span>
+        </span>
+        <span class="sub">
+          {$t(
             $filter.personId
               ? 'load.kpi.share.person'
               : r.people > 1
@@ -754,8 +759,8 @@
               people: formatNumber($locale, r.people, 0),
               fte: formatNumber($locale, r.fte, 2),
             },
-          )}</span
-        >
+          )}
+        </span>
       </li>
     {/each}
     <li class="tile" data-peak>
@@ -835,9 +840,9 @@
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
       <!-- Only the lines about people: an overlap is never a warning, it has its own count (#475). -->
-      {#if warningItems.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length}</span
-        >{/if}
+      {#if warningItems.length > 0}<span class="count" aria-hidden="true">
+          {warningItems.length}
+        </span>{/if}
     </h3>
     <p class="note">
       {$t('load.warnings.rule', {
@@ -853,14 +858,14 @@
       <ul class="warnings">
         {#each warningItems as w (w.key)}
           <li class="warning">
-            <span
-              >{#each w.segments as part, i (i)}{#if 'monday' in part}{@render weekLink(
+            <span>
+              {#each w.segments as part, i (i)}{#if 'monday' in part}{@render weekLink(
                     w.key,
                     w.person,
                     part.monday,
                     part.label,
-                  )}{:else}{part.label}{/if}{/each}</span
-            >
+                  )}{:else}{part.label}{/if}{/each}
+            </span>
           </li>
         {/each}
       </ul>
@@ -896,16 +901,17 @@
           <li>
             {h.text}
             {#if onOpenStructure}
-              <span data-no-print data-no-present
-                >·
+              <span data-no-print data-no-present>
+                ·
                 <button
                   type="button"
                   class="week-link"
                   aria-label={h.label}
                   onclick={() => onOpenStructure(h.areaId, h.personId)}
-                  >{$t('area.participants.setHours')}</button
-                ></span
-              >{/if}
+                >
+                  {$t('area.participants.setHours')}
+                </button>
+              </span>{/if}
           </li>
         {/each}
         {#if moreOrgHints > 0}

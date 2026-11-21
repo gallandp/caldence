@@ -227,21 +227,27 @@
               data-move="{item.id}:up"
               disabled={i === 0}
               aria-label={$t('list.up', { name: item.name })}
-              onclick={() => move(item, -1)}><span aria-hidden="true">↑</span></button
+              onclick={() => move(item, -1)}
             >
+              <span aria-hidden="true">↑</span>
+            </button>
             <button
               type="button"
               data-move="{item.id}:down"
               disabled={i === items.length - 1}
               aria-label={$t('list.down', { name: item.name })}
-              onclick={() => move(item, 1)}><span aria-hidden="true">↓</span></button
+              onclick={() => move(item, 1)}
             >
+              <span aria-hidden="true">↓</span>
+            </button>
             <button
               type="button"
               data-delete={item.id}
               aria-label={$t('list.delete', { name: item.name })}
-              onclick={() => remove(item)}><span aria-hidden="true">✕</span></button
+              onclick={() => remove(item)}
             >
+              <span aria-hidden="true">✕</span>
+            </button>
           </div>
         </li>
       {/each}
@@ -263,11 +269,11 @@
         <p class="field-error" id="{uid}-new-err">{$t(addError, { path: addLabel })}</p>
       {/if}
     </div>
-    <button type="submit" class="secondary add-button"
-      ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
+    <button type="submit" class="secondary add-button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{$t(
         'list.add',
-      )}</button
-    >
+      )}
+    </button>
   </form>
 </section>
 

@@ -66,8 +66,10 @@
         )}{:else if p.personId !== undefined}<svg
           class="person-icon"
           viewBox="0 0 24 24"
-          aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg
-        ><span class="sr-only">{tt('meet.person.namedPrefix')}</span>{participantName(
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+        </svg><span class="sr-only">{tt('meet.person.namedPrefix')}</span>{participantName(
           ws,
           p,
         )}{:else}{participantName(ws, p)}{/if}{shareSuffix(p.share)}
@@ -85,13 +87,16 @@
       class="missing"
       aria-label={tt('area.roleLink.choose', { note })}
       onclick={(e) => (mapping = { ...m, button: e.currentTarget })}
-      >{@render warning()}{note}<svg
+    >
+      {@render warning()}{note}<svg
         class="chev"
         data-no-print
         viewBox="0 0 24 24"
-        aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
-      ></button
-    >
+        aria-hidden="true"
+      >
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    </button>
   {:else}
     <p class="missing">{@render warning()}{note}</p>
   {/if}

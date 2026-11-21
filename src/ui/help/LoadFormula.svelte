@@ -12,35 +12,34 @@
 <figure class="formula">
   <div class="rows" aria-hidden="true">
     <div class="row">
-      <span class="term"
-        ><b>{$t('meet.duration.fixed', { n: 60 })}</b><small>{$t('help.formula.duration')}</small
-        ></span
-      >
+      <span class="term">
+        <b>{$t('meet.duration.fixed', { n: 60 })}</b><small>{$t('help.formula.duration')}</small>
+      </span>
       <span class="op">×</span>
       <span class="term"><b>1</b><small>{$t('help.formula.share')}</small></span>
       <span class="op">×</span>
-      <span class="term"
-        ><b>{formatNumber($locale, 1.5, 1)}</b><small>{$t('help.formula.prep')}</small></span
-      >
+      <span class="term">
+        <b>{formatNumber($locale, 1.5, 1)}</b><small>{$t('help.formula.prep')}</small>
+      </span>
       <span class="op">=</span>
-      <span class="term result"
-        ><b>{$t('cal.hours', { hours: formatNumber($locale, 1.5, 1) })}</b><small
-          >{$t('help.formula.meeting')}</small
-        ></span
-      >
+      <span class="term result">
+        <b>{$t('cal.hours', { hours: formatNumber($locale, 1.5, 1) })}</b><small>
+          {$t('help.formula.meeting')}
+        </small>
+      </span>
     </div>
     <div class="row">
-      <span class="term"
-        ><b>{$t('cal.hours', { hours: 12 })}</b><small>{$t('help.formula.week')}</small></span
-      >
+      <span class="term">
+        <b>{$t('cal.hours', { hours: 12 })}</b><small>{$t('help.formula.week')}</small>
+      </span>
       <span class="op">÷</span>
-      <span class="term"
-        ><b>{$t('cal.hours', { hours: 40 })}</b><small>{$t('help.formula.hours')}</small></span
-      >
+      <span class="term">
+        <b>{$t('cal.hours', { hours: 40 })}</b><small>{$t('help.formula.hours')}</small>
+      </span>
       <span class="op">=</span>
-      <span class="term result"
-        ><b>{formatPercent($locale, SHARE)}</b><small>{$t('help.formula.result')}</small></span
-      >
+      <span class="term result">
+        <b>{formatPercent($locale, SHARE)}</b><small>{$t('help.formula.result')}</small>
+      </span>
     </div>
     <div class="meter">
       <span class="fill" style:width="{SHARE * 100}%"></span>

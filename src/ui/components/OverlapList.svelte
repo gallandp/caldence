@@ -86,16 +86,16 @@
     <ul>
       {#each shown as p (p.key)}
         <li data-clash>
-          <span class="pair"
-            >{$t('overlaps.pair', {
+          <span class="pair">
+            {$t('overlaps.pair', {
               a: meeting(p.a),
               unitA: unit(p.a),
               b: meeting(p.b),
               unitB: unit(p.b),
-            })}</span
-          >
-          <span class="details"
-            >{when(p)} · {people(p)} · {$t(
+            })}
+          </span>
+          <span class="details">
+            {when(p)} · {people(p)} · {$t(
               p.dates.length === 1 ? 'overlaps.pair.days.one' : 'overlaps.pair.days.other',
               { n: n(p.dates.length) },
             )} · {$t('overlaps.example')}
@@ -105,9 +105,10 @@
                 aria-label={openLabel(p)}
                 title={openLabel(p)}
                 onclick={() => onOpen(p.first.personId, p.first.date)}
-                >{dateLabel(p.first.date)}</button
-              >{:else}{dateLabel(p.first.date)}{/if}</span
-          >
+              >
+                {dateLabel(p.first.date)}
+              </button>{:else}{dateLabel(p.first.date)}{/if}
+          </span>
         </li>
       {/each}
     </ul>
@@ -115,17 +116,17 @@
   {#if hidden > 0}
     {#if onMore}
       <p class="more">
-        <button type="button" class="link" data-more-clashes onclick={onMore}
-          >{$t(hidden === 1 ? 'overlaps.more.one' : 'overlaps.more.other', {
+        <button type="button" class="link" data-more-clashes onclick={onMore}>
+          {$t(hidden === 1 ? 'overlaps.more.one' : 'overlaps.more.other', {
             n: n(hidden),
-          })}</button
-        >
+          })}
+        </button>
       </p>
     {:else}
       <p class="more">
-        <button type="button" class="secondary" data-all-clashes onclick={() => (showAll = true)}
-          >{$t('load.overlaps.all', { n: n(pairs.length) })}</button
-        >
+        <button type="button" class="secondary" data-all-clashes onclick={() => (showAll = true)}>
+          {$t('load.overlaps.all', { n: n(pairs.length) })}
+        </button>
       </p>
     {/if}
   {/if}

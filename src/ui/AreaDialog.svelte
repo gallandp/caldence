@@ -155,11 +155,11 @@
               />
               <span class="label">{team.name}</span>
               {#if from}
-                <span class="tag" class:move={chosen.includes(team.id)}
-                  >{$t(chosen.includes(team.id) ? 'area.dialog.from' : 'area.dialog.in', {
+                <span class="tag" class:move={chosen.includes(team.id)}>
+                  {$t(chosen.includes(team.id) ? 'area.dialog.from' : 'area.dialog.in', {
                     area: from.name,
-                  })}</span
-                >
+                  })}
+                </span>
               {/if}
             </label>
           {/each}
@@ -177,11 +177,11 @@
             {#each roles as roleId (roleId)}
               {@const key = linkKey(team.id, roleId)}
               <div class="link">
-                <label for="{uid}-{key.replace(' ', '-')}"
-                  ><span class="sr-only"
-                    >{$t('area.roleLinks.label', { role: roleName(roleId), team: team.name })}</span
-                  ><span aria-hidden="true">{roleName(roleId)}</span></label
-                >
+                <label for="{uid}-{key.replace(' ', '-')}">
+                  <span class="sr-only">
+                    {$t('area.roleLinks.label', { role: roleName(roleId), team: team.name })}
+                  </span><span aria-hidden="true">{roleName(roleId)}</span>
+                </label>
                 <span class="arrow" aria-hidden="true">→</span>
                 <select
                   id="{uid}-{key.replace(' ', '-')}"
@@ -203,9 +203,9 @@
       <p class="field-error" role="alert">{$t(general, { path: $t('area.dialog.teams') })}</p>
     {/if}
     <div class="actions">
-      <button type="submit" class="primary"
-        >{$t(area ? 'team.dialog.confirm' : 'area.dialog.add')}</button
-      >
+      <button type="submit" class="primary">
+        {$t(area ? 'team.dialog.confirm' : 'area.dialog.add')}
+      </button>
       <button type="button" onclick={() => dialog?.close()}>{$t('dialog.cancel')}</button>
     </div>
   </form>

@@ -39,16 +39,18 @@
     {#each MAP_VIEWS as view (view)}
       <li>
         <button type="button" class="view" onclick={() => onOpenView?.(view)}>
-          <span class="view-icon" aria-hidden="true"
-            ><svg
+          <span class="view-icon" aria-hidden="true">
+            <svg
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="1.9"
               stroke-linecap="round"
-              stroke-linejoin="round"><path d={VIEW_ICONS[view]} /></svg
-            ></span
-          >
+              stroke-linejoin="round"
+            >
+              <path d={VIEW_ICONS[view]} />
+            </svg>
+          </span>
           <span class="text">
             <span class="title">{$t('view.' + view)}</span>
             <span class="summary">{$t('help.map.' + view)}</span>

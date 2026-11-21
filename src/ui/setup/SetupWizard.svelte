@@ -281,8 +281,8 @@
             />
             <span>
               <span class="name" id="{uid}-way-{id}-name">{tpl.name}</span>
-              <span class="desc" id="{uid}-way-{id}-desc"
-                >{$t(
+              <span class="desc" id="{uid}-way-{id}-desc">
+                {$t(
                   (tpl.area ?? tpl.team).cadence.lengthWeeks === 1
                     ? 'setup.tpl.desc.one'
                     : 'setup.tpl.desc.other',
@@ -291,8 +291,8 @@
                     weeks: (tpl.area ?? tpl.team).cadence.lengthWeeks,
                     events: tpl.team.events.length + (tpl.area?.events.length ?? 0),
                   },
-                )}</span
-              >
+                )}
+              </span>
             </span>
           </label>
         {/each}
@@ -365,15 +365,15 @@
         {/each}
         {#each already as a, i (a.key)}
           <div class="already">
-            <label for="{uid}-hours-{i}"
-              >{$t('team.people.already', {
+            <label for="{uid}-hours-{i}">
+              {$t('team.people.already', {
                 name: a.name,
                 units: a.places,
                 hours: num(a.hours),
-              })}</label
-            >
-            <span class="hours"
-              ><input
+              })}
+            </label>
+            <span class="hours">
+              <input
                 id="{uid}-hours-{i}"
                 type="number"
                 min="0"
@@ -384,8 +384,8 @@
                   hoursHere[a.key] = e.currentTarget.value;
                   if (badHours === a.key) badHours = null;
                 }}
-              />{$t('settings.people.unit')}</span
-            >
+              />{$t('settings.people.unit')}
+            </span>
             {#if a.left === 0 && a.booked !== ''}
               {@const fitted = fittedText(a)}
               <label class="check fit">
@@ -481,9 +481,9 @@
         <button type="button" onclick={() => go(step - 1)}>{$t('setup.back')}</button>
       {/if}
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
-      <button type="submit" class="primary"
-        >{step < steps ? $t('setup.next') : $t('templates.create')}</button
-      >
+      <button type="submit" class="primary">
+        {step < steps ? $t('setup.next') : $t('templates.create')}
+      </button>
     </div>
   </form>
 </dialog>

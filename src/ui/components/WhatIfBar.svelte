@@ -52,11 +52,11 @@
     <strong>{$t('whatif.bar')}</strong>
     <span class="muted">{$t('whatif.bar.empty')}</span>
   {:else}
-    <strong
-      >{$t(changes === 1 ? 'whatif.bar.count.one' : 'whatif.bar.count.other', {
+    <strong>
+      {$t(changes === 1 ? 'whatif.bar.count.one' : 'whatif.bar.count.other', {
         n: changes,
-      })}</strong
-    >
+      })}
+    </strong>
     <!-- Only the lines the changes touch; otherwise a line would read "16 % → 16 %". -->
     {#if team && team.before.hours !== team.after.hours}
       <span>{load(team.name, team.before, team.after)}</span>
@@ -64,28 +64,28 @@
     {#if before && after && (before.hours !== after.hours || before.inStep?.n !== after.inStep?.n)}
       <span>{load(scopeName, before, after)}</span>
       {#if before.cost && after.cost}
-        <span
-          >{$t('whatif.bar.cost', {
+        <span>
+          {$t('whatif.bar.cost', {
             name: scopeName,
             value: signedEuro(after.cost.perWeek - before.cost.perWeek),
             horizonValue: signedEuro(after.cost.horizon - before.cost.horizon),
-          })}</span
-        >
+          })}
+        </span>
       {/if}
       {#if before.inStep && after.inStep}
-        <span
-          >{$t('whatif.bar.inStep', {
+        <span>
+          {$t('whatif.bar.inStep', {
             from: before.inStep.n,
             to: after.inStep.n,
             of: after.inStep.of,
-          })}</span
-        >
+          })}
+        </span>
       {/if}
     {/if}
     <span class="muted" data-no-print>{$t('whatif.bar.discarded')}</span>
-    <button type="button" class="secondary" data-no-print onclick={resetWhatIf}
-      >{$t('whatif.reset')}</button
-    >
+    <button type="button" class="secondary" data-no-print onclick={resetWhatIf}>
+      {$t('whatif.reset')}
+    </button>
   {/if}
 </section>
 
