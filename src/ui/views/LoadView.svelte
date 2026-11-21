@@ -33,6 +33,7 @@
     clashes,
     loadSummary,
     overlapPairs,
+    OVERLAP_ROWS,
     overviewWindow,
     scopePeople,
     scopeUnits,
@@ -357,7 +358,6 @@
    * The overlaps of the people in scope by meeting pair (#445), in the area Overview's window, so
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
-  const OVERLAP_ROWS = 50;
   let overlapsBox: HTMLElement | undefined = $state();
   // Brought into view when asked for from the area Overview (#445).
   $effect(() => {

@@ -395,6 +395,61 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   );
 });
 
+test('presenting, "Align with …" fits a team to the area cadence in one tap (#463)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page);
+  const kpi = overview.locator('[data-kpi="cadence"]');
+  await expect(kpi.locator('b')).toHaveText('2 of 4');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Gamma', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Gamma' });
+  // 3-week sprints do not fit the 10-week PI: the longest that does is 2 weeks.
+  await sheet.getByRole('button', { name: 'Align with Payments' }).click();
+  await expect(sheet.getByLabel('Length (weeks)')).toHaveValue('2');
+  await expect(sheet.getByLabel('Start date')).toHaveValue('2027-01-04');
+  await expect(sheet).toContainText('2 → 3 of 4');
+  // Once the draft fits, the button is gone.
+  await expect(sheet.getByRole('button', { name: 'Align with Payments' })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Apply' })).toBeFocused();
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(kpi.locator('b')).toHaveText('3 of 4');
+  // The area's own cadence has nothing to align with.
+  await overview.getByRole('button', { name: 'What if: Payments', exact: true }).click();
+  const own = page.getByRole('dialog', { name: 'Cadence · Payments' });
+  await expect(own.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(own.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+  await own.getByRole('button', { name: 'Cancel' }).click();
+  // An aligned team has nothing to align.
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const alpha = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await expect(alpha.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(alpha.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+});
+
+test('presenting, "Align with …" takes the saved peer reference (#463)', async ({ page }) => {
+  // No area cadence; Alpha and Beta share 2-week sprints, Gamma has 3 weeks.
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { teamIds: string[]; cadence?: unknown };
+    delete area.cadence;
+    area.teamIds = ['team-alpha', 'team-beta', 'team-gamma'];
+    ws.teams[1]!.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' };
+  });
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Gamma', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Gamma' });
+  await sheet.getByRole('button', { name: 'Align with Team Alpha' }).click();
+  await expect(sheet.getByLabel('Length (weeks)')).toHaveValue('2');
+  await expect(sheet).toContainText('2 → 3 of 3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(overview.locator('[data-kpi="cadence"] b')).toHaveText('3 of 3');
+  // The reference team itself gets no button.
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const alpha = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await expect(alpha.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(alpha.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+});
+
 test('presenting, a what-if on the reference team shows that team as differing (#470)', async ({
   page,
 }) => {
