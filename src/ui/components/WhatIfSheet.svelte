@@ -7,8 +7,10 @@
 </script>
 
 <script lang="ts">
+  import { tick } from 'svelte';
   import { setCadenceLength, setCadenceStart, shiftedDays, upsertEvent } from '../../core/edit';
-  import { areaAsTeam, findArea, unitName, type Workspace } from '../../core/model';
+  import { alignedCadence, compareCadences, stepReasons } from '../../core/areaOverview';
+  import { areaAsTeam, areaOf, findArea, unitName, type Workspace } from '../../core/model';
   import { validate } from '../../core/validate';
   import { workspaceIndex } from '../../core/views';
   import { effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
@@ -23,6 +25,7 @@
 
   const uid = $props.id();
   let dialog: HTMLDialogElement | undefined = $state();
+  let applyButton: HTMLButtonElement | undefined = $state();
 
   const area = $derived(findArea($workspace, target.unitId));
   const unit = $derived(
@@ -113,6 +116,30 @@
   });
   const scopeName = $derived(unitName($workspace, scope, $levels.org));
 
+  /**
+   * A team's cadence in step with its area's reference in one tap (#463): the area's cadence, or
+   * the saved one most teams share. None for the reference team itself or once the draft fits.
+   */
+  const align = $derived.by(() => {
+    const team = $workspace.teams.find((x) => x.id === target.unitId);
+    const a = team && target.kind === 'cadence' ? areaOf($workspace, team.id) : undefined;
+    if (!team || !a) return undefined;
+    const ref = compareCadences(
+      $workspace,
+      a,
+      $workspace.settings.horizon.from,
+      1,
+      saved,
+    ).reference;
+    if (!ref || ref.teamId === team.id) return undefined;
+    const draft = { ...team.cadence, lengthWeeks: length ?? 0, start };
+    const valid =
+      Number.isInteger(length) && (length ?? 0) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(start);
+    if (valid && stepReasons(draft, ref.cadence, ref.fromArea).length === 0) return undefined;
+    const name = ref.teamId ? unitName($workspace, ref.teamId, $levels.org) : a.name;
+    return { name, cadence: alignedCadence(valid ? draft : team.cadence, ref) };
+  });
+
   const title = $derived(
     target.kind === 'meeting'
       ? target.event.name
@@ -181,6 +208,19 @@
         </div>
       {/if}
     </div>
+    {#if align}
+      {@const to = align.cadence}
+      <button
+        type="button"
+        class="align"
+        onclick={async () => {
+          [length, start] = [to.lengthWeeks, to.start];
+          // The button goes once the draft fits: keep the focus in the sheet, on the next step.
+          await tick();
+          applyButton?.focus();
+        }}>{$t('whatif.align', { name: align.name })}</button
+      >
+    {/if}
 
     <WhatIfEffect
       {before}
@@ -193,7 +233,7 @@
     <p class="hint">{$t('whatif.hint')}</p>
     <div class="actions">
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
-      <button type="submit" class="primary" disabled={'error' in candidate}
+      <button type="submit" class="primary" bind:this={applyButton} disabled={'error' in candidate}
         >{$t('whatif.apply')}</button
       >
     </div>
@@ -237,6 +277,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+  .align {
+    margin-bottom: var(--space);
   }
   .hint {
     color: var(--text-muted);
