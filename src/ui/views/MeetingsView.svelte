@@ -34,6 +34,8 @@
   import { exportRequest } from '../state/exportScope';
   import HolidayDrops from '../components/HolidayDrops.svelte';
   import { holidayDrops, placeLink } from '../../core/ics';
+  /** Between the format and the place in a row (#466); spaces at a tag's edge would be dropped. */
+  const PLACE_SEP = ' · ';
   import { resolveRegion } from '../../core/regions';
   import CyclesCard from '../components/CyclesCard.svelte';
   import Rich from '../help/Rich.svelte';
@@ -670,7 +672,7 @@
                               >{event.onSite.travel > 0
                                 ? $t('meet.place.travel', { n: event.onSite.travel })
                                 : $t('meet.place.onSite')}</span
-                            >{/if}{#if event.onSite && event.place}&#32;·&#32;{/if}{#if link}<a
+                            >{/if}{#if event.onSite && event.place}{PLACE_SEP}{/if}{#if link}<a
                               href={link}
                               target="_blank"
                               rel="noopener noreferrer"
