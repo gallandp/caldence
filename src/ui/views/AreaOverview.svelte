@@ -368,8 +368,6 @@
       max: percent(maxFte),
     });
   }
-  const average = (cells: LoadCell[], start?: ISODate) =>
-    loadAverage(cells, ws.settings.horizon, start);
 
   // ---------- steering ----------
 
@@ -933,7 +931,7 @@
                     >
                   </td>
                 {/each}
-                <td class="avg">{percent(average(row, start))}</td>
+                <td class="avg">{percent(loadAverage(row, ws.settings.horizon, start))}</td>
               </tr>
             {/snippet}
             {#each teams as team (team.id)}

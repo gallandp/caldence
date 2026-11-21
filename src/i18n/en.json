@@ -709,7 +709,7 @@
   "overview.cell": "{team}, {week}: {share} in meetings. Open Meeting load",
   "overview.cell.warn": "{team}, {week}: {share} in meetings, at least one person over the limit ({max}). Open Meeting load",
   "overview.avg": "Avg.",
-  "overview.avg.label": "Average of the full weeks from the cadence start",
+  "overview.avg.label": "Average of the full weeks inside the planning horizon, from the cadence start on",
   "overview.steer.title": "Steering",
   "overview.steer.hint": "Roles and meetings {levelInArea}, above the {levelTeamsLc}.",
   "overview.steer.roles": "Roles {levelInArea}",

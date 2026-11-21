@@ -709,7 +709,7 @@
   "overview.cell": "{team}, {week}: {share} in Terminen. Terminlast öffnen",
   "overview.cell.warn": "{team}, {week}: {share} in Terminen, mindestens eine Person über der Grenze ({max}). Terminlast öffnen",
   "overview.avg": "Ø",
-  "overview.avg.label": "Durchschnitt der vollen Wochen ab Taktbeginn",
+  "overview.avg.label": "Durchschnitt der vollen Wochen im Planungszeitraum ab Taktbeginn",
   "overview.steer.title": "Steuerung",
   "overview.steer.hint": "Rollen und Termine {levelInArea}, übergreifend für alle {levelTeams}.",
   "overview.steer.roles": "Rollen {levelInArea}",
