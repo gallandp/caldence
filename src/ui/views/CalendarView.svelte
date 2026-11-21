@@ -210,6 +210,7 @@
         colour: category?.colour,
         area: area === true,
         hours: o.hours,
+        preparation: event?.preparation ?? 0,
         skipped: o.skippedHoliday !== undefined,
       };
     });

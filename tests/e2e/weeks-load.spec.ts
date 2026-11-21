@@ -361,7 +361,7 @@ test('a person in two teams has the same share, room and tag in every scope (#27
 }) => {
   const panel = await openView(page, 'load');
   await expect(panel.locator('[data-meeting-only]')).toHaveText(
-    'Meeting time only. Other work does not count here.',
+    'Meeting time only, including preparation and travel to on-site meetings. Other work does not count here.',
   );
   // Alex is Product Owner in Alpha and Beta (16 + 16 h): judged on 32 h in every scope.
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
