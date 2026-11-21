@@ -17,6 +17,7 @@ import {
 } from './model';
 import { NEW_CATEGORY_COLOUR, type ImportCandidate } from './icsImport';
 import { record } from './record';
+import { LIMITS } from './limits';
 import { isBuiltinRegion, type Region } from './regions';
 import { validate, type Result, type ValidationError } from './validate';
 
@@ -621,6 +622,8 @@ export function importEvents(
       duration: c.duration,
       participants: opts.roleIds.map((roleId) => ({ roleId, share: 1 })),
       preparation: 0,
+      // LOCATION becomes the place (#466), cut to the text limit so the import never fails on it.
+      ...(c.place.trim() !== '' ? { place: c.place.trim().slice(0, LIMITS.textChars) } : {}),
     });
   }
   return validate(out);

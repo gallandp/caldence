@@ -33,7 +33,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import { exportRequest } from '../state/exportScope';
   import HolidayDrops from '../components/HolidayDrops.svelte';
-  import { holidayDrops } from '../../core/ics';
+  import { holidayDrops, placeLink } from '../../core/ics';
   import { resolveRegion } from '../../core/regions';
   import CyclesCard from '../components/CyclesCard.svelte';
   import Rich from '../help/Rich.svelte';
@@ -53,6 +53,9 @@
   import { activeTeamId, index, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
   import WhatIfSheet, { type WhatIfTarget } from '../components/WhatIfSheet.svelte';
+
+  /** Between the format and the place in a row (#466); spaces at a tag's edge would be dropped. */
+  const PLACE_SEP = ' · ';
 
   interface Props {
     /** Id of a meeting of the active team to open for editing right away. */
@@ -691,15 +694,30 @@
                           { n: minutes },
                         )}</span
                       >
-                      {#if event.onSite}
+                      {#if event.onSite || event.place}
+                        {@const link = event.place ? placeLink(event.place) : undefined}
+                        <!-- Format, then the place or link (#466); a web link opens in a new tab. -->
                         <span class="sub place" data-place={event.id}
-                          ><svg viewBox="0 0 24 24" aria-hidden="true"
-                            ><path
-                              d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
-                            /><circle cx="12" cy="9.5" r="2.5" /></svg
-                          >{event.onSite.travel > 0
-                            ? $t('meet.place.travel', { n: event.onSite.travel })
-                            : $t('meet.place.onSite')}</span
+                          >{#if event.onSite}<svg viewBox="0 0 24 24" aria-hidden="true"
+                              ><path
+                                d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
+                              /><circle cx="12" cy="9.5" r="2.5" /></svg
+                            >{:else if link}<svg viewBox="0 0 24 24" aria-hidden="true"
+                              ><path
+                                d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"
+                              /></svg
+                            >{/if}{#if event.onSite}<span
+                              >{event.onSite.travel > 0
+                                ? $t('meet.place.travel', { n: event.onSite.travel })
+                                : $t('meet.place.onSite')}</span
+                            >{/if}{#if event.onSite && event.place}{PLACE_SEP}{/if}{#if link}<a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={link}
+                              aria-label={$t('meet.place.link', { place: event.place! })}
+                              >{event.place!.trim().replace(/^https?:\/\//i, '')}</a
+                            >{:else if event.place}<span>{event.place}</span>{/if}</span
                         >
                       {/if}
                     </td>
@@ -1160,15 +1178,18 @@
     display: block;
     white-space: nowrap;
   }
-  .place {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
+  /* Format and place read as one line that wraps; a long link breaks anywhere (#466). */
+  .c-when .sub.place {
+    display: block;
+    max-width: 22rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .place svg {
     width: 0.9em;
     height: 0.9em;
-    flex: none;
+    margin-right: 0.25rem;
+    vertical-align: -0.1em;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;

@@ -28,6 +28,8 @@ export const WINDOWS_ZONES: Record<string, string> = {
 export interface IcsEvent {
   uid: string;
   summary: string;
+  /** LOCATION, unescaped and trimmed; empty when there is none (#466). */
+  location: string;
   categories: string[];
   allDay: boolean;
   start: { date: ISODate; time: Time | null; tzid: string | null; utc: boolean };
@@ -59,6 +61,8 @@ export type ImportCandidate = {
   time: Time;
   duration: number;
   categoryHint: string | null;
+  /** The place or link from LOCATION; empty when there is none (#466). */
+  place: string;
   notes: NoteKey[];
   duplicateOf: string | null;
   selected: boolean;
@@ -176,6 +180,7 @@ function toEvent(draft: Draft): IcsEvent | null {
   const ev: IcsEvent = {
     uid: '',
     summary: '',
+    location: '',
     categories: [],
     allDay: false,
     start: { date: '', time: null, tzid: null, utc: false },
@@ -192,6 +197,12 @@ function toEvent(draft: Draft): IcsEvent | null {
         break;
       case 'SUMMARY':
         ev.summary = unescapeText(p.value).trim();
+        break;
+      case 'LOCATION':
+        // A multi-line address becomes one line: the place is a one-line text field.
+        ev.location = unescapeText(p.value)
+          .replace(/\s*\n\s*/g, ', ')
+          .trim();
         break;
       case 'DESCRIPTION':
         unit = unescapeText(p.value).split('\n')[0]!.trim();
@@ -724,6 +735,7 @@ export function reviewImport(
       time,
       duration: ev.durationMinutes,
       categoryHint: first === undefined ? null : (categoryByName.get(nameKey(first)) ?? null),
+      place: ev.location,
       notes,
       duplicateOf,
       selected,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { exportIcsWithCounts, sequenceOf, type ExportedEvent } from '../../src/core/ics';
+import { exportIcsWithCounts, placeLink, sequenceOf, type ExportedEvent } from '../../src/core/ics';
+import { importEvents } from '../../src/core/edit';
 import { parseIcs, reviewImport } from '../../src/core/icsImport';
+import { LIMITS } from '../../src/core/limits';
 import { migrate } from '../../src/core/migrate';
 import {
   CURRENT_SCHEMA,
@@ -212,5 +214,94 @@ describe('place or link of a meeting in the .ics export (#442)', () => {
       ),
     );
     expect(plain.ok && plain.value[0]!.summary).toBe('Sync · Beta · Alpha');
+  });
+});
+
+describe('import of LOCATION (#466)', () => {
+  it('fills the place of an imported meeting from LOCATION, also from its own export', () => {
+    const ws = workspace(daily({ place: 'Room 2.14, 2nd floor' }));
+    const parsed = parseIcs(icsOf(ws).text);
+    expect(parsed.ok && parsed.value[0]!.location).toBe('Room 2.14, 2nd floor');
+    const target = workspace(daily({ id: 'x1', name: 'Other' }));
+    const review = reviewImport(parsed.ok ? parsed.value : [], {
+      ws: target,
+      teamId: 'alpha',
+      today: '2027-01-04',
+    });
+    expect(review.candidates[0]!.place).toBe('Room 2.14, 2nd floor');
+    const out = importEvents(
+      target,
+      'alpha',
+      review.candidates.map((candidate) => ({ candidate, categoryId: 'c1' })),
+      { roleIds: ['dev'], newCategoryName: 'Import', untitledName: 'Untitled' },
+    );
+    expect(out.ok && out.value.teams[0]!.events[1]!.place).toBe('Room 2.14, 2nd floor');
+  });
+
+  it('adds no place without LOCATION and cuts an overlong one to the text limit', () => {
+    const ics = (location?: string) =>
+      [
+        'BEGIN:VCALENDAR',
+        'BEGIN:VEVENT',
+        'UID:a',
+        'SUMMARY:Sync',
+        'DTSTART:20270105T090000',
+        'DTEND:20270105T093000',
+        ...(location !== undefined ? [`LOCATION:${location}`] : []),
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n');
+    const place = (location?: string) => {
+      const parsed = parseIcs(ics(location));
+      const review = reviewImport(parsed.ok ? parsed.value : [], {
+        ws: workspace(daily()),
+        teamId: 'alpha',
+        today: '2027-01-04',
+      });
+      const out = importEvents(
+        workspace(daily()),
+        'alpha',
+        review.candidates.map((candidate) => ({ candidate, categoryId: 'c1' })),
+        { roleIds: ['dev'], newCategoryName: 'Import', untitledName: 'Untitled' },
+      );
+      expect(out.ok).toBe(true);
+      return out.ok ? out.value.teams[0]!.events[1]!.place : 'invalid';
+    };
+    expect(place()).toBeUndefined();
+    expect(place('  ')).toBeUndefined();
+    expect(place('x'.repeat(LIMITS.textChars + 50))).toHaveLength(LIMITS.textChars);
+  });
+});
+
+describe('placeLink (#466)', () => {
+  it('makes only http(s) addresses links', () => {
+    expect(placeLink(' https://meet.example.com/daily ')).toBe('https://meet.example.com/daily');
+    for (const text of [
+      'javascript:alert(1)',
+      'JaVaScRiPt:x',
+      'data:text/html,x',
+      'mailto:a@b.example',
+      'ftp://x',
+      ' https://a b',
+      'Room 2.14',
+    ])
+      expect(placeLink(text)).toBeUndefined();
+  });
+
+  it('joins a multi-line LOCATION into one line', () => {
+    const parsed = parseIcs(
+      [
+        'BEGIN:VCALENDAR',
+        'BEGIN:VEVENT',
+        'UID:a',
+        'SUMMARY:Sync',
+        'DTSTART:20270105T090000',
+        'DTEND:20270105T093000',
+        'LOCATION:Building A\\n Room 2.14',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n'),
+    );
+    expect(parsed.ok && parsed.value[0]!.location).toBe('Building A, Room 2.14');
   });
 });
