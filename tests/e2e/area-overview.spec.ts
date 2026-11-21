@@ -79,6 +79,24 @@ test('the area overview compares cadences, shows load and the area steering', as
   await expect(overview.locator('[data-kpi="area"] b')).toHaveText('6.5 h');
 });
 
+test('the average leaves out the week before the horizon and the team starts (#476)', async ({
+  page,
+}) => {
+  // The horizon starts on a Saturday and Team Beta one week later: both 0 weeks stay out.
+  await page.clock.setFixedTime(new Date('2027-01-02T10:00:00'));
+  const overview = await openOverview(page, undefined, (ws) => {
+    ws.settings.horizon = { ...ws.settings.horizon, from: '2027-01-02' };
+    const beta = ws.teams.find((t) => t.id === 'team-beta')!;
+    beta.cadence = { ...beta.cadence, start: '2027-01-11' };
+  });
+  const load = overview.locator('[data-load]');
+  await expect(load.locator('tr[data-team="team-beta"] button[data-week="2027-01-04"]')).toHaveText(
+    '0',
+  );
+  await expect(load.locator('tr[data-team="team-alpha"] td.avg')).toHaveText('18%');
+  await expect(load.locator('tr[data-team="team-beta"] td.avg')).toHaveText('8%');
+});
+
 test('a load cell opens Load for that team and week', async ({ page }) => {
   const overview = await openOverview(page);
   const cell = overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]');
@@ -270,6 +288,32 @@ test('an area meeting opens in Meetings & cadence', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
 });
 
+test('Meetings & cadence of an area names its own meetings and the Overview total (#472)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  const weekly = (await overview.locator('[data-kpi="cost"] b').textContent())!;
+  const kpi = (await overview.locator('[data-kpi="cost"]').textContent())!;
+  const horizon = /(€[\d,]+) in the planning horizon/.exec(kpi)![1];
+  await showView(page, 'Meetings & cadence');
+  const card = page.locator('[data-costs]');
+  await expect(card.locator('h3')).toHaveText(
+    'Costs of the meetings in the area, without team meetings',
+  );
+  const total = card.locator('[data-cost-area-total]');
+  await expect(total).toContainText(
+    `Total in the area with all teams: ${weekly} / week, ${horizon} in the planning horizon`,
+  );
+  await total.getByRole('button', { name: 'Open the overview of Payments' }).click();
+  await expect(page.locator('[data-area-overview]')).toBeVisible();
+  await expect(currentUnit(page)).toHaveText('Payments');
+  // A team's card is unchanged.
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Meetings & cadence');
+  await expect(page.locator('[data-costs] h3')).toHaveText('Costs');
+  await expect(page.locator('[data-cost-area-total]')).toHaveCount(0);
+});
+
 test('the back link appears after a drill-in only and leaves with the view', async ({ page }) => {
   const overview = await openOverview(page);
   await overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]').click();
@@ -348,6 +392,48 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(kpi.locator('b')).toHaveText('2 of 3');
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText(
     'starts on Wednesday',
+  );
+});
+
+test('presenting, a what-if on the reference team shows that team as differing (#470)', async ({
+  page,
+}) => {
+  // No area cadence; Alpha and Beta share 2-week sprints, Gamma has 3 weeks.
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { teamIds: string[]; cadence?: unknown };
+    delete area.cadence;
+    area.teamIds = ['team-alpha', 'team-beta', 'team-gamma'];
+    ws.teams[1]!.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' };
+  });
+  const kpi = overview.locator('[data-kpi="cadence"]');
+  const lead = overview.locator('.lead');
+  await expect(kpi.locator('b')).toHaveText('2 of 3');
+  await expect(lead).toContainText('compared with the cadence of Team Alpha, which most share');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await sheet.getByLabel('Length (weeks)').fill('4');
+  await expect(sheet).toContainText('2 → 1 of 3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+
+  // Beta keeps the saved reference; Alpha, which changed, is the one out of step.
+  await expect(kpi.locator('b')).toHaveText('1 of 3');
+  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha and Team Gamma');
+  await expect(overview.locator('[data-team-row="team-alpha"]')).toContainText(
+    '4 instead of 2 weeks',
+  );
+  await expect(overview.locator('[data-team-row="team-beta"]')).toContainText('aligned');
+  await expect(lead).toContainText('compared with the cadence of Team Alpha before the what-ifs');
+});
+
+test('when no two teams share a cadence, the lead says so (#470)', async ({ page }) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    delete (ws.areas[0] as { cadence?: unknown }).cadence;
+  });
+  await expect(overview.locator('[data-kpi="cadence"] b')).toHaveText('1 of 4');
+  await expect(overview.locator('.lead')).toContainText(
+    'compared with the cadence of Team Alpha, as no two teams share a cadence',
   );
 });
 
@@ -669,4 +755,49 @@ test('the load tile names who is over the limit instead of the average (#448)', 
   });
   await expect(tag).toHaveText('below the 60% limit');
   await expect(tag).toHaveClass(/ok/);
+});
+
+test('a name over the limit opens Meeting load at that person, also with hidden names (#462)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page);
+  const tag = overview.locator('[data-kpi="load"] .tag');
+  await expect(tag).toHaveText('1 person over the 60% limit: Pia');
+  await tag.getByRole('button', { name: 'Show Pia in Meeting load' }).click();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Payments');
+  const who = page.locator('#panel-load tr[data-person="person-pia"] button.who');
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toBeFocused();
+  await expect(who).toBeInViewport();
+
+  // Presenting with hidden names: the link keeps the hidden name and still opens the row.
+  await page.getByRole('button', { name: 'Payments overview' }).click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  const hidden = overview.locator('[data-kpi="load"] .tag button');
+  await expect(hidden).toHaveText(/^Person \d+$/);
+  await expect(hidden).toHaveAccessibleName(/^Show Person \d+ in Meeting load$/);
+  await hidden.click();
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toHaveText(/^Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: each of the first three names is a button, the third opens its own row.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  const names = overview.locator('[data-kpi="load"] .tag button');
+  await expect(names).toHaveCount(3);
+  const third = (await names.nth(2).textContent())!;
+  await names.nth(2).click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${third}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
 });

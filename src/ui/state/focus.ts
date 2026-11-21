@@ -22,3 +22,9 @@ export const calendarWeek = writable<ISODate | null>(null);
  * "N more pairs" (#445). Meeting load clears it once shown.
  */
 export const loadOverlaps = writable(false);
+
+/**
+ * A person whose row Meeting load opens and brings into view, set from a name over the limit on
+ * the area Overview (#462). Meeting load clears it once shown.
+ */
+export const loadPerson = writable<string | null>(null);

@@ -8,8 +8,11 @@
     loadPerWeek,
     overbooked,
     personLoad,
+    placeHours,
     placesOf,
+    suggestedHours,
   } from '../../core/load';
+  import { fitOthers, fittedHours } from '../../core/setup';
   import { record } from '../../core/record';
   import RoleList from '../components/RoleList.svelte';
   import FieldError from '../components/FieldError.svelte';
@@ -81,7 +84,10 @@
     const key = addName.trim().toLowerCase();
     return others.find((p) => p.name.trim().toLowerCase() === key);
   });
-  /** The typed person already works in another team or area: their hours left fill the field. */
+  /**
+   * The typed person already works in another team or area: the field proposes their hours left,
+   * or an even split once none are left (#465, as the setup wizard, #446).
+   */
   const elsewhere = $derived.by(() => {
     const person = typed;
     const places = person ? placesOf($workspace, person.id, $levels.org) : [];
@@ -92,7 +98,29 @@
       places: places.join(', '),
       hours: capacity($workspace, person.id),
       left: hoursLeft($workspace, person.id),
+      suggested: suggestedHours($workspace, person.id),
+      /** The teams and areas where the person has hours: the ones lowered to fit. */
+      booked: placeHours($workspace, person.id, $levels.org)
+        .filter((p) => p.hours > 0)
+        .map((p) => p.name)
+        .join(', '),
     };
+  });
+  /** The person whose tick to lower the other teams was cleared; typing another name ticks it. */
+  let keepFor = $state<string | null>(null);
+  /** Someone with no hours left is split evenly: their other teams go down to fit (#465). */
+  const fitting = $derived(
+    !!elsewhere && elsewhere.left === 0 && elsewhere.booked !== '' && keepFor !== elsewhere.id,
+  );
+  /** The hours the form would save: the typed number, else the proposal. */
+  const formHours = $derived(addHours ?? elsewhere?.suggested ?? null);
+  /** "Team Gamma 21.5 h, Team Delta 5.5 h": what the other teams keep. */
+  const fitted = $derived.by(() => {
+    const h = formHours;
+    if (!fitting || !elsewhere || h === null || !Number.isFinite(h) || h < 0) return '';
+    return fittedHours($workspace, elsewhere.id, h, undefined, $levels.org)
+      .map((p) => `${p.name} ${hours(p.hours)} h`)
+      .join(', ');
   });
 
   /**
@@ -105,7 +133,7 @@
   );
   const preview = $derived.by(() => {
     if (!team || !typed || roleChoice === '') return null;
-    const h = addHours ?? elsewhere?.left ?? null;
+    const h = formHours;
     if (h !== null && (!Number.isFinite(h) || h < 0)) return null;
     const personId = typed.id;
     const next = updateTeam($workspace, team.id, {
@@ -113,6 +141,7 @@
       memberHours: h === null ? team.memberHours : withHours(team.memberHours, personId, h),
     });
     if (!next.ok) return null;
+    if (fitting && h !== null) fitOthers(next.value, team.id, personId, h);
     return {
       name: typed.name,
       after: personLoad(next.value, loadPerWeek(next.value, $index), personId),
@@ -129,8 +158,9 @@
     const name = addName.trim();
     if (name === '') return fail('member-add', 'error.required', $t('team.members.person'));
     // A blank field keeps the person's hours in this team, gives someone from another team the
-    // hours they have left, or leaves a new member on the workspace default (no entry).
-    const hours = addHours ?? elsewhere?.left ?? null;
+    // hours they have left (or an even split), or leaves a new member on the workspace default.
+    const hours = formHours;
+    const fit = fitting;
     if (hours !== null && (!Number.isFinite(hours) || hours < 0))
       return fail('member-add', 'error.number.invalid', $t('team.members.hours'));
     const { id, members, memberHours } = team;
@@ -141,14 +171,18 @@
       let next = ws;
       let personId = known?.id;
       if (personId === undefined) [next, personId] = addItem(next, 'people', { name });
-      return updateTeam(next, id, {
+      const added = updateTeam(next, id, {
         members: [...members, { personId, roleId: roleChoice }],
         memberHours: hours === null ? memberHours : withHours(memberHours, personId, hours),
       });
+      // updateTeam returns a copy, so fitting it in place leaves the old workspace as it was.
+      if (added.ok && fit && hours !== null) fitOthers(added.value, id, personId, hours);
+      return added;
     });
     if (done) {
       addName = '';
       addHours = null;
+      keepFor = null;
       void focusSoon('[data-member-add]');
     }
   }
@@ -474,7 +508,7 @@
                   min="0"
                   step="0.5"
                   placeholder={String(defaultHours)}
-                  value={addHours ?? elsewhere?.left ?? ''}
+                  value={addHours ?? elsewhere?.suggested ?? ''}
                   aria-describedby={[elsewhere && `${uid}-elsewhere`, preview && `${uid}-preview`]
                     .filter(Boolean)
                     .join(' ') || undefined}
@@ -496,8 +530,25 @@
                   hours: hours(elsewhere.hours),
                   left: hours(elsewhere.left),
                 })}
-                {#if elsewhere.left === 0}{$t('team.people.noneLeft')}{/if}
               </p>
+              {#if elsewhere.left === 0 && elsewhere.booked !== ''}
+                <label class="fit" data-no-present>
+                  <input
+                    type="checkbox"
+                    checked={keepFor !== elsewhere.id}
+                    aria-describedby="{uid}-fitted"
+                    onchange={(e) => (keepFor = e.currentTarget.checked ? null : elsewhere.id)}
+                  />
+                  {$t('setup.people.fit', {
+                    units: elsewhere.booked,
+                    hpw: hours(defaultHours),
+                  })}
+                </label>
+                <!-- Always present, so screen readers announce the new hours as they change. -->
+                <p class="fitted hint" id="{uid}-fitted" aria-live="polite" data-no-present>
+                  {fitted !== '' ? $t('setup.people.fitted', { hours: fitted }) : ''}
+                </p>
+              {/if}
             {/if}
             {#if preview}
               {@const after = {
@@ -684,6 +735,19 @@
   .empty {
     margin: 0 0 1rem;
     color: var(--text-muted);
+  }
+  .fit {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: -0.5rem 0 0.25rem;
+  }
+  .fitted {
+    margin-left: 1.75rem;
+    font-size: 0.875rem;
+  }
+  .fitted:empty {
+    display: none;
   }
   .info {
     display: flex;

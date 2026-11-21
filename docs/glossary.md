@@ -51,7 +51,7 @@ column and bar uses it and shows its value ("über 60 %").
 Same label for two values is not allowed:
 
 - **Termine des {levelTeam}** – meeting hours of the {levelTeam} ÷ the {levelTeam}'s hours (cost / framework comparison).
-- **Termine der Personen (alle {levelTeams})** – average over the people in scope, counting all their {levelTeams} and the {levelArea}. The Terminlast people table judges each person this way in every scope.
+- **Termine der Personen (alle {levelTeams})** – average over the people in scope, counting all their {levelTeams} and the {levelArea}. The Terminlast people table judges each person this way in every scope. The Rolle filter narrows the table to the people with that role in scope, never their figures (#473).
 
 Where both appear near each other, add a one-line hint saying which scope is counted.
 

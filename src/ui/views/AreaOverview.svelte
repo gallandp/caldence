@@ -14,6 +14,7 @@
     areaOnlyPeople,
     compareCadences,
     compareOrgCadences,
+    loadAverage,
     teamLoad,
     zeroHourMembers,
     type LoadCell,
@@ -67,6 +68,8 @@
     onOpenUnit?: (unitId: string) => void;
     /** Opens the calendar's week of `date` with one person chosen. */
     onOpenCalendar?: (personId: string, date: ISODate) => void;
+    /** Opens Meeting load of the area with one person's row open (#462). */
+    onOpenPerson?: (personId: string) => void;
     /**
      * The organisation's page (#450): only the alignment, load and cost figures and the cost per
      * team; `children` (the tree) sits between the figures and the table.
@@ -81,6 +84,7 @@
     onOpenMeeting,
     onOpenUnit,
     onOpenCalendar,
+    onOpenPerson,
     summary = false,
     children,
   }: Props = $props();
@@ -102,8 +106,13 @@
   const weekCount = $derived(span.weeks);
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
-  const orgComparison = $derived(summary ? compareOrgCadences(ws, from, weekCount) : undefined);
-  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount));
+  // While presenting, the peer reference comes from the file as it was before the what-ifs (#470).
+  const presentBase = workspace.presentBase;
+  const saved = $derived($presentBase ?? ws);
+  const orgComparison = $derived(
+    summary ? compareOrgCadences(ws, from, weekCount, saved) : undefined,
+  );
+  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount, saved));
   const allWeeks = $derived(loadPerWeek(ws, $index));
   // The summary shows no heat map or warned weeks: no load per team and week (#450).
   const weeks = $derived.by(() => {
@@ -150,6 +159,33 @@
    * everyone must not hide anyone over the limit.
    */
   const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
+  /**
+   * The tag over the limit in pieces, so each name can open Meeting load (#462): the text around
+   * the names, and the first three names with what goes between them, as `firstThree` writes it.
+   */
+  const overTag = $derived.by(() => {
+    const mark = '\u0000';
+    const [before, after = ''] = $t(
+      overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+      { n: formatNumber($locale, overPeople.length, 0), max: percent(maxFte), names: mark },
+    ).split(mark);
+    const shown = overPeople.slice(0, 3);
+    const names: { id?: string; text: string }[] =
+      overPeople.length > 3
+        ? [
+            ...shown.flatMap((id, i) => [
+              ...(i > 0 ? [{ text: ', ' }] : []),
+              { id, text: personName(id) },
+            ]),
+            { text: ' …' },
+          ]
+        : new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' })
+            .formatToParts(shown)
+            .map((p) =>
+              p.type === 'element' ? { id: p.value, text: personName(p.value) } : { text: p.value },
+            );
+    return { before, after, names };
+  });
 
   /**
    * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
@@ -268,10 +304,19 @@
             date: formatDisplayDate($locale, area.cadence.start, 'long'),
           })
         : comparison.reference?.teamId
-          ? $t('overview.lead.peer', { team: teamName(comparison.reference.teamId) })
+          ? $t(peerLead(comparison.reference.changed), {
+              team: teamName(comparison.reference.teamId),
+            })
           : $t('overview.lead.none'),
     ].join(' · '),
   );
+  /** The team's cadence changed in a what-if, or no two teams share one, or most share it. */
+  function peerLead(changed = false): string {
+    if (changed) return 'overview.lead.peer.saved';
+    return teams.length > 1 && comparison.sharing < 2
+      ? 'overview.lead.peer.first'
+      : 'overview.lead.peer';
+  }
   /**
    * The organisation's page names its teams and people in the tree, so only what the teams are
    * compared with: their area's cadence where it has one, else the one most teams share (#450).
@@ -367,8 +412,6 @@
       max: percent(maxFte),
     });
   }
-  const average = (cells: LoadCell[]) =>
-    cells.length > 0 ? cells.reduce((sum, c) => sum + c.share, 0) / cells.length : 0;
 
   // ---------- steering ----------
 
@@ -453,14 +496,13 @@
       <span class="label">{$t('overview.kpi.load.sub')}</span>
       {#if overPeople.length > 0}
         <span class="tag warn" data-over-people
-          >{$t(
-            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
-            {
-              n: formatNumber($locale, overPeople.length, 0),
-              max: percent(maxFte),
-              names: firstThree(overPeople.map(personName)),
-            },
-          )}</span
+          >{overTag.before}{#each overTag.names as part, i (i)}{#if part.id && onOpenPerson}{@const id =
+                part.id}<button
+                type="button"
+                class="person"
+                aria-label={$t('overview.kpi.load.over.open', { name: part.text })}
+                onclick={() => onOpenPerson(id)}>{part.text}</button
+              >{:else}{part.text}{/if}{/each}{overTag.after}</span
         >
       {:else}
         <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
@@ -916,7 +958,7 @@
             </tr>
           </thead>
           <tbody>
-            {#snippet heatRow(unitId: string, name: string, row: LoadCell[])}
+            {#snippet heatRow(unitId: string, name: string, row: LoadCell[], start?: ISODate)}
               <tr data-team={unitId}>
                 <th scope="row" class="name">{name}</th>
                 {#each row as cell (cell.monday)}
@@ -932,14 +974,14 @@
                     >
                   </td>
                 {/each}
-                <td class="avg">{percent(average(row))}</td>
+                <td class="avg">{percent(loadAverage(row, ws.settings.horizon, start))}</td>
               </tr>
             {/snippet}
             {#each teams as team (team.id)}
-              {@render heatRow(team.id, team.name, load.get(team.id) ?? [])}
+              {@render heatRow(team.id, team.name, load.get(team.id) ?? [], team.cadence.start)}
             {/each}
             {#if areaOnly.length > 0}
-              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly)}
+              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly, area.cadence?.start)}
             {/if}
           </tbody>
         </table>
@@ -1124,6 +1166,21 @@
     padding: 0.05rem 0.55rem;
     border-radius: 99px;
     font-size: 0.8rem;
+  }
+  /* A name over the limit opens Meeting load at that person (#462). */
+  :global(#app) .tag .person {
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 650;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
   }
   .tag.ok {
     background: var(--ok-soft);

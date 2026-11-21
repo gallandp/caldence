@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { AreaShare } from '../../core/areaCosts';
   import { costPerCadence, type CostSummary } from '../../core/cost';
   import { unitName as nameOf, type Cadence } from '../../core/model';
@@ -14,8 +15,12 @@
     areaShare?: AreaShare;
     /** The team's name, for the sentence about the area share. */
     unitName?: string;
+    /** Replaces "Costs", e.g. to say an area counts only its own meetings (#472). */
+    title?: string;
+    /** Shown below the totals, e.g. the area total with all its teams (#472). */
+    children?: Snippet;
   }
-  let { summary, rate, cadence, areaShare, unitName: team = '' }: Props = $props();
+  let { summary, rate, cadence, areaShare, unitName: team = '', title, children }: Props = $props();
 
   const uid = $props.id();
   const euro = (n: number) => formatEuro($locale, n);
@@ -42,7 +47,7 @@
 </script>
 
 <section class="card cost" aria-labelledby="{uid}-title" data-costs>
-  <h3 id="{uid}-title" tabindex="-1">{$t('cost.title')}</h3>
+  <h3 id="{uid}-title" tabindex="-1">{title ?? $t('cost.title')}</h3>
   <p class="note">{$t('cost.hint', { rate: euro(rate) })}</p>
   <div class="totals">
     <p data-cost-week>
@@ -58,6 +63,7 @@
       <span class="value">{euro(summary.horizon)}</span> <small>{$t('cost.horizon')}</small>
     </p>
   </div>
+  {@render children?.()}
   {#if areaShare}
     <p class="area-share" data-cost-area-share>
       {$t('cost.areaShare.own', { team })}
