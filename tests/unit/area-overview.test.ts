@@ -184,13 +184,16 @@ describe('compareCadences', () => {
       false,
     ]);
     const c = compareCadences(whatIf, a, '2027-01-04', 12, saved);
-    expect(c.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(2) });
+    expect(c.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(2), changed: true });
     expect(c.rows.map((r) => r.inStep)).toEqual([false, true, false]);
     expect(c.rows[0]!.reasons).toEqual([{ kind: 'length', weeks: 4, reference: 2 }]);
     expect(c.sharing).toBe(1);
     // Alpha tries Gamma's 3 weeks: now more teams share that one, so it is the reference.
     const joined = compareCadences(withAlpha(sprint(3)), a, '2027-01-04', 12, saved);
-    expect(joined.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(3) });
+    expect(joined.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(3), changed: false });
+    // A start moved by a whole period is the same cadence: the reference is unchanged.
+    const moved = compareCadences(withAlpha(sprint(2, '2027-01-18')), a, '2027-01-04', 12, saved);
+    expect(moved.reference).toMatchObject({ cadence: sprint(2), changed: false });
     expect(joined.rows.map((r) => r.inStep)).toEqual([true, false, true]);
     expect(joined.sharing).toBe(2);
   });

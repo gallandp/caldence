@@ -380,7 +380,7 @@ test('presenting, a what-if on the reference team shows that team as differing (
     '4 instead of 2 weeks',
   );
   await expect(overview.locator('[data-team-row="team-beta"]')).toContainText('aligned');
-  await expect(lead).toContainText('compared with the saved cadence of Team Alpha');
+  await expect(lead).toContainText('compared with the cadence of Team Alpha before the what-ifs');
 });
 
 test('when no two teams share a cadence, the lead says so (#470)', async ({ page }) => {

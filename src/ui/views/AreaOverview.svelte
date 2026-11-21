@@ -273,16 +273,15 @@
             date: formatDisplayDate($locale, area.cadence.start, 'long'),
           })
         : comparison.reference?.teamId
-          ? $t(peerLead(comparison.reference.teamId, comparison.reference.cadence), {
+          ? $t(peerLead(comparison.reference.changed), {
               team: teamName(comparison.reference.teamId),
             })
           : $t('overview.lead.none'),
     ].join(' · '),
   );
   /** The team's cadence changed in a what-if, or no two teams share one, or most share it. */
-  function peerLead(teamId: string, cadence: Cadence): string {
-    const now = teams.find((x) => x.id === teamId)?.cadence;
-    if (JSON.stringify(now) !== JSON.stringify(cadence)) return 'overview.lead.peer.saved';
+  function peerLead(changed = false): string {
+    if (changed) return 'overview.lead.peer.saved';
     return teams.length > 1 && comparison.sharing < 2
       ? 'overview.lead.peer.first'
       : 'overview.lead.peer';

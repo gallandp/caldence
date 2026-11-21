@@ -16,7 +16,7 @@
   const baseIndex = $derived($presentBase ? workspaceIndex($presentBase) : undefined);
   const before = $derived(
     $presentBase && baseIndex && scope && changes > 0
-      ? whatIfEffect($presentBase, baseIndex, scope, rate, $presentBase)
+      ? whatIfEffect($presentBase, baseIndex, scope, rate)
       : undefined,
   );
   const after = $derived(

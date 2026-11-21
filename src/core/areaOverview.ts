@@ -53,8 +53,11 @@ export interface CadenceRow {
 }
 
 export interface CadenceComparison {
-  /** The reference: the area's own cadence, or (without one) the cadence most teams share. */
-  reference?: { cadence: Cadence; fromArea: boolean; teamId?: string };
+  /**
+   * The reference: the area's own cadence, or (without one) the cadence most teams share.
+   * `changed`: a what-if moved the reference team away from it (#470).
+   */
+  reference?: { cadence: Cadence; fromArea: boolean; teamId?: string; changed?: boolean };
   /** Teams whose cadence equals the peer reference (1 when no two share one); 0 without one. */
   sharing: number;
   /** The area's own periods in the window; empty without an area cadence. */
@@ -152,10 +155,18 @@ export function compareCadences(
     ? undefined
     : peerReference(area.teamIds.flatMap((id) => base.teams.filter((t) => t.id === id)));
   // The saved reference stays unless a what-if makes more teams (two at least) share another.
+  const moves =
+    peer &&
+    sharing(peer.cadence) >= 2 &&
+    sharing(peer.cadence) > (saved ? sharing(saved.cadence) : 0);
   const kept =
-    saved && !(peer && sharing(peer.cadence) > Math.max(1, sharing(saved.cadence)))
-      ? { cadence: saved.cadence, teamId: saved.id }
-      : peer && { cadence: peer.cadence, teamId: peer.id };
+    saved && !moves
+      ? {
+          cadence: saved.cadence,
+          teamId: saved.id,
+          changed: !teams.some((t) => t.id === saved.id && sameCadence(t.cadence, saved.cadence)),
+        }
+      : peer && { cadence: peer.cadence, teamId: peer.id, changed: false };
   const reference = area.cadence
     ? { cadence: area.cadence, fromArea: true }
     : kept && { ...kept, fromArea: false };
