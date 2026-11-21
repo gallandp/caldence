@@ -24,7 +24,14 @@
     scopeUnits,
     type FilteredOccurrence,
   } from '../../core/views';
-  import { formatDisplayDate, formatNumber, levels, locale, translate as t } from '../../i18n';
+  import {
+    formatDisplayDate,
+    formatNumber,
+    formatPercent,
+    levels,
+    locale,
+    translate as t,
+  } from '../../i18n';
   import DayDetails, { type DayOverlap } from '../components/DayDetails.svelte';
   import AreaIcon from '../components/AreaIcon.svelte';
   import DayItemList, { type DayItem } from '../components/DayItemList.svelte';
@@ -177,7 +184,19 @@
         // An area meeting always names its area, so it stands out from the teams' meetings.
         area || severalTeams ? unitName($workspace, o.teamId, $levels.org) || o.teamId : undefined,
       ].filter(Boolean);
-      const roles = (event?.participants ?? []).map((p) => participantName($workspace, p));
+      // A share below 1 says so, as the .ics does: the hours count only that part (#471).
+      const roles = (event?.participants ?? []).map((p) =>
+        p.share < 1
+          ? $t('cal.role.share', {
+              name: participantName($workspace, p),
+              // The note breaks as a whole, not inside "every other time".
+              note: (p.share === 0.5
+                ? $t('cal.share.half')
+                : $t('cal.share.part', { percent: formatPercent($locale, p.share) })
+              ).replace(/ /g, '\u00a0'),
+            })
+          : participantName($workspace, p),
+      );
       return {
         key: `${o.teamId}/${o.eventId}`,
         teamId: o.teamId,

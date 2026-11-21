@@ -472,6 +472,20 @@ test('the day details show time, category and roles and open a meeting for editi
   await expect(page.getByLabel('Name', { exact: true })).toHaveCount(0);
 });
 
+for (const [lang, text] of [
+  ['en', 'Product Owner, Scrum Master (every other time)'],
+  ['de', 'Product Owner, Scrum Master (jedes zweite Mal)'],
+] as const)
+  test(`a role invited every other time says so in the day details (#471, ${lang})`, async ({
+    page,
+  }) => {
+    await openCalendar(page, '2027-01-15', lang);
+    // Backlog Refinement invites the Scrum Master at 0.5.
+    await cellOf(page, '2027-01-13').click();
+    const item = panel(page).getByRole('listitem').filter({ hasText: 'Backlog Refinement' });
+    await expect(item).toContainText(text);
+  });
+
 test('Edit in the day details switches to the team of the meeting', async ({ page }) => {
   // Alex is in both teams: with the person filter the calendar shows Team Beta's meetings
   // while Team Alpha stays the active team.

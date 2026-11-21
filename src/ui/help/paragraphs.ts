@@ -84,6 +84,7 @@ export const PARAGRAPHS: Record<string, Record<string, Label>> = {
     overlaps: 'load.overlaps',
     peak: 'load.col.peak',
     personFilter: 'filter.person',
+    roleFilter: 'filter.role',
     costs: 'cost.title',
     calc: topicLink('calc'),
   },

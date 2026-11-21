@@ -131,8 +131,8 @@ export function fittedHours(
   return places.map((p, i) => ({ ...p, hours: out[i]! / 2 }));
 }
 
-/** Writes the fitted hours of a person into their other teams and areas (#446). */
-function fitOthers(ws: Workspace, teamId: string, personId: string, here: number): void {
+/** Writes the fitted hours of a person into their other teams and areas (#446, #465). */
+export function fitOthers(ws: Workspace, teamId: string, personId: string, here: number): void {
   for (const place of fittedHours(ws, personId, here, teamId)) {
     const team = ws.teams.find((t) => t.id === place.id);
     if (team) team.memberHours[personId] = place.hours;
