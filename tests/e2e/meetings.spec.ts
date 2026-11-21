@@ -416,6 +416,38 @@ test('a place or link is saved, reopened and exported with the team in the title
   expect(text).not.toContain('LOCATION:On site');
 });
 
+test('the row shows the place; a web link opens in a new tab (#466)', async ({ page }) => {
+  await openMeetings(page);
+  const place = row(page, 'Weekly Sync').locator('[data-place]');
+  await expect(place).toHaveCount(0);
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  let form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  await form.getByLabel('Place or link').fill('https://meet.example.com/weekly-sync');
+  await form.getByRole('button', { name: 'Save' }).click();
+  const link = place.getByRole('link', {
+    name: 'https://meet.example.com/weekly-sync (opens in a new tab)',
+  });
+  await expect(link).toHaveText('meet.example.com/weekly-sync');
+  await expect(link).toHaveAttribute('href', 'https://meet.example.com/weekly-sync');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+
+  // On site, a room is plain text after the format.
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  await form.getByRole('button', { name: 'On site' }).click();
+  await form.getByLabel('Place or link').fill('Room 2.14');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(place).toContainText('On site');
+  await expect(place).toContainText('Room 2.14');
+  await expect(place.getByRole('link')).toHaveCount(0);
+
+  // A phone card shows it too, without sideways scrolling.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(place).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test('the milestone options follow the chosen cycle', async ({ page }) => {
   await openMeetings(page);
   const form = await startNew(page, 'Cycle check');

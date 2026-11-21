@@ -454,6 +454,7 @@
   "meet.place.remote": "Remote",
   "meet.place.onSite": "On site",
   "meet.place.travel": "On site · {n} min travel",
+  "meet.place.link": "{place} (opens in a new tab)",
   "meet.travel": "Travel (minutes)",
   "meet.travel.hint": "There and back, the same for everyone. Counts in load and costs.",
   "meet.placeText": "Place or link",

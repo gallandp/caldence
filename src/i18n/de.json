@@ -454,6 +454,7 @@
   "meet.place.remote": "Remote",
   "meet.place.onSite": "Vor Ort",
   "meet.place.travel": "Vor Ort · {n} Min. Anreise",
+  "meet.place.link": "{place} (öffnet in neuem Tab)",
   "meet.travel": "Anreise (Minuten)",
   "meet.travel.hint": "Hin und zurück, für alle gleich. Zählt in Terminlast und Kosten.",
   "meet.placeText": "Ort oder Link",
