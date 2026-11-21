@@ -472,17 +472,17 @@
   {#snippet baseBody()}
     <thead>
       <tr>
-        <th scope="col">{$t('load.col.category')}</th>
+        <th scope="col" class="start">{$t('load.col.category')}</th>
         {#each summary.byRole as r (r.roleId)}
           <th scope="col" class="num">{roleName(r.roleId)}</th>
         {/each}
-        <th scope="col" class="num">{$t('load.col.total')}</th>
+        <th scope="col" class="num total">{$t('load.col.total')}</th>
       </tr>
     </thead>
     <tbody>
       {#each summary.byCategory as c (c.categoryId)}
         <tr data-category={c.categoryId}>
-          <th scope="row" class="nowrap">
+          <th scope="row" class="nowrap start">
             <span class="cat"
               ><span
                 class="dot"
@@ -911,7 +911,8 @@
 
   {#if !phone.current}{@render peopleCard()}{/if}
 
-  <div class="grid">
+  <!-- More than three roles: the base load takes the full width, so more of them show (#469). -->
+  <div class="grid" class:wide={summary.byRole.length > 3}>
     <div class="col">
       <div class="card">{@render region('base', $t('load.table.base'), baseBody)}</div>
     </div>
@@ -1013,6 +1014,9 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
     gap: 1.25rem;
     align-items: start;
+  }
+  .grid.wide {
+    grid-template-columns: minmax(0, 1fr);
   }
   .col {
     display: flex;
@@ -1138,6 +1142,26 @@
   }
   .total {
     font-weight: 700;
+  }
+  /* Category and Total stay in view while many role columns scroll between them (#469). */
+  :global(#app) [role='region'] table :is(th, td).total {
+    position: sticky;
+    right: 0;
+    box-shadow: inset 1px 0 0 var(--border);
+  }
+  /* On phones a sticky Category would leave hardly any room for the roles. */
+  @media (min-width: 601px) {
+    :global(#app) [role='region'] table th.start {
+      position: sticky;
+      left: 0;
+      box-shadow: inset -1px 0 0 var(--border);
+    }
+  }
+  :global(#app) [role='region'] table tbody :is(td.total, th.start) {
+    background: var(--surface);
+  }
+  :global(#app) [role='region'] table tbody tr:hover > :is(td.total, th.start) {
+    background: var(--surface-2);
   }
   .nowrap {
     white-space: nowrap;
