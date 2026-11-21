@@ -154,6 +154,49 @@ test('reusing a person in the wizard splits their hours and the area table follo
   await expect(gamma.locator('[data-zero-hours]')).toHaveText('incl. Robin at 0 h');
 });
 
+test('the Team view splits a fully booked person evenly and lowers their other teams (#465)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await openTeamView(page);
+  const team = panel(page);
+  // Robin has 32 h in Gamma and 8 h in Delta: an even split over three teams is 13 h.
+  await team.getByLabel('Person', { exact: true }).fill('Robin');
+  await expect(team.getByLabel('Hrs/week in team')).toHaveValue('13');
+  const fit = team.getByRole('checkbox', {
+    name: 'Lower the hours in Team Gamma, Team Delta in proportion, so they add up to 40 h a week',
+  });
+  await expect(fit).toBeChecked();
+  await expect(fit).toHaveAccessibleDescription('Then: Team Gamma 21.5 h, Team Delta 5.5 h');
+  // The preview follows a number typed in the field.
+  await team.getByLabel('Hrs/week in team').fill('20');
+  await expect(team.getByText('Then: Team Gamma 16 h, Team Delta 4 h')).toBeVisible();
+  await team.getByLabel('Hrs/week in team').fill('');
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await expect(team.getByLabel('Weekly hours of Robin in Team Alpha')).toHaveValue('13');
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+  await expect(team.getByLabel('Weekly hours of Robin in Team Gamma')).toHaveValue('21.5');
+  await pickUnit(page, 'Team Delta');
+  await openTeamView(page);
+  await expect(team.getByLabel('Weekly hours of Robin in Team Delta')).toHaveValue('5.5');
+
+  // Without the tick the other teams keep their hours and the over-hours flag shows.
+  await team.getByLabel('Person', { exact: true }).fill('Alex');
+  await expect(team.getByLabel('Hrs/week in team')).toHaveValue('8');
+  await expect(team.getByRole('checkbox', { name: /Lower the hours/ })).toHaveCount(0);
+  await pickUnit(page, 'Team Beta');
+  await openTeamView(page);
+  await team.getByLabel('Person', { exact: true }).fill('Robin');
+  await team.getByRole('checkbox', { name: /Lower the hours/ }).uncheck();
+  await expect(team.getByText(/^Then:/)).toHaveCount(0);
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await expect(team.getByLabel('Weekly hours of Robin in Team Beta')).toHaveValue('10');
+  await expect(team.getByLabel('Weekly hours of Robin in Team Beta')).toHaveAccessibleDescription(
+    '50 h – more than 40 h a week',
+  );
+});
+
 test('a number typed in the Team view wins over the hours left', async ({ page }) => {
   await openExample(page);
   await pickUnit(page, 'Team Gamma');

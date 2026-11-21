@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyWorkspace } from '../../src/core/model';
 import { evenShare } from '../../src/core/load';
-import { fittedHours, setupTeam } from '../../src/core/setup';
+import { fitOthers, fittedHours, setupTeam } from '../../src/core/setup';
 import { builtinTemplate } from '../../src/data/templates';
 
 const today = '2027-01-04';
@@ -322,5 +322,21 @@ describe('fittedHours (#446)', () => {
     const ws = robin(40, 0);
     expect(fittedHours(ws, 'p', 20).map((p) => [p.name, p.hours])).toEqual([['Gamma', 20]]);
     expect(evenShare(ws, 'p')).toBe(20);
+  });
+
+  it('writes the fitted hours into the other teams, not the one joined (#465)', () => {
+    const ws = robin(32, 8);
+    ws.teams.push({
+      ...structuredClone(ws.teams[0]!),
+      id: 'Alpha',
+      name: 'Alpha',
+      memberHours: { p: 13 },
+    });
+    fitOthers(ws, 'Alpha', 'p', 13);
+    expect(ws.teams.map((t) => [t.id, t.memberHours.p])).toEqual([
+      ['Gamma', 21.5],
+      ['Delta', 5.5],
+      ['Alpha', 13],
+    ]);
   });
 });
