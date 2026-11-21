@@ -235,6 +235,8 @@
    * The organisation groups its teams under their area, each with the area's own meetings, and
    * the teams without an area last (#467). An area's overview is one group without a heading.
    */
+  /** Only the organisation lists areas' own rows: under the area's heading, not its name again. */
+  const ownLabel = $derived($t('overview.cost.areaRow', { levelInArea: $levels.inArea }));
   const noArea = $derived(
     costs.teams.filter((r) => !ws.areas.some((a) => a.teamIds.includes(r.unitId))),
   );
@@ -247,9 +249,8 @@
             teams: costs.teams.filter((r) => a.teamIds.includes(r.unitId)),
             own: costs.areas.filter((r) => r.unitId === a.id),
           })),
-          // Last even when empty: the organisation's own meetings close it.
-          { area: undefined, heading: noArea.length > 0, teams: noArea, own: [] },
-        ].filter((g, i, all) => g.teams.length + g.own.length > 0 || i === all.length - 1)
+          { area: undefined, heading: true, teams: noArea, own: [] },
+        ].filter((g) => g.teams.length + g.own.length > 0)
       : [{ area: undefined, heading: false, teams: costs.teams, own: costs.areas }],
   );
   const unitOf = (id: string) =>
@@ -638,6 +639,46 @@
       })}
       tabindex="0"
     >
+      {#snippet ownRow()}
+        <tr class="area-row" data-cost-row={area.id}>
+          <th scope="row">
+            {#if onOpenUnit}
+              <button
+                type="button"
+                class="link area-name"
+                class:org
+                aria-label={$t('overview.cost.open', {
+                  name: $t('overview.cost.areaRow'),
+                  view: $t('view.meetings'),
+                })}
+                onclick={() => onOpenUnit(area.id)}
+                >{@render ownIcon()} {$t('overview.cost.areaRow')}</button
+              >
+            {:else}
+              <span class="area-name" class:org
+                >{@render ownIcon()} {$t('overview.cost.areaRow')}</span
+              >
+            {/if}
+            {#if area.events.length > 0}
+              <small>{area.events.map((e) => e.name).join(', ')}</small>
+            {/if}
+            {#if rate && unfilledNote(costs.area.cost?.unfilled)}
+              <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
+            {/if}
+          </th>
+          <td class="extra">{cadenceShort(area.cadence)}</td>
+          <td class="num">{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td>
+          <td></td>
+          {#if rate && costs.area.cost}
+            <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
+            <td class="num muted extra"
+              >{costs.area.invited > 0
+                ? euro(costOf(costs.area.cost) / costs.area.invited)
+                : '–'}</td
+            >
+          {/if}
+        </tr>
+      {/snippet}
       <table class="costs" aria-labelledby="{uid}-cost">
         <thead>
           <tr>
@@ -651,7 +692,7 @@
             {/if}
           </tr>
         </thead>
-        {#each groups as g, i (g.area?.id ?? '')}
+        {#each groups as g (g.area?.id ?? '')}
           <tbody>
             {#if g.heading}
               <tr class="group">
@@ -727,13 +768,13 @@
                       type="button"
                       class="link area-name"
                       aria-label={$t('overview.cost.open', {
-                        name: unitName(r.unitId),
+                        name: `${ownLabel}, ${unitName(r.unitId)}`,
                         view: $t('view.meetings'),
                       })}
-                      onclick={() => onOpenUnit(r.unitId)}><AreaIcon /> {unitName(r.unitId)}</button
+                      onclick={() => onOpenUnit(r.unitId)}><AreaIcon /> {ownLabel}</button
                     >
                   {:else}
-                    <span class="area-name"><AreaIcon /> {unitName(r.unitId)}</span>
+                    <span class="area-name"><AreaIcon /> {ownLabel}</span>
                   {/if}
                   {#if a && a.events.length > 0}
                     <small>{a.events.map((e) => e.name).join(', ')}</small>
@@ -753,50 +794,11 @@
                 {/if}
               </tr>
             {/each}
-            {#if i === groups.length - 1 && (!summary || area.events.length > 0)}
-              <tr class="area-row" data-cost-row={area.id}>
-                <th scope="row">
-                  {#if onOpenUnit}
-                    <button
-                      type="button"
-                      class="link area-name"
-                      class:org
-                      aria-label={$t('overview.cost.open', {
-                        name: $t('overview.cost.areaRow'),
-                        view: $t('view.meetings'),
-                      })}
-                      onclick={() => onOpenUnit(area.id)}
-                      >{@render ownIcon()} {$t('overview.cost.areaRow')}</button
-                    >
-                  {:else}
-                    <span class="area-name" class:org
-                      >{@render ownIcon()} {$t('overview.cost.areaRow')}</span
-                    >
-                  {/if}
-                  {#if area.events.length > 0}
-                    <small>{area.events.map((e) => e.name).join(', ')}</small>
-                  {/if}
-                  {#if rate && unfilledNote(costs.area.cost?.unfilled)}
-                    <small data-unfilled>{unfilledNote(costs.area.cost?.unfilled)}</small>
-                  {/if}
-                </th>
-                <td class="extra">{cadenceShort(area.cadence)}</td>
-                <td class="num"
-                  >{$t('overview.kpi.area.value', { hours: hours(costs.area.hours) })}</td
-                >
-                <td></td>
-                {#if rate && costs.area.cost}
-                  <td class="num strong cost">{euro(costOf(costs.area.cost))}</td>
-                  <td class="num muted extra"
-                    >{costs.area.invited > 0
-                      ? euro(costOf(costs.area.cost) / costs.area.invited)
-                      : '–'}</td
-                  >
-                {/if}
-              </tr>
-            {/if}
+            {#if !summary}{@render ownRow()}{/if}
           </tbody>
         {/each}
+        <!-- The organisation's own meetings close the table, in no area's group (#467). -->
+        {#if summary && area.events.length > 0}<tbody>{@render ownRow()}</tbody>{/if}
         <tfoot>
           <tr data-cost-total>
             <th scope="row">{$t('overview.cost.total')}</th>
@@ -1333,6 +1335,9 @@
     font-weight: 700;
   }
   /* The organisation's area headings (#467): a label above its rows, not a row of figures. */
+  :global(#app) table.costs tbody tr.group {
+    break-after: avoid;
+  }
   :global(#app) table.costs tbody tr.group th {
     padding-top: 1.1rem;
     padding-bottom: 0.4rem;
