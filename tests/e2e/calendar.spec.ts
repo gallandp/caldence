@@ -536,14 +536,14 @@ test('meeting cards say when their hours include preparation (#474)', async ({ p
   await panel(page).getByRole('button', { name: 'Week', exact: true }).click();
   await page.getByLabel('Person').selectOption({ label: 'Alex' });
   // A meeting without preparation keeps its plain time line.
-  const sync = panel(page).getByRole('listitem').filter({ hasText: 'Flow Review' }).first();
-  await expect(sync).toBeVisible();
-  await expect(sync).not.toContainText('preparation');
+  const flowReview = panel(page).getByRole('listitem').filter({ hasText: 'Flow Review' }).first();
+  await expect(flowReview).toBeVisible();
+  await expect(flowReview).not.toContainText('preparation');
   const thursday = panel(page).locator('section', {
     has: page.getByRole('heading', { name: 'Thursday, January 7, 2027' }),
   });
   const card = (name: string) => thursday.getByRole('listitem').filter({ hasText: name });
-  await expect(card('Sprint Planning')).toContainText('incl. 25% preparation');
+  await expect(card('Sprint Planning')).toContainText('10:00–12:00 · incl. 25% preparation');
   await expect(card('Replenishment')).toContainText('incl. 10% preparation');
   await setLanguage(page, 'de');
   await expect(

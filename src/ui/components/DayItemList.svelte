@@ -47,10 +47,8 @@
         >{$t(item.nextDay ? 'cal.item.when.nextDay' : 'cal.item.when', {
           from: item.start,
           to: item.end,
-        })}{#if item.preparation > 0}<span class="prep">
-            · {$t('meet.cost.prep', {
-              percent: formatPercent($locale, item.preparation, 2),
-            })}</span
+        })}{#if item.preparation > 0}<span class="prep"
+            >{` · ${$t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) })}`}</span
           >{/if}</span
       >
       <span class="meta">{item.about}</span>
