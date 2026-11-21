@@ -30,7 +30,7 @@ import { areaStructure } from './structure';
 /** Why a team is out of step. `weekday` and `length` carry what the text needs. */
 export type StepReason =
   | { kind: 'weekday'; weekday: number }
-  | { kind: 'length'; weeks: number; reference: number }
+  | { kind: 'length'; weeks: number; reference: number; fromArea: boolean }
   | { kind: 'offset'; weeks: number };
 
 export interface Segment {
@@ -127,7 +127,7 @@ export function stepReasons(team: Cadence, reference: Cadence, fromArea: boolean
     reasons.push({ kind: 'weekday', weekday: weekday(team.start) });
   }
   const fits = fromArea ? r % t === 0 : r === t;
-  if (!fits) reasons.push({ kind: 'length', weeks: t, reference: r });
+  if (!fits) reasons.push({ kind: 'length', weeks: t, reference: r, fromArea });
   if (reasons.length === 0) {
     const days = mod(diffDays(team.start, reference.start), t * 7);
     // Same weekday here, so the offset is whole weeks.

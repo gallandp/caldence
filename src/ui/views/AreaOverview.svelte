@@ -126,9 +126,29 @@
   // ---------- key figures ----------
 
   const inStep = $derived(comparison.rows.filter((r) => r.inStep));
-  const offTeams = $derived(
-    comparison.rows.filter((r) => !r.inStep).map((r) => teamName(r.teamId)),
-  );
+  const offRows = $derived(comparison.rows.filter((r) => !r.inStep));
+  const stepRow = $derived(new Map(comparison.rows.map((r) => [r.teamId, r])));
+  /** "Differ: Team Gamma and Team Delta" in parts, each name with the team it links to (#478). */
+  const offParts = $derived.by(() => {
+    const [before, after = ''] = $t('overview.kpi.cadence.off', { list: '\u0000' }).split('\u0000');
+    const names = new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' });
+    let i = 0;
+    const parts = names
+      .formatToParts(offRows.map((r) => teamName(r.teamId)))
+      .map((p) => ({ text: p.value, teamId: p.type === 'element' ? offRows[i++]!.teamId : '' }));
+    return [{ text: before, teamId: '' }, ...parts, { text: after, teamId: '' }];
+  });
+  let root: HTMLElement | undefined = $state();
+  /** A name in "Differ: …" goes to the team's row in the table, where its reason is (#478). */
+  function showTeam(teamId: string) {
+    const row = root?.querySelector<HTMLElement>(`[data-cost-row="${CSS.escape(teamId)}"]`);
+    const th = row?.querySelector<HTMLElement>('th');
+    if (!row || !th) return;
+    row.scrollIntoView({ block: 'center' });
+    const target = th.querySelector<HTMLElement>('button') ?? th;
+    if (target === th) th.tabIndex = -1;
+    target.focus({ preventScroll: true });
+  }
   const cells = $derived([...load.values(), areaOnly].flat());
   const warnedMondays = $derived(
     mondays.filter((m) => cells.some((c) => c.monday === m && c.warn)),
@@ -320,12 +340,10 @@
       case 'weekday':
         return $t('overview.reason.weekday', { weekday: weekdayName($locale, r.weekday) });
       case 'length':
-        return $t(
-          comparison.reference?.fromArea
-            ? 'overview.reason.length.area'
-            : 'overview.reason.length.peer',
-          { n: formatNumber($locale, r.weeks, 0), m: formatNumber($locale, r.reference, 0) },
-        );
+        return $t(r.fromArea ? 'overview.reason.length.area' : 'overview.reason.length.peer', {
+          n: formatNumber($locale, r.weeks, 0),
+          m: formatNumber($locale, r.reference, 0),
+        });
       case 'offset':
         return $t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
           n: formatNumber($locale, r.weeks, 0),
@@ -436,7 +454,7 @@
   {/if}
 {/snippet}
 
-<div class="overview stack" data-area-overview>
+<div class="overview stack" data-area-overview bind:this={root}>
   {#if !summary}
     <p class="lead">{lead}</p>
   {:else if orgLead}
@@ -454,10 +472,12 @@
       >
       <span class="label">{$t('overview.kpi.cadence.sub')}</span>
       {#if comparison.rows.length > 0}
-        <span class="tag" class:warn={offTeams.length > 0} class:ok={offTeams.length === 0}
-          >{offTeams.length > 0
-            ? $t('overview.kpi.cadence.off', { list: list(offTeams) })
-            : $t('overview.kpi.cadence.all')}</span
+        <span class="tag" class:warn={offRows.length > 0} class:ok={offRows.length === 0}
+          >{#if offRows.length > 0}{#each offParts as p, i (i)}{#if p.teamId}<button
+                  type="button"
+                  class="link"
+                  onclick={() => showTeam(p.teamId)}>{p.text}</button
+                >{:else}{p.text}{/if}{/each}{:else}{$t('overview.kpi.cadence.all')}{/if}</span
         >
       {/if}
     </div>
@@ -605,6 +625,8 @@
         <tbody>
           {#each costs.teams as r (r.unitId)}
             {@const zero = zeroNote(r.unitId)}
+            {@const step = stepRow.get(r.unitId)}
+            {@const differs = !!step && !step.inStep}
             <tr data-cost-row={r.unitId}>
               <th scope="row">
                 {#if onOpenUnit}
@@ -622,7 +644,13 @@
                   <small data-unfilled>{unfilledNote(r.cost?.unfilled)}</small>
                 {/if}
               </th>
-              <td class="extra">{cadenceShort(unitOf(r.unitId).cadence)}</td>
+              <td class="extra" class:differs
+                >{cadenceShort(unitOf(r.unitId).cadence)}{#if differs}<small data-step-reason
+                    >{$t('overview.cost.differs', {
+                      reasons: step.reasons.map(reasonText).join(', '),
+                    })}</small
+                  >{/if}</td
+              >
               <td class="num">{$t('overview.kpi.area.value', { hours: hours(r.hours) })}</td>
               <td>
                 <span class="share">
@@ -1263,6 +1291,16 @@
     font-size: 0.75rem;
     font-weight: 400;
   }
+  [data-step-reason] {
+    display: block;
+    color: var(--warn);
+    font-size: 0.75rem;
+    white-space: normal;
+  }
+  /* A name in the warning tag keeps the tag's colour; the underline says it is a link. */
+  :global(#app) .tag button.link {
+    color: inherit;
+  }
   .unfilled {
     display: block;
     color: var(--warn);
@@ -1843,6 +1881,11 @@
       max-width: 9rem;
       margin-left: auto;
       white-space: normal;
+    }
+    /* A team that differs keeps its cadence and the reason on the card, under the name (#478). */
+    :global(#app) [data-area-costs] td.extra.differs {
+      display: block;
+      grid-column: 1 / -1;
     }
     :global(#app) [data-area-costs] .extra,
     [data-area-costs] .bar,
