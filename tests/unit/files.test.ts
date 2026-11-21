@@ -148,7 +148,7 @@ describe('file service without pickers', () => {
 });
 
 describe('example workspace', () => {
-  it('validates and has two teams sharing Alex, with all six rule types', () => {
+  it('validates and has two teams sharing Alex, with all seven rule types', () => {
     const example = exampleWorkspace();
     expect(validate(example).ok).toBe(true);
     expect(example.teams.map((t) => t.name)).toEqual([
@@ -158,7 +158,7 @@ describe('example workspace', () => {
       'Team Delta',
     ]);
     const types = new Set(example.teams.flatMap((t) => t.events.map((e) => e.rule.type)));
-    expect(types.size).toBe(6);
+    expect(types.size).toBe(7);
     const alex = example.people.find((p) => p.name === 'Alex')!;
     const outside = example.teams.filter(
       (t) => !example.areas.some((a) => a.teamIds.includes(t.id)),

@@ -109,7 +109,9 @@ describe('stepReasons', () => {
   });
 
   it('names a length that does not fit', () => {
-    expect(stepReasons(sprint(3), pi, true)).toEqual([{ kind: 'length', weeks: 3, reference: 10 }]);
+    expect(stepReasons(sprint(3), pi, true)).toEqual([
+      { kind: 'length', weeks: 3, reference: 10, fromArea: true },
+    ]);
   });
 
   it('names another weekday', () => {
@@ -124,7 +126,7 @@ describe('stepReasons', () => {
 
   it('needs the same length when teams are compared with each other', () => {
     expect(stepReasons(sprint(4), sprint(2), false)).toEqual([
-      { kind: 'length', weeks: 4, reference: 2 },
+      { kind: 'length', weeks: 4, reference: 2, fromArea: false },
     ]);
     expect(stepReasons(sprint(2, '2027-01-18'), sprint(2), false)).toEqual([]);
   });
@@ -188,7 +190,9 @@ describe('compareCadences', () => {
     const c = compareCadences(whatIf, a, '2027-01-04', 12, saved);
     expect(c.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(2), changed: true });
     expect(c.rows.map((r) => r.inStep)).toEqual([false, true, false]);
-    expect(c.rows[0]!.reasons).toEqual([{ kind: 'length', weeks: 4, reference: 2 }]);
+    expect(c.rows[0]!.reasons).toEqual([
+      { kind: 'length', weeks: 4, reference: 2, fromArea: false },
+    ]);
     expect(c.sharing).toBe(1);
     // Alpha tries Gamma's 3 weeks: now more teams share that one, so it is the reference.
     const joined = compareCadences(withAlpha(sprint(3)), a, '2027-01-04', 12, saved);

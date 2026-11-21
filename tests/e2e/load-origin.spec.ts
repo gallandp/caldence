@@ -74,6 +74,17 @@ test('the drill-in lists the meetings of each team, one-offs marked (#343)', asy
   await expect(kickoff).toContainText('4.0 h');
   const recurring = meetings.getByRole('listitem').filter({ hasText: 'h/week' }).first();
   await expect(recurring).toContainText(/Weekly|Every|On |Day /);
+  // Hours that include preparation say so, the same words as the cost rows (#474).
+  await expect(meetings.getByRole('listitem').filter({ hasText: 'Sprint Review' })).toContainText(
+    'incl. 50% preparation',
+  );
+  await expect(meetings.getByRole('listitem').filter({ hasText: 'Kick-off' })).not.toContainText(
+    'preparation',
+  );
+  // The note on top names what the hours count.
+  await expect(panel.locator('[data-meeting-only]')).toHaveText(
+    'Meeting time only, including preparation and travel to on-site meetings. Other work does not count here.',
+  );
 });
 
 test.describe('on a phone', () => {

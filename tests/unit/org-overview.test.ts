@@ -32,6 +32,20 @@ describe('organisation summary', () => {
     ]);
   });
 
+  it('keeps with each reason whether it is about an area cadence or the shared one (#478)', () => {
+    const w = ws();
+    w.teams.find((t) => t.id === 'team-gamma')!.cadence.lengthWeeks = 3;
+    const c = compareOrgCadences(w, '2027-01-04', 12);
+    const gamma = c.rows.find((r) => r.teamId === 'team-gamma')!;
+    // Judged by Commerce's 10-week PI although the organisation compares with a 1-week cadence.
+    expect(gamma.reasons).toContainEqual({
+      kind: 'length',
+      weeks: 3,
+      reference: 10,
+      fromArea: true,
+    });
+  });
+
   it('counts what the lead line needs: by area, others, and how many share the reference', () => {
     const c = compareOrgCadences(ws(), '2027-01-04', 12);
     expect({ byArea: c.byArea, others: c.others, sharing: c.sharing }).toEqual({
