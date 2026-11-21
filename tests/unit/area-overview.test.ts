@@ -5,6 +5,7 @@ import {
   segments,
   areaOnlyLoad,
   areaOnlyPeople,
+  loadAverage,
   stepReasons,
   teamLoad,
   zeroHourMembers,
@@ -304,6 +305,45 @@ describe('teamLoad', () => {
     const t = team('alpha', sprint(2));
     const ws = workspace([t]);
     expect(teamLoad(ws, t, loadPerWeek(ws, noIndex()))[0]).toMatchObject({ share: 0, warn: false });
+  });
+});
+
+describe('loadAverage (#476)', () => {
+  it('averages only full weeks inside the horizon and from the team’s cadence start', () => {
+    const daily = (id: string) => ({
+      id,
+      name: 'Daily',
+      categoryId: 'c1',
+      rule: { type: 'weekly' as const, weekday: 2 },
+      time: '09:00',
+      duration: 240,
+      participants: [{ roleId: 'dev', share: 1 }],
+      preparation: 0,
+    });
+    const member = { members: [{ personId: 'p1', roleId: 'dev' }], memberHours: { p1: 40 } };
+    const alpha = team('alpha', sprint(2, '2027-01-04'), { ...member, events: [daily('e1')] });
+    const beta = team('beta', sprint(2, '2027-01-11'), { ...member, events: [daily('e2')] });
+    const ws = workspace([alpha, beta]);
+    ws.people = [{ id: 'p1', name: 'Pat' }];
+    // The horizon starts on a Saturday: the week of 28 Dec has no working day in it.
+    ws.settings.horizon = { from: '2027-01-02', to: '2027-01-31' };
+    const weeks = loadPerWeek(ws, noIndex());
+    const a = teamLoad(ws, alpha, weeks);
+    const b = teamLoad(ws, beta, weeks);
+    expect(a.map((c) => c.share)).toEqual([0, 0.1, 0.1, 0.1, 0.1]);
+    expect(b.map((c) => c.share)).toEqual([0, 0, 0.1, 0.1, 0.1]);
+    expect(loadAverage(a, ws.settings.horizon, alpha.cadence.start)).toBeCloseTo(0.1);
+    expect(loadAverage(b, ws.settings.horizon, beta.cadence.start)).toBeCloseTo(0.1);
+  });
+
+  it('leaves out a week the horizon ends in before Friday and falls back to all weeks', () => {
+    const cells = [
+      { monday: '2027-01-04', share: 0.2, warn: false },
+      { monday: '2027-01-11', share: 0.05, warn: false },
+    ];
+    expect(loadAverage(cells, { from: '2027-01-04', to: '2027-01-12' })).toBeCloseTo(0.2);
+    expect(loadAverage(cells, { from: '2027-01-06', to: '2027-01-08' })).toBeCloseTo(0.125);
+    expect(loadAverage([], { from: '2027-01-04', to: '2027-01-12' })).toBe(0);
   });
 });
 

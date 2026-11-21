@@ -282,6 +282,24 @@ export function teamLoad(ws: Workspace, team: Team, weeks: WeekLoad[]): LoadCell
 }
 
 /**
+ * The heat map's average (#476): only full weeks inside the horizon (Monday to Friday) and from
+ * the cadence start, so a week the horizon starts in on a Saturday or before the team starts does
+ * not pull it down. Without such a week, all weeks count.
+ */
+export function loadAverage(
+  cells: LoadCell[],
+  horizon: { from: ISODate; to: ISODate },
+  start?: ISODate,
+): number {
+  const full = cells.filter(
+    (c) =>
+      c.monday >= horizon.from && addDays(c.monday, 4) <= horizon.to && c.monday >= (start ?? ''),
+  );
+  const counted = full.length > 0 ? full : cells;
+  return counted.length > 0 ? counted.reduce((sum, c) => sum + c.share, 0) / counted.length : 0;
+}
+
+/**
  * Members with 0 h in the team (#446): their meetings count in "Meetings in the team", but their
  * hours do not, so the share reads higher than for a team without such members.
  */
