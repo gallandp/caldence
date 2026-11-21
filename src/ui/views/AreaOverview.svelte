@@ -625,8 +625,9 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
-                  >{euro(costOf(r.cost))}{#if r.areaShare && costOf(r.areaShare) > 0}<span
-                      class="sr-only"
+                  >{euro(
+                    costOf(r.cost),
+                  )}{#if r.areaShare && Math.round(costOf(r.areaShare)) > 0}<span class="sr-only"
                       >,
                     </span><small data-area-share
                       >{$t(areaShareKey(r.areaShare), {

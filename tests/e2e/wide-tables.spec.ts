@@ -66,9 +66,6 @@ for (const width of [1280, 1440])
         const base = page.getByRole('table', { name: 'Base load per week' });
         await expectInView(base.getByRole('columnheader', { name: 'Total' }));
         await expectInView(base.locator('tbody tr').first().locator('td.total'));
-        await page.screenshot({
-          path: `/tmp/claude-0/-home-user/179084e5-0e09-5e27-83d0-8d9328c68e0a/scratchpad/w-${width}-${unit}.png`,
-        });
       }
       await showView(page, c.areaView);
       await showAreaPage(page, 'Overview');
