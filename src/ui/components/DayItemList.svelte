@@ -16,12 +16,14 @@
     /** An area's own meeting: marked with the area icon; its name is in `about`. */
     area?: boolean;
     hours: number;
+    /** The meeting's preparation, a share of its time (0.5 = 50 %); 0 for none. */
+    preparation: number;
     skipped: boolean;
   }
 </script>
 
 <script lang="ts">
-  import { formatNumber, locale, translate as t } from '../../i18n';
+  import { formatNumber, formatPercent, locale, translate as t } from '../../i18n';
   import AreaIcon from './AreaIcon.svelte';
 
   interface Props {
@@ -45,7 +47,11 @@
         >{$t(item.nextDay ? 'cal.item.when.nextDay' : 'cal.item.when', {
           from: item.start,
           to: item.end,
-        })}</span
+        })}{#if item.preparation > 0}<span class="prep">
+            · {$t('meet.cost.prep', {
+              percent: formatPercent($locale, item.preparation, 2),
+            })}</span
+          >{/if}</span
       >
       <span class="meta">{item.about}</span>
       {#if item.roles}<span class="meta">{item.roles}</span>{/if}
@@ -113,6 +119,12 @@
   .when {
     font-variant-numeric: tabular-nums;
     font-weight: 650;
+  }
+  /* Says why the hours are more than the time slot (#474); quieter than the time itself. */
+  .prep {
+    font-weight: 400;
+    font-size: 0.85rem;
+    color: var(--text-muted);
   }
   .meta {
     font-size: 0.85rem;

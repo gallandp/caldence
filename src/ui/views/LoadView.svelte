@@ -215,7 +215,13 @@
       if (!list) continue;
       out[unit.id] = list.map((m) => {
         const event = unit.events.find((e) => e.id === m.eventId)!;
-        return { ...m, name: event.name, rule: ruleSummary(event.rule, unit, $t, $locale) };
+        const rule = ruleSummary(event.rule, unit, $t, $locale);
+        // Hours that include preparation say so, as on the cost rows (#474).
+        const prep =
+          event.preparation > 0
+            ? $t('meet.cost.prep', { percent: formatPercent($locale, event.preparation, 2) })
+            : '';
+        return { ...m, name: event.name, rule: prep ? `${rule} · ${prep}` : rule };
       });
     }
     return out;
