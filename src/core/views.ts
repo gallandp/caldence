@@ -555,6 +555,29 @@ export function overlapPairs(found: readonly Clash[]): OverlapPair[] {
   return pairs.sort((x, y) => y.dates.length - x.dates.length);
 }
 
+/**
+ * The overlap pairs of one meeting with the other meetings of the people it invites, in
+ * [from, to) (#477): the pairs of Meeting load (#445) that contain it, with it as `a`.
+ */
+export function meetingOverlaps(
+  ws: Workspace,
+  index: HolidayIndex,
+  unitId: string,
+  eventId: string,
+  window: { from: ISODate; to: ISODate },
+): OverlapPair[] {
+  const event = scopeUnits(ws, {})
+    .find((u) => u.id === unitId)
+    ?.events.find((e) => e.id === eventId);
+  if (!event) return [];
+  const people = new Set(event.participants.flatMap((p) => attendees(ws, unitId, p, event)));
+  const found = clashes(ws, index, people, { ...window, units: new Set([unitId]) });
+  const own = (m: MeetingRef) => m.teamId === unitId && m.eventId === eventId;
+  return overlapPairs(found.filter((c) => own(c.a) || own(c.b))).map((p) =>
+    own(p.a) ? p : { ...p, a: p.b, b: p.a },
+  );
+}
+
 /** Neighbouring weekdays as runs, [first, last]: [1, 2, 3, 5] gives [[1, 3], [5, 5]]. */
 export function weekdayRuns(days: readonly number[]): [number, number][] {
   const out: [number, number][] = [];
@@ -565,6 +588,9 @@ export function weekdayRuns(days: readonly number[]): [number, number][] {
   }
   return out;
 }
+
+/** Overlap pairs listed at first in Meeting load, and named at most in the meeting form (#445, #477). */
+export const OVERLAP_ROWS = 50;
 
 /** Weeks in the window of the area Overview and of the overlaps in Meeting load. */
 export const WINDOW_WEEKS = 12;

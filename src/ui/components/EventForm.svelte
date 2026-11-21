@@ -4,6 +4,7 @@
     holders,
     ORG_UNIT,
     unitName,
+    units,
     type Area,
     type CalEvent,
     type Category,
@@ -11,12 +12,14 @@
     type Team,
   } from '../../core/model';
   import { areaHours } from '../../core/load';
-  import { areaText, levels, translate } from '../../i18n';
+  import { addDays } from '../../core/date';
+  import { meetingOverlaps, OVERLAP_ROWS, overviewWindow } from '../../core/views';
+  import { areaText, levels, locale, nextWeeks, translate } from '../../i18n';
   import { upsertEvent } from '../../core/edit';
   import { validate } from '../../core/validate';
   import { effectScope, whatIfEffect } from '../../core/whatIf';
   import { index, localToday, workspace } from '../state/workspace';
-  import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
+  import { overlapWhen, RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import ParticipantReach from './ParticipantReach.svelte';
   import RuleFields from './RuleFields.svelte';
   import WhatIfEffect from './WhatIfEffect.svelte';
@@ -320,7 +323,10 @@
   // The Wirkung box of present mode, live for the draft; nothing is committed here.
   const scope = $derived(effectScope($workspace, team.id));
   const rate = $derived($workspace.settings.hourlyRate);
-  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate) : undefined);
+  // While presenting, the area's peer reference stays the one from before the what-ifs (#470).
+  const presentBase = workspace.presentBase;
+  const saved = $derived($presentBase ?? $workspace);
+  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate, saved) : undefined);
   // Only the fields that change the numbers: typing a name, time or category recomputes nothing.
   const effectKey = $derived(
     Object.keys(dupErrors()).length > 0
@@ -332,7 +338,9 @@
     const checked = validate(upsertEvent($workspace, team.id, JSON.parse(effectKey))[0]);
     return checked.ok ? checked.value : undefined;
   });
-  const after = $derived(scope && drafted ? whatIfEffect(drafted, $index, scope, rate) : undefined);
+  const after = $derived(
+    scope && drafted ? whatIfEffect(drafted, $index, scope, rate, saved) : undefined,
+  );
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */
   const own = $derived.by(() => {
     if (!drafted || scope === team.id) return undefined;
@@ -341,6 +349,52 @@
     return b && a ? { name: team.name, before: b, after: a } : undefined;
   });
   const scopeName = $derived(unitName($workspace, scope, $levels.org));
+
+  /**
+   * The meetings the draft overlaps for the people it invites, as Meeting load counts them (#477):
+   * same pairs, same window, at most OVERLAP_ROWS named. Time and weekday count here; the name not.
+   * Undefined while an entry is invalid: the box then says so instead of implying no overlap.
+   */
+  const overlapKey = $derived(
+    Object.keys(dupErrors()).length > 0
+      ? ''
+      : JSON.stringify({ ...build(), name: 'x', categoryId: event.categoryId }),
+  );
+  const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
+  const overlapPairs = $derived.by(() => {
+    if (!overlapKey) return undefined;
+    const [next, eventId] = upsertEvent($workspace, team.id, JSON.parse(overlapKey));
+    const checked = validate(next);
+    if (!checked.ok) return undefined;
+    const { from, weeks } = overlapWindow;
+    return meetingOverlaps(checked.value, $index, team.id, eventId, {
+      from,
+      to: addDays(from, weeks * 7),
+    });
+  });
+  const overlapNote = $derived.by(() => {
+    if (!overlapPairs?.length) return undefined;
+    const names = overlapPairs.slice(0, OVERLAP_ROWS).map((p) => {
+      // A meeting of another team or area names it: "Replenishment (Team Beta, Thu 11:00–12:00)".
+      const other =
+        p.b.teamId === team.id ? undefined : unitName($workspace, p.b.teamId, $levels.org);
+      const name =
+        units($workspace)
+          .find((u) => u.id === p.b.teamId)
+          ?.events.find((e) => e.id === p.b.eventId)?.name ?? p.b.eventId;
+      return $translate(other ? 'meet.overlaps.meetingOf' : 'meet.overlaps.meeting', {
+        name,
+        unit: other ?? '',
+        when: overlapWhen($translate, $locale, p),
+      });
+    });
+    const rest = overlapPairs.length - names.length;
+    if (rest > 0) names.push($translate('overlaps.people.more', { n: rest }));
+    return $translate('meet.overlaps', {
+      period: nextWeeks($translate, $locale, overlapWindow.weeks),
+      list: names.join(', '),
+    });
+  });
 
   async function submit(e: Event) {
     e.preventDefault();
@@ -848,7 +902,9 @@
           cadence={team.cadence}
           compact
           live={false}
-          error={after ? undefined : tt('meet.effect.invalid')}
+          error={after && overlapPairs ? undefined : tt('meet.effect.invalid')}
+          note={overlapNote}
+          warn
         />
       </div>
     {/if}
