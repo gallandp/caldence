@@ -744,3 +744,46 @@ test('the effect names whose hours they are; on a phone a team in an area adds t
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('the form lists the meetings the draft overlaps, live while editing (#477)', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2027-03-17T12:00:00'));
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Templates', exact: true }).click();
+  await page
+    .getByRole('tabpanel', { name: 'Templates' })
+    .getByRole('article', { name: 'Scrum' })
+    .getByRole('button', { name: 'Apply' })
+    .click();
+  const dialog = page.getByRole('dialog', { name: /Scrum/ });
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(dialog).toBeHidden();
+  // Overlaps count for people, so the Product Owner gets one.
+  await page.getByRole('tab', { name: 'Team', exact: true }).click();
+  const team = page.getByRole('tabpanel', { name: 'Team' });
+  await team.getByLabel('Person', { exact: true }).fill('Kim');
+  await team.getByLabel('Role', { exact: true }).selectOption({ label: 'Product Owner' });
+  await team.getByRole('button', { name: 'Add member' }).click();
+  await showView(page, 'Meetings & cadence');
+
+  // The default new meeting: weekly on Monday, 09:00, 60 minutes, every role.
+  const form = await startNew(page, 'PO office hour');
+  const note = form.locator('[data-effect-note]');
+  await expect(note).toHaveText(
+    'Overlaps in the next 12 weeks with: Daily Scrum (Mon 09:15–09:30), Sprint Planning (Mon 09:30–10:00)',
+  );
+  // On Tuesday only the Daily Scrum is left.
+  await form.getByLabel('Weekday').selectOption({ label: 'Tuesday' });
+  await expect(note).toHaveText(
+    'Overlaps in the next 12 weeks with: Daily Scrum (Tue 09:15–09:30)',
+  );
+  // In the afternoon it overlaps nothing, and the line goes.
+  await form.getByLabel('Time (HH:MM)').fill('13:00');
+  await expect(note).toHaveCount(0);
+  // 15 minutes at 09:00 end where the Daily Scrum begins: touching is no overlap.
+  await form.getByLabel('Time (HH:MM)').fill('09:00');
+  await expect(note).toBeVisible();
+  await form.getByLabel('Duration (minutes)').fill('15');
+  await expect(note).toHaveCount(0);
+});

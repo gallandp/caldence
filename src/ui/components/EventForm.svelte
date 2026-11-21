@@ -4,6 +4,7 @@
     holders,
     ORG_UNIT,
     unitName,
+    units,
     type Area,
     type CalEvent,
     type Category,
@@ -11,12 +12,14 @@
     type Team,
   } from '../../core/model';
   import { areaHours } from '../../core/load';
-  import { areaText, levels, translate } from '../../i18n';
+  import { addDays } from '../../core/date';
+  import { meetingOverlaps, overviewWindow } from '../../core/views';
+  import { areaText, levels, locale, nextWeeks, translate } from '../../i18n';
   import { upsertEvent } from '../../core/edit';
   import { validate } from '../../core/validate';
   import { effectScope, whatIfEffect } from '../../core/whatIf';
   import { index, localToday, workspace } from '../state/workspace';
-  import { RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
+  import { overlapWhen, RULE_TYPES, ruleDraft, toRule, type RuleDraft } from '../meetings/rules';
   import ParticipantReach from './ParticipantReach.svelte';
   import RuleFields from './RuleFields.svelte';
   import WhatIfEffect from './WhatIfEffect.svelte';
@@ -341,6 +344,51 @@
     return b && a ? { name: team.name, before: b, after: a } : undefined;
   });
   const scopeName = $derived(unitName($workspace, scope, $levels.org));
+
+  /**
+   * The meetings the draft overlaps for the people it invites, as Meeting load counts them (#477):
+   * same pairs, same window, at most OVERLAP_ROWS named. Time and weekday count here; the name not.
+   */
+  const OVERLAP_ROWS = 50;
+  const overlapKey = $derived(
+    Object.keys(dupErrors()).length > 0
+      ? ''
+      : JSON.stringify({ ...build(), name: 'x', categoryId: event.categoryId }),
+  );
+  const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
+  const overlapPairs = $derived.by(() => {
+    if (!overlapKey) return [];
+    const [next, eventId] = upsertEvent($workspace, team.id, JSON.parse(overlapKey));
+    const checked = validate(next);
+    if (!checked.ok) return [];
+    const { from, weeks } = overlapWindow;
+    return meetingOverlaps(checked.value, $index, team.id, eventId, {
+      from,
+      to: addDays(from, weeks * 7),
+    });
+  });
+  const overlapNote = $derived.by(() => {
+    if (overlapPairs.length === 0) return undefined;
+    const names = overlapPairs.slice(0, OVERLAP_ROWS).map((p) => {
+      const other =
+        p.b.teamId === team.id ? undefined : unitName($workspace, p.b.teamId, $levels.org);
+      const name =
+        units($workspace)
+          .find((u) => u.id === p.b.teamId)
+          ?.events.find((e) => e.id === p.b.eventId)?.name ?? p.b.eventId;
+      return $translate(other ? 'meet.overlaps.meetingOf' : 'meet.overlaps.meeting', {
+        name,
+        unit: other ?? '',
+        when: overlapWhen($translate, $locale, p),
+      });
+    });
+    const rest = overlapPairs.length - names.length;
+    if (rest > 0) names.push($translate('overlaps.people.more', { n: rest }));
+    return $translate('meet.overlaps', {
+      period: nextWeeks($translate, $locale, overlapWindow.weeks),
+      list: names.join(', '),
+    });
+  });
 
   async function submit(e: Event) {
     e.preventDefault();
@@ -849,6 +897,8 @@
           compact
           live={false}
           error={after ? undefined : tt('meet.effect.invalid')}
+          note={overlapNote}
+          warn
         />
       </div>
     {/if}
