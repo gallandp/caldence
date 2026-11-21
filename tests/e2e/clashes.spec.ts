@@ -175,15 +175,24 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await expect(badge).toHaveCount(0);
       await expect(warnings.getByText('No warnings')).toBeVisible();
       await expect(overlapBadge).toHaveText(String(COMMERCE_PAIRS));
-      // The organisation has both: each badge counts its own lines.
-      await page.locator('.switcher .pick').click();
-      await page.locator('.switcher .list button.org').click();
-      await expect(warnings.locator('li.warning').first()).toBeVisible();
-      const people = await warnings.locator('li.warning').count();
-      expect(people).toBeGreaterThan(0);
-      await expect(badge).toHaveText(String(people));
+      // Team Gamma: the same rule at the team level.
+      await pickUnit(page, 'Team Gamma');
+      await expect(badge).toHaveCount(0);
+      await expect(warnings.getByText('No warnings')).toBeVisible();
       await expect(overlapBadge).toHaveText(
         String(await warnings.locator('li[data-clash]').count()),
       );
+      // The organisation has both: 2 load spikes and 3 overlapping pairs, counted apart.
+      await page.locator('.switcher .pick').click();
+      await page.locator('.switcher .list button.org').click();
+      await expect(warnings.locator('li.warning')).toHaveCount(2);
+      await expect(badge).toHaveText('2');
+      await expect(warnings.locator('li[data-clash]')).toHaveCount(3);
+      await expect(overlapBadge).toHaveText('3');
+      await setLanguage(page, 'de');
+      await pickUnit(page, 'Commerce');
+      await expect(
+        page.getByRole('region', { name: 'Warnungen', exact: true }).getByText('Keine Warnungen'),
+      ).toBeVisible();
     });
 });
