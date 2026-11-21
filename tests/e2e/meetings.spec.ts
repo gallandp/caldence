@@ -438,8 +438,7 @@ test('the row shows the place; a web link opens in a new tab (#466)', async ({ p
   await form.getByRole('button', { name: 'On site' }).click();
   await form.getByLabel('Place or link').fill('Room 2.14');
   await form.getByRole('button', { name: 'Save' }).click();
-  await expect(place).toContainText('On site');
-  await expect(place).toContainText('Room 2.14');
+  await expect(place).toHaveText('On site · 30 min travel · Room 2.14');
   await expect(place.getByRole('link')).toHaveCount(0);
 
   // A phone card shows it too, without sideways scrolling.

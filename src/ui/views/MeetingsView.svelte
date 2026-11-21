@@ -670,18 +670,14 @@
                               >{event.onSite.travel > 0
                                 ? $t('meet.place.travel', { n: event.onSite.travel })
                                 : $t('meet.place.onSite')}</span
-                            >{/if}{#if event.onSite && event.place}<span aria-hidden="true">·</span
-                            >{/if}{#if link}<a
-                              class="place-text"
+                            >{/if}{#if event.onSite && event.place}{' · '}{/if}{#if link}<a
                               href={link}
                               target="_blank"
                               rel="noopener noreferrer"
                               title={link}
                               aria-label={$t('meet.place.link', { place: event.place! })}
                               >{event.place!.trim().replace(/^https?:\/\//i, '')}</a
-                            >{:else if event.place}<span class="place-text" title={event.place}
-                              >{event.place}</span
-                            >{/if}</span
+                            >{:else if event.place}<span>{event.place}</span>{/if}</span
                         >
                       {/if}
                     </td>
@@ -1118,22 +1114,18 @@
     display: block;
     white-space: nowrap;
   }
-  .place {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    max-width: 18rem;
-  }
-  /* A long room name or link ends in "…"; the whole text is in its title. */
-  .place-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* Format and place read as one line that wraps; a long link breaks anywhere (#466). */
+  :global(#app) .c-when .place {
+    display: block;
+    max-width: 22rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .place svg {
     width: 0.9em;
     height: 0.9em;
-    flex: none;
+    margin-right: 0.25rem;
+    vertical-align: -0.1em;
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
