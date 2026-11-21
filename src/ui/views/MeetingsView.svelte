@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { get } from 'svelte/store';
-  import { areaShare } from '../../core/areaCosts';
+  import { areaCosts, areaShare } from '../../core/areaCosts';
   import { costPerCadence, meetingCost, unitCostSummary } from '../../core/cost';
   import { duplicateEvent, removeEvent, upsertEvent } from '../../core/edit';
   import {
@@ -69,8 +69,19 @@
     onExport?: () => void;
     /** Opens a day in the Calendar (a date a holiday leaves out, #341). */
     onOpenDay?: (date: string) => void;
+    /** Opens the Overview of the selected area or the organisation's page (#472). */
+    onOpenOverview?: () => void;
   }
-  let { edit, onEditOpened, show, onShown, onSetHours, onExport, onOpenDay }: Props = $props();
+  let {
+    edit,
+    onEditOpened,
+    show,
+    onShown,
+    onSetHours,
+    onExport,
+    onOpenDay,
+    onOpenOverview,
+  }: Props = $props();
   /** The meeting a drill-in pointed at; highlighted until the unit changes. */
   let pointed = $state<string | undefined>();
 
@@ -194,6 +205,10 @@
   const costs = $derived(rate && team ? unitCostSummary($workspace, $index, team, rate) : null);
   /** What its people also spend in the area's meetings (#336); none for an area or lone team. */
   const share = $derived(team ? areaShare($workspace, $index, team.id, rate) : undefined);
+  /** An area's total with all its teams, the same figure as its Overview (#472). */
+  const areaTotal = $derived(
+    rate && area ? areaCosts($workspace, $index, area, rate, false).total.cost : undefined,
+  );
   const euro = (n: number) => formatEuro($locale, n);
   /** The Takt's short name for "Ø … / Sprint" (#279). */
   const kind = $derived(team ? $t(`meet.kind.${team.cadence.kind}`) : '');
@@ -420,7 +435,27 @@
         cadence={team?.cadence}
         areaShare={share}
         unitName={team?.name}
-      />
+        title={area ? $t(org ? 'cost.title.org' : 'cost.title.area') : undefined}
+      >
+        {#if area && areaTotal && area.teamIds.length > 0}
+          <p class="area-total" data-cost-area-total>
+            {$t(org ? 'cost.areaTotal.org' : 'cost.areaTotal')}
+            <b
+              >{$t('cost.areaTotal.figures', {
+                week: euro(areaTotal.perWeek),
+                horizon: euro(areaTotal.horizon),
+              })}</b
+            >
+            {#if onOpenOverview}
+              <button type="button" class="link" data-no-print onclick={onOpenOverview}
+                >{$t(org ? 'cost.areaTotal.open.org' : 'cost.areaTotal.open', {
+                  name: area.name,
+                })}</button
+              >
+            {/if}
+          </p>
+        {/if}
+      </CostCard>
     {:else if !rate && team.events.length > 0}
       <RateInvite />
     {/if}
@@ -1012,6 +1047,30 @@
   }
   .num {
     text-align: right;
+  }
+  .area-total {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+  .area-total b {
+    font-weight: 650;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  :global(#app) .area-total .link {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--accent-text);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    text-align: left;
+    cursor: pointer;
   }
   .cost {
     font-weight: 700;

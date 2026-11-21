@@ -31,11 +31,13 @@ export function effectScope(ws: Workspace, unitId: string): string | undefined {
   return areaOf(ws, team.id)?.id ?? team.id;
 }
 
+/** `base`: the saved file, where the area's peer reference comes from (#470). */
 export function whatIfEffect(
   ws: Workspace,
   index: HolidayIndex,
   scopeId: string,
   rate?: number,
+  base: Workspace = ws,
 ): Effect | undefined {
   const area = findArea(ws, scopeId);
   if (area) {
@@ -44,7 +46,7 @@ export function whatIfEffect(
     if (total.cost) out.cost = total.cost;
     // The organisation has no reference cadence; its teams follow their areas.
     if (area.id === ORG_UNIT) return out;
-    const cmp = compareCadences(ws, area, ws.settings.horizon.from, 1);
+    const cmp = compareCadences(ws, area, ws.settings.horizon.from, 1, base);
     if (cmp.reference && cmp.rows.length > 0)
       out.inStep = { n: cmp.rows.filter((r) => r.inStep).length, of: cmp.rows.length };
     return out;
