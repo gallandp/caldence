@@ -164,6 +164,47 @@ describe('compareCadences', () => {
     expect(c.rows[0]!.segments.every((s) => s.off)).toBe(true);
   });
 
+  it('during a what-if keeps the saved reference, so the changed team differs (#470)', () => {
+    // Alpha and Beta share 2-week sprints: Alpha is the reference.
+    const saved = workspace([
+      team('alpha', sprint(2)),
+      team('beta', sprint(2)),
+      team('gamma', sprint(3)),
+    ]);
+    const a = area(['alpha', 'beta', 'gamma']);
+    const withAlpha = (c: Cadence) => ({
+      ...saved,
+      teams: [team('alpha', c), ...saved.teams.slice(1)],
+    });
+    // Alpha tries 4 weeks: no two teams share a cadence now. Alone, the changed file would take
+    // Alpha's new cadence and call Beta and Gamma out of step.
+    const whatIf = withAlpha(sprint(4));
+    expect(compareCadences(whatIf, a, '2027-01-04', 12).rows.map((r) => r.inStep)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    const c = compareCadences(whatIf, a, '2027-01-04', 12, saved);
+    expect(c.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(2), changed: true });
+    expect(c.rows.map((r) => r.inStep)).toEqual([false, true, false]);
+    expect(c.rows[0]!.reasons).toEqual([{ kind: 'length', weeks: 4, reference: 2 }]);
+    expect(c.sharing).toBe(1);
+    // Alpha tries Gamma's 3 weeks: now more teams share that one, so it is the reference.
+    const joined = compareCadences(withAlpha(sprint(3)), a, '2027-01-04', 12, saved);
+    expect(joined.reference).toMatchObject({ teamId: 'alpha', cadence: sprint(3), changed: false });
+    // A start moved by a whole period is the same cadence: the reference is unchanged.
+    const moved = compareCadences(withAlpha(sprint(2, '2027-01-18')), a, '2027-01-04', 12, saved);
+    expect(moved.reference).toMatchObject({ cadence: sprint(2), changed: false });
+    expect(joined.rows.map((r) => r.inStep)).toEqual([true, false, true]);
+    expect(joined.sharing).toBe(2);
+  });
+
+  it('counts how many teams share the peer reference, none with an area cadence', () => {
+    const ws = workspace([team('alpha', sprint(2)), team('beta', sprint(2)), team('c', sprint(3))]);
+    expect(compareCadences(ws, area(['c', 'alpha', 'beta']), '2027-01-04', 4).sharing).toBe(2);
+    expect(compareCadences(ws, area(['alpha'], sprint(10)), '2027-01-04', 4).sharing).toBe(0);
+  });
+
   it('keeps the area order and skips unknown team ids', () => {
     const ws = workspace([team('alpha', sprint(2)), team('beta', sprint(2))]);
     const c = compareCadences(ws, area(['beta', 'gone', 'alpha']), '2027-01-04', 4);
