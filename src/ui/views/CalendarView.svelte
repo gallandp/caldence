@@ -189,10 +189,11 @@
         p.share < 1
           ? $t('cal.role.share', {
               name: participantName($workspace, p),
-              note:
-                p.share === 0.5
-                  ? $t('cal.share.half')
-                  : $t('cal.share.part', { percent: formatPercent($locale, p.share) }),
+              // The note breaks as a whole, not inside "every other time".
+              note: (p.share === 0.5
+                ? $t('cal.share.half')
+                : $t('cal.share.part', { percent: formatPercent($locale, p.share) })
+              ).replace(/ /g, '\u00a0'),
             })
           : participantName($workspace, p),
       );

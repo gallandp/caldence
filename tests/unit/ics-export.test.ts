@@ -974,6 +974,15 @@ describe('exportIcs names a share below 1 (#471)', () => {
     );
   });
 
+  it('names a person invited by name part of the time', () => {
+    const ws = example();
+    const sync = ws.teams[0]!.events.find((e) => e.id === 'ev-sync')!;
+    sync.participants.push({ personId: 'person-kim', share: 0.5 });
+    expect(prop(syncOf(run(ws)), 'DESCRIPTION')).toContain(
+      escapeText('\nKim: every other time (50%)'),
+    );
+  });
+
   it('adds nothing when every role is always invited', () => {
     expect(prop(syncOf(run(example())), 'DESCRIPTION')).not.toMatch(/of the time|every other/);
   });
