@@ -670,7 +670,7 @@
                               >{event.onSite.travel > 0
                                 ? $t('meet.place.travel', { n: event.onSite.travel })
                                 : $t('meet.place.onSite')}</span
-                            >{/if}{#if event.onSite && event.place}{' · '}{/if}{#if link}<a
+                            >{/if}{#if event.onSite && event.place}&#32;·&#32;{/if}{#if link}<a
                               href={link}
                               target="_blank"
                               rel="noopener noreferrer"
