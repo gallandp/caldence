@@ -209,8 +209,9 @@
   // Opened and brought into view when asked for from the area Overview (#462).
   $effect(() => {
     const id = $loadPerson;
-    if (id === null || !perPerson.some((p) => p.person.id === id)) return;
+    if (id === null || perPerson.length === 0) return;
     loadPerson.set(null);
+    if (!perPerson.some((p) => p.person.id === id)) return;
     openPerson = id;
     void tick().then(() => {
       const who = document.querySelector<HTMLElement>(`tr[data-person="${CSS.escape(id)}"] .who`);

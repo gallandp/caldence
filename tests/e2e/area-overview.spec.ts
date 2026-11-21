@@ -716,4 +716,20 @@ test('a name over the limit opens Meeting load at that person, also with hidden 
   await hidden.click();
   await expect(who).toHaveAttribute('aria-expanded', 'true');
   await expect(who).toHaveText(/^Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: each of the first three names is a button, the third opens its own row.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  const names = overview.locator('[data-kpi="load"] .tag button');
+  await expect(names).toHaveCount(3);
+  const third = (await names.nth(2).textContent())!;
+  await names.nth(2).click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${third}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
 });
