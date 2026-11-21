@@ -33,6 +33,7 @@
     clashes,
     loadSummary,
     overlapPairs,
+    OVERLAP_ROWS,
     overviewWindow,
     scopePeople,
     scopeUnits,
@@ -54,7 +55,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary } from '../meetings/rules';
-  import { loadOverlaps } from '../state/focus';
+  import { loadOverlaps, loadPerson } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -206,6 +207,19 @@
     if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
       openPerson = null;
   });
+  // Opened and brought into view when asked for from the area Overview (#462).
+  $effect(() => {
+    const id = $loadPerson;
+    if (id === null || perPerson.length === 0) return;
+    loadPerson.set(null);
+    if (!perPerson.some((p) => p.person.id === id)) return;
+    openPerson = id;
+    void tick().then(() => {
+      const who = document.querySelector<HTMLElement>(`tr[data-person="${CSS.escape(id)}"] .who`);
+      who?.scrollIntoView({ block: 'center' });
+      who?.focus();
+    });
+  });
   /** The meetings of the opened person, by team or area, with their repeat rule (#343). */
   const openMeetings = $derived.by(() => {
     const out = record<(PersonMeeting & { name: string; rule: string })[]>();
@@ -344,7 +358,6 @@
    * The overlaps of the people in scope by meeting pair (#445), in the area Overview's window, so
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
-  const OVERLAP_ROWS = 50;
   let overlapsBox: HTMLElement | undefined = $state();
   // Brought into view when asked for from the area Overview (#445).
   $effect(() => {

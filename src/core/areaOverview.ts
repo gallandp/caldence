@@ -137,6 +137,21 @@ export function stepReasons(team: Cadence, reference: Cadence, fromArea: boolean
 }
 
 /**
+ * The team's cadence in step with the reference (#463): a peer's length and start; with an area
+ * cadence the area's start and the team's length if it fits into the area period, else the longest
+ * length that does.
+ */
+export function alignedCadence(
+  team: Cadence,
+  reference: { cadence: Cadence; fromArea: boolean },
+): Cadence {
+  const r = reference.cadence;
+  let weeks = reference.fromArea ? Math.min(team.lengthWeeks, r.lengthWeeks) : r.lengthWeeks;
+  while (r.lengthWeeks % weeks !== 0) weeks--;
+  return { kind: team.kind, lengthWeeks: weeks, start: r.start };
+}
+
+/**
  * `base` is the saved file while a what-if is active (#470): the peer reference comes from it, so
  * a what-if on the reference team shows that team as differing instead of moving the reference.
  * Only when the what-ifs make more teams share another cadence does that one become the reference.

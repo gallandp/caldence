@@ -195,3 +195,24 @@ test('a missing-role hint in an organisation meeting form stays plain text (#433
   await expect(form.getByText('No Managing director in Team Alpha')).toBeVisible();
   await expect(form.getByRole('button', { name: /^No Managing director in/ })).toHaveCount(0);
 });
+
+test('Meetings & cadence of the organisation names its own meetings and its total (#472)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await openWorkspaceFile(page, orgWorkspace());
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const weekly = (await page.locator('[data-kpi="cost"] b').textContent())!;
+  await showView(page, 'Meetings & cadence');
+  const card = page.locator('[data-costs]');
+  await expect(card.locator('h3')).toHaveText(
+    'Costs of the meetings in the organisation, without area and team meetings',
+  );
+  const total = card.locator('[data-cost-area-total]');
+  await expect(total).toContainText(
+    `Total in the organisation with all areas and teams: ${weekly} / week`,
+  );
+  await total.getByRole('button', { name: 'Open the page of Northwind' }).click();
+  await expect(page.locator('.node.root')).toBeVisible();
+});

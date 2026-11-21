@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alignedCadence,
   areaMeetingHours,
   compareCadences,
   segments,
@@ -213,6 +214,31 @@ describe('compareCadences', () => {
     const ws = workspace([team('alpha', sprint(2)), team('beta', sprint(2))]);
     const c = compareCadences(ws, area(['beta', 'gone', 'alpha']), '2027-01-04', 4);
     expect(c.rows.map((r) => r.teamId)).toEqual(['beta', 'alpha']);
+  });
+});
+
+describe('alignedCadence (#463)', () => {
+  it('takes the length and start of a peer reference', () => {
+    const ref = { cadence: sprint(2, '2027-01-18'), fromArea: false };
+    expect(alignedCadence({ kind: 'flow', lengthWeeks: 3, start: '2027-01-06' }, ref)).toEqual({
+      kind: 'flow',
+      lengthWeeks: 2,
+      start: '2027-01-18',
+    });
+  });
+
+  it('starts with the area and keeps a length that fits, else the longest that does', () => {
+    const area = {
+      cadence: { kind: 'pi' as const, lengthWeeks: 10, start: '2027-01-04' },
+      fromArea: true,
+    };
+    expect(alignedCadence(sprint(2, '2027-01-06'), area)).toEqual(sprint(2, '2027-01-04'));
+    expect(alignedCadence(sprint(3, '2027-01-06'), area)).toEqual(sprint(2, '2027-01-04'));
+    expect(alignedCadence(sprint(12), area)).toEqual(sprint(10, '2027-01-04'));
+    for (const t of [1, 3, 4, 7, 12])
+      expect(
+        stepReasons(alignedCadence(sprint(t, '2027-02-03'), area), area.cadence, true),
+      ).toEqual([]);
   });
 });
 

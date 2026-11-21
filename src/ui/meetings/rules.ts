@@ -1,5 +1,7 @@
 import { mondayOf } from '../../core/date';
 import type { CalEvent, Rule, Team } from '../../core/model';
+// Core's runs keep every neighbour together; the local `weekdayRuns` below splits short runs.
+import { weekdayRuns as overlapDayRuns, type OverlapPair } from '../../core/views';
 import { formatDisplayDate, formatNumber, type Locale } from '../../i18n';
 
 export const RULE_TYPES = [
@@ -188,6 +190,19 @@ export function ruleSummary(
 export function weekdayShort(locale: Locale, weekday: number): string {
   const d = new Date(Date.UTC(2024, 0, weekday));
   return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(d);
+}
+
+/** When a pair of meetings overlaps: "Mon–Fri 09:15–09:30" (#445). */
+export function overlapWhen(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  loc: Locale,
+  p: OverlapPair,
+): string {
+  const wd = (d: number) => weekdayShort(loc, d);
+  const weekdays = overlapDayRuns(p.weekdays)
+    .map(([a, b]) => (a === b ? wd(a) : `${wd(a)}${b - a > 1 ? '–' : ', '}${wd(b)}`))
+    .join(', ');
+  return t('overlaps.when', { weekdays, from: p.start, to: p.end });
 }
 
 /** The rule in a few words for the meetings table ("Every 2 weeks · Wed"); time and duration go elsewhere. */

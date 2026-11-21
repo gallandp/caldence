@@ -68,6 +68,8 @@
     onOpenUnit?: (unitId: string) => void;
     /** Opens the calendar's week of `date` with one person chosen. */
     onOpenCalendar?: (personId: string, date: ISODate) => void;
+    /** Opens Meeting load of the area with one person's row open (#462). */
+    onOpenPerson?: (personId: string) => void;
     /**
      * The organisation's page (#450): only the alignment, load and cost figures and the cost per
      * team; `children` (the tree) sits between the figures and the table.
@@ -82,6 +84,7 @@
     onOpenMeeting,
     onOpenUnit,
     onOpenCalendar,
+    onOpenPerson,
     summary = false,
     children,
   }: Props = $props();
@@ -174,6 +177,33 @@
    * everyone must not hide anyone over the limit.
    */
   const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
+  /**
+   * The tag over the limit in pieces, so each name can open Meeting load (#462): the text around
+   * the names, and the first three names with what goes between them, as `firstThree` writes it.
+   */
+  const overTag = $derived.by(() => {
+    const mark = '\u0000';
+    const [before, after = ''] = $t(
+      overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+      { n: formatNumber($locale, overPeople.length, 0), max: percent(maxFte), names: mark },
+    ).split(mark);
+    const shown = overPeople.slice(0, 3);
+    const names: { id?: string; text: string }[] =
+      overPeople.length > 3
+        ? [
+            ...shown.flatMap((id, i) => [
+              ...(i > 0 ? [{ text: ', ' }] : []),
+              { id, text: personName(id) },
+            ]),
+            { text: ' …' },
+          ]
+        : new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' })
+            .formatToParts(shown)
+            .map((p) =>
+              p.type === 'element' ? { id: p.value, text: personName(p.value) } : { text: p.value },
+            );
+    return { before, after, names };
+  });
 
   /**
    * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
@@ -485,14 +515,13 @@
       <span class="label">{$t('overview.kpi.load.sub')}</span>
       {#if overPeople.length > 0}
         <span class="tag warn" data-over-people
-          >{$t(
-            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
-            {
-              n: formatNumber($locale, overPeople.length, 0),
-              max: percent(maxFte),
-              names: firstThree(overPeople.map(personName)),
-            },
-          )}</span
+          >{overTag.before}{#each overTag.names as part, i (i)}{#if part.id && onOpenPerson}{@const id =
+                part.id}<button
+                type="button"
+                class="person"
+                aria-label={$t('overview.kpi.load.over.open', { name: part.text })}
+                onclick={() => onOpenPerson(id)}>{part.text}</button
+              >{:else}{part.text}{/if}{/each}{overTag.after}</span
         >
       {:else}
         <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
@@ -1166,6 +1195,21 @@
     padding: 0.05rem 0.55rem;
     border-radius: 99px;
     font-size: 0.8rem;
+  }
+  /* A name over the limit opens Meeting load at that person (#462). */
+  :global(#app) .tag .person {
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 650;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
   }
   .tag.ok {
     background: var(--ok-soft);
