@@ -32,11 +32,13 @@ test('the area overview counts overlapping pairs and opens the example in the ca
   // One line per meeting pair, with its rhythm and people (#445).
   const pairs = line.locator('li[data-clash]');
   await expect(pairs).toHaveText([
+    // Robin's Dailies in Team Gamma and Team Delta, every working day of the 12 weeks (#464).
+    'Daily (Team Delta) × Daily Scrum (Team Gamma): Mon–Fri 09:15–09:30 · Robin · 59 days · e.g. 01/04/2027',
     'Sprint Planning (Team Gamma) × Replenishment (Team Delta): Mon 11:00–11:30 · Robin · 6 days · e.g. 01/04/2027',
     /^PO Forum \(Commerce\) × Sprint Review \(Team Gamma\): Wed 14:00–15:00 · Kim · 6 days · e\.g\. /,
   ]);
   await pairs
-    .first()
+    .nth(1)
     .getByRole('button', { name: 'Show W1, 01/04/2027 for Robin in the Calendar' })
     .click();
 
@@ -109,7 +111,8 @@ test('the area overview and Meeting load show the same overlap figure', async ({
 });
 
 test('many pairs: the overview names three, Meeting load 50, then all', async ({ page }) => {
-  // Eleven fictional dailies of Team Gamma at the same time give 55 more pairs, for five people.
+  // Eleven fictional syncs of Team Gamma at the same time give 55 more pairs, for five people:
+  // 58 with the example's three.
   const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
   ws.settings.locale = 'en';
   const gamma = ws.teams.find((x: { id: string }) => x.id === 'team-gamma');
@@ -140,22 +143,22 @@ test('many pairs: the overview names three, Meeting load 50, then all', async ({
   await showView(page, 'Area');
   await page.getByRole('group', { name: 'Page' }).getByRole('button', { name: 'Overview' }).click();
   const box = page.locator('[data-area-overview] [data-clashes]');
-  await expect(box.locator('.what')).toHaveText(/^57 overlapping meeting pairs on \d+ days/);
+  await expect(box.locator('.what')).toHaveText(/^58 overlapping meeting pairs on \d+ days/);
   await expect(box.locator('li[data-clash]')).toHaveCount(3);
   // The weekdays as one run, three people named and the rest counted.
   await expect(box.locator('li[data-clash]').first()).toHaveText(
     /^Sync 1 \(Team Gamma\) × Sync 2 \(Team Gamma\): Mon–Fri 08:00–08:15 · \w+, \w+, \w+, and 2 more · \d+ days · e\.g\. 01\/04\/2027$/,
   );
-  await box.getByRole('button', { name: '54 more pairs: in Meeting load' }).click();
+  await box.getByRole('button', { name: '55 more pairs: in Meeting load' }).click();
 
   const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
   const list = panel.locator('[data-clashes]');
-  await expect(list.locator('.what')).toHaveText(/^57 overlapping meeting pairs/);
+  await expect(list.locator('.what')).toHaveText(/^58 overlapping meeting pairs/);
   await expect(list.locator('li[data-clash]')).toHaveCount(50);
   // The list itself is brought into view, not a week (#445).
   await expect(list).toBeInViewport();
   await expect(page.locator('[data-week-focus]')).toHaveCount(0);
-  await list.getByRole('button', { name: 'Show all 57 overlapping meeting pairs' }).click();
-  await expect(list.locator('li[data-clash]')).toHaveCount(57);
+  await list.getByRole('button', { name: 'Show all 58 overlapping meeting pairs' }).click();
+  await expect(list.locator('li[data-clash]')).toHaveCount(58);
   await expect(list.locator('[data-all-clashes]')).toHaveCount(0);
 });
