@@ -26,6 +26,7 @@
   const uid = $props.id();
   let dialog: HTMLDialogElement | undefined = $state();
   let applyButton: HTMLButtonElement | undefined = $state();
+  let lengthInput: HTMLInputElement | undefined = $state();
 
   const area = $derived(findArea($workspace, target.unitId));
   const unit = $derived(
@@ -200,7 +201,15 @@
       {:else}
         <div class="field">
           <label for="{uid}-length">{$t('team.cadence.length')}</label>
-          <input id="{uid}-length" type="number" min="1" max="52" step="1" bind:value={length} />
+          <input
+            id="{uid}-length"
+            type="number"
+            min="1"
+            max="52"
+            step="1"
+            bind:this={lengthInput}
+            bind:value={length}
+          />
         </div>
         <div class="field">
           <label for="{uid}-start">{$t('team.cadence.start')}</label>
@@ -215,9 +224,10 @@
         class="align"
         onclick={async () => {
           [length, start] = [to.lengthWeeks, to.start];
-          // The button goes once the draft fits: keep the focus in the sheet, on the next step.
+          // The button goes once the draft fits: keep the focus in the sheet, on the next step,
+          // or on the length when the meetings do not fit it (its error shows below).
           await tick();
-          applyButton?.focus();
+          (applyButton && !applyButton.disabled ? applyButton : lengthInput)?.focus();
         }}>{$t('whatif.align', { name: align.name })}</button
       >
     {/if}

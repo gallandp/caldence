@@ -370,6 +370,12 @@ test('presenting, "Align with …" fits a team to the area cadence in one tap (#
   await expect(sheet.getByRole('button', { name: 'Apply' })).toBeFocused();
   await sheet.getByRole('button', { name: 'Apply' }).click();
   await expect(kpi.locator('b')).toHaveText('3 of 4');
+  // The area's own cadence has nothing to align with.
+  await overview.getByRole('button', { name: 'What if: Payments', exact: true }).click();
+  const own = page.getByRole('dialog', { name: 'Cadence · Payments' });
+  await expect(own.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(own.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+  await own.getByRole('button', { name: 'Cancel' }).click();
   // An aligned team has nothing to align.
   await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
   const alpha = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
