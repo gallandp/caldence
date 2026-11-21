@@ -159,3 +159,31 @@ test('many pairs: the overview names three, Meeting load 50, then all', async ({
   await expect(list.locator('li[data-clash]')).toHaveCount(57);
   await expect(list.locator('[data-all-clashes]')).toHaveCount(0);
 });
+
+test.describe('the Warnings badge counts people, the overlaps have their own (#475)', () => {
+  for (const width of [1280, 390])
+    test(`at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await showView(page, 'Meeting load');
+      const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
+      const warnings = panel.getByRole('region', { name: 'Warnings', exact: true });
+      const badge = warnings.locator('h3 .count');
+      const overlapBadge = warnings.locator('h4 .count');
+      // Commerce has overlapping pairs but nobody over the limit or with a load spike.
+      await pickUnit(page, 'Commerce');
+      await expect(warnings.locator('li[data-clash]')).toHaveCount(COMMERCE_PAIRS);
+      await expect(badge).toHaveCount(0);
+      await expect(warnings.getByText('No warnings')).toBeVisible();
+      await expect(overlapBadge).toHaveText(String(COMMERCE_PAIRS));
+      // The organisation has both: each badge counts its own lines.
+      await page.locator('.switcher .pick').click();
+      await page.locator('.switcher .list button.org').click();
+      await expect(warnings.locator('li.warning').first()).toBeVisible();
+      const people = await warnings.locator('li.warning').count();
+      expect(people).toBeGreaterThan(0);
+      await expect(badge).toHaveText(String(people));
+      await expect(overlapBadge).toHaveText(
+        String(await warnings.locator('li[data-clash]').count()),
+      );
+    });
+});

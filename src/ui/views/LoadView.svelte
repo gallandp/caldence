@@ -803,8 +803,9 @@
   <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
-      {#if warningItems.length + overlaps.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length + overlaps.length}</span
+      <!-- Only the lines about people: an overlap is never a warning, it has its own count (#475). -->
+      {#if warningItems.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length}</span
         >{/if}
     </h3>
     <p class="note">
@@ -814,7 +815,7 @@
         period: nextWeeks($t, $locale, overlapWindow.weeks),
       })}
     </p>
-    {#if warningItems.length + overlaps.length === 0}
+    {#if warningItems.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
     {/if}
     {#if warningItems.length > 0}
@@ -834,7 +835,10 @@
       </ul>
     {/if}
     {#if overlaps.length > 0}
-      <h4 class="hints-title">{$t('load.overlaps')}</h4>
+      <h4 class="hints-title">
+        {$t('load.overlaps')}
+        <span class="count" aria-hidden="true">{overlaps.length}</span>
+      </h4>
       <div class="overlaps" bind:this={overlapsBox}>
         <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget);
              another scope starts with the first ones again. -->
