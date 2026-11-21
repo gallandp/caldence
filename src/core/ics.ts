@@ -76,6 +76,14 @@ const ON_SITE = {
   en: { place: 'On site', travel: (m: number) => `Travel: ${m} min (there and back)` },
 } as const;
 
+/** A share below 1 in words (#471): 0.5 is "every other time", other shares a percentage. */
+const SHARE = {
+  de: (share: number) =>
+    share === 0.5 ? 'jedes zweite Mal (50 %)' : `${Math.round(share * 100)} % der Zeit`,
+  en: (share: number) =>
+    share === 0.5 ? 'every other time (50%)' : `${Math.round(share * 100)}% of the time`,
+} as const;
+
 const pad = (n: number, w = 2): string => String(Math.abs(n)).padStart(w, '0');
 
 /** Escapes a TEXT value: backslash, semicolon, comma and newlines. */
@@ -494,11 +502,14 @@ export function exportIcsWithCounts(
     if (!first) continue;
     const key = `${event.id}.${team.id}`;
     // Roles, then the people invited by name (#285).
-    const roles = event.participants
-      .map((p) =>
-        p.personId !== undefined ? personNames.get(p.personId) : roleNames.get(p.roleId),
-      )
-      .filter((n): n is string => n !== undefined);
+    const nameOf = (p: (typeof event.participants)[number]) =>
+      p.personId !== undefined ? personNames.get(p.personId) : roleNames.get(p.roleId);
+    const roles = event.participants.map(nameOf).filter((n): n is string => n !== undefined);
+    // Who is invited only part of the time, one line each, as load and cost count them (#471).
+    const shares = event.participants
+      .filter((p) => p.share < 1 && nameOf(p) !== undefined)
+      .map((p) => `\n${nameOf(p)}: ${SHARE[opts.locale](p.share)}`)
+      .join('');
     const category = categoryNames.get(event.categoryId);
     // The team or area in the title tells apart the same meeting of two teams (#442); an
     // organisation without a name adds nothing.
@@ -516,7 +527,7 @@ export function exportIcsWithCounts(
       ...(place !== '' ? [`LOCATION:${escapeText(place)}`] : []),
       ...(link !== undefined ? [`URL:${link}`] : []),
       // The link is in the notes too: not every calendar app shows URL (#442).
-      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${onSite}${link !== undefined ? `\n${link}` : ''}`)}`,
+      `DESCRIPTION:${escapeText(`${team.name}\n${roles.join(', ')}${shares}${onSite}${link !== undefined ? `\n${link}` : ''}`)}`,
       'TRANSP:OPAQUE',
     ];
     // A series whose every occurrence in range is skipped is not written.
