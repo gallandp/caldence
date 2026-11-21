@@ -46,6 +46,7 @@
     live = true,
     team,
     cadence,
+    warn = false,
   }: {
     before?: Effect;
     after?: Effect;
@@ -56,6 +57,8 @@
     live?: boolean;
     team?: { name: string; before: Effect; after: Effect };
     cadence?: Cadence;
+    /** The note is a warning, e.g. the meetings the draft overlaps (#477). */
+    warn?: boolean;
   } = $props();
 
   const signed = (n: number, format: (x: number) => string) =>
@@ -169,7 +172,9 @@
         </div>
       {/if}
     </dl>
-    {#if note}<p class="note">{note}</p>{/if}
+    {#if note}<p class="note" class:warn role={warn ? 'status' : undefined} data-effect-note>
+        {note}
+      </p>{/if}
   {/if}
 </div>
 
@@ -237,5 +242,12 @@
     margin: 0.5rem 0 0;
     padding-top: 0.5rem;
     border-top: 1px solid var(--border);
+  }
+  .note.warn {
+    font-weight: 600;
+  }
+  .note.warn::before {
+    content: '⚠ ';
+    color: var(--warn);
   }
 </style>

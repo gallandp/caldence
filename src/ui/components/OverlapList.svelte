@@ -2,7 +2,7 @@
   import type { ISODate } from '../../core/date';
   import { isoWeek } from '../../core/date';
   import { unitName, units } from '../../core/model';
-  import { weekdayRuns, type MeetingRef, type OverlapPair } from '../../core/views';
+  import { type MeetingRef, type OverlapPair } from '../../core/views';
   import {
     formatDisplayDate,
     formatNumber,
@@ -11,7 +11,7 @@
     nextWeeks,
     translate as t,
   } from '../../i18n';
-  import { weekdayShort } from '../meetings/rules';
+  import { overlapWhen } from '../meetings/rules';
   import { workspace } from '../state/workspace';
 
   /**
@@ -63,16 +63,7 @@
   const personName = (id: string) => nameById.get(id) ?? id;
   const list = $derived(new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' }));
 
-  function when(p: OverlapPair): string {
-    const weekdays = weekdayRuns(p.weekdays)
-      .map(([a, b]) =>
-        a === b
-          ? weekdayShort($locale, a)
-          : `${weekdayShort($locale, a)}${b - a > 1 ? '–' : ', '}${weekdayShort($locale, b)}`,
-      )
-      .join(', ');
-    return $t('overlaps.when', { weekdays, from: p.start, to: p.end });
-  }
+  const when = (p: OverlapPair) => overlapWhen($t, $locale, p);
 
   function people(p: OverlapPair): string {
     const names = p.people.slice(0, NAMED).map(personName);
