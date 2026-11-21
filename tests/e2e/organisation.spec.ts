@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { currentUnit, openExample, showView, teamAction, useFileFallback } from './helpers';
+import {
+  currentUnit,
+  openExample,
+  openWorkspaceFile,
+  showView,
+  teamAction,
+  useFileFallback,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -113,6 +121,17 @@ test('the organisation shows alignment and cost per team, also without an area (
     await expect(costs.locator(`[data-cost-row="${id}"]`)).toHaveCount(1);
   await expect(costs.locator('[data-cost-row="@organisation"]')).toHaveCount(0);
   await expect(costs.locator('[data-area-share]')).toHaveCount(0);
+  // Teams are grouped under their area with its own meetings; teams without one come last (#467).
+  await expect(costs.locator('tbody th[scope="rowgroup"]')).toHaveText(['Commerce', 'No area']);
+  expect(
+    await costs
+      .locator('tbody tr[data-cost-row]')
+      .evaluateAll((rows) => rows.map((r) => r.getAttribute('data-cost-row'))),
+  ).toEqual(['team-gamma', 'team-delta', 'area-commerce', 'team-alpha', 'team-beta']);
+  // Under its heading the area's own row does not repeat the area's name.
+  await expect(costs.locator('[data-cost-row="area-commerce"] button.link')).toHaveText(
+    'Meetings in the area',
+  );
   const week = (await costs.locator('[data-cost-total] .cost').textContent())!.trim();
   await expect(summary.locator('[data-kpi="cost"] b')).toHaveText(week);
   await costs.getByRole('button', { name: 'In the planning horizon' }).click();
@@ -142,6 +161,9 @@ test('the organisation summary fits a phone and prints (#450)', async ({ page })
   const summary = page.locator('[data-area-overview]');
   await expect(summary.locator('[data-kpi="cadence"]')).toBeVisible();
   await expect(summary.locator('[data-area-costs]')).toBeVisible();
+  await expect(
+    summary.locator('[data-area-costs] th[scope="rowgroup"]', { hasText: 'Commerce' }),
+  ).toBeVisible();
   // Without an hourly rate the third figure is the time in all meetings, as in the table.
   await expect(summary.locator('[data-kpi="time"] b')).toHaveText(
     (await summary.locator('[data-cost-total] td.num').first().textContent())!.trim(),
@@ -153,4 +175,24 @@ test('the organisation summary fits a phone and prints (#450)', async ({ page })
   await page.emulateMedia({ media: 'print' });
   await expect(summary.locator('[data-kpi="cadence"]')).toBeVisible();
   await expect(summary.locator('[data-cost-total]')).toBeVisible();
+  await expect(summary.locator('[data-area-costs] th[scope="rowgroup"]').first()).toBeVisible();
+});
+
+test("the organisation's own meetings close the cost table, in no area's group (#467)", async ({
+  page,
+}) => {
+  await page.goto('/');
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.organisation = {
+    events: [{ ...ws.areas[0].events[0], id: 'ev-sync', name: 'Portfolio Sync' }],
+  };
+  await openWorkspaceFile(page, ws);
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const costs = page.locator('[data-area-costs]');
+  const org = costs.locator('tbody:has([data-cost-row="@organisation"])');
+  await expect(org.locator('tr')).toHaveCount(1);
+  await expect(org.locator('th[scope="rowgroup"]')).toHaveCount(0);
+  await expect(costs.locator('tbody').last()).toHaveText(/Portfolio Sync/);
 });

@@ -185,13 +185,13 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await expect(overlapBadge).toHaveText(
         String(await warnings.locator('li[data-clash]').count()),
       );
-      // The organisation has both: 2 load spikes and 3 overlapping pairs, counted apart.
+      // The organisation has both: 2 load spikes and 4 overlapping pairs (incl. the Dailies of #464), counted apart.
       await page.locator('.switcher .pick').click();
       await page.locator('.switcher .list button.org').click();
       await expect(warnings.locator('li.warning')).toHaveCount(2);
       await expect(badge).toHaveText('2');
-      await expect(warnings.locator('li[data-clash]')).toHaveCount(3);
-      await expect(overlapBadge).toHaveText('3');
+      await expect(warnings.locator('li[data-clash]')).toHaveCount(4);
+      await expect(overlapBadge).toHaveText('4');
       await setLanguage(page, 'de');
       await pickUnit(page, 'Commerce');
       await expect(
