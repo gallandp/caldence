@@ -275,13 +275,17 @@ test('Meetings & cadence of an area names its own meetings and the Overview tota
 }) => {
   const overview = await openOverview(page, 100);
   const weekly = (await overview.locator('[data-kpi="cost"] b').textContent())!;
+  const kpi = (await overview.locator('[data-kpi="cost"]').textContent())!;
+  const horizon = /(€[\d,]+) in the planning horizon/.exec(kpi)![1];
   await showView(page, 'Meetings & cadence');
   const card = page.locator('[data-costs]');
   await expect(card.locator('h3')).toHaveText(
     'Costs of the meetings in the area, without team meetings',
   );
   const total = card.locator('[data-cost-area-total]');
-  await expect(total).toContainText(`Total in the area with all teams: ${weekly} / week`);
+  await expect(total).toContainText(
+    `Total in the area with all teams: ${weekly} / week, ${horizon} in the planning horizon`,
+  );
   await total.getByRole('button', { name: 'Open the overview of Payments' }).click();
   await expect(page.locator('[data-area-overview]')).toBeVisible();
   await expect(currentUnit(page)).toHaveText('Payments');

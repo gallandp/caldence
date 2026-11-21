@@ -21,7 +21,6 @@
     formatEuro,
     formatNumber,
     formatPercent,
-    areaText,
     levels,
     locale,
     translate as t,
@@ -210,8 +209,6 @@
   const areaTotal = $derived(
     rate && area ? areaCosts($workspace, $index, area, rate, false).total.cost : undefined,
   );
-  /** For the organisation, "{levelInArea}" names the organisation (#328). */
-  const at = $derived(area ? areaText($t, $levels, area.id) : $t);
   const euro = (n: number) => formatEuro($locale, n);
   /** The Takt's short name for "Ø … / Sprint" (#279). */
   const kind = $derived(team ? $t(`meet.kind.${team.cadence.kind}`) : '');
@@ -438,17 +435,22 @@
         cadence={team?.cadence}
         areaShare={share}
         unitName={team?.name}
-        title={area ? at('cost.title.area') : undefined}
+        title={area ? $t(org ? 'cost.title.org' : 'cost.title.area') : undefined}
       >
-        {#if area && areaTotal}
+        {#if area && areaTotal && area.teamIds.length > 0}
           <p class="area-total" data-cost-area-total>
-            {at('cost.areaTotal', {
-              week: euro(areaTotal.perWeek),
-              horizon: euro(areaTotal.horizon),
-            })}
+            {$t(org ? 'cost.areaTotal.org' : 'cost.areaTotal')}
+            <b
+              >{$t('cost.areaTotal.figures', {
+                week: euro(areaTotal.perWeek),
+                horizon: euro(areaTotal.horizon),
+              })}</b
+            >
             {#if onOpenOverview}
-              <button type="button" class="link" onclick={onOpenOverview}
-                >{$t('cost.areaTotal.open', { name: area.name })}</button
+              <button type="button" class="link" data-no-print onclick={onOpenOverview}
+                >{$t(org ? 'cost.areaTotal.open.org' : 'cost.areaTotal.open', {
+                  name: area.name,
+                })}</button
               >
             {/if}
           </p>
@@ -1051,6 +1053,11 @@
     font-size: 0.875rem;
     color: var(--text-muted);
   }
+  .area-total b {
+    font-weight: 650;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
   :global(#app) .area-total .link {
     min-height: 0;
     padding: 0;
@@ -1062,6 +1069,7 @@
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 0.15em;
+    text-align: left;
     cursor: pointer;
   }
   .cost {
