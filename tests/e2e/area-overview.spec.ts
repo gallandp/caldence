@@ -395,6 +395,48 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   );
 });
 
+test('presenting, a what-if on the reference team shows that team as differing (#470)', async ({
+  page,
+}) => {
+  // No area cadence; Alpha and Beta share 2-week sprints, Gamma has 3 weeks.
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { teamIds: string[]; cadence?: unknown };
+    delete area.cadence;
+    area.teamIds = ['team-alpha', 'team-beta', 'team-gamma'];
+    ws.teams[1]!.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' };
+  });
+  const kpi = overview.locator('[data-kpi="cadence"]');
+  const lead = overview.locator('.lead');
+  await expect(kpi.locator('b')).toHaveText('2 of 3');
+  await expect(lead).toContainText('compared with the cadence of Team Alpha, which most share');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await sheet.getByLabel('Length (weeks)').fill('4');
+  await expect(sheet).toContainText('2 → 1 of 3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+
+  // Beta keeps the saved reference; Alpha, which changed, is the one out of step.
+  await expect(kpi.locator('b')).toHaveText('1 of 3');
+  await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha and Team Gamma');
+  await expect(overview.locator('[data-team-row="team-alpha"]')).toContainText(
+    '4 instead of 2 weeks',
+  );
+  await expect(overview.locator('[data-team-row="team-beta"]')).toContainText('aligned');
+  await expect(lead).toContainText('compared with the cadence of Team Alpha before the what-ifs');
+});
+
+test('when no two teams share a cadence, the lead says so (#470)', async ({ page }) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    delete (ws.areas[0] as { cadence?: unknown }).cadence;
+  });
+  await expect(overview.locator('[data-kpi="cadence"] b')).toHaveText('1 of 4');
+  await expect(overview.locator('.lead')).toContainText(
+    'compared with the cadence of Team Alpha, as no two teams share a cadence',
+  );
+});
+
 test('the team-pick hint is on Structure, the cost explanation folds', async ({ page }) => {
   const overview = await openOverview(page, 100);
   await expect(page.locator('.area-teams')).toHaveCount(0);
