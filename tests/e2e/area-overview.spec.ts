@@ -79,6 +79,24 @@ test('the area overview compares cadences, shows load and the area steering', as
   await expect(overview.locator('[data-kpi="area"] b')).toHaveText('6.5 h');
 });
 
+test('the average leaves out the week before the horizon and the team starts (#476)', async ({
+  page,
+}) => {
+  // The horizon starts on a Saturday and Team Beta one week later: both 0 weeks stay out.
+  await page.clock.setFixedTime(new Date('2027-01-02T10:00:00'));
+  const overview = await openOverview(page, undefined, (ws) => {
+    ws.settings.horizon = { ...ws.settings.horizon, from: '2027-01-02' };
+    const beta = ws.teams.find((t) => t.id === 'team-beta')!;
+    beta.cadence = { ...beta.cadence, start: '2027-01-11' };
+  });
+  const load = overview.locator('[data-load]');
+  await expect(load.locator('tr[data-team="team-beta"] button[data-week="2027-01-04"]')).toHaveText(
+    '0',
+  );
+  await expect(load.locator('tr[data-team="team-alpha"] td.avg')).toHaveText('18%');
+  await expect(load.locator('tr[data-team="team-beta"] td.avg')).toHaveText('8%');
+});
+
 test('a load cell opens Load for that team and week', async ({ page }) => {
   const overview = await openOverview(page);
   const cell = overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]');
