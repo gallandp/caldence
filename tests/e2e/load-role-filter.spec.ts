@@ -57,6 +57,14 @@ test('in a team, the row keeps the full load of the person (#473)', async ({ pag
   await expect(sam).toHaveText(before);
 });
 
+test('a role nobody holds in scope says so instead of an empty table (#473)', async ({ page }) => {
+  const panel = await openLoad(page);
+  await pickUnit(page, 'Team Alpha');
+  await pickRole(page, 'Area Lead');
+  await expect(panel.locator('section.people')).toContainText('No one with this role here.');
+  await expect(panel.locator('section.people table')).toHaveCount(0);
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test('the stacked rows follow the Role filter (#473)', async ({ page }) => {

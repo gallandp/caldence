@@ -90,13 +90,12 @@
   const teamIds = $derived(teamId ? unitLoadIds($workspace, teamId) : undefined);
   /** The role filter narrows the list to the people with that role in scope (#473). */
   const roleId = $derived($filter.personId ? undefined : $filter.roleId);
-  const people = $derived(
-    $filter.personId
-      ? $workspace.people.filter((p) => p.id === $filter.personId)
-      : teamId || roleId
-        ? $workspace.people.filter((p) => scopePeople($workspace, { teamId, roleId }).has(p.id))
-        : $workspace.people,
-  );
+  const people = $derived.by(() => {
+    if ($filter.personId) return $workspace.people.filter((p) => p.id === $filter.personId);
+    if (!teamId && !roleId) return $workspace.people;
+    const inScope = scopePeople($workspace, { teamId, roleId });
+    return $workspace.people.filter((p) => inScope.has(p.id));
+  });
 
   /**
    * Each person is judged on all their meetings ÷ their hours in all their teams and areas, at
@@ -785,16 +784,18 @@
   {#snippet peopleCard()}
     {#if $workspace.people.length > 0}
       <section class="card people">
-        {@render region(
-          'person',
-          roleId
-            ? $t('load.table.person.role', {
-                role: roleName(roleId),
-                count: formatNumber($locale, people.length, 0),
-              })
-            : $t('load.table.person'),
-          personBody,
-        )}
+        {#if roleId && people.length === 0}
+          <p class="note" data-no-role>{$t('load.table.person.noRole')}</p>
+        {:else}{@render region(
+            'person',
+            roleId
+              ? $t('load.table.person.role', {
+                  role: roleName(roleId),
+                  count: formatNumber($locale, people.length, 0),
+                })
+              : $t('load.table.person'),
+            personBody,
+          )}{/if}
         <p class="note below">
           {#if !$filter.personId}
             {area
