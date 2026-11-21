@@ -14,6 +14,7 @@
     areaOnlyPeople,
     compareCadences,
     compareOrgCadences,
+    loadAverage,
     teamLoad,
     zeroHourMembers,
     type LoadCell,
@@ -367,8 +368,6 @@
       max: percent(maxFte),
     });
   }
-  const average = (cells: LoadCell[]) =>
-    cells.length > 0 ? cells.reduce((sum, c) => sum + c.share, 0) / cells.length : 0;
 
   // ---------- steering ----------
 
@@ -916,7 +915,7 @@
             </tr>
           </thead>
           <tbody>
-            {#snippet heatRow(unitId: string, name: string, row: LoadCell[])}
+            {#snippet heatRow(unitId: string, name: string, row: LoadCell[], start?: ISODate)}
               <tr data-team={unitId}>
                 <th scope="row" class="name">{name}</th>
                 {#each row as cell (cell.monday)}
@@ -932,14 +931,14 @@
                     >
                   </td>
                 {/each}
-                <td class="avg">{percent(average(row))}</td>
+                <td class="avg">{percent(loadAverage(row, ws.settings.horizon, start))}</td>
               </tr>
             {/snippet}
             {#each teams as team (team.id)}
-              {@render heatRow(team.id, team.name, load.get(team.id) ?? [])}
+              {@render heatRow(team.id, team.name, load.get(team.id) ?? [], team.cadence.start)}
             {/each}
             {#if areaOnly.length > 0}
-              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly)}
+              {@render heatRow(area.id, $t('area.group.areaOnly'), areaOnly, area.cadence?.start)}
             {/if}
           </tbody>
         </table>
