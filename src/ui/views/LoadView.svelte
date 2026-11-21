@@ -54,7 +54,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary } from '../meetings/rules';
-  import { loadOverlaps } from '../state/focus';
+  import { loadOverlaps, loadPerson } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -204,6 +204,18 @@
   $effect(() => {
     if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
       openPerson = null;
+  });
+  // Opened and brought into view when asked for from the area Overview (#462).
+  $effect(() => {
+    const id = $loadPerson;
+    if (id === null || !perPerson.some((p) => p.person.id === id)) return;
+    loadPerson.set(null);
+    openPerson = id;
+    void tick().then(() => {
+      const who = document.querySelector<HTMLElement>(`tr[data-person="${CSS.escape(id)}"] .who`);
+      who?.scrollIntoView({ block: 'center' });
+      who?.focus();
+    });
   });
   /** The meetings of the opened person, by team or area, with their repeat rule (#343). */
   const openMeetings = $derived.by(() => {
