@@ -55,6 +55,8 @@ export interface CadenceRow {
 export interface CadenceComparison {
   /** The reference: the area's own cadence, or (without one) the cadence most teams share. */
   reference?: { cadence: Cadence; fromArea: boolean; teamId?: string };
+  /** Teams whose cadence equals the peer reference (1 when no two share one); 0 without one. */
+  sharing: number;
   /** The area's own periods in the window; empty without an area cadence. */
   areaSegments: Segment[];
   rows: CadenceRow[];
@@ -131,17 +133,32 @@ export function stepReasons(team: Cadence, reference: Cadence, fromArea: boolean
   return reasons;
 }
 
+/**
+ * `base` is the saved file while a what-if is active (#470): the peer reference comes from it, so
+ * a what-if on the reference team shows that team as differing instead of moving the reference.
+ * Only when the what-ifs make more teams share another cadence does that one become the reference.
+ */
 export function compareCadences(
   ws: Workspace,
   area: Area,
   from: ISODate,
   weeks: number,
+  base: Workspace = ws,
 ): CadenceComparison {
   const teams = area.teamIds.flatMap((id) => ws.teams.filter((t) => t.id === id));
+  const sharing = (c: Cadence) => teams.filter((t) => sameCadence(t.cadence, c)).length;
   const peer = area.cadence ? undefined : peerReference(teams);
+  const saved = area.cadence
+    ? undefined
+    : peerReference(area.teamIds.flatMap((id) => base.teams.filter((t) => t.id === id)));
+  // The saved reference stays unless a what-if makes more teams (two at least) share another.
+  const kept =
+    saved && !(peer && sharing(peer.cadence) > Math.max(1, sharing(saved.cadence)))
+      ? { cadence: saved.cadence, teamId: saved.id }
+      : peer && { cadence: peer.cadence, teamId: peer.id };
   const reference = area.cadence
     ? { cadence: area.cadence, fromArea: true }
-    : peer && { cadence: peer.cadence, fromArea: false, teamId: peer.id };
+    : kept && { ...kept, fromArea: false };
   const areaSegments = area.cadence ? segments(area.cadence, from, weeks) : [];
   const refLength = (reference?.cadence.lengthWeeks ?? 0) * 7;
   const rows = teams.map((team): CadenceRow => {
@@ -160,7 +177,7 @@ export function compareCadences(
     });
     return { teamId: team.id, cadence: team.cadence, inStep, reasons, segments: segs };
   });
-  return { reference, areaSegments, rows };
+  return { reference, sharing: kept ? sharing(kept.cadence) : 0, areaSegments, rows };
 }
 
 /** The organisation's comparison, with what its lead line needs (#450). */
@@ -169,8 +186,6 @@ export interface OrgComparison extends CadenceComparison {
   byArea: number;
   /** Teams compared with the reference, the cadence most teams share. */
   others: number;
-  /** Teams whose cadence equals the reference (1 when no two teams share one). */
-  sharing: number;
 }
 
 /**
@@ -179,19 +194,22 @@ export interface OrgComparison extends CadenceComparison {
  * teams of the organisation share (on a tie the first team's), as in an area without a cadence.
  * Rows keep the order of the teams; there are no area segments.
  */
-export function compareOrgCadences(ws: Workspace, from: ISODate, weeks: number): OrgComparison {
-  const all = compareCadences(ws, orgArea(ws), from, weeks);
+export function compareOrgCadences(
+  ws: Workspace,
+  from: ISODate,
+  weeks: number,
+  base: Workspace = ws,
+): OrgComparison {
+  const all = compareCadences(ws, orgArea(ws), from, weeks, base);
   const byArea = new Map<string, CadenceRow>();
   for (const area of ws.areas)
     if (area.cadence)
       for (const row of compareCadences(ws, area, from, weeks).rows) byArea.set(row.teamId, row);
-  const ref = all.reference?.cadence;
   return {
     ...all,
     rows: all.rows.map((row) => byArea.get(row.teamId) ?? row),
     byArea: byArea.size,
     others: all.rows.length - byArea.size,
-    sharing: ref ? ws.teams.filter((t) => sameCadence(t.cadence, ref)).length : 0,
   };
 }
 

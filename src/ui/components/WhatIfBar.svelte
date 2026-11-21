@@ -16,11 +16,13 @@
   const baseIndex = $derived($presentBase ? workspaceIndex($presentBase) : undefined);
   const before = $derived(
     $presentBase && baseIndex && scope && changes > 0
-      ? whatIfEffect($presentBase, baseIndex, scope, rate)
+      ? whatIfEffect($presentBase, baseIndex, scope, rate, $presentBase)
       : undefined,
   );
   const after = $derived(
-    scope && changes > 0 ? whatIfEffect($workspace, $index, scope, rate) : undefined,
+    scope && changes > 0 && $presentBase
+      ? whatIfEffect($workspace, $index, scope, rate, $presentBase)
+      : undefined,
   );
   const scopeName = $derived(unitName($workspace, scope, $levels.org));
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */

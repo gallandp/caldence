@@ -69,6 +69,21 @@ describe('what-if effect', () => {
     if (!e.inStep) return; // the fixture has no reference cadence
     expect(e.inStep.of).toBe(area.teamIds.length);
   });
+
+  it('counts against the saved reference, so a what-if on the first team does not move it (#470)', () => {
+    const saved = ws();
+    delete saved.areas[0]!.cadence;
+    // No two teams share a cadence: the first, Alpha's 2-week sprints, is the reference.
+    const before = whatIfEffect(saved, noIndex(), 'area-payments', undefined, saved)!;
+    expect(before.inStep).toEqual({ n: 1, of: 4 });
+    const next = setCadenceLength(saved, 'team-alpha', 4);
+    expect(next.ok).toBe(true);
+    if (!next.ok) return;
+    // Alone, Alpha's new 4 weeks would be the reference and Alpha would stay aligned.
+    expect(whatIfEffect(next.value, noIndex(), 'area-payments')!.inStep).toEqual({ n: 1, of: 4 });
+    const after = whatIfEffect(next.value, noIndex(), 'area-payments', undefined, saved)!;
+    expect(after.inStep).toEqual({ n: 0, of: 4 });
+  });
 });
 
 describe('countChanges', () => {

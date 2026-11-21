@@ -102,8 +102,13 @@
   const weekCount = $derived(span.weeks);
   const mondays = $derived(Array.from({ length: weekCount }, (_, i) => addDays(from, i * 7)));
 
-  const orgComparison = $derived(summary ? compareOrgCadences(ws, from, weekCount) : undefined);
-  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount));
+  // While presenting, the peer reference comes from the file as it was before the what-ifs (#470).
+  const presentBase = workspace.presentBase;
+  const saved = $derived($presentBase ?? ws);
+  const orgComparison = $derived(
+    summary ? compareOrgCadences(ws, from, weekCount, saved) : undefined,
+  );
+  const comparison = $derived(orgComparison ?? compareCadences(ws, area, from, weekCount, saved));
   const allWeeks = $derived(loadPerWeek(ws, $index));
   // The summary shows no heat map or warned weeks: no load per team and week (#450).
   const weeks = $derived.by(() => {
@@ -268,10 +273,20 @@
             date: formatDisplayDate($locale, area.cadence.start, 'long'),
           })
         : comparison.reference?.teamId
-          ? $t('overview.lead.peer', { team: teamName(comparison.reference.teamId) })
+          ? $t(peerLead(comparison.reference.teamId, comparison.reference.cadence), {
+              team: teamName(comparison.reference.teamId),
+            })
           : $t('overview.lead.none'),
     ].join(' · '),
   );
+  /** The team's cadence changed in a what-if, or no two teams share one, or most share it. */
+  function peerLead(teamId: string, cadence: Cadence): string {
+    const now = teams.find((x) => x.id === teamId)?.cadence;
+    if (JSON.stringify(now) !== JSON.stringify(cadence)) return 'overview.lead.peer.saved';
+    return teams.length > 1 && comparison.sharing < 2
+      ? 'overview.lead.peer.first'
+      : 'overview.lead.peer';
+  }
   /**
    * The organisation's page names its teams and people in the tree, so only what the teams are
    * compared with: their area's cadence where it has one, else the one most teams share (#450).
