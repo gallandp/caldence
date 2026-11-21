@@ -835,6 +835,9 @@
                     : undefined}
                   onExport={() => select('exchange', true)}
                   onOpenDay={openDay}
+                  onOpenOverview={activeArea || activeOrg
+                    ? () => backToArea(activeArea?.id ?? ORG_UNIT)
+                    : undefined}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}
