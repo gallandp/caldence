@@ -23,9 +23,9 @@ export const ALPHA_PAIR_DAYS = 6;
  * Days with a clash of a Commerce person that touches Commerce or its teams, in the 12 weeks from
  * Monday 2027-01-04; the first is Robin's on that Monday (#339).
  */
-export const COMMERCE_CLASH_DAYS = 12;
+export const COMMERCE_CLASH_DAYS = 59;
 /** Overlapping meeting pairs of Commerce in the same window, on those days (#445). */
-export const COMMERCE_PAIRS = 2;
+export const COMMERCE_PAIRS = 3;
 export const COMMERCE_FIRST_CLASH = '2027-01-04';
 
 export const fmt = (locale: 'de' | 'en', n: number): string =>

@@ -404,6 +404,28 @@
           "preparation": 0.25
         },
         {
+          "id": "ev-gamma-daily",
+          "name": "Daily Scrum",
+          "categoryId": "cat-events",
+          "rule": {
+            "type": "weekdays",
+            "weekdays": [1, 2, 3, 4, 5]
+          },
+          "time": "09:15",
+          "duration": 15,
+          "participants": [
+            {
+              "roleId": "role-po",
+              "share": 1
+            },
+            {
+              "roleId": "role-sm",
+              "share": 1
+            }
+          ],
+          "preparation": 0
+        },
+        {
           "id": "ev-gamma-review",
           "name": "Sprint Review",
           "categoryId": "cat-events",
@@ -452,6 +474,28 @@
       "assumptions": {},
       "cycles": [],
       "events": [
+        {
+          "id": "ev-delta-daily",
+          "name": "Daily",
+          "categoryId": "cat-events",
+          "rule": {
+            "type": "weekdays",
+            "weekdays": [1, 2, 3, 4, 5]
+          },
+          "time": "09:15",
+          "duration": 15,
+          "participants": [
+            {
+              "roleId": "role-po",
+              "share": 1
+            },
+            {
+              "roleId": "role-dev",
+              "share": 1
+            }
+          ],
+          "preparation": 0
+        },
         {
           "id": "ev-delta-replenishment",
           "name": "Replenishment",
