@@ -180,6 +180,15 @@ test('the Team view splits a fully booked person evenly and lowers their other t
   await pickUnit(page, 'Team Delta');
   await openTeamView(page);
   await expect(team.getByLabel('Weekly hours of Robin in Team Delta')).toHaveValue('5.5');
+  // One undo takes back the membership and the lowered hours together.
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(team.getByLabel('Weekly hours of Robin in Team Delta')).toHaveValue('8');
+  await pickUnit(page, 'Team Alpha');
+  await openTeamView(page);
+  await expect(team.getByLabel('Weekly hours of Robin in Team Alpha')).toHaveCount(0);
+  await pickUnit(page, 'Team Gamma');
+  await openTeamView(page);
+  await expect(team.getByLabel('Weekly hours of Robin in Team Gamma')).toHaveValue('32');
 
   // Without the tick the other teams keep their hours and the over-hours flag shows.
   await team.getByLabel('Person', { exact: true }).fill('Alex');
@@ -191,9 +200,9 @@ test('the Team view splits a fully booked person evenly and lowers their other t
   await team.getByRole('checkbox', { name: /Lower the hours/ }).uncheck();
   await expect(team.getByText(/^Then:/)).toHaveCount(0);
   await team.getByRole('button', { name: 'Add member' }).click();
-  await expect(team.getByLabel('Weekly hours of Robin in Team Beta')).toHaveValue('10');
+  await expect(team.getByLabel('Weekly hours of Robin in Team Beta')).toHaveValue('13');
   await expect(team.getByLabel('Weekly hours of Robin in Team Beta')).toHaveAccessibleDescription(
-    '50 h – more than 40 h a week',
+    '53 h – more than 40 h a week',
   );
 });
 

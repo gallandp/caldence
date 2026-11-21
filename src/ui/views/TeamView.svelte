@@ -532,7 +532,7 @@
                 })}
               </p>
               {#if elsewhere.left === 0 && elsewhere.booked !== ''}
-                <label class="check fit" data-no-present>
+                <label class="fit" data-no-present>
                   <input
                     type="checkbox"
                     checked={keepFor !== elsewhere.id}
