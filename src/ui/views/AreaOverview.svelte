@@ -667,8 +667,11 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
-                  >{euro(costOf(r.cost))}{#if r.areaShare}<span class="sr-only">, </span><small
-                      data-area-share
+                  >{euro(
+                    costOf(r.cost),
+                  )}{#if r.areaShare && Math.round(costOf(r.areaShare)) > 0}<span class="sr-only"
+                      >,
+                    </span><small data-area-share
                       >{$t(areaShareKey(r.areaShare), {
                         amount: euro(costOf(r.areaShare)),
                         cadence: euro(r.areaShare.perCadence ?? 0),
@@ -1268,7 +1271,6 @@
   }
   :global(#app) table.costs thead th {
     text-align: left;
-    white-space: nowrap;
   }
   :global(#app) table.costs thead th.num,
   :global(#app) table.costs td.num {
@@ -1302,9 +1304,14 @@
   /* A team's people in the area's meetings: informative, not part of the total (#336). */
   [data-area-share] {
     display: block;
+    min-width: 6rem;
+    max-width: 14rem;
+    margin-left: auto;
     color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 400;
+    /* It wraps, so the cost column stays narrow enough to fit at 1280 px (#469). */
+    white-space: normal;
   }
   .unfilled {
     display: block;
@@ -1343,7 +1350,8 @@
   .bar {
     position: relative;
     display: block;
-    width: 6.5rem;
+    /* Narrow enough that all columns fit at 1280 px with long names (#469). */
+    width: 5rem;
     height: 0.45rem;
     border-radius: 999px;
     background: var(--surface-2);
