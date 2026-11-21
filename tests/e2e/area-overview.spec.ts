@@ -270,6 +270,28 @@ test('an area meeting opens in Meetings & cadence', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
 });
 
+test('Meetings & cadence of an area names its own meetings and the Overview total (#472)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  const weekly = (await overview.locator('[data-kpi="cost"] b').textContent())!;
+  await showView(page, 'Meetings & cadence');
+  const card = page.locator('[data-costs]');
+  await expect(card.locator('h3')).toHaveText(
+    'Costs of the meetings in the area, without team meetings',
+  );
+  const total = card.locator('[data-cost-area-total]');
+  await expect(total).toContainText(`Total in the area with all teams: ${weekly} / week`);
+  await total.getByRole('button', { name: 'Open the overview of Payments' }).click();
+  await expect(page.locator('[data-area-overview]')).toBeVisible();
+  await expect(currentUnit(page)).toHaveText('Payments');
+  // A team's card is unchanged.
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Meetings & cadence');
+  await expect(page.locator('[data-costs] h3')).toHaveText('Costs');
+  await expect(page.locator('[data-cost-area-total]')).toHaveCount(0);
+});
+
 test('the back link appears after a drill-in only and leaves with the view', async ({ page }) => {
   const overview = await openOverview(page);
   await overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]').click();
