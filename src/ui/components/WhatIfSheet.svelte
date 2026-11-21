@@ -94,11 +94,14 @@
 
   const scope = $derived(effectScope($workspace, target.unitId));
   const rate = $derived($workspace.settings.hourlyRate);
-  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate) : undefined);
+  // The peer reference stays the one from before presenting (#470).
+  const presentBase = workspace.presentBase;
+  const saved = $derived($presentBase ?? $workspace);
+  const before = $derived(scope ? whatIfEffect($workspace, $index, scope, rate, saved) : undefined);
   const candidateIndex = $derived('ws' in candidate ? workspaceIndex(candidate.ws) : undefined);
   const after = $derived.by((): Effect | undefined => {
     if (!scope || !('ws' in candidate) || !candidateIndex) return undefined;
-    return whatIfEffect(candidate.ws, candidateIndex, scope, rate);
+    return whatIfEffect(candidate.ws, candidateIndex, scope, rate, saved);
   });
   /** A team in an area: its own load comes first, the area's can round to the same (#340). */
   const team = $derived.by(() => {
