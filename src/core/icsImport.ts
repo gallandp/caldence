@@ -199,7 +199,10 @@ function toEvent(draft: Draft): IcsEvent | null {
         ev.summary = unescapeText(p.value).trim();
         break;
       case 'LOCATION':
-        ev.location = unescapeText(p.value).trim();
+        // A multi-line address becomes one line: the place is a one-line text field.
+        ev.location = unescapeText(p.value)
+          .replace(/\s*\n\s*/g, ', ')
+          .trim();
         break;
       case 'DESCRIPTION':
         unit = unescapeText(p.value).split('\n')[0]!.trim();

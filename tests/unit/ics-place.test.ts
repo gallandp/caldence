@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportIcsWithCounts, sequenceOf, type ExportedEvent } from '../../src/core/ics';
+import { exportIcsWithCounts, placeLink, sequenceOf, type ExportedEvent } from '../../src/core/ics';
 import { importEvents } from '../../src/core/edit';
 import { parseIcs, reviewImport } from '../../src/core/icsImport';
 import { LIMITS } from '../../src/core/limits';
@@ -270,5 +270,38 @@ describe('import of LOCATION (#466)', () => {
     expect(place()).toBeUndefined();
     expect(place('  ')).toBeUndefined();
     expect(place('x'.repeat(LIMITS.textChars + 50))).toHaveLength(LIMITS.textChars);
+  });
+});
+
+describe('placeLink (#466)', () => {
+  it('makes only http(s) addresses links', () => {
+    expect(placeLink(' https://meet.example.com/daily ')).toBe('https://meet.example.com/daily');
+    for (const text of [
+      'javascript:alert(1)',
+      'JaVaScRiPt:x',
+      'data:text/html,x',
+      'mailto:a@b.example',
+      'ftp://x',
+      ' https://a b',
+      'Room 2.14',
+    ])
+      expect(placeLink(text)).toBeUndefined();
+  });
+
+  it('joins a multi-line LOCATION into one line', () => {
+    const parsed = parseIcs(
+      [
+        'BEGIN:VCALENDAR',
+        'BEGIN:VEVENT',
+        'UID:a',
+        'SUMMARY:Sync',
+        'DTSTART:20270105T090000',
+        'DTEND:20270105T093000',
+        'LOCATION:Building A\\n Room 2.14',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n'),
+    );
+    expect(parsed.ok && parsed.value[0]!.location).toBe('Building A, Room 2.14');
   });
 });

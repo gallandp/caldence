@@ -441,9 +441,23 @@ test('the row shows the place; a web link opens in a new tab (#466)', async ({ p
   await expect(place).toHaveText('On site · 30 min travel · Room 2.14');
   await expect(place.getByRole('link')).toHaveCount(0);
 
-  // A phone card shows it too, without sideways scrolling.
+  // Another scheme is never a link.
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  await form.getByRole('button', { name: 'Remote' }).click();
+  await form.getByLabel('Place or link').fill('javascript:alert(1)');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(place).toHaveText('javascript:alert(1)');
+  await expect(place.getByRole('link')).toHaveCount(0);
+
+  // On a phone card a long link wraps, without sideways scrolling.
+  await panel(page).getByRole('button', { name: 'Edit Weekly Sync' }).click();
+  form = panel(page).getByRole('region', { name: 'Edit Weekly Sync' });
+  const long = `https://meet.example.com/j/${'8'.repeat(120)}?pwd=abcdefghijklmnop`;
+  await form.getByLabel('Place or link').fill(long);
+  await form.getByRole('button', { name: 'Save' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(place).toBeVisible();
+  await expect(place.getByRole('link')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
