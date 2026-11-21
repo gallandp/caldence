@@ -68,6 +68,8 @@
     onOpenUnit?: (unitId: string) => void;
     /** Opens the calendar's week of `date` with one person chosen. */
     onOpenCalendar?: (personId: string, date: ISODate) => void;
+    /** Opens Meeting load of the area with one person's row open (#462). */
+    onOpenPerson?: (personId: string) => void;
     /**
      * The organisation's page (#450): only the alignment, load and cost figures and the cost per
      * team; `children` (the tree) sits between the figures and the table.
@@ -82,6 +84,7 @@
     onOpenMeeting,
     onOpenUnit,
     onOpenCalendar,
+    onOpenPerson,
     summary = false,
     children,
   }: Props = $props();
@@ -156,6 +159,33 @@
    * everyone must not hide anyone over the limit.
    */
   const overPeople = $derived(peopleOverLimit(ws, allWeeks, personIds));
+  /**
+   * The tag over the limit in pieces, so each name can open Meeting load (#462): the text around
+   * the names, and the first three names with what goes between them, as `firstThree` writes it.
+   */
+  const overTag = $derived.by(() => {
+    const mark = '\u0000';
+    const [before, after = ''] = $t(
+      overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
+      { n: formatNumber($locale, overPeople.length, 0), max: percent(maxFte), names: mark },
+    ).split(mark);
+    const shown = overPeople.slice(0, 3);
+    const names: { id?: string; text: string }[] =
+      overPeople.length > 3
+        ? [
+            ...shown.flatMap((id, i) => [
+              ...(i > 0 ? [{ text: ', ' }] : []),
+              { id, text: personName(id) },
+            ]),
+            { text: ' …' },
+          ]
+        : new Intl.ListFormat($locale, { style: 'long', type: 'conjunction' })
+            .formatToParts(shown)
+            .map((p) =>
+              p.type === 'element' ? { id: p.value, text: personName(p.value) } : { text: p.value },
+            );
+    return { before, after, names };
+  });
 
   /**
    * The area's overlaps in the window, by meeting pair (#445): the clashes of its people that
@@ -466,14 +496,13 @@
       <span class="label">{$t('overview.kpi.load.sub')}</span>
       {#if overPeople.length > 0}
         <span class="tag warn" data-over-people
-          >{$t(
-            overPeople.length === 1 ? 'overview.kpi.load.over.one' : 'overview.kpi.load.over.other',
-            {
-              n: formatNumber($locale, overPeople.length, 0),
-              max: percent(maxFte),
-              names: firstThree(overPeople.map(personName)),
-            },
-          )}</span
+          >{overTag.before}{#each overTag.names as part, i (i)}{#if part.id && onOpenPerson}{@const id =
+                part.id}<button
+                type="button"
+                class="person"
+                aria-label={$t('overview.kpi.load.over.open', { name: part.text })}
+                onclick={() => onOpenPerson(id)}>{part.text}</button
+              >{:else}{part.text}{/if}{/each}{overTag.after}</span
         >
       {:else}
         <span class="tag" class:ok={!over(costs.total)} class:warn={over(costs.total)}
@@ -638,8 +667,11 @@
               </td>
               {#if rate && r.cost}
                 <td class="num strong cost"
-                  >{euro(costOf(r.cost))}{#if r.areaShare}<span class="sr-only">, </span><small
-                      data-area-share
+                  >{euro(
+                    costOf(r.cost),
+                  )}{#if r.areaShare && Math.round(costOf(r.areaShare)) > 0}<span class="sr-only"
+                      >,
+                    </span><small data-area-share
                       >{$t(areaShareKey(r.areaShare), {
                         amount: euro(costOf(r.areaShare)),
                         cadence: euro(r.areaShare.perCadence ?? 0),
@@ -1138,6 +1170,21 @@
     border-radius: 99px;
     font-size: 0.8rem;
   }
+  /* A name over the limit opens Meeting load at that person (#462). */
+  :global(#app) .tag .person {
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 650;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
+  }
   .tag.ok {
     background: var(--ok-soft);
     color: var(--ok);
@@ -1224,7 +1271,6 @@
   }
   :global(#app) table.costs thead th {
     text-align: left;
-    white-space: nowrap;
   }
   :global(#app) table.costs thead th.num,
   :global(#app) table.costs td.num {
@@ -1258,9 +1304,14 @@
   /* A team's people in the area's meetings: informative, not part of the total (#336). */
   [data-area-share] {
     display: block;
+    min-width: 6rem;
+    max-width: 14rem;
+    margin-left: auto;
     color: var(--text-muted);
     font-size: 0.75rem;
     font-weight: 400;
+    /* It wraps, so the cost column stays narrow enough to fit at 1280 px (#469). */
+    white-space: normal;
   }
   .unfilled {
     display: block;
@@ -1299,7 +1350,8 @@
   .bar {
     position: relative;
     display: block;
-    width: 6.5rem;
+    /* Narrow enough that all columns fit at 1280 px with long names (#469). */
+    width: 5rem;
     height: 0.45rem;
     border-radius: 999px;
     background: var(--surface-2);

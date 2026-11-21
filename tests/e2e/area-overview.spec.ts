@@ -288,6 +288,32 @@ test('an area meeting opens in Meetings & cadence', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Payments overview' })).toHaveCount(0);
 });
 
+test('Meetings & cadence of an area names its own meetings and the Overview total (#472)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  const weekly = (await overview.locator('[data-kpi="cost"] b').textContent())!;
+  const kpi = (await overview.locator('[data-kpi="cost"]').textContent())!;
+  const horizon = /(€[\d,]+) in the planning horizon/.exec(kpi)![1];
+  await showView(page, 'Meetings & cadence');
+  const card = page.locator('[data-costs]');
+  await expect(card.locator('h3')).toHaveText(
+    'Costs of the meetings in the area, without team meetings',
+  );
+  const total = card.locator('[data-cost-area-total]');
+  await expect(total).toContainText(
+    `Total in the area with all teams: ${weekly} / week, ${horizon} in the planning horizon`,
+  );
+  await total.getByRole('button', { name: 'Open the overview of Payments' }).click();
+  await expect(page.locator('[data-area-overview]')).toBeVisible();
+  await expect(currentUnit(page)).toHaveText('Payments');
+  // A team's card is unchanged.
+  await pickUnit(page, 'Team Alpha');
+  await showView(page, 'Meetings & cadence');
+  await expect(page.locator('[data-costs] h3')).toHaveText('Costs');
+  await expect(page.locator('[data-cost-area-total]')).toHaveCount(0);
+});
+
 test('the back link appears after a drill-in only and leaves with the view', async ({ page }) => {
   const overview = await openOverview(page);
   await overview.locator('tr[data-team="team-beta"] button[data-week="2027-01-11"]').click();
@@ -367,6 +393,61 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText(
     'starts on Wednesday',
   );
+});
+
+test('presenting, "Align with …" fits a team to the area cadence in one tap (#463)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page);
+  const kpi = overview.locator('[data-kpi="cadence"]');
+  await expect(kpi.locator('b')).toHaveText('2 of 4');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Gamma', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Gamma' });
+  // 3-week sprints do not fit the 10-week PI: the longest that does is 2 weeks.
+  await sheet.getByRole('button', { name: 'Align with Payments' }).click();
+  await expect(sheet.getByLabel('Length (weeks)')).toHaveValue('2');
+  await expect(sheet.getByLabel('Start date')).toHaveValue('2027-01-04');
+  await expect(sheet).toContainText('2 → 3 of 4');
+  // Once the draft fits, the button is gone.
+  await expect(sheet.getByRole('button', { name: 'Align with Payments' })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: 'Apply' })).toBeFocused();
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(kpi.locator('b')).toHaveText('3 of 4');
+  // The area's own cadence has nothing to align with.
+  await overview.getByRole('button', { name: 'What if: Payments', exact: true }).click();
+  const own = page.getByRole('dialog', { name: 'Cadence · Payments' });
+  await expect(own.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(own.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+  await own.getByRole('button', { name: 'Cancel' }).click();
+  // An aligned team has nothing to align.
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const alpha = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await expect(alpha.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(alpha.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
+});
+
+test('presenting, "Align with …" takes the saved peer reference (#463)', async ({ page }) => {
+  // No area cadence; Alpha and Beta share 2-week sprints, Gamma has 3 weeks.
+  const overview = await openOverview(page, undefined, (ws) => {
+    const area = ws.areas[0] as { teamIds: string[]; cadence?: unknown };
+    delete area.cadence;
+    area.teamIds = ['team-alpha', 'team-beta', 'team-gamma'];
+    ws.teams[1]!.cadence = { kind: 'sprint', lengthWeeks: 2, start: '2027-01-04' };
+  });
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Gamma', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Gamma' });
+  await sheet.getByRole('button', { name: 'Align with Team Alpha' }).click();
+  await expect(sheet.getByLabel('Length (weeks)')).toHaveValue('2');
+  await expect(sheet).toContainText('2 → 3 of 3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(overview.locator('[data-kpi="cadence"] b')).toHaveText('3 of 3');
+  // The reference team itself gets no button.
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const alpha = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await expect(alpha.getByLabel('Length (weeks)')).toBeVisible();
+  await expect(alpha.getByRole('button', { name: /^Align with/ })).toHaveCount(0);
 });
 
 test('presenting, a what-if on the reference team shows that team as differing (#470)', async ({
@@ -729,4 +810,49 @@ test('the load tile names who is over the limit instead of the average (#448)', 
   });
   await expect(tag).toHaveText('below the 60% limit');
   await expect(tag).toHaveClass(/ok/);
+});
+
+test('a name over the limit opens Meeting load at that person, also with hidden names (#462)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page);
+  const tag = overview.locator('[data-kpi="load"] .tag');
+  await expect(tag).toHaveText('1 person over the 60% limit: Pia');
+  await tag.getByRole('button', { name: 'Show Pia in Meeting load' }).click();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Payments');
+  const who = page.locator('#panel-load tr[data-person="person-pia"] button.who');
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toBeFocused();
+  await expect(who).toBeInViewport();
+
+  // Presenting with hidden names: the link keeps the hidden name and still opens the row.
+  await page.getByRole('button', { name: 'Payments overview' }).click();
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  const hidden = overview.locator('[data-kpi="load"] .tag button');
+  await expect(hidden).toHaveText(/^Person \d+$/);
+  await expect(hidden).toHaveAccessibleName(/^Show Person \d+ in Meeting load$/);
+  await hidden.click();
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toHaveText(/^Person \d+$/);
+  await page.getByRole('banner').getByRole('button', { name: 'End presentation' }).click();
+
+  // Several: each of the first three names is a button, the third opens its own row.
+  await openOverview(page, undefined, (ws) => {
+    ws.settings.thresholds.maxFte = 0.12;
+    (ws.areas[0] as { memberHours: Record<string, number> }).memberHours['person-pia'] = 8;
+  });
+  const names = overview.locator('[data-kpi="load"] .tag button');
+  await expect(names).toHaveCount(3);
+  const third = (await names.nth(2).textContent())!;
+  await names.nth(2).click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${third}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
 });

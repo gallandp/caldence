@@ -12,7 +12,7 @@
   import { initials } from './avatar';
   import AreaView from './views/AreaView.svelte';
   import AreaOverview from './views/AreaOverview.svelte';
-  import { calendarDay, calendarWeek, loadOverlaps, loadWeek } from './state/focus';
+  import { calendarDay, calendarWeek, loadOverlaps, loadPerson, loadWeek } from './state/focus';
   import WorkspaceBar from './WorkspaceBar.svelte';
   import StartView from './views/StartView.svelte';
   import CalendarView from './views/CalendarView.svelte';
@@ -232,6 +232,13 @@
   function openOverlaps(areaId: string) {
     filter.set({ teamId: areaId });
     loadOverlaps.set(true);
+    drillIn(areaId, 'load');
+  }
+
+  /** Meeting load of an area with a person's row open, from a name over the limit (#462). */
+  function openPersonLoad(areaId: string, personId: string) {
+    filter.set({ teamId: areaId });
+    loadPerson.set(personId);
     drillIn(areaId, 'load');
   }
 
@@ -784,6 +791,7 @@
                       area={activeArea}
                       onOpenLoad={openLoad}
                       onOpenOverlaps={openOverlaps}
+                      onOpenPerson={(personId) => openPersonLoad(activeArea.id, personId)}
                       onOpenMeeting={(unitId, eventId) => {
                         showRequest = eventId;
                         drillIn(unitId, 'meetings');
@@ -835,6 +843,9 @@
                     : undefined}
                   onExport={() => select('exchange', true)}
                   onOpenDay={openDay}
+                  onOpenOverview={activeArea || activeOrg
+                    ? () => backToArea(activeArea?.id ?? ORG_UNIT)
+                    : undefined}
                 />{/if}
             {:else if id === 'team'}
               {#if active === 'team'}

@@ -33,6 +33,7 @@
     clashes,
     loadSummary,
     overlapPairs,
+    OVERLAP_ROWS,
     overviewWindow,
     scopePeople,
     scopeUnits,
@@ -54,7 +55,7 @@
   import RateInvite from '../components/RateInvite.svelte';
   import WeekFocus from '../components/WeekFocus.svelte';
   import { ruleSummary } from '../meetings/rules';
-  import { loadOverlaps } from '../state/focus';
+  import { loadOverlaps, loadPerson } from '../state/focus';
   import { filter, index, localToday, workspace } from '../state/workspace';
 
   interface Props {
@@ -206,6 +207,19 @@
     if (openPerson !== null && !perPerson.some((p) => p.person.id === openPerson))
       openPerson = null;
   });
+  // Opened and brought into view when asked for from the area Overview (#462).
+  $effect(() => {
+    const id = $loadPerson;
+    if (id === null || perPerson.length === 0) return;
+    loadPerson.set(null);
+    if (!perPerson.some((p) => p.person.id === id)) return;
+    openPerson = id;
+    void tick().then(() => {
+      const who = document.querySelector<HTMLElement>(`tr[data-person="${CSS.escape(id)}"] .who`);
+      who?.scrollIntoView({ block: 'center' });
+      who?.focus();
+    });
+  });
   /** The meetings of the opened person, by team or area, with their repeat rule (#343). */
   const openMeetings = $derived.by(() => {
     const out = record<(PersonMeeting & { name: string; rule: string })[]>();
@@ -344,7 +358,6 @@
    * The overlaps of the people in scope by meeting pair (#445), in the area Overview's window, so
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
-  const OVERLAP_ROWS = 50;
   let overlapsBox: HTMLElement | undefined = $state();
   // Brought into view when asked for from the area Overview (#445).
   $effect(() => {
@@ -459,17 +472,17 @@
   {#snippet baseBody()}
     <thead>
       <tr>
-        <th scope="col">{$t('load.col.category')}</th>
+        <th scope="col" class="start">{$t('load.col.category')}</th>
         {#each summary.byRole as r (r.roleId)}
           <th scope="col" class="num">{roleName(r.roleId)}</th>
         {/each}
-        <th scope="col" class="num">{$t('load.col.total')}</th>
+        <th scope="col" class="num total">{$t('load.col.total')}</th>
       </tr>
     </thead>
     <tbody>
       {#each summary.byCategory as c (c.categoryId)}
         <tr data-category={c.categoryId}>
-          <th scope="row" class="nowrap">
+          <th scope="row" class="nowrap start">
             <span class="cat"
               ><span
                 class="dot"
@@ -815,8 +828,9 @@
   <section class="card" aria-labelledby="{uid}-warn">
     <h3 id="{uid}-warn">
       {$t('load.warnings')}
-      {#if warningItems.length + overlaps.length > 0}<span class="count" aria-hidden="true"
-          >{warningItems.length + overlaps.length}</span
+      <!-- Only the lines about people: an overlap is never a warning, it has its own count (#475). -->
+      {#if warningItems.length > 0}<span class="count" aria-hidden="true"
+          >{warningItems.length}</span
         >{/if}
     </h3>
     <p class="note">
@@ -826,7 +840,7 @@
         period: nextWeeks($t, $locale, overlapWindow.weeks),
       })}
     </p>
-    {#if warningItems.length + overlaps.length === 0}
+    {#if warningItems.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
     {/if}
     {#if warningItems.length > 0}
@@ -846,7 +860,10 @@
       </ul>
     {/if}
     {#if overlaps.length > 0}
-      <h4 class="hints-title">{$t('load.overlaps')}</h4>
+      <h4 class="hints-title">
+        {$t('load.overlaps')}
+        <span class="count" aria-hidden="true">{overlaps.length}</span>
+      </h4>
       <div class="overlaps" bind:this={overlapsBox}>
         <!-- A whole line can have thousands of pairs: the first ones, then all (#316 budget);
              another scope starts with the first ones again. -->
@@ -898,7 +915,8 @@
 
   {#if !phone.current}{@render peopleCard()}{/if}
 
-  <div class="grid">
+  <!-- More than three roles: the base load takes the full width, so more of them show (#469). -->
+  <div class="grid" class:wide={summary.byRole.length > 3}>
     <div class="col">
       <div class="card">{@render region('base', $t('load.table.base'), baseBody)}</div>
     </div>
@@ -1000,6 +1018,9 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
     gap: 1.25rem;
     align-items: start;
+  }
+  .grid.wide {
+    grid-template-columns: minmax(0, 1fr);
   }
   .col {
     display: flex;
@@ -1125,6 +1146,26 @@
   }
   .total {
     font-weight: 700;
+  }
+  /* Category and Total stay in view while many role columns scroll between them (#469). */
+  :global(#app) [role='region'] table :is(th, td).total {
+    position: sticky;
+    right: 0;
+    box-shadow: inset 1px 0 0 var(--border);
+  }
+  /* On phones a sticky Category would leave hardly any room for the roles. */
+  @media (min-width: 601px) {
+    :global(#app) [role='region'] table th.start {
+      position: sticky;
+      left: 0;
+      box-shadow: inset -1px 0 0 var(--border);
+    }
+  }
+  :global(#app) [role='region'] table tbody :is(td.total, th.start) {
+    background: var(--surface);
+  }
+  :global(#app) [role='region'] table tbody tr:hover > :is(td.total, th.start) {
+    background: var(--surface-2);
   }
   .nowrap {
     white-space: nowrap;
