@@ -9,6 +9,7 @@ import {
   dayLoad,
   filteredOccurrences,
   loadSummary,
+  meetingOverlaps,
   nextDates,
   overlapPairs,
   overviewWindow,
@@ -374,6 +375,34 @@ describe('overlapPairs', () => {
   it('gives no pair without an overlap', () => {
     const ws = twoTeams(ev('a', '09:00', 60), ev('b', '10:00', 60));
     expect(overlapPairs(clashes(ws, workspaceIndex(ws), ['p1']))).toEqual([]);
+  });
+});
+
+describe('meetingOverlaps', () => {
+  it('lists the pairs of one meeting only, with the other meeting second', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 60));
+    ws.teams[0]!.events.push(ev('c', '13:00', 60), ev('d', '13:30', 30));
+    const index = workspaceIndex(ws);
+    const window = { from: '2026-11-30', to: '2026-12-07' };
+    const t1 = ws.teams[0]!.id;
+    expect(meetingOverlaps(ws, index, t1, 'a', window)).toMatchObject([
+      { a: { teamId: t1, eventId: 'a' }, b: { teamId: 't2', eventId: 'b' }, start: '09:30' },
+    ]);
+    // The edited meeting is `a` even when the other one starts first.
+    expect(meetingOverlaps(ws, index, 't2', 'b', window)).toMatchObject([
+      { a: { teamId: 't2', eventId: 'b' }, b: { teamId: t1, eventId: 'a' } },
+    ]);
+    expect(meetingOverlaps(ws, index, t1, 'c', window).map((p) => p.b.eventId)).toEqual(['d']);
+    // Outside the window nothing overlaps.
+    expect(meetingOverlaps(ws, index, t1, 'a', { from: '2026-12-07', to: '2026-12-14' })).toEqual(
+      [],
+    );
+  });
+
+  it('ignores meetings of other people', () => {
+    const ws = twoTeams(ev('a', '09:00', 60), ev('b', '09:30', 60, 'r2'));
+    const window = { from: '2026-11-30', to: '2026-12-07' };
+    expect(meetingOverlaps(ws, workspaceIndex(ws), ws.teams[0]!.id, 'a', window)).toEqual([]);
   });
 });
 
