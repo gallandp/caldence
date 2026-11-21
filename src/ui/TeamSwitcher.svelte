@@ -258,17 +258,17 @@
 <svelte:window onpointerdown={onWindowPointer} />
 
 {#snippet areaIcon()}
-  <svg viewBox="0 0 24 24" aria-hidden="true"
-    ><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /></svg
-  >
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" />
+  </svg>
 {/snippet}
 
 {#snippet orgIcon()}
-  <svg viewBox="0 0 24 24" aria-hidden="true"
-    ><path
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path
       d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M3 21h18M8 8h3M8 12h3M8 16h3"
-    /></svg
-  >
+    />
+  </svg>
 {/snippet}
 
 {#snippet teamOption(id: string)}
@@ -304,13 +304,15 @@
         <span class="avatar" aria-hidden="true">{initials}</span>
       {/if}
       <span class="text">
-        <span class="name"
-          ><span class="label">{current.name}</span><svg
+        <span class="name">
+          <span class="label">{current.name}</span><svg
             class="chev"
             viewBox="0 0 24 24"
-            aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
-          ></span
-        >
+            aria-hidden="true"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
         <span class="meta">
           {#if activeOrg}
             {$t('org.meta', { count: orgCount })}
@@ -325,9 +327,9 @@
           {/if}
         </span>
       </span>
-      <span class="sr-only"
-        >{$t(areas.length > 0 ? 'team.switcher.pickWithAreas' : 'team.switcher.pick')}</span
-      >
+      <span class="sr-only">
+        {$t(areas.length > 0 ? 'team.switcher.pickWithAreas' : 'team.switcher.pick')}
+      </span>
     </button>
     <button
       type="button"
@@ -377,11 +379,11 @@
                 <span class="avatar mini area" aria-hidden="true">{@render areaIcon()}</span>
                 <span class="opt-name">{area.name}</span>
                 <span class="sr-only">{$t('area.option')}</span>
-                <span class="count"
-                  ><span aria-hidden="true">{area.teamIds.length}</span><span class="sr-only"
-                    >{teamCount(area)}</span
-                  ></span
-                >
+                <span class="count">
+                  <span aria-hidden="true">{area.teamIds.length}</span><span class="sr-only">
+                    {teamCount(area)}
+                  </span>
+                </span>
               </button>
               {#if area.teamIds.length > 0}
                 <ul class="kids">
@@ -414,43 +416,43 @@
       onfocusout={onMenuFocusout}
     >
       <button type="button" onclick={() => run(() => onPlan?.())}>{$t('setup.another')}</button>
-      <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}
-        >{$t('team.add')}</button
-      >
+      <button type="button" id="{uid}-add" onclick={() => run(() => openDialog('add'))}>
+        {$t('team.add')}
+      </button>
       <button type="button" onclick={() => run(() => areaDialog?.show())}>{$t('area.add')}</button>
       <hr />
       {#if activeOrg}
-        <button type="button" onclick={() => run(() => openDialog('renameOrg'))}
-          >{$t('org.rename')}</button
-        >
+        <button type="button" onclick={() => run(() => openDialog('renameOrg'))}>
+          {$t('org.rename')}
+        </button>
       {:else if activeArea}
         {@const area = activeArea}
-        <button type="button" onclick={() => run(() => openDialog('renameArea'))}
-          >{$t('area.rename')}</button
-        >
-        <button type="button" onclick={() => run(() => areaDialog?.show(area))}
-          >{$t('area.teams')}</button
-        >
+        <button type="button" onclick={() => run(() => openDialog('renameArea'))}>
+          {$t('area.rename')}
+        </button>
+        <button type="button" onclick={() => run(() => areaDialog?.show(area))}>
+          {$t('area.teams')}
+        </button>
         <hr />
-        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
-          >{$t('area.delete')}</button
-        >
+        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}>
+          {$t('area.delete')}
+        </button>
       {:else}
-        <button type="button" onclick={() => run(() => openDialog('rename'))}
-          >{$t('team.rename')}</button
-        >
+        <button type="button" onclick={() => run(() => openDialog('rename'))}>
+          {$t('team.rename')}
+        </button>
         <button type="button" onclick={() => run(duplicate)}>{$t('team.duplicate')}</button>
         <hr />
-        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}
-          >{$t('team.delete')}</button
-        >
+        <button type="button" class="danger" onclick={() => run(() => (confirming = true))}>
+          {$t('team.delete')}
+        </button>
       {/if}
     </div>
   {:else}
     <p class="none">{$t('team.switcher.none')}</p>
-    <button type="button" class="add" id="{uid}-add" onclick={() => openDialog('add')}
-      >{$t('team.add')}</button
-    >
+    <button type="button" class="add" id="{uid}-add" onclick={() => openDialog('add')}>
+      {$t('team.add')}
+    </button>
   {/if}
 </div>
 

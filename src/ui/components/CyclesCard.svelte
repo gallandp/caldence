@@ -159,8 +159,10 @@
                 class="icon-button"
                 aria-label={$t('team.cycle.delete', { name: cycle.name })}
                 aria-describedby={describe(`cycle-${cycle.id}`)}
-                onclick={() => deleteCycle(cycle)}>{@render cross()}</button
+                onclick={() => deleteCycle(cycle)}
               >
+                {@render cross()}
+              </button>
             </div>
             <FieldError {problems} id="cycle-{cycle.id}" />
 
@@ -178,9 +180,9 @@
                 </span>
               </div>
               <div class="heads" aria-hidden="true">
-                <span>{$t('team.milestone.name')}</span><span class="date-head"
-                  >{$t('team.milestone.date')}</span
-                >
+                <span>{$t('team.milestone.name')}</span><span class="date-head">
+                  {$t('team.milestone.date')}
+                </span>
               </div>
             {/if}
 
@@ -214,8 +216,10 @@
                     class="icon-button"
                     aria-label={$t('team.milestone.delete', { name: ms.name })}
                     aria-describedby={describe(`ms-list-${cycle.id}`)}
-                    onclick={() => removeMilestone(cycle, ms.id)}>{@render cross()}</button
+                    onclick={() => removeMilestone(cycle, ms.id)}
                   >
+                    {@render cross()}
+                  </button>
                 </div>
                 <FieldError {problems} id={mid} />
               {/each}
@@ -245,9 +249,9 @@
                     oninput={(e) => setDraft(cycle.id, { date: e.currentTarget.value })}
                   />
                 </div>
-                <button type="submit" class="secondary add"
-                  >{@render plus()}{$t('team.milestone.add')}</button
-                >
+                <button type="submit" class="secondary add">
+                  {@render plus()}{$t('team.milestone.add')}
+                </button>
               </form>
               <FieldError {problems} id="ms-add-{cycle.id}" />
             </fieldset>

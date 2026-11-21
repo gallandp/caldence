@@ -127,34 +127,38 @@
         class="warn"
         aria-label={tt('area.roleLink.choose', { note })}
         onclick={(e) => (mapping = { teamId, button: e.currentTarget })}
-        >{@render warning()}<span class="grow">{note}</span><svg
+      >
+        {@render warning()}<span class="grow">{note}</span><svg
           class="chev"
           data-no-print
           viewBox="0 0 24 24"
-          aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
-        ></button
-      >
+          aria-hidden="true"
+        >
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
     {:else}
       <p class="warn" role="note">{@render warning()}{note}</p>
     {/if}
   {/each}
   {#if noHours.length > 0}
     <p class="warn" role="note">
-      {@render warning()}<span class="grow"
-        >{tt(
+      {@render warning()}<span class="grow">
+        {tt(
           noHours.length === 1
             ? 'area.participants.noHours.one'
             : 'area.participants.noHours.other',
           { names: noHours.join(', ') },
-        )}</span
-      >
+        )}
+      </span>
       {#if onSetHours}
         <button
           type="button"
           class="link"
           onclick={() => onSetHours(noHoursIds.length === 1 ? noHoursIds[0] : undefined)}
-          >{tt('area.participants.setHours')}</button
         >
+          {tt('area.participants.setHours')}
+        </button>
       {/if}
     </p>
   {/if}

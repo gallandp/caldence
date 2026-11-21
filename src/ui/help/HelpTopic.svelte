@@ -117,8 +117,10 @@
                     stroke="currentColor"
                     stroke-width="2"
                     stroke-linecap="round"
-                    stroke-linejoin="round"><path d={icon} /></svg
-                  >{:else if step.control.role === 'radio'}<span class="dot"></span>{/if}
+                    stroke-linejoin="round"
+                  >
+                    <path d={icon} />
+                  </svg>{:else if step.control.role === 'radio'}<span class="dot"></span>{/if}
                 {$label(step.control.name)}
               </span>
             {/if}

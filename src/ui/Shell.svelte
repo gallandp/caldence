@@ -560,11 +560,11 @@
         title={$t($rail ? 'nav.rail.open' : 'nav.rail.close') + ' ([)'}
         onclick={() => setRail(!$rail)}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"
-          ><path
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
             d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM9 4v16"
-          /><path d={$rail ? 'M13 10l2 2-2 2' : 'M16 10l-2 2 2 2'} /></svg
-        >
+          /><path d={$rail ? 'M13 10l2 2-2 2' : 'M16 10l-2 2 2 2'} />
+        </svg>
         <span class="sr-only">{$t('nav.rail')}</span>
       </button>
       <button
@@ -575,9 +575,9 @@
         bind:this={menuButton}
         onclick={() => (menuOpen = !menuOpen)}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true"
-          ><path d={menuOpen ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} /></svg
-        >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d={menuOpen ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} />
+        </svg>
         <span class="sr-only">{$t('nav.menu')}:</span>
         <span>{$t('view.' + active)}</span>
       </button>
@@ -624,9 +624,9 @@
             onkeydown={onKeydown}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={iconOf(id)} /></svg>
-            <span class="tab-label"
-              >{$t(id === 'meetings' && $presenting ? 'view.meetings.short' : viewKey(id))}</span
-            >
+            <span class="tab-label">
+              {$t(id === 'meetings' && $presenting ? 'view.meetings.short' : viewKey(id))}
+            </span>
           </button>
         {/each}
       </div>
@@ -641,9 +641,9 @@
         {/if}
         <p class="source">
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
-            <svg viewBox="0 0 24 24" aria-hidden="true"
-              ><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg
-            >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" />
+            </svg>
             {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
           </a>
           <span class="license">{$t('legal.license')}</span>
@@ -676,9 +676,9 @@
         {#each legal as page (page)}
           <a class="more-link" href="./{page}.html">{$t('legal.' + page)}</a>
         {/each}
-        <a class="more-link" href={REPO_URL} target="_blank" rel="noopener noreferrer"
-          >{$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span></a
-        >
+        <a class="more-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+          {$t('legal.source')}<span class="sr-only"> {$t('legal.source.hint')}</span>
+        </a>
       {/snippet}
     </WorkspaceBar>
     <SetupWizard
@@ -723,10 +723,11 @@
               class="back link"
               data-no-print
               onclick={() => backToArea(backArea.id)}
-              ><span aria-hidden="true">←</span><span class="back-label"
-                >{$t('overview.back', { name: backArea.name })}</span
-              ></button
             >
+              <span aria-hidden="true">←</span><span class="back-label">
+                {$t('overview.back', { name: backArea.name })}
+              </span>
+            </button>
           {/if}
           {#if scopeName !== undefined && SCOPED.includes(id) && !(id === 'team' && scopeName === '')}
             <p class="eyebrow" title={scope(id)}>
@@ -763,14 +764,16 @@
                 <h3>{$t('calendar.empty.title')}</h3>
                 <p>{$t('calendar.empty.text')}</p>
                 <div class="start-actions">
-                  <button type="button" class="primary" onclick={() => planWizard?.show()}
-                    >{$t('setup.open')}</button
-                  >
+                  <button type="button" class="primary" onclick={() => planWizard?.show()}>
+                    {$t('setup.open')}
+                  </button>
                   <button
                     type="button"
                     class="secondary"
-                    onclick={() => fromEmptyState(bar?.openExample())}>{$t('start.example')}</button
+                    onclick={() => fromEmptyState(bar?.openExample())}
                   >
+                    {$t('start.example')}
+                  </button>
                 </div>
               </section>
             {:else if id === 'team' && activeOrg}

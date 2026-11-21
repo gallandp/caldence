@@ -299,9 +299,9 @@
           onchange={lang}
           aria-describedby="note-browser"
         >
-          <option value=""
-            >{$t('lang.file', { language: $t('lang.name.' + settings.locale) })}</option
-          >
+          <option value="">
+            {$t('lang.file', { language: $t('lang.name.' + settings.locale) })}
+          </option>
           {#each ['de', 'en'] as option (option)}
             <option value={option} lang={option}>{$t('lang.name.' + option)}</option>
           {/each}

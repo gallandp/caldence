@@ -228,8 +228,10 @@
           // or on the length when the meetings do not fit it (its error shows below).
           await tick();
           (applyButton && !applyButton.disabled ? applyButton : lengthInput)?.focus();
-        }}>{$t('whatif.align', { name: align.name })}</button
+        }}
       >
+        {$t('whatif.align', { name: align.name })}
+      </button>
     {/if}
 
     <WhatIfEffect
@@ -243,9 +245,9 @@
     <p class="hint">{$t('whatif.hint')}</p>
     <div class="actions">
       <button type="button" onclick={close}>{$t('dialog.cancel')}</button>
-      <button type="submit" class="primary" bind:this={applyButton} disabled={'error' in candidate}
-        >{$t('whatif.apply')}</button
-      >
+      <button type="submit" class="primary" bind:this={applyButton} disabled={'error' in candidate}>
+        {$t('whatif.apply')}
+      </button>
     </div>
   </form>
 </dialog>

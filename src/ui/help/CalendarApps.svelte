@@ -16,9 +16,9 @@
   <h4 id="help-apps-title" tabindex="-1">{$t('help.ics.title')}</h4>
   <div class="segmented" role="group" aria-label={$t('help.apps.label')}>
     {#each apps as a (a)}
-      <button type="button" aria-pressed={app === a} onclick={() => (app = a)}
-        >{$t('help.ics.' + a + '.title')}</button
-      >
+      <button type="button" aria-pressed={app === a} onclick={() => (app = a)}>
+        {$t('help.ics.' + a + '.title')}
+      </button>
     {/each}
   </div>
   <ol>

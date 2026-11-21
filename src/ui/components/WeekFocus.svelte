@@ -84,9 +84,9 @@
       <h3 id="{uid}-h">
         {title}
       </h3>
-      <button type="button" class="secondary" onclick={() => loadWeek.set(null)}
-        >{$t('load.week.close')}</button
-      >
+      <button type="button" class="secondary" onclick={() => loadWeek.set(null)}>
+        {$t('load.week.close')}
+      </button>
     </div>
     <table>
       <thead>
@@ -94,9 +94,9 @@
           <th scope="col">{$t('load.col.person')}</th>
           <th scope="col" class="num">{$t('load.week.hours')}</th>
           <th scope="col" class="num">{$t('load.week.share')}</th>
-          <th scope="col" class="num"
-            >{areaText($t, $levels, teamId ?? '')(area ? 'load.col.hereArea' : 'load.col.here')}</th
-          >
+          <th scope="col" class="num">
+            {areaText($t, $levels, teamId ?? '')(area ? 'load.col.hereArea' : 'load.col.here')}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -107,25 +107,25 @@
               : $t('load.noHours')}
           <tr data-person={r.person.id} class:over={r.over}>
             <th scope="row">{r.person.name}</th>
-            <td class="num"
-              ><span class="long"
-                >{$t('load.hoursOf', { hours: hours(r.hours), of: hours(r.cap) })}</span
-              ><span class="short" aria-hidden="true">{hours(r.hours)}</span></td
-            >
-            <td class="num"
-              >{formatPercent($locale, r.share)}{#if r.over}<span class="flag"
-                  >{$t('load.week.over', { max: formatPercent($locale, maxFte) })}</span
-                >{/if}</td
-            >
-            <td class="num"
-              ><span class="long"
-                >{$t('load.here', {
+            <td class="num">
+              <span class="long">
+                {$t('load.hoursOf', { hours: hours(r.hours), of: hours(r.cap) })}
+              </span><span class="short" aria-hidden="true">{hours(r.hours)}</span>
+            </td>
+            <td class="num">
+              {formatPercent($locale, r.share)}{#if r.over}<span class="flag">
+                  {$t('load.week.over', { max: formatPercent($locale, maxFte) })}
+                </span>{/if}
+            </td>
+            <td class="num">
+              <span class="long">
+                {$t('load.here', {
                   hours: hours(r.here.hours),
                   of: hours(r.here.cap),
                   percent: herePercent,
-                })}</span
-              ><span class="short" aria-hidden="true">{herePercent}</span></td
-            >
+                })}
+              </span><span class="short" aria-hidden="true">{herePercent}</span>
+            </td>
           </tr>
         {/each}
       </tbody>

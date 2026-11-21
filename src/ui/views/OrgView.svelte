@@ -158,8 +158,10 @@
               class="secondary add"
               data-no-present
               bind:this={addButton}
-              onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
+              onclick={() => adder?.show(addButton)}
             >
+              {$t('area.structure.add')}
+            </button>
           </div>
           <div class="own" bind:this={ownBox}>
             <h3 class="cap">{$t('org.people.title')} <span class="n">· {own.length}</span></h3>
@@ -181,13 +183,15 @@
                         class="av"
                         style:background={c}
                         style:color={inkOn(c)}
-                        aria-hidden="true">{initials(personName(p.personId))}</span
+                        aria-hidden="true"
                       >
-                      <span class="tx"
-                        ><b>{personName(p.personId)}</b><small
-                          >{p.areaRoleIds.map((id) => roleOf(id)?.name ?? id).join(', ')}</small
-                        ></span
-                      >
+                        {initials(personName(p.personId))}
+                      </span>
+                      <span class="tx">
+                        <b>{personName(p.personId)}</b><small>
+                          {p.areaRoleIds.map((id) => roleOf(id)?.name ?? id).join(', ')}
+                        </small>
+                      </span>
                       <span class="h">{hours(p.areaHours)}</span>
                     </button>
                   </li>
@@ -214,8 +218,9 @@
                             area: inSentence,
                           })}
                           onclick={(e) => pick(p.personId, e, true)}
-                          >{personName(p.personId)}</button
                         >
+                          {personName(p.personId)}
+                        </button>
                       {/if}
                     </li>
                   {/each}

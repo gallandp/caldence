@@ -155,9 +155,9 @@
   <div role="status" class="notice">
     {#if created}
       <span>{$t('templates.created', { name: created })}</span>
-      <button type="button" bind:this={openButton} onclick={() => onOpenTeam?.()}
-        >{$t('templates.open')}</button
-      >
+      <button type="button" bind:this={openButton} onclick={() => onOpenTeam?.()}>
+        {$t('templates.open')}
+      </button>
     {:else if exported}
       {$t('templates.exported', { name: exported })}
     {/if}
@@ -174,9 +174,9 @@
         <article aria-labelledby="{uid}-{id}-h">
           <h4 id="{uid}-{id}-h">{template.name}</h4>
           <p>{template.description}</p>
-          <button type="button" class="primary" onclick={() => applyDialog?.show(id)}
-            >{$t('templates.apply')}</button
-          >
+          <button type="button" class="primary" onclick={() => applyDialog?.show(id)}>
+            {$t('templates.apply')}
+          </button>
         </article>
       {/each}
     </div>
@@ -275,8 +275,9 @@
         type="submit"
         disabled={teams.length === 0}
         aria-describedby={exportArea ? `${uid}-export-area` : undefined}
-        >{$t('templates.export.button')}</button
       >
+        {$t('templates.export.button')}
+      </button>
     </form>
     {#if exportArea && exportTeam}
       <p class="empty" id="{uid}-export-area">

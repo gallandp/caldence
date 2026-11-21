@@ -51,11 +51,11 @@
 {#if drops.length > 0}
   <details class="holiday-drops">
     <summary>
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"
-        ><path
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
           d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4M10 14l4 4M14 14l-4 4"
-        /></svg
-      >
+        />
+      </svg>
       <span class="text">{summary} <span class="toggle">{$t('holidayDrops.toggle')}</span></span>
     </summary>
     <ul>
@@ -75,8 +75,10 @@
                     // Not a click outside the day details this opens in the Calendar.
                     e.stopPropagation();
                     onOpenDay?.(date);
-                  }}>{chip(date)}</button
+                  }}
                 >
+                  {chip(date)}
+                </button>
               {:else}
                 <span class="chip">{chip(date)}</span>
               {/if}

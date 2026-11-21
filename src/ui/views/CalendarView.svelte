@@ -638,9 +638,9 @@
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
         </button>
-        <button type="button" class="today" onclick={() => setCursor(clampToHorizon())}
-          >{$t('cal.today')}</button
-        >
+        <button type="button" class="today" onclick={() => setCursor(clampToHorizon())}>
+          {$t('cal.today')}
+        </button>
       </div>
       <p class="period" aria-live="polite">{periodLabel}</p>
       {@render levels()}
@@ -695,30 +695,31 @@
                       {#if c.overlap}
                         <span class="warn" role="img" aria-label={$t('cal.overlap.mark')}>!</span>
                       {/if}
-                      {#if c.showLoad && c.chips.length > 0}<span class="load" aria-hidden="true"
-                          >{c.hours}</span
-                        >{/if}
+                      {#if c.showLoad && c.chips.length > 0}<span class="load" aria-hidden="true">
+                          {c.hours}
+                        </span>{/if}
                     </span>
                     <span class="visual" aria-hidden="true">
                       {#if c.holiday}<span class="tag holiday">{c.holiday}</span>{/if}
                       {#if c.school}<span class="tag school">{c.school}</span>{/if}
-                      {#each c.cadence as label, i (i)}<span class="tag cadence">{label}</span
-                        >{/each}
-                      {#each c.milestones as name, i (i)}<span class="tag milestone"
-                          ><span class="diamond"></span>{name}</span
-                        >{/each}
+                      {#each c.cadence as label, i (i)}<span class="tag cadence">
+                          {label}
+                        </span>{/each}
+                      {#each c.milestones as name, i (i)}<span class="tag milestone">
+                          <span class="diamond"></span>{name}
+                        </span>{/each}
                       {#each c.chips.slice(0, fit.shown) as chip (chip.key)}
-                        <span class="chip" style:--c={chip.colour}
-                          ><span class="t">{chip.start}</span>{#if chip.area}<span class="area"
-                              ><AreaIcon /></span
-                            >{/if}{chip.name}</span
-                        >
+                        <span class="chip" style:--c={chip.colour}>
+                          <span class="t">{chip.start}</span>{#if chip.area}<span class="area">
+                              <AreaIcon />
+                            </span>{/if}{chip.name}
+                        </span>
                       {/each}
-                      {#if fit.more}<span class="more"
-                          >{$t('cal.more', {
+                      {#if fit.more}<span class="more">
+                          {$t('cal.more', {
                             n: formatNumber($locale, c.chips.length - fit.shown, 0),
-                          })}</span
-                        >{/if}
+                          })}
+                        </span>{/if}
                     </span>
                   </td>
                 {/each}
@@ -771,9 +772,9 @@
           <div class="when">
             <h3>{formatDisplayDate($locale, date, 'long')}</h3>
             {#if items.some((i) => !i.skipped)}
-              <span class="sum"
-                >{$t('cal.hours', { hours: formatNumber($locale, loads.get(date) ?? 0, 1) })}</span
-              >
+              <span class="sum">
+                {$t('cal.hours', { hours: formatNumber($locale, loads.get(date) ?? 0, 1) })}
+              </span>
             {/if}
             {#if overlaps.length > 0}
               <span class="warn" aria-hidden="true">!</span>

@@ -288,17 +288,17 @@
     <div class="buttons wide">
       <button type="button" class="new" onclick={newWorkspace}>{$t('file.new')}</button>
       <button type="button" class="open" onclick={open}>{$t('file.open')}</button>
-      <button type="button" class="save" class:primary={$dirty} onclick={save}
-        >{$t('file.save')}</button
-      >
+      <button type="button" class="save" class:primary={$dirty} onclick={save}>
+        {$t('file.save')}
+      </button>
       <button type="button" class="save-as" onclick={saveAs}>{$t('file.saveAs')}</button>
     </div>
     <!-- Only one of the two button groups shows; the hidden one is out of the tab order. -->
     <!-- svelte-ignore a11y_no_static_element_interactions (Escape and focus leaving close the menu) -->
     <div class="buttons compact" onkeydown={onMoreKeydown} onfocusout={onMoreFocusout}>
-      <button type="button" class="save" class:primary={$dirty} onclick={save}
-        >{$t('file.save')}</button
-      >
+      <button type="button" class="save" class:primary={$dirty} onclick={save}>
+        {$t('file.save')}
+      </button>
       <button
         type="button"
         class="more"
@@ -307,26 +307,27 @@
         aria-controls="{uid}-more"
         bind:this={moreToggle}
         onclick={toggleMore}
-        ><svg viewBox="0 0 24 24" aria-hidden="true"
-          ><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle
             cx="19"
             cy="12"
             r="1.6"
-          /></svg
-        ></button
-      >
+          />
+        </svg>
+      </button>
       <div class="more-panel" id="{uid}-more" hidden={!moreOpen} bind:this={morePanel}>
-        <button type="button" class="new" onclick={() => fromMore(newWorkspace)}
-          >{$t('file.new')}</button
-        >
+        <button type="button" class="new" onclick={() => fromMore(newWorkspace)}>
+          {$t('file.new')}
+        </button>
         <button type="button" class="open" onclick={() => fromMore(open)}>{$t('file.open')}</button>
-        <button type="button" class="save-as" onclick={() => fromMore(saveAs)}
-          >{$t('file.saveAs')}</button
-        >
+        <button type="button" class="save-as" onclick={() => fromMore(saveAs)}>
+          {$t('file.saveAs')}
+        </button>
         {#if !empty}
-          <button type="button" class="print" onclick={() => fromMore(async () => window.print())}
-            >{$t('file.print')}</button
-          >
+          <button type="button" class="print" onclick={() => fromMore(async () => window.print())}>
+            {$t('file.print')}
+          </button>
         {/if}
         {@render menu?.(closeMore)}
       </div>
@@ -334,11 +335,11 @@
     <p class="status">
       <span class="name">{$fileName ?? $t('file.untitled')}</span>
       {#if $dirty}
-        <span class="marker"
-          ><span class="full">{$t('file.unsaved')}</span><span class="short"
-            >{$t('file.unsaved.short')}</span
-          ></span
-        >
+        <span class="marker">
+          <span class="full">{$t('file.unsaved')}</span><span class="short">
+            {$t('file.unsaved.short')}
+          </span>
+        </span>
       {:else if $fileName !== null}
         <span class="marker saved">{$t('file.saved')}</span>
       {/if}

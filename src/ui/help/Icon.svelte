@@ -16,8 +16,10 @@
     stroke="currentColor"
     stroke-width="1.9"
     stroke-linecap="round"
-    stroke-linejoin="round"><path d={path} /></svg
+    stroke-linejoin="round"
   >
+    <path d={path} />
+  </svg>
 </span>
 
 <style>

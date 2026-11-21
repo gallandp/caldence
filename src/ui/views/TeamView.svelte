@@ -359,9 +359,9 @@
 
 {#snippet info()}
   <div class="info" data-no-present>
-    <svg viewBox="0 0 24 24" aria-hidden="true"
-      ><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" /></svg
-    >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01" />
+    </svg>
     <p>{$t('team.help', { team: team?.name ?? '' })}</p>
   </div>
 {/snippet}
@@ -399,14 +399,16 @@
                     class="avatar"
                     aria-hidden="true"
                     style:background={colour}
-                    style:color={inkOn(colour)}>{initials(name)}</span
+                    style:color={inkOn(colour)}
                   >
+                    {initials(name)}
+                  </span>
                   <span class="who">
                     <span class="name">{name}</span>
                     <span class="chips">
                       {#each member.roleIds as roleId (roleId)}
-                        <span class="chip" style:--c={roleColour(roleId)}
-                          >{roleName(roleId)}<button
+                        <span class="chip" style:--c={roleColour(roleId)}>
+                          {roleName(roleId)}<button
                             type="button"
                             class="chip-remove"
                             data-no-present
@@ -415,18 +417,20 @@
                             aria-label={$t('team.members.remove', {
                               person: name,
                               role: roleName(roleId),
-                            })}>{@render cross()}</button
-                          ></span
-                        >
+                            })}
+                          >
+                            {@render cross()}
+                          </button>
+                        </span>
                       {/each}
                     </span>
                   </span>
                   <span class="hours-cell">
                     {#if $presenting}
-                      <span class="hours"
-                        >{formatNumber($locale, hoursOf(member.personId), 1)}
-                        {$t('settings.people.unit')}</span
-                      >
+                      <span class="hours">
+                        {formatNumber($locale, hoursOf(member.personId), 1)}
+                        {$t('settings.people.unit')}
+                      </span>
                     {:else}
                       <label class="hours">
                         <input
@@ -448,9 +452,9 @@
                       </label>
                     {/if}
                     {#if over}
-                      <span class="over" id="{uid}-over-{member.personId}" data-overbooked
-                        >{over}</span
-                      >
+                      <span class="over" id="{uid}-over-{member.personId}" data-overbooked>
+                        {over}
+                      </span>
                     {/if}
                   </span>
                   {@render err(`hours-${member.personId}`)}
@@ -518,9 +522,9 @@
                   }}
                 />
               </div>
-              <button type="submit" class="secondary add"
-                >{@render plus()}{$t('team.members.add')}</button
-              >
+              <button type="submit" class="secondary add">
+                {@render plus()}{$t('team.members.add')}
+              </button>
             </form>
             {#if elsewhere}
               <p class="hint" id="{uid}-elsewhere" data-no-present>
@@ -578,9 +582,9 @@
             <p class="empty">{$t('team.assumptions.empty')}</p>
           {:else}
             <div class="heads" aria-hidden="true">
-              <span>{$t('team.assumption.key')}</span><span class="value-head"
-                >{$t('team.assumption.value')}</span
-              >
+              <span>{$t('team.assumption.key')}</span><span class="value-head">
+                {$t('team.assumption.value')}
+              </span>
             </div>
             <ul class="assumptions">
               {#each Object.entries(team.assumptions) as [key, value] (key)}
@@ -611,8 +615,10 @@
                       class="icon-button"
                       aria-label={$t('team.assumption.delete', { key })}
                       aria-describedby={describe(`as-${key}`)}
-                      onclick={() => removeAssumption(key)}>{@render cross()}</button
+                      onclick={() => removeAssumption(key)}
                     >
+                      {@render cross()}
+                    </button>
                   </div>
                   {@render err(`as-${key}`)}
                 </li>
@@ -645,9 +651,9 @@
                 aria-describedby={describe('as-add')}
               />
             </div>
-            <button type="submit" class="secondary add"
-              >{@render plus()}{$t('team.assumption.add')}</button
-            >
+            <button type="submit" class="secondary add">
+              {@render plus()}{$t('team.assumption.add')}
+            </button>
           </form>
           {@render err('as-add')}
         </section>
@@ -655,17 +661,17 @@
     </div>
     <!-- The workspace-wide pools, folded away so the page shows only this team's people (#231). -->
     <details class="pool" data-no-present bind:open={poolOpen}>
-      <summary
-        >{$t('team.pool')}
-        <span class="count"
-          >{$t($workspace.people.length === 1 ? 'overview.people.one' : 'overview.people.other', {
+      <summary>
+        {$t('team.pool')}
+        <span class="count">
+          {$t($workspace.people.length === 1 ? 'overview.people.one' : 'overview.people.other', {
             n: $workspace.people.length,
           })}, {$t(
             $workspace.roles.length === 1 ? 'team.pool.roles.one' : 'team.pool.roles.other',
             { n: $workspace.roles.length },
-          )}</span
-        ></summary
-      >
+          )}
+        </span>
+      </summary>
       <p class="hint">{$t('team.pool.hint', { team: team.name })}</p>
       <div class="cards">
         <!-- Outside the key blocks: the lists keep focus while they change the workspace. -->
@@ -681,10 +687,10 @@
           >
             {#snippet extra(person)}
               {@const over = overText(person.id)}
-              <span class="teams-of"
-                >{teamsOf(person.id)}{#if over}
-                  <span class="over" data-overbooked>{over}</span>{/if}</span
-              >
+              <span class="teams-of">
+                {teamsOf(person.id)}{#if over}
+                  <span class="over" data-overbooked>{over}</span>{/if}
+              </span>
             {/snippet}
           </ListEditor>
         </div>

@@ -22,9 +22,9 @@
 
 <div class="no-teams">
   <p>{$t('area.empty.teams', { name: area.name })}</p>
-  <button type="button" class="primary" bind:this={button} onclick={() => dialog?.show(area)}
-    >{$t('area.teams')}</button
-  >
+  <button type="button" class="primary" bind:this={button} onclick={() => dialog?.show(area)}>
+    {$t('area.teams')}
+  </button>
 </div>
 <AreaDialog bind:this={dialog} {returnFocus} />
 

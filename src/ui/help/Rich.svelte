@@ -40,11 +40,11 @@
   });
 </script>
 
-{#each parts as part, i (i)}{#if part.kind === 'label'}{#if part.href}<a href={part.href}
-        >{part.value}</a
-      >{:else}<span class="ui">{part.value}</span>{/if}{:else if part.kind === 'kbd'}<kbd
-      >{part.value}</kbd
-    >{:else}{part.value}{/if}{/each}
+{#each parts as part, i (i)}{#if part.kind === 'label'}{#if part.href}<a href={part.href}>
+        {part.value}
+      </a>{:else}<span class="ui">{part.value}</span>{/if}{:else if part.kind === 'kbd'}<kbd>
+      {part.value}
+    </kbd>{:else}{part.value}{/if}{/each}
 
 <style>
   .ui {

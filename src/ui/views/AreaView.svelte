@@ -65,9 +65,9 @@
     bind:this={pages}
   >
     {#each ['structure', 'overview'] as const as p (p)}
-      <button type="button" aria-pressed={page === p} onclick={() => areaPage.set(p)}
-        >{$t(`area.view.${p}`)}</button
-      >
+      <button type="button" aria-pressed={page === p} onclick={() => areaPage.set(p)}>
+        {$t(`area.view.${p}`)}
+      </button>
     {/each}
   </div>
   {#if page === 'structure'}

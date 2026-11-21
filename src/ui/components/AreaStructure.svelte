@@ -224,9 +224,9 @@
 
 {#snippet avatar(p: StructurePerson)}
   {@const c = avatarColour(p)}
-  <span class="av" style:background={c} style:color={inkOn(c)} aria-hidden="true"
-    >{initials(personName(p.personId))}</span
-  >
+  <span class="av" style:background={c} style:color={inkOn(c)} aria-hidden="true">
+    {initials(personName(p.personId))}
+  </span>
 {/snippet}
 
 <div class="structure">
@@ -255,9 +255,9 @@
     </div>
     <div class="segmented" data-no-print role="group" aria-label={$t('area.structure.show')}>
       {#each ['tree', 'table'] as const as v (v)}
-        <button type="button" aria-pressed={show === v} onclick={() => (show = v)}
-          >{$t(`area.structure.${v}`)}</button
-        >
+        <button type="button" aria-pressed={show === v} onclick={() => (show = v)}>
+          {$t(`area.structure.${v}`)}
+        </button>
       {/each}
     </div>
   </div>
@@ -281,9 +281,9 @@
             <tbody>
               <tr class="grp">
                 <th scope="colgroup" colspan={teams.length + 3 + (otherCol ? 1 : 0)}>
-                  <span
-                    ><i class="dot k-{g.id}" aria-hidden="true"></i>{$t(g.key)} · {rows.length}</span
-                  >
+                  <span>
+                    <i class="dot k-{g.id}" aria-hidden="true"></i>{$t(g.key)} · {rows.length}
+                  </span>
                 </th>
               </tr>
               {#each rows as p (p.personId)}
@@ -297,32 +297,32 @@
                       onclick={(e) => pick(p.personId, e)}
                     >
                       {@render avatar(p)}
-                      <span
-                        >{personName(p.personId)}<small
-                          >{[
+                      <span>
+                        {personName(p.personId)}<small>
+                          {[
                             ...p.teams.flatMap((x) => x.roleIds).map(roleName),
                             ...p.areaRoleIds.map((r) =>
                               $t('area.structure.areaRole', { role: roleName(r) }),
                             ),
                           ]
                             .filter((x, i, all) => all.indexOf(x) === i)
-                            .join(' · ')}</small
-                        ></span
-                      >
+                            .join(' · ')}
+                        </small>
+                      </span>
                     </button>
                   </th>
-                  <td class="a"
-                    >{#if p.areaHours > 0}<span>{h(p.areaHours)}</span>{/if}</td
-                  >
+                  <td class="a">
+                    {#if p.areaHours > 0}<span>{h(p.areaHours)}</span>{/if}
+                  </td>
                   {#each teams as team (team.id)}
                     {@const x = p.teams.find((y) => y.teamId === team.id)}
-                    <td class="t"
-                      >{#if x}<span>{h(x.hours)}</span>{/if}</td
-                    >
+                    <td class="t">
+                      {#if x}<span>{h(x.hours)}</span>{/if}
+                    </td>
                   {/each}
-                  {#if otherCol}<td
-                      >{#if p.otherHours > 0}{h(p.otherHours)}{/if}</td
-                    >{/if}
+                  {#if otherCol}<td>
+                      {#if p.otherHours > 0}{h(p.otherHours)}{/if}
+                    </td>{/if}
                   <td class="sum">{h(p.total)}</td>
                 </tr>
               {/each}
@@ -360,14 +360,18 @@
               type="button"
               class="secondary add"
               bind:this={addButton}
-              onclick={() => adder?.show(addButton)}>{$t('area.structure.add')}</button
+              onclick={() => adder?.show(addButton)}
             >
+              {$t('area.structure.add')}
+            </button>
             <button
               type="button"
               class="secondary"
               bind:this={teamsButton}
-              onclick={() => teamsDialog?.show(area)}>{$t('area.teams')}</button
+              onclick={() => teamsDialog?.show(area)}
             >
+              {$t('area.teams')}
+            </button>
           </div>
         </div>
         <div class="areabody">
@@ -391,11 +395,11 @@
                 onblur={leave}
               >
                 {@render avatar(p)}
-                <span class="tx"
-                  ><b>{personName(p.personId)}</b><small
-                    >{p.areaRoleIds.map(roleName).join(', ')}</small
-                  ></span
-                >
+                <span class="tx">
+                  <b>{personName(p.personId)}</b><small>
+                    {p.areaRoleIds.map(roleName).join(', ')}
+                  </small>
+                </span>
                 <span class="h a">{h(p.areaHours)}</span>
               </button>
             {:else}
@@ -423,15 +427,17 @@
                   onblur={leave}
                 >
                   {@render avatar(p)}
-                  <span class="tx"
-                    ><b>{personName(p.personId)}</b><small
-                      >{roleName(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])}</small
-                    ><small class="org">{fromLine(p)}</small>{#if p.invitedOnly}<small class="unset"
-                        >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
-                            >{$t('area.hours.unset')}</span
-                          ><span data-print-only>{$t('area.hours.none')}</span>{/if}</small
-                      >{/if}</span
-                  >
+                  <span class="tx">
+                    <b>{personName(p.personId)}</b><small>
+                      {roleName(p.areaRoleIds[0] ?? p.teams[0]?.roleIds[0])}
+                    </small><small class="org">{fromLine(p)}</small>{#if p.invitedOnly}<small
+                        class="unset"
+                      >
+                        {#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print>
+                            {$t('area.hours.unset')}
+                          </span><span data-print-only>{$t('area.hours.none')}</span>{/if}
+                      </small>{/if}
+                  </span>
                   {#if !p.invitedOnly}<span class="h a">{h(p.areaHours)}</span>{/if}
                 </button>
               {:else}
@@ -452,9 +458,10 @@
                   meetingId = meetingId === e.id ? null : e.id;
                   selected = null;
                 }}
-                >{e.name}
-                <small>{ruleShort(e.rule, areaTeam, $t, $locale)}</small></button
               >
+                {e.name}
+                <small>{ruleShort(e.rule, areaTeam, $t, $locale)}</small>
+              </button>
             {/each}
           </div>
         {/if}
@@ -514,25 +521,28 @@
                     <b>{personName(id)}</b>
                     <small>{own.roleIds.map(roleName).join(', ')}</small>
                     {#if p.areaRoleIds.length > 0 && !p.areaRoleIds.every( (r) => own.roleIds.includes(r) )}
-                      <small class="ar"
-                        >{$t('area.structure.areaRole', {
+                      <small class="ar">
+                        {$t('area.structure.areaRole', {
                           role: p.areaRoleIds.map(roleName).join(', '),
-                        })}</small
-                      >
+                        })}
+                      </small>
                     {/if}
-                    <span class="split" aria-hidden="true"
-                      ><i style:flex={own.hours}></i><i class="a" style:flex={p.areaHours}
-                      ></i></span
-                    >
-                    <span class="splitlbl"
-                      ><span>{h(own.hours)} {$t('area.structure.inTeam')}</span
-                      >{#if p.invitedOnly}<span class="unset"
-                          >{#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print
-                              >{$t('area.hours.unset')}</span
-                            ><span data-print-only>{$t('area.hours.none')}</span>{/if}</span
-                        >{:else}<span class="a">{h(p.areaHours)} {$t('area.structure.inArea')}</span
-                        >{/if}</span
-                    >
+                    <span class="split" aria-hidden="true">
+                      <i style:flex={own.hours}></i><i class="a" style:flex={p.areaHours}></i>
+                    </span>
+                    <span class="splitlbl">
+                      <span>
+                        {h(own.hours)}
+                        {$t('area.structure.inTeam')}
+                      </span>{#if p.invitedOnly}<span class="unset">
+                          {#if $presenting}{$t('area.hours.none')}{:else}<span data-no-print>
+                              {$t('area.hours.unset')}
+                            </span><span data-print-only>{$t('area.hours.none')}</span>{/if}
+                        </span>{:else}<span class="a">
+                          {h(p.areaHours)}
+                          {$t('area.structure.inArea')}
+                        </span>{/if}
+                    </span>
                   </span>
                 </button>
               {/each}
@@ -547,20 +557,23 @@
                     class="gap"
                     aria-label={$t('area.roleLink.choose', { note })}
                     onclick={(e) => (mapping = { ...g, button: e.currentTarget })}
-                    ><svg viewBox="0 0 24 24" aria-hidden="true"
-                      ><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" /></svg
-                    ><span class="gtx">{note}</span><svg
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" />
+                    </svg><span class="gtx">{note}</span><svg
                       class="chev"
                       data-no-print
                       viewBox="0 0 24 24"
-                      aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg
-                    ></button
-                  >
+                      aria-hidden="true"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
                 {:else}
                   <p class="gap">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"
-                      ><path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" /></svg
-                    >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 3l9.5 17h-19zM12 10v4M12 17h.01" />
+                    </svg>
                     {note}
                   </p>
                 {/if}
@@ -579,10 +592,13 @@
                     class="more"
                     aria-expanded={open}
                     onclick={() => (opened = { ...opened, [st.teamId]: !open })}
-                    >{$t(open ? 'area.structure.hide' : 'area.structure.showAll')}<span
-                      class="sr-only">: {team.name}</span
-                    ></button
                   >
+                    {$t(open ? 'area.structure.hide' : 'area.structure.showAll')}<span
+                      class="sr-only"
+                    >
+                      : {team.name}
+                    </span>
+                  </button>
                 {/if}
               </h5>
               {#if !narrow || open}
@@ -603,10 +619,9 @@
                     onblur={leave}
                   >
                     {@render avatar(p)}
-                    <span class="tx"
-                      ><b>{personName(id)}</b><small>{own.roleIds.map(roleName).join(', ')}</small
-                      ></span
-                    >
+                    <span class="tx">
+                      <b>{personName(id)}</b><small>{own.roleIds.map(roleName).join(', ')}</small>
+                    </span>
                     <span class="h">{h(own.hours)}</span>
                   </button>
                 {/each}
@@ -616,9 +631,9 @@
         {:else}
           <div class="empty-teams">
             <p>{$t('area.empty.teams', { name: area.name })}</p>
-            <button type="button" class="primary" onclick={() => teamsDialog?.show(area)}
-              >{$t('area.teams')}</button
-            >
+            <button type="button" class="primary" onclick={() => teamsDialog?.show(area)}>
+              {$t('area.teams')}
+            </button>
           </div>
         {/each}
       </div>

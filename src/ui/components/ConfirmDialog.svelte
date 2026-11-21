@@ -44,9 +44,9 @@
   <h2 id="{uid}-title">{title}</h2>
   <p>{message}</p>
   <div class="actions">
-    <button type="button" class="primary" onclick={() => onchoose('save')}
-      >{confirmLabel ?? $t('dialog.save')}</button
-    >
+    <button type="button" class="primary" onclick={() => onchoose('save')}>
+      {confirmLabel ?? $t('dialog.save')}
+    </button>
     {#if discard}
       <button type="button" onclick={() => onchoose('discard')}>{$t('dialog.discard')}</button>
     {/if}
