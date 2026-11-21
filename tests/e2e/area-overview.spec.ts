@@ -351,6 +351,32 @@ test('presenting, an area without meetings opens on its overview, not an empty l
   await expect(page.locator('.area-teams')).toHaveCount(0);
 });
 
+test('a team that differs says why in its cadence cell; "Differ:" names lead there (#478)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, 100);
+  const row = (id: string) => overview.locator(`[data-cost-row="${id}"]`);
+  await expect(row('team-gamma').locator('[data-step-reason]')).toHaveText(
+    'differs: 3-week periods do not fit into 10 weeks',
+  );
+  await expect(row('team-delta').locator('[data-step-reason]')).toHaveText(
+    'differs: starts on Wednesday',
+  );
+  await expect(row('team-alpha').locator('[data-step-reason]')).toHaveCount(0);
+
+  // The names in the key figure are links to the rows.
+  const tag = overview.locator('[data-kpi="cadence"] .tag');
+  await tag.getByRole('button', { name: 'Team Delta: why, in the table below' }).click();
+  await expect(row('team-delta')).toBeInViewport();
+  await expect(row('team-delta').locator('th button')).toBeFocused();
+
+  // On a phone card the reason stays, under the name.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(row('team-gamma').locator('[data-step-reason]')).toBeVisible();
+  await expect(row('team-alpha').locator('td.extra').first()).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+});
+
 test('presenting, a cadence row opens its what-if; a new start aligns the team (#444)', async ({
   page,
 }) => {
@@ -383,6 +409,7 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(kpi.locator('b')).toHaveText('3 of 3');
   await expect(kpi.locator('.tag')).toHaveText('All aligned');
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText('aligned');
+  await expect(overview.locator('[data-cost-row="team-delta"] [data-step-reason]')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
 
   // The area row has its what-if too; ending the presentation discards the change.

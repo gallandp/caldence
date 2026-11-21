@@ -99,6 +99,11 @@ test('the organisation shows alignment and cost per team, also without an area (
   // Team Gamma fits Commerce's PI; Team Alpha, without an area, starts on Thursday.
   await expect(kpi.locator('b')).toHaveText('3 of 4');
   await expect(kpi.locator('.tag')).toHaveText('Differ: Team Alpha');
+  // The reason is next to the team in the cost table (#478).
+  await expect(summary.locator('[data-cost-row="team-alpha"] [data-step-reason]')).toHaveText(
+    /^differs: starts on Thursday/,
+  );
+  await expect(summary.locator('[data-cost-row="team-gamma"] [data-step-reason]')).toHaveCount(0);
   await expect(summary.locator('.lead')).toHaveText(
     'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
   );
