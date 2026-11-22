@@ -3,7 +3,15 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Workspace } from '../../src/core/model';
 import { ALEX_OVERLAP_DAY, DAY_HOURS, fmt } from './calendar-expected';
-import { openExample, setLanguage, useFileFallback, pickUnit, currentUnit } from './helpers';
+import {
+  openExample,
+  openWorkspaceFile,
+  setLanguage,
+  showView,
+  useFileFallback,
+  pickUnit,
+  currentUnit,
+} from './helpers';
 
 test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
@@ -549,4 +557,27 @@ test('meeting cards say when their hours include preparation (#474)', async ({ p
   await expect(
     panel(page).getByRole('listitem').filter({ hasText: 'Sprint Planning' }).first(),
   ).toContainText('inkl. 25 % Vorbereitung');
+});
+
+test('a plan that starts in the future opens on its first week; Today still goes to today', async ({
+  page,
+}) => {
+  // A fresh plan on a Sunday: the horizon starts today, the cadence the next Monday (#503).
+  const ws = structuredClone(example);
+  ws.settings.horizon = { from: '2027-02-28', to: '2027-12-31' };
+  for (const team of ws.teams) team.cadence.start = '2027-03-01';
+  await page.clock.setFixedTime(new Date('2027-02-28T12:00:00'));
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await setLanguage(page, 'en');
+  await showView(page, 'Calendar');
+  const label = panel(page).locator('[aria-live="polite"]');
+  await expect(label).toHaveText('March 2027');
+  await panel(page).getByRole('button', { name: 'Week', exact: true }).click();
+  await expect(label).toContainText('Week 9');
+  await expect(label).toContainText('03/01/2027');
+  await panel(page).getByRole('button', { name: 'Today' }).click();
+  await expect(label).toContainText('Week 8');
+  await panel(page).getByRole('button', { name: 'Month', exact: true }).click();
+  await expect(label).toHaveText('February 2027');
 });

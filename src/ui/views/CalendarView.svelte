@@ -70,11 +70,24 @@
     return today >= from && today <= to ? today : from;
   }
 
+  /**
+   * Where the calendar opens: before the plan starts, its first week (the earliest team cadence
+   * start inside the horizon, #503); otherwise as Today.
+   */
+  function openingDay(): ISODate {
+    const { teams, settings } = get(workspace);
+    const { from, to } = settings.horizon;
+    const starts = teams.map((team) => team.cadence.start).filter((d) => d <= to);
+    const first = starts.length ? starts.reduce((a, b) => (b < a ? b : a)) : from;
+    const start = first > from ? first : from;
+    return localToday() < start ? start : clampToHorizon();
+  }
+
   type Mode = 'week' | 'month' | 'range';
   /** Week and month page through the horizon; range shows all of its weeks as one table. */
   let mode = $state<Mode>(lastMode);
   const modes: readonly Mode[] = ['week', 'month', 'range'];
-  let cursor = $state<ISODate>(clampToHorizon());
+  let cursor = $state<ISODate>(openingDay());
   let selected = $state<ISODate | null>(null);
   let grid: HTMLTableElement | undefined = $state();
   let details: DayDetails | undefined = $state();
