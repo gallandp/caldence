@@ -36,6 +36,7 @@
     formatNumber,
     formatPercent,
     areaText,
+    horizonWeekCount,
     levels,
     locale,
     nextWeeks,
@@ -48,7 +49,7 @@
   import OverlapList from '../components/OverlapList.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WhatIfSheet from '../components/WhatIfSheet.svelte';
-  import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
+  import { ruleShort, stepReasonText, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
 
@@ -146,7 +147,14 @@
   });
   let root: HTMLElement | undefined = $state();
   /** A name in "Differ: …" goes to the team's row in the table, where its reason is (#478). */
+  let flashId = $state('');
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(flashTimer));
   function showTeam(teamId: string) {
+    clearTimeout(flashTimer);
+    flashId = teamId;
+    // The row lights up for a moment: after a click the browser shows no focus ring (#494).
+    flashTimer = setTimeout(() => (flashId = ''), 1500);
     const row = root?.querySelector<HTMLElement>(`[data-cost-row="${CSS.escape(teamId)}"]`);
     row?.scrollIntoView({ block: 'center' });
     row?.querySelector<HTMLElement>('th button')?.focus({ preventScroll: true });
@@ -367,40 +375,21 @@
     if (!c || c.rows.length < 2) return '';
     const team = c.reference?.teamId ? teamName(c.reference.teamId) : '';
     const most = c.sharing > 1;
+    // The reference team changed in a what-if: it is compared with as it was before (#484).
+    const suffix = c.reference?.changed ? '.saved' : most ? '' : '.first';
     return [
       c.byArea > 0 ? $translate('overview.lead.org.areas') : '',
       c.others > 0 && team
-        ? $translate(
-            c.byArea > 0
-              ? most
-                ? 'overview.lead.org.others'
-                : 'overview.lead.org.others.first'
-              : most
-                ? 'overview.lead.org'
-                : 'overview.lead.org.first',
-            { team },
-          )
+        ? $translate((c.byArea > 0 ? 'overview.lead.org.others' : 'overview.lead.org') + suffix, {
+            team,
+          })
         : '',
     ]
       .filter(Boolean)
       .join(', ');
   });
 
-  function reasonText(r: StepReason): string {
-    switch (r.kind) {
-      case 'weekday':
-        return $t('overview.reason.weekday', { weekday: weekdayName($locale, r.weekday) });
-      case 'length':
-        return $t(r.fromArea ? 'overview.reason.length.area' : 'overview.reason.length.peer', {
-          n: formatNumber($locale, r.weeks, 0),
-          m: formatNumber($locale, r.reference, 0),
-        });
-      case 'offset':
-        return $t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
-          n: formatNumber($locale, r.weeks, 0),
-        });
-    }
-  }
+  const reasonText = (r: StepReason) => stepReasonText(r, $t, $locale);
 
   function segLabel(c: Cadence, s: Segment, first = false): string {
     const label = $t('overview.seg.' + c.kind, { n: formatNumber($locale, s.number, 0) });
@@ -584,6 +573,12 @@
         <span class="label">
           {$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}
         </span>
+        <span class="label" data-cost-horizon-note>
+          {$t('cost.horizon.avg', {
+            amount: euro(costs.total.cost.horizon / $horizonWeekCount),
+            n: $horizonWeekCount,
+          })}
+        </span>
         {#if costs.total.invited > 0}
           <span class="label">
             {$t('overview.kpi.cost.person', {
@@ -735,7 +730,7 @@
               {@const zero = zeroNote(r.unitId)}
               {@const step = stepRow.get(r.unitId)}
               {@const differs = !!step && !step.inStep}
-              <tr data-cost-row={r.unitId}>
+              <tr data-cost-row={r.unitId} class:flash={flashId === r.unitId}>
                 <th scope="row">
                   {#if onOpenUnit}
                     <button
@@ -1664,6 +1659,17 @@
   }
   .area-name.org {
     color: var(--org);
+  }
+  /* The row a "Differ:" name jumps to, for about 1.5 s; no animation (#494). */
+  [data-area-costs] tr.flash {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+  }
+  :global(#app) [data-area-costs] tr.flash {
+    background: var(--accent-soft);
+  }
+  :global(#app) [data-area-costs] tr.flash > :is(th, td) {
+    background: transparent;
   }
   /* The row names keep to one line, so the column takes their width (#450). */
   [data-area-costs] th .area-name {

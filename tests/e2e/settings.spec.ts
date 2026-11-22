@@ -4,7 +4,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { changeHours, openPeoplePool, openWorkspaceFile, teamAction } from './helpers';
 
 /** The bundled regions: the 16 German states. */
-const BUILT_IN_REGIONS = 16;
+// The 16 German states and "No public holidays" (#508).
+const BUILT_IN_REGIONS = 17;
 
 test.use({ locale: 'en-US' });
 
@@ -216,6 +217,14 @@ async function importRegion(page: Page, name: string, text: string) {
 
 const sampleRegion = () => readFileSync('tests/fixtures/regions/de-by-sample.json', 'utf8');
 const regionSelect = (page: Page) => page.getByLabel('Region (holidays)');
+
+test('the example and a saved file keep their own region (#508)', async ({ page }) => {
+  await openExample(page);
+  await expect(regionSelect(page)).toHaveValue('de-sn');
+  await expect(regionSelect(page).locator('option', { hasText: 'No public holidays' })).toHaveCount(
+    1,
+  );
+});
 
 test('an imported region file is added to the select and selected', async ({ page }) => {
   await openExample(page);

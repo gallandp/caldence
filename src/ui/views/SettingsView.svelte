@@ -5,7 +5,7 @@
   import { levelWords } from '../../i18n/levels';
   import { LIMITS } from '../../core/limits';
   import type { Settings } from '../../core/model';
-  import { isBuiltinRegion, resolveRegion, validateRegion } from '../../core/regions';
+  import { isBuiltinRegion, NO_HOLIDAYS, resolveRegion, validateRegion } from '../../core/regions';
   import type { ValidationError } from '../../core/validate';
   import { schoolHolidayGap } from '../../core/views';
   import { isKnownZone } from '../../core/zone';
@@ -107,14 +107,18 @@
   // ---------- selects ----------
 
   const regionName = (id: string): string => {
+    if (id === NO_HOLIDAYS) return $t('settings.region.none');
     const region = resolveRegion($workspace, id);
     if (!region) return id;
     const name = region.name[$locale];
     return isBuiltinRegion(id) ? name : name + $t('settings.region.custom');
   };
   /** The selected region names no built-in or imported region: it loads, but has no holidays. */
-  const unknownRegion = $derived(resolveRegion($workspace, settings.region) === null);
+  const unknownRegion = $derived(
+    settings.region !== NO_HOLIDAYS && resolveRegion($workspace, settings.region) === null,
+  );
   const regions = $derived([
+    NO_HOLIDAYS,
     ...regionIds(),
     ...$workspace.customRegions.map((r) => r.id),
     ...(unknownRegion ? [settings.region] : []),
@@ -347,7 +351,7 @@
             <p class="field-error" id="err-region">{regionError}</p>
           {/if}
         </div>
-        <!-- The region is preset; holidays decide which meetings drop out (#341). -->
+        <!-- Holidays of the region decide which meetings drop out (#341). -->
         <p class="help" id="note-region-check">{$t('settings.region.check')}</p>
         {#if unknownRegion}
           <p class="help" id="note-region">

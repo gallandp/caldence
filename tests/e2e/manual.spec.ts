@@ -75,6 +75,8 @@ for (const locale of ['de', 'en'] as const) {
       await expect(help.getByRole('heading', { level: 3, name: title(c, 'start') })).toBeVisible();
       const start = await readSteps(help);
       expect(start.length).toBeGreaterThanOrEqual(6);
+      // The first guide names the choice without holidays (#508).
+      expect(start.some((s) => s.text.includes(c['settings.region.none']!))).toBe(true);
       await follow(
         page,
         start,
@@ -83,6 +85,15 @@ for (const locale of ['de', 'en'] as const) {
             labels: ['setup.people'],
             run: async (p) => {
               await p.getByRole('dialog').getByLabel('Product Owner', { exact: true }).fill('Kim');
+            },
+          },
+          6: {
+            labels: ['settings.region', 'settings.region.none'],
+            run: async (p, cat) => {
+              await p
+                .getByRole('dialog')
+                .getByLabel(cat['settings.region']!)
+                .selectOption({ label: cat['settings.region.none']! });
             },
           },
         },

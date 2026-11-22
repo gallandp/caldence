@@ -322,6 +322,56 @@ test('a second export updates the first and cancels a deleted meeting (#21)', as
   await expect(panel(page).getByRole('status')).toContainText('included as cancelled: 1');
 });
 
+test('"Add to calendar" says "changed – export again" after a change to an exported meeting (#509)', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
+  await openExample(page);
+  const meetings = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  const toCalendar = meetings.getByRole('button', { name: /^Add to calendar…/ });
+  const deleteSync = async (name: string) => {
+    await showView(page, 'Meetings & cadence');
+    await meetings.locator('tr', { hasText: name }).locator('[data-more]').click();
+    await meetings
+      .getByRole('button', { name: /^Delete/ })
+      .first()
+      .click();
+    await expect(meetings.locator('tr', { hasText: name })).toHaveCount(0);
+  };
+  // Nothing exported yet in this browser: no hint.
+  await deleteSync('Weekly Sync');
+  await expect(toCalendar).toHaveText('Add to calendar…');
+  await toCalendar.click();
+  await exportText(page);
+  await deleteSync('Backlog Refinement');
+  await expect(toCalendar).toContainText('changed – export again');
+  await toCalendar.click();
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await expect(toCalendar).toHaveText('Add to calendar…');
+  // Saving a meeting unchanged gives no hint; a new time does.
+  const edit = async (time?: string) => {
+    await meetings.getByRole('button', { name: 'Edit Sprint Planning' }).click();
+    if (time) await meetings.getByLabel('Time (HH:MM)').fill(time);
+    await meetings.getByRole('button', { name: 'Save' }).click();
+  };
+  await edit();
+  await expect(toCalendar).toHaveText('Add to calendar…');
+  // A person export is marked too; the next team export clears the team in every scope.
+  await toCalendar.click();
+  await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();
+  await panel(page).getByLabel('Selected person').selectOption({ label: 'Sam' });
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await edit('11:00');
+  await expect(toCalendar).toContainText('changed – export again');
+  await toCalendar.click();
+  await panel(page).getByRole('radio', { name: 'Team', exact: true }).check();
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await expect(toCalendar).toHaveText('Add to calendar…');
+});
+
 test('"Add to calendar" opens the export for this team, then for the person exported last', async ({
   page,
 }) => {
