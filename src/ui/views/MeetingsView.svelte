@@ -32,6 +32,7 @@
   import CostCard from '../components/CostCard.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import { exportRequest } from '../state/exportScope';
+  import { exportsChanged, markChanged, staleForTeam } from '../state/exports';
   import HolidayDrops from '../components/HolidayDrops.svelte';
   import { holidayDrops, placeLink } from '../../core/ics';
   import { resolveRegion } from '../../core/regions';
@@ -386,12 +387,18 @@
       ? commit((ws) => upsertEvent(ws, teamId, event))
       : validate(upsertEvent($workspace, teamId, event)[0]);
     if (result.ok) {
+      if (doCommit && event.id !== '') markChanged($workspace.id, teamId, event.id);
       if (doCommit) void close();
       return null;
     }
     const mapped = fieldErrors(result.errors, `${base}.events.${ei}`);
     return Object.keys(mapped).length > 0 ? mapped : { '': result.errors[0]?.key ?? 'error.type' };
   }
+
+  /** A meeting of this team changed after an export from this browser (#509). */
+  const exportStale = $derived(
+    $exportsChanged >= 0 && !!team && staleForTeam($workspace.id, team.id),
+  );
 
   // ---------- table actions ----------
 
@@ -414,6 +421,7 @@
     const neighbour = shown[at + 1] ?? shown[at - 1];
     const result = commit((ws) => removeEvent(ws, teamId, event.id));
     if (!result.ok) return;
+    markChanged($workspace.id, teamId, event.id);
     if (editing?.event.id === event.id) editing = null;
     // The neighbour's Edit is disabled while a form is open; its ⋯ button never is.
     const id = neighbour ? CSS.escape(neighbour.id) : '';
@@ -540,6 +548,9 @@
               />
             </svg>
             {$t('meet.toCalendar')}
+            {#if exportStale}
+              <span class="stale" data-export-stale>{$t('meet.toCalendar.stale')}</span>
+            {/if}
           </button>
         {/if}
       </div>
@@ -1028,6 +1039,11 @@
     align-items: center;
     gap: 0.45rem;
     margin-left: auto;
+  }
+  .to-calendar .stale {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--warn);
   }
   .table-wrap {
     /* Containing block for the hidden caption and header: they must not widen the page. */

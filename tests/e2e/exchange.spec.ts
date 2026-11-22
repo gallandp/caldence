@@ -322,6 +322,35 @@ test('a second export updates the first and cancels a deleted meeting (#21)', as
   await expect(panel(page).getByRole('status')).toContainText('included as cancelled: 1');
 });
 
+test('"Add to calendar" says "changed – export again" after a change to an exported meeting (#509)', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00`));
+  await openExample(page);
+  const meetings = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  const toCalendar = meetings.getByRole('button', { name: /^Add to calendar…/ });
+  const deleteSync = async (name: string) => {
+    await showView(page, 'Meetings & cadence');
+    await meetings.locator('tr', { hasText: name }).locator('[data-more]').click();
+    await meetings
+      .getByRole('button', { name: /^Delete/ })
+      .first()
+      .click();
+    await expect(meetings.locator('tr', { hasText: name })).toHaveCount(0);
+  };
+  // Nothing exported yet in this browser: no hint.
+  await deleteSync('Weekly Sync');
+  await expect(toCalendar).toHaveText('Add to calendar…');
+  await toCalendar.click();
+  await exportText(page);
+  await deleteSync('Backlog Refinement');
+  await expect(toCalendar).toContainText('changed – export again');
+  await toCalendar.click();
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await expect(toCalendar).toHaveText('Add to calendar…');
+});
+
 test('"Add to calendar" opens the export for this team, then for the person exported last', async ({
   page,
 }) => {
