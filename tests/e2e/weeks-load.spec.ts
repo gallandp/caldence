@@ -502,7 +502,8 @@ test('without warnings the list says so', async ({ page }) => {
   await page.getByLabel('Load spike from (× usual load)').fill('10');
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const section = panel.getByRole('region', { name: 'Warnings', exact: true });
-  await expect(section.getByText('No warnings')).toBeVisible();
+  // Neither load warnings nor overlaps: exactly "No warnings" (#505).
+  await expect(section.locator('[data-warnings-empty]')).toHaveText('No warnings');
   await expect(section.getByRole('listitem')).toHaveCount(0);
 });
 
