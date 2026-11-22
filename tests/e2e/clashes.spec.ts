@@ -173,6 +173,9 @@ test('many pairs: the overview names three, Meeting load 50, then all', async ({
 test.describe('the Warnings badge counts people, the overlaps have their own (#475)', () => {
   for (const width of [1280, 390])
     test(`at ${width} px`, async ({ page }) => {
+      // Above Robin's share in every week of the example (#511), so only load spikes warn.
+      await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+      await page.getByLabel('Limit: share of weekly hours in meetings').fill('100');
       await page.setViewportSize({ width, height: 900 });
       await showView(page, 'Meeting load');
       const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
