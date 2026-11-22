@@ -15,6 +15,7 @@
     overMax,
     personLoad,
     personMeetings,
+    recurringPeak,
     roomBeforeLimit,
     warnings,
     type PersonMeeting,
@@ -129,12 +130,11 @@
         free: roomBeforeLimit({ hours: average, base: cap }, maxFte),
         units: unitsOf(person.id),
         peak,
-        /** No load spike that week: the peak comes back with the cadence (#510). */
-        recurring:
-          !!peak &&
-          !allWarnings.some(
-            (w) => w.personId === person.id && w.monday === peak.monday && w.kind === 'above-usual',
-          ),
+        /** The peak comes back with the cadence and has no warning (#510). */
+        recurring: recurringPeak(
+          weeks.map((w) => ({ monday: w.monday, hours: w.byPerson[person.id] ?? 0 })),
+          (monday) => allWarnings.some((w) => w.personId === person.id && w.monday === monday),
+        ),
       };
     }),
   );
@@ -411,6 +411,12 @@
     ),
   );
   const warned = $derived(warnedWeeks($workspace, allWarnings, $filter));
+  const peakRecurring = $derived(
+    recurringPeak(
+      rows.map((r) => ({ monday: r.monday, hours: r.total })),
+      (monday) => warned.has(monday),
+    ),
+  );
   const chartLabel = $derived(
     peak
       ? $t('load.chart.label', {
@@ -641,7 +647,7 @@
           </td>
           <td role="cell" class="num nowrap peak" data-cap={$t('load.col.peak')}>
             {#if p.peak}
-              {@const [before, after] = $t('load.peak', {
+              {@const [before, after] = $t(p.recurring ? 'load.peak.recurring' : 'load.peak', {
                 week: '\uE000',
                 hours: hours(p.peak.hours),
               }).split('\uE000')}
@@ -650,7 +656,7 @@
                 p.person.name,
                 p.peak.monday,
                 weekLabel(p.peak.monday),
-              )}{after}{#if p.recurring}{` ${$t('load.recurring')}`}{/if}
+              )}{after}
             {:else}
               {$t('load.none')}
             {/if}
@@ -780,9 +786,9 @@
       {#if peak}
         <span class="value">{weekLabel(peak.monday)}</span>
         <span class="sub">
-          {$t('load.kpi.peak.hours', {
+          {$t(peakRecurring ? 'load.kpi.peak.hours.recurring' : 'load.kpi.peak.hours', {
             hours: hours(peak.total),
-          })}{#if !warned.has(peak.monday)}{` ${$t('load.recurring')}`}{/if}
+          })}
         </span>
       {:else}
         <span class="value">–</span>

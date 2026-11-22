@@ -483,3 +483,17 @@ export function personMeetings(
   }
   return out;
 }
+
+/**
+ * True when the highest week has no warning and comes back: another week reaches at least 95 %
+ * of it, as with every sprint start (#510). A one-off peak or a warned week is not recurring.
+ */
+export function recurringPeak(
+  weeks: readonly { monday: string; hours: number }[],
+  warned: (monday: string) => boolean,
+): boolean {
+  let peak: { monday: string; hours: number } | undefined;
+  for (const w of weeks) if (w.hours > 0 && (!peak || w.hours > peak.hours)) peak = w;
+  if (!peak || warned(peak.monday)) return false;
+  return weeks.some((w) => w !== peak && w.hours >= 0.95 * peak.hours);
+}

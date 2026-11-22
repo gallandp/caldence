@@ -335,7 +335,7 @@ test('the person filter limits the person table and the warnings to that person'
     `${fmt('en', ALEX.average)} of ${fmt('en', 32)} h`,
     pct('en', ALEX.fte),
     `${fmt('en', 0.6 * 32 - ALEX.average)} h`,
-    `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h) (recurring)`,
+    `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h)`,
   ]);
   const items = panel
     .getByRole('region', { name: 'Warnings', exact: true })

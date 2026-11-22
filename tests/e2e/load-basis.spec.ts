@@ -1,23 +1,34 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { openExample, showView, useFileFallback } from './helpers';
 
-test.use({ locale: 'en-US' });
 test.beforeEach(async ({ page }) => {
   await useFileFallback(page);
   await page.clock.setFixedTime(new Date('2027-03-10T12:00:00'));
 });
 
-test('load figures name their basis and recurring peaks (#510)', async ({ page }) => {
+async function openOrgLoad(page: Page, view: string) {
   await openExample(page);
-  await showView(page, 'Meeting load');
-  const panel = page.getByRole('tabpanel', { name: 'Meeting load' });
-  await expect(
-    panel.getByRole('columnheader', { name: 'Ø hours/week in the planning horizon' }),
-  ).toBeVisible();
-  await expect(panel.getByText(/Tall blue bars are recurring peaks/)).toBeVisible();
-  // The example's peak week W25 has no load spike: it comes back with the cadence (#510).
-  await expect(panel.locator('[data-peak] .sub')).toHaveText('12.3 h in that week (recurring)');
-  await expect(panel.locator('tr[data-person="person-alex"] td.peak')).toHaveText(
-    'W25 (7.5 h) (recurring)',
-  );
+  await showView(page, view);
+  await page.locator('.switcher .pick').click();
+  await page.locator('.switcher .list button.org').click();
+  return page.getByRole('tabpanel', { name: view });
+}
+
+test.use({ locale: 'en-US' });
+test.describe('Meeting load basis', () => {
+  test('load figures name their basis and only recurring peaks are marked (#510)', async ({
+    page,
+  }) => {
+    const panel = await openOrgLoad(page, 'Meeting load');
+    await expect(
+      panel.getByRole('columnheader', { name: 'Ø hours/week in the planning horizon' }),
+    ).toBeVisible();
+    await expect(panel.getByText(/Tall bars without a warning are recurring peaks/)).toBeVisible();
+    // Jordan's peak comes back every sprint; Alex's W25 is a one-off peak.
+    await expect(panel.locator('tr[data-person="person-jordan"] td.peak')).toHaveText(
+      'W1 (1.1 h) (recurring)',
+    );
+    await expect(panel.locator('tr[data-person="person-alex"] td.peak')).toHaveText('W25 (7.5 h)');
+    await expect(panel.locator('[data-peak] .sub')).toHaveText('28.9 h in that week');
+  });
 });
