@@ -27,7 +27,7 @@ All ids (the workspace `id` and the ids of roles, people, categories, teams, are
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `locale` | `"de"` or `"en"` | Language of the app while the browser has none chosen. Switching the language in Settings is stored in the browser, not in the file; "Match the file" goes back to this one. |
-| `region` | string | Id of a built-in or imported region. An unknown id still loads, but then no holidays are used. |
+| `region` | string | Id of a built-in or imported region, or `none` for no public holidays (a new workspace starts with `none` until the setup wizard asks for a region). An unknown id still loads, but then no holidays are used. |
 | `timezone` | string | IANA time zone, for example `Europe/Berlin`. |
 | `workdays` | list of 1-7 | Working weekdays, Monday is 1, Sunday is 7. Not empty, no duplicates. |
 | `hoursPerWeek` | number | Default working hours per week, above 0. A team member without an entry in `memberHours` has these hours. The app also uses them as the weekly limit: a person whose hours in all teams and areas add up to more is flagged, and adding a person to one more team proposes the hours left. When none are left, the setup wizard and the Team view propose an even split over all their teams and areas and, unless unticked, lower their hours in the others in proportion (in half hours) so they stay within these hours. The tick shows only while the hours typed for the new team are below these hours. |
