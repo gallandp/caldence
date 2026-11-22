@@ -349,6 +349,27 @@ test('"Add to calendar" says "changed – export again" after a change to an exp
   await exportText(page);
   await showView(page, 'Meetings & cadence');
   await expect(toCalendar).toHaveText('Add to calendar…');
+  // Saving a meeting unchanged gives no hint; a new time does.
+  const edit = async (time?: string) => {
+    await meetings.getByRole('button', { name: 'Edit Sprint Planning' }).click();
+    if (time) await meetings.getByLabel('Time (HH:MM)').fill(time);
+    await meetings.getByRole('button', { name: 'Save' }).click();
+  };
+  await edit();
+  await expect(toCalendar).toHaveText('Add to calendar…');
+  // A person export is marked too; the next team export clears the team in every scope.
+  await toCalendar.click();
+  await panel(page).getByRole('radio', { name: 'Person', exact: true }).check();
+  await panel(page).getByLabel('Selected person').selectOption({ label: 'Sam' });
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await edit('11:00');
+  await expect(toCalendar).toContainText('changed – export again');
+  await toCalendar.click();
+  await panel(page).getByRole('radio', { name: 'Team', exact: true }).check();
+  await exportText(page);
+  await showView(page, 'Meetings & cadence');
+  await expect(toCalendar).toHaveText('Add to calendar…');
 });
 
 test('"Add to calendar" opens the export for this team, then for the person exported last', async ({

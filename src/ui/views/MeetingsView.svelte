@@ -383,11 +383,13 @@
     const ei =
       event.id === '' ? team.events.length : team.events.findIndex((e) => e.id === event.id);
     const teamId = team.id;
+    const before = team.events.find((e) => e.id === event.id);
     const result = doCommit
       ? commit((ws) => upsertEvent(ws, teamId, event))
       : validate(upsertEvent($workspace, teamId, event)[0]);
     if (result.ok) {
-      if (doCommit && event.id !== '') markChanged($workspace.id, teamId, event.id);
+      if (doCommit && before && JSON.stringify(before) !== JSON.stringify(event))
+        markChanged($workspace.id, teamId, event.id);
       if (doCommit) void close();
       return null;
     }
@@ -549,7 +551,7 @@
             </svg>
             {$t('meet.toCalendar')}
             {#if exportStale}
-              <span class="stale" data-export-stale>{$t('meet.toCalendar.stale')}</span>
+              <span class="stale" data-export-stale>• {$t('meet.toCalendar.stale')}</span>
             {/if}
           </button>
         {/if}
@@ -1039,6 +1041,15 @@
     align-items: center;
     gap: 0.45rem;
     margin-left: auto;
+  }
+  @media (max-width: 479px) {
+    .to-calendar {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .to-calendar .stale {
+      flex-basis: 100%;
+    }
   }
   .to-calendar .stale {
     font-size: 0.85em;

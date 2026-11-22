@@ -59,6 +59,13 @@ export function lastExport(workspaceId: string, scope: Filter): ExportedEvent[] 
 /** Remembers what an export of this scope put into the calendar. */
 export function rememberExport(workspaceId: string, scope: Filter, events: ExportedEvent[]): void {
   const store = read();
+  // Teams whose meetings this export now holds are up to date in every scope of this file.
+  for (const [key, entry] of Object.entries(store)) {
+    if (!key.startsWith(`${workspaceId}|`) || !Array.isArray(entry?.changed)) continue;
+    entry.changed = entry.changed.filter(
+      (team) => !events.some((e) => e.uid.includes(`.${uidPart(team)}.${uidPart(workspaceId)}`)),
+    );
+  }
   store[scopeKey(workspaceId, scope)] = { at: Date.now(), events };
   const keep = Object.entries(store)
     .sort(([, a], [, b]) => b.at - a.at)

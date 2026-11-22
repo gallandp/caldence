@@ -41,4 +41,29 @@ describe('export out of date (#509)', () => {
     markChanged('ws', 'team-a', 'ref');
     expect(staleForTeam('ws', 'team-a')).toBe(true);
   });
+
+  it('clears a team in every scope when an export holds it again', () => {
+    rememberExport('ws', { personId: 'p1' }, [ev('ref.team-a.ws@caldence')]);
+    markChanged('ws', 'team-a', 'ref');
+    rememberExport('ws', { teamId: 'team-a' }, [ev('daily.team-a.ws@caldence')]);
+    expect(staleForTeam('ws', 'team-a')).toBe(false);
+  });
+
+  it('reads entries without marks and survives blocked storage', () => {
+    localStorage.setItem(
+      'caldence.exports.v1',
+      JSON.stringify({ 'ws|||p1': { at: 1, events: [ev('ref.team-a.ws@caldence')] } }),
+    );
+    expect(staleForTeam('ws', 'team-a')).toBe(false);
+    globalThis.localStorage = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    } as unknown as Storage;
+    expect(() => markChanged('ws', 'team-a', 'ref')).not.toThrow();
+    expect(staleForTeam('ws', 'team-a')).toBe(false);
+  });
 });
