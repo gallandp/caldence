@@ -240,3 +240,39 @@ test('a name over the limit opens Meeting load at that person, also with hidden 
   await expect(row).toBeFocused();
   await expect(row).toBeInViewport();
 });
+
+test('presenting, a what-if on the reference team says "before the what-ifs" (#484)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const summary = page.locator('[data-area-overview]');
+  const lead = summary.locator('.lead');
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  // Team Beta, the reference, gets a longer cadence in Meetings & cadence.
+  await summary.getByRole('button', { name: 'Open Team Beta in Meetings & cadence' }).click();
+  await page.locator('#panel-meetings .cadence').getByRole('button', { name: 'What if …' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Beta' });
+  await sheet.getByLabel('Length (weeks)').fill('3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('#panel-meetings .cadence')).toContainText('Flow · 3 weeks');
+  await pickOrg(page);
+  await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
+  await showView(page, 'Organisation');
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta before the what-ifs',
+  );
+  // Reset brings back the unchanged wording.
+  await page
+    .getByRole('region', { name: 'What if' })
+    .getByRole('button', { name: 'Reset' })
+    .click();
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
+});

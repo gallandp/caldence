@@ -5,11 +5,14 @@ import { emptyWorkspace } from '../../src/core/model';
 import {
   holidayIndex,
   holidaysFor,
+  isBuiltinRegion,
+  NO_HOLIDAYS,
   resolveRegion,
   validateRegion,
   type Region,
 } from '../../src/core/regions';
 import { REGIONS } from '../../src/data/regions';
+import { workspaceIndex } from '../../src/core/views';
 
 const r = validateRegion(deSnJson);
 if (!r.ok) throw new Error('de-sn invalid');
@@ -259,5 +262,19 @@ describe('bundled German states (#23)', () => {
     const index = holidayIndex(REGIONS['de-by']!, '2027-01-01', '2027-12-31');
     expect(index.schoolHolidays.size).toBe(0);
     expect(index.beyondKnown).toBe(true);
+  });
+});
+
+describe('no region chosen yet (#508)', () => {
+  it('a new workspace drops no meetings until a region is chosen', () => {
+    expect(emptyWorkspace('2026-01-05').settings.region).toBe(NO_HOLIDAYS);
+  });
+
+  it('"No public holidays" is a reserved id without holidays', () => {
+    const ws = emptyWorkspace('2026-01-05');
+    expect(isBuiltinRegion(NO_HOLIDAYS)).toBe(true);
+    expect(resolveRegion(ws, NO_HOLIDAYS)).toBeNull();
+    ws.settings.region = NO_HOLIDAYS;
+    expect(workspaceIndex(ws).holidays.size).toBe(0);
   });
 });
