@@ -170,6 +170,12 @@ describe('teams that fall out of step (#506)', () => {
     const r = setCadenceLength(saved, inStep, len + 1);
     if (!r.ok) throw new Error('length');
     const after = whatIfEffect(r.value, noIndex(), area.id, undefined, saved)!;
+    expect(before.inStep.off.map((o) => o.teamId)).not.toContain(inStep);
+    expect(after.inStep!.off.map((o) => o.teamId)).toEqual(
+      [...before.inStep.off.map((o) => o.teamId), inStep].sort(
+        (a, b) => area.teamIds.indexOf(a) - area.teamIds.indexOf(b),
+      ),
+    );
     const lost = after.inStep!.off.find((o) => o.teamId === inStep)!;
     expect(lost.reasons.some((x) => x.kind === 'length')).toBe(true);
     expect(after.inStep!.n).toBe(before.inStep.n - 1);

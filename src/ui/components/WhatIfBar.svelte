@@ -28,49 +28,63 @@
   const changes = $derived(list.length);
   /** Two changes by name, the rest as "+N more" (#506). */
   const SHOWN = 2;
-  const unitOf = (id: string) => units($workspace).find((u) => u.id === id);
+  let expanded = $state(false);
+  const unitIn = (w: typeof $workspace, id: string) => units(w).find((u) => u.id === id);
+  const arrow = (key: string, from: string, to: string, kind = '') => $t(key, { from, to, kind });
+  /** Every field that differs, joined with "; " ("Team Alpha: sprint 2 → 3 weeks; sprint start …"). */
   function changeText(c: Change): string {
-    const unit = unitOf(c.unitId);
     const name = unitName($workspace, c.unitId, $levels.org);
+    const parts: string[] = [];
     if (c.kind === 'meeting') {
-      if (
-        c.from.duration !== c.to.duration &&
-        JSON.stringify(c.from.rule) === JSON.stringify(c.to.rule)
-      )
-        return $t('whatif.bar.change.duration', {
-          name,
-          meeting: c.name,
-          from: formatNumber($locale, c.from.duration, 0),
-          to: formatNumber($locale, c.to.duration, 0),
-        });
-      const rule = (r: typeof c.from.rule) => (unit ? ruleShort(r, unit, $t, $locale) : '');
-      return $t('whatif.bar.change.rule', {
-        name,
-        meeting: c.name,
-        from: rule(c.from.rule),
-        to: rule(c.to.rule),
-      });
+      if (c.from.duration !== c.to.duration)
+        parts.push(
+          arrow(
+            'whatif.bar.part.duration',
+            formatNumber($locale, c.from.duration, 0),
+            formatNumber($locale, c.to.duration, 0),
+          ),
+        );
+      if (JSON.stringify(c.from.rule) !== JSON.stringify(c.to.rule)) {
+        const old = $presentBase && unitIn($presentBase, c.unitId);
+        const now = unitIn($workspace, c.unitId);
+        parts.push(
+          arrow(
+            'whatif.bar.part.rule',
+            old ? ruleShort(c.from.rule, old, $t, $locale) : '',
+            now ? ruleShort(c.to.rule, now, $t, $locale) : '',
+          ),
+        );
+      }
+      return $t('whatif.bar.change.meeting', { name, meeting: c.name, parts: parts.join('; ') });
     }
     if (c.from.kind !== c.to.kind)
-      return $t('whatif.bar.change.kind', {
-        name,
-        from: $t(`team.cadence.kind.${c.from.kind}`),
-        to: $t(`team.cadence.kind.${c.to.kind}`),
-      });
+      parts.push(
+        arrow(
+          'whatif.bar.part.kind',
+          $t(`team.cadence.kind.${c.from.kind}`),
+          $t(`team.cadence.kind.${c.to.kind}`),
+        ),
+      );
     const kind = $t(`meet.kind.${c.to.kind}`);
     if (c.from.lengthWeeks !== c.to.lengthWeeks)
-      return $t('whatif.bar.change.length', {
-        name,
-        kind,
-        from: formatNumber($locale, c.from.lengthWeeks, 0),
-        to: formatNumber($locale, c.to.lengthWeeks, 0),
-      });
-    return $t('whatif.bar.change.start', {
-      name,
-      kind,
-      from: formatDisplayDate($locale, c.from.start, 'short'),
-      to: formatDisplayDate($locale, c.to.start, 'short'),
-    });
+      parts.push(
+        arrow(
+          'whatif.bar.part.length',
+          formatNumber($locale, c.from.lengthWeeks, 0),
+          formatNumber($locale, c.to.lengthWeeks, 0),
+          kind,
+        ),
+      );
+    if (c.from.start !== c.to.start)
+      parts.push(
+        arrow(
+          'whatif.bar.part.start',
+          formatDisplayDate($locale, c.from.start, 'short'),
+          formatDisplayDate($locale, c.to.start, 'short'),
+          kind,
+        ),
+      );
+    return $t('whatif.bar.change', { name, parts: parts.join('; ') });
   }
   const scope = $derived($activeTeamId ? effectScope($workspace, $activeTeamId) : undefined);
   const rate = $derived($workspace.settings.hourlyRate);
@@ -101,8 +115,9 @@
     $t('whatif.bar.share', { name, value: loadValue($t, $locale, b, a) });
   /** Teams aligned before and not after, with the reason (#478): said plainly, in warning colour. */
   const lost = $derived(
-    before?.inStep && after?.inStep
-      ? after.inStep.off.filter((o) => !before.inStep!.off.some((b) => b.teamId === o.teamId))
+    // Without a count before (no reference then), every team counts as aligned before.
+    after?.inStep
+      ? after.inStep.off.filter((o) => !before?.inStep?.off.some((b) => b.teamId === o.teamId))
       : [],
   );
   const signedEuro = (n: number) =>
@@ -125,11 +140,19 @@
       })}
     </strong>
     <span class="changes" data-whatif-changes>
-      {#each list.slice(0, SHOWN) as c, i (i)}<span>{changeText(c)}</span>{/each}
-      {#if changes > SHOWN}
-        <span class="muted" title={list.slice(SHOWN).map(changeText).join('\n')}>
+      {#each list as c, i (i)}
+        <span class:extra={i >= SHOWN && !expanded}>{changeText(c)}</span>
+      {/each}
+      {#if changes > SHOWN && !expanded}
+        <button
+          type="button"
+          class="more"
+          data-no-print
+          aria-expanded="false"
+          onclick={() => (expanded = true)}
+        >
           {$t('whatif.bar.change.more', { n: changes - SHOWN })}
-        </span>
+        </button>
       {/if}
     </span>
     <!-- Only the lines the changes touch; otherwise a line would read "16 % → 16 %". -->
@@ -159,7 +182,7 @@
       {#each lost as o (o.teamId)}
         <span class="lost" data-whatif-lost>
           {$t('whatif.bar.lost', {
-            name: $workspace.teams.find((x) => x.id === o.teamId)?.name ?? '',
+            name: unitName($workspace, o.teamId, $levels.org),
             reasons: o.reasons.map((r) => stepReasonText(r, $t, $locale)).join(', '),
           })}
         </span>
@@ -193,7 +216,25 @@
     flex-wrap: wrap;
     gap: 0.25rem 0.75rem;
   }
-  .changes > span:not(:last-child)::after {
+  .changes > .extra {
+    display: none;
+  }
+  @media print {
+    .changes > .extra {
+      display: inline;
+    }
+  }
+  .changes > button.more {
+    margin-left: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-text, var(--accent));
+    text-decoration: underline;
+    font: inherit;
+    cursor: pointer;
+  }
+  .changes > span:not(:last-of-type)::after {
     content: ' ·';
     color: var(--text-muted);
   }
