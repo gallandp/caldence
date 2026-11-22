@@ -369,11 +369,17 @@
    * both count the same. Only pairs that touch the units in scope, unless a person is chosen.
    */
   let overlapsBox: HTMLElement | undefined = $state();
+  let overlapsTitle: HTMLElement | undefined = $state();
+  /** Scrolls to the overlap list and moves focus to its heading, for keyboard and screen readers. */
+  function showOverlaps() {
+    overlapsBox?.scrollIntoView({ block: 'start' });
+    overlapsTitle?.focus({ preventScroll: true });
+  }
   // Brought into view when asked for from the area Overview (#445).
   $effect(() => {
     if (!$loadOverlaps || !overlapsBox) return;
     loadOverlaps.set(false);
-    void tick().then(() => overlapsBox?.scrollIntoView({ block: 'start' }));
+    void tick().then(showOverlaps);
   });
   const overlapWindow = $derived(overviewWindow($workspace.settings.horizon, localToday()));
   const overlaps = $derived.by(() => {
@@ -856,7 +862,20 @@
       })}
     </p>
     {#if warningItems.length === 0}
-      <p class="note">{$t('load.warnings.none')}</p>
+      {#if overlaps.length > 0}
+        <!-- No false all-clear while overlaps exist (#505). -->
+        <p class="note" data-warnings-empty>
+          {$t('load.warnings.noneLoad')}
+          <span aria-hidden="true">·</span>
+          <button type="button" class="week-link" data-overlaps-link onclick={showOverlaps}>
+            {$t(overlaps.length === 1 ? 'overlaps.pairs.one' : 'overlaps.pairs.other', {
+              n: overlaps.length,
+            })}
+          </button>
+        </p>
+      {:else}
+        <p class="note" data-warnings-empty>{$t('load.warnings.none')}</p>
+      {/if}
     {/if}
     {#if warningItems.length > 0}
       <ul class="warnings">
@@ -875,7 +894,7 @@
       </ul>
     {/if}
     {#if overlaps.length > 0}
-      <h4 class="hints-title">
+      <h4 class="hints-title" tabindex="-1" bind:this={overlapsTitle}>
         {$t('load.overlaps')}
         <span class="count" aria-hidden="true">{overlaps.length}</span>
       </h4>

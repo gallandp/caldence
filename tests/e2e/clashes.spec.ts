@@ -82,6 +82,13 @@ test('Meeting load lists one line per overlapping meeting pair', async ({ page }
   await expect(clashes).toHaveText([
     `Sprint Planning (Team Alpha) × Replenishment (Team Beta): Thu 11:00–12:00 · Alex and Sam · ${ALPHA_PAIR_DAYS} days · e.g. 01/07/2027`,
   ]);
+  // One pair and, with load spikes from 10 ×, no load warnings: the singular (#505).
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Load spike from (× usual load)').fill('10');
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  await expect(warnings.locator('[data-warnings-empty]')).toHaveText(
+    'No load warnings · 1 overlapping meeting pair',
+  );
   // The example's date opens its week for that person; back returns to Meeting load (#375).
   await clashes
     .first()
@@ -176,12 +183,19 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await pickUnit(page, 'Commerce');
       await expect(warnings.locator('li[data-clash]')).toHaveCount(COMMERCE_PAIRS);
       await expect(badge).toHaveCount(0);
-      await expect(warnings.getByText('No warnings')).toBeVisible();
+      // No false all-clear while overlaps exist (#505).
+      await expect(warnings.getByText('No warnings', { exact: true })).toHaveCount(0);
+      await expect(warnings.getByText('No load warnings')).toBeVisible();
+      await warnings
+        .getByRole('button', { name: `${COMMERCE_PAIRS} overlapping meeting pairs` })
+        .click();
+      await expect(warnings.locator('[data-clashes]')).toBeInViewport();
+      await expect(warnings.getByRole('heading', { name: 'Overlapping meetings' })).toBeFocused();
       await expect(overlapBadge).toHaveText(String(COMMERCE_PAIRS));
       // Team Gamma: the same rule at the team level.
       await pickUnit(page, 'Team Gamma');
       await expect(badge).toHaveCount(0);
-      await expect(warnings.getByText('No warnings')).toBeVisible();
+      await expect(warnings.getByText('No load warnings')).toBeVisible();
       await expect(overlapBadge).toHaveText(
         String(await warnings.locator('li[data-clash]').count()),
       );
@@ -192,10 +206,19 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await expect(badge).toHaveText('2');
       await expect(warnings.locator('li[data-clash]')).toHaveCount(4);
       await expect(overlapBadge).toHaveText('4');
+      // With load warnings, no empty-state line at all (#505).
+      await expect(warnings.locator('[data-warnings-empty]')).toHaveCount(0);
       await setLanguage(page, 'de');
       await pickUnit(page, 'Commerce');
       await expect(
-        page.getByRole('region', { name: 'Warnungen', exact: true }).getByText('Keine Warnungen'),
+        page
+          .getByRole('region', { name: 'Warnungen', exact: true })
+          .getByText('Keine Lastwarnungen'),
+      ).toBeVisible();
+      await expect(
+        page
+          .getByRole('region', { name: 'Warnungen', exact: true })
+          .getByRole('button', { name: `${COMMERCE_PAIRS} überschneidende Terminpaare` }),
       ).toBeVisible();
     });
 });
