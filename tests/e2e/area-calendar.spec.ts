@@ -81,3 +81,55 @@ test('with the area selected the calendar shows area and team meetings', async (
   await expect(currentUnit(page)).toHaveText('Unit');
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Forum');
 });
+
+test('in area scope the month chips carry a short team tag (#504)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1400 });
+  await page.goto('/');
+  await openWorkspaceFile(page, areaWorkspace());
+  await pickUnit(page, 'Unit');
+  await showView(page, 'Calendar');
+  const grid = page.locator('table:has(td .chip)');
+  const standup = grid.locator('.chip', { hasText: 'Stand-up A' }).first();
+  await expect(standup.locator('.team')).toHaveText('A');
+  await expect(grid.locator('.chip', { hasText: 'Review B' }).first().locator('.team')).toHaveText(
+    'B',
+  );
+  // The area meeting has the area icon, no team tag.
+  await expect(grid.locator('.chip', { hasText: 'Forum' }).first().locator('.team')).toHaveCount(0);
+
+  // One team: no tags.
+  await pickUnit(page, 'Team B');
+  await expect(grid.locator('.chip', { hasText: 'Review B' }).first()).toBeVisible();
+  await expect(grid.locator('.chip .team')).toHaveCount(0);
+});
+
+test('tagged chips fit their day; a person in two teams sees the tags (#504)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const ws = areaWorkspace();
+  const b = ws.teams[1];
+  b.name = 'Team Platform Engineering Excellence';
+  b.events[0].name = 'Review of the platform roadmap and the quarterly objectives';
+  b.events[0].rule.weekday = 4;
+  b.members.push({ personId: 'p1', roleId: 'r1' });
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+  await pickUnit(page, 'Unit');
+  await showView(page, 'Calendar');
+  const grid = page.locator('table:has(td .chip)');
+  const tag = grid.locator('.chip .team', { hasText: 'Platform' }).first();
+  await expect(tag).toBeVisible();
+  // The long tag is cut at its maximum width.
+  expect((await tag.boundingBox())!.width).toBeLessThanOrEqual(4.5 * 16 + 1);
+  // Chips and "+n more" never overflow a day.
+  const overflowing = await grid
+    .locator('td .visual')
+    .evaluateAll((els) => els.filter((el) => el.scrollHeight > el.clientHeight + 1).length);
+  expect(overflowing).toBe(0);
+
+  // A person in both teams: their chips are tagged too.
+  await page
+    .getByRole('region', { name: 'Show for' })
+    .getByLabel('Person')
+    .selectOption({ label: 'Alex' });
+  await expect(grid.locator('.chip .team', { hasText: /^A$/ }).first()).toBeVisible();
+});

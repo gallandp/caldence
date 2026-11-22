@@ -638,3 +638,42 @@ export function nextDates(
   }
   return next;
 }
+
+/**
+ * A day's meetings for the month grid: the rarer ones first (fewer occurrences in the horizon),
+ * then the longer ones, then by start; so planning and review show before the dailies (#504).
+ */
+export function rareFirst<
+  T extends { teamId: string; eventId: string; start: string; duration: number },
+>(list: readonly T[], count: Readonly<Record<string, number>>): T[] {
+  const n = (o: T) => count[`${o.teamId}/${o.eventId}`] ?? 0;
+  return [...list].sort(
+    (a, b) =>
+      n(a) - n(b) ||
+      b.duration - a.duration ||
+      a.start.localeCompare(b.start) ||
+      a.teamId.localeCompare(b.teamId),
+  );
+}
+
+/** Short team tags by team id: each name without the words all names share ("Team Alpha" → "Alpha"). */
+export function teamTags(teams: readonly { id: string; name: string }[]): Record<string, string> {
+  const words = teams.map((t) => t.name.split(/\s+/).filter(Boolean));
+  const shared = new Set(words[0]?.filter((w) => words.every((ws) => ws.includes(w))));
+  const tags: Record<string, string> = {};
+  teams.forEach((t, i) => {
+    tags[t.id] = words[i]!.filter((w) => !shared.has(w)).join(' ') || t.name;
+  });
+  return tags;
+}
+
+/**
+ * How often each meeting takes place in the horizon, by `teamId/eventId`, whatever the filter:
+ * a role or person filter does not change the order of a day (#504).
+ */
+export function meetingFrequency(ws: Workspace, index: HolidayIndex): Record<string, number> {
+  const count: Record<string, number> = {};
+  for (const o of filteredOccurrences(ws, index, {}))
+    count[`${o.teamId}/${o.eventId}`] = (count[`${o.teamId}/${o.eventId}`] ?? 0) + 1;
+  return count;
+}
