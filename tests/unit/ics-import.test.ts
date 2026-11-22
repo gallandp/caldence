@@ -669,6 +669,7 @@ describe('reviewImport: area meetings (#253)', () => {
       locale: 'en',
     });
     const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    expect(review.candidates.length).toBeGreaterThan(0);
     const areaIds = new Set(ws.areas[0]!.events.map((e) => e.id));
     expect(review.candidates.some((c) => areaIds.has(c.duplicateOf ?? ''))).toBe(true);
     expect(review.candidates.every((c) => c.duplicateOf !== null && !c.selected)).toBe(true);

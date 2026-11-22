@@ -259,14 +259,14 @@ function teamGuests(ws: Workspace, unit: Team, scope: Filter): Set<string> | und
  * enabling an export button; the exported file may still be empty for a given period.
  */
 export function scopeHasEvents(ws: Workspace, scope: Filter): boolean {
-  return exportUnits(ws, scope).some((team) => eventsInScope(ws, team, scope).length > 0);
+  return exportUnits(ws, scope, true).some((team) => eventsInScope(ws, team, scope).length > 0);
 }
 
 /**
  * Teams and areas whose meetings a scope exports. An area on its own gives its own meetings
  * only: its teams have calendars of their own, so a ZIP of all calendars holds nothing twice.
  */
-function exportUnits(ws: Workspace, scope: Filter, areaMeetings = true): Team[] {
+function exportUnits(ws: Workspace, scope: Filter, areaMeetings = false): Team[] {
   // The organisation's calendar, like an area's, holds its own meetings (#328).
   const area = findArea(ws, scope.teamId);
   if (area) return [areaAsTeam(area)];
@@ -290,7 +290,7 @@ function* scopedMeetings(
   to: ISODate,
 ): Generator<{ team: Team; event: CalEvent; occs: Occurrence[] }> {
   const settings = { ...ws.settings, horizon: { from, to } };
-  for (const team of exportUnits(ws, scope)) {
+  for (const team of exportUnits(ws, scope, true)) {
     const byEvent = new Map<string, Occurrence[]>();
     for (const occ of occurrences(team, settings, index)) {
       const list = byEvent.get(occ.eventId);
@@ -648,7 +648,7 @@ export function exportIcsWithCounts(
   }
 
   if (opts.allDay.milestones) {
-    for (const team of exportUnits(ws, opts.scope, false)) {
+    for (const team of exportUnits(ws, opts.scope)) {
       for (const cycle of team.cycles) {
         for (const m of cycle.milestones) {
           if (!inRange(m.date)) continue;

@@ -11,6 +11,7 @@ import {
   foldLine,
   holidayDrops,
   paramValue,
+  attendsUnitMeetings,
   scopeHasEvents,
   uidPart,
   vtimezone,
@@ -1034,5 +1035,20 @@ describe('team file with area meetings (#507)', () => {
     gamma.teams.find((t) => t.id === 'team-gamma')!.members = [];
     const empty = run(gamma, opts({ scope: { teamId: 'team-gamma' } }));
     expect(uids(empty).some((u) => u.startsWith('ev-po-forum'))).toBe(false);
+  });
+
+  it('holds organisation meetings that invite a role from every team', () => {
+    const ws = example();
+    const sync = ev('ev-org-sync', { type: 'weekdays', weekdays: [3] }, '11:00');
+    sync.participants = [{ roleId: 'role-po', share: 1, fromTeams: true }];
+    ws.organisation = { name: 'Org', events: [sync] };
+    const gamma = run(ws, opts({ scope: { teamId: 'team-gamma' } }));
+    expect(uids(gamma).some((u) => u.startsWith('ev-org-sync.'))).toBe(true);
+  });
+
+  it('a non-member attending an area meeting does not attend the team file', () => {
+    const ws = example();
+    expect(attendsUnitMeetings(ws, 'team-gamma', 'person-jordan')).toBe(false);
+    expect(attendsUnitMeetings(ws, 'area-commerce', 'person-jordan')).toBe(true);
   });
 });
