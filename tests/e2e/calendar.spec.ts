@@ -566,6 +566,17 @@ test('meeting cards and the drill-in say when their hours include travel (#496)'
   await form.getByLabel('Travel (minutes)').fill('60');
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(form).toBeHidden();
+  // On site without travel: nothing to explain.
+  await pickUnit(page, 'Team Beta');
+  await meetings.getByRole('button', { name: 'Edit Replenishment' }).first().click();
+  const replenishment = meetings.getByRole('region', { name: /Replenishment/ });
+  await replenishment
+    .getByRole('group', { name: 'Format' })
+    .getByRole('button', { name: 'On site' })
+    .click();
+  await replenishment.getByLabel('Travel (minutes)').fill('0');
+  await replenishment.getByRole('button', { name: 'Save' }).click();
+  await expect(replenishment).toBeHidden();
 
   await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
   await panel(page).getByRole('button', { name: 'Week', exact: true }).click();
@@ -576,7 +587,7 @@ test('meeting cards and the drill-in say when their hours include travel (#496)'
   await expect(thursday.getByRole('listitem').filter({ hasText: 'Sprint Planning' })).toContainText(
     '10:00–12:00 · incl. 25% preparation · incl. 60 min travel',
   );
-  // A remote meeting keeps its plain time line.
+  // An on-site meeting without travel keeps its plain time line.
   await expect(
     thursday.getByRole('listitem').filter({ hasText: 'Replenishment' }),
   ).not.toContainText('travel');

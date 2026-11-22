@@ -34,6 +34,8 @@
     onedit?: (item: DayItem) => void;
   }
   let { items, onedit }: Props = $props();
+  /** Keeps a note on one line, so the line wraps only at " · " (#496). */
+  const nowrap = (s: string) => s.replace(/ /g, '\u00a0');
 </script>
 
 <ul>
@@ -50,10 +52,10 @@
         {$t(item.nextDay ? 'cal.item.when.nextDay' : 'cal.item.when', {
           from: item.start,
           to: item.end,
-        })}{#if item.preparation > 0}<span class="prep">
-            {` · ${$t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) })}`}
-          </span>{/if}{#if item.travel > 0}<span class="prep">
-            {` · ${$t('meet.cost.travel', { n: item.travel })}`}
+        })}{#if item.preparation > 0}<span class="note">
+            {` · ${nowrap($t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) }))}`}
+          </span>{/if}{#if item.travel > 0}<span class="note">
+            {` · ${nowrap($t('meet.cost.travel', { n: item.travel }))}`}
           </span>{/if}
       </span>
       <span class="meta">{item.about}</span>
@@ -123,8 +125,8 @@
     font-variant-numeric: tabular-nums;
     font-weight: 650;
   }
-  /* Says why the hours are more than the time slot (#474); quieter than the time itself. */
-  .prep {
+  /* Preparation (#474) and travel (#496): say why the hours are more than the time slot; quieter than the time itself. */
+  .note {
     font-weight: 400;
     font-size: 0.85rem;
     color: var(--text-muted);

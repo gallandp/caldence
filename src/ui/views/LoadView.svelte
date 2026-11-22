@@ -240,7 +240,14 @@
         const travel = event.onSite?.travel
           ? $t('meet.cost.travel', { n: event.onSite.travel })
           : '';
-        return { ...m, name: event.name, rule: [rule, prep, travel].filter(Boolean).join(' · ') };
+        return {
+          ...m,
+          name: event.name,
+          rule: [
+            rule,
+            ...[prep, travel].filter(Boolean).map((n) => n.replace(/ /g, '\u00a0')),
+          ].join(' · '),
+        };
       });
     }
     return out;
