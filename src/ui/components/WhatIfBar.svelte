@@ -224,7 +224,7 @@
       display: inline;
     }
   }
-  .changes > button.more {
+  :global(#app) .changes > button.more {
     margin-left: 0;
     padding: 0;
     border: 0;
@@ -233,6 +233,10 @@
     text-decoration: underline;
     font: inherit;
     cursor: pointer;
+    box-shadow: none;
+  }
+  :global(#app) .changes > button.more:hover {
+    background: none;
   }
   .changes > span:not(:last-of-type)::after {
     content: ' ·';
