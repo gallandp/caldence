@@ -376,6 +376,8 @@ test('a team that differs says why in its cadence cell; "Differ:" names lead the
   // On a phone card the reason stays, under the name.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(row('team-gamma').locator('[data-step-reason]')).toBeVisible();
+  await tag.getByRole('button', { name: 'Team Gamma: why, in the table below' }).click();
+  await expect(row('team-gamma')).toHaveClass(/flash/);
   await expect(row('team-alpha').locator('td.extra').first()).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });

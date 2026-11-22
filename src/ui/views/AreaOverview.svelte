@@ -148,6 +148,7 @@
   /** A name in "Differ: …" goes to the team's row in the table, where its reason is (#478). */
   let flashId = $state('');
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(flashTimer));
   function showTeam(teamId: string) {
     clearTimeout(flashTimer);
     flashId = teamId;
@@ -1671,7 +1672,6 @@
   .area-name.org {
     color: var(--org);
   }
-  /* The row names keep to one line, so the column takes their width (#450). */
   /* The row a "Differ:" name jumps to, for about 1.5 s; no animation (#494). */
   [data-area-costs] tr.flash {
     outline: 3px solid var(--accent);
@@ -1683,6 +1683,7 @@
   :global(#app) [data-area-costs] tr.flash > :is(th, td) {
     background: transparent;
   }
+  /* The row names keep to one line, so the column takes their width (#450). */
   [data-area-costs] th .area-name {
     white-space: nowrap;
   }
