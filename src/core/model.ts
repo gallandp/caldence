@@ -1,7 +1,13 @@
 import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
-import { NO_HOLIDAYS, type Region } from './regions';
+import type { Region } from './regions';
+
+/**
+ * The region "No public holidays" (#508): reserved, so no imported region takes its id.
+ * Defined here, not in regions.ts, so the model loads without the bundled region data.
+ */
+export const NO_HOLIDAYS = 'none';
 
 export const CURRENT_SCHEMA = 10;
 /**

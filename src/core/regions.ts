@@ -1,6 +1,8 @@
 import { addDays, easterSunday, weekday, type ISODate } from './date';
 import { REGIONS } from '../data/regions';
-import type { Workspace } from './model';
+import { NO_HOLIDAYS, type Workspace } from './model';
+
+export { NO_HOLIDAYS };
 
 export { validateRegion } from './regionFile';
 
@@ -69,8 +71,6 @@ export function holidayIndex(region: Region, from: ISODate, to: ISODate): Holida
   return index;
 }
 
-/** The region "No public holidays" (#508): reserved, so no imported region takes its id. */
-export const NO_HOLIDAYS = 'none';
 
 export function isBuiltinRegion(id: string): boolean {
   return id === NO_HOLIDAYS || Object.prototype.hasOwnProperty.call(REGIONS, id);
