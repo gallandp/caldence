@@ -3,7 +3,14 @@
   import type { AreaShare } from '../../core/areaCosts';
   import { costPerCadence, type CostSummary } from '../../core/cost';
   import { unitName as nameOf, type Cadence } from '../../core/model';
-  import { formatEuro, formatNumber, levels, locale, translate as t } from '../../i18n';
+  import {
+    formatEuro,
+    formatNumber,
+    horizonWeekCount,
+    levels,
+    locale,
+    translate as t,
+  } from '../../i18n';
   import { workspace } from '../state/workspace';
 
   interface Props {
@@ -61,6 +68,12 @@
     {/if}
     <p data-cost-horizon>
       <span class="value">{euro(summary.horizon)}</span> <small>{$t('cost.horizon')}</small>
+      <small class="why" data-cost-horizon-note>
+        {$t('cost.horizon.avg', {
+          amount: euro(summary.horizon / $horizonWeekCount),
+          n: $horizonWeekCount,
+        })}
+      </small>
     </p>
   </div>
   {@render children?.()}
@@ -133,6 +146,11 @@
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-muted);
+  }
+  small.why {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
   }
   .unfilled,
   .area-share {

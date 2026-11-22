@@ -36,6 +36,7 @@
     formatNumber,
     formatPercent,
     areaText,
+    horizonWeekCount,
     levels,
     locale,
     nextWeeks,
@@ -571,6 +572,12 @@
         <span class="label">{$t('overview.kpi.cost.week')}</span>
         <span class="label">
           {$t('overview.kpi.cost.horizon', { amount: euro(costs.total.cost.horizon) })}
+        </span>
+        <span class="label" data-cost-horizon-note>
+          {$t('cost.horizon.avg', {
+            amount: euro(costs.total.cost.horizon / $horizonWeekCount),
+            n: $horizonWeekCount,
+          })}
         </span>
         {#if costs.total.invited > 0}
           <span class="label">
