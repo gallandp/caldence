@@ -388,18 +388,21 @@
             </span>
             {#if a.left === 0 && a.booked !== ''}
               {@const fitted = fittedText(a)}
-              <label class="check fit">
-                <input
-                  type="checkbox"
-                  checked={!keepOthers[a.key]}
-                  aria-describedby="{uid}-fitted-{i}"
-                  onchange={(e) => (keepOthers[a.key] = !e.currentTarget.checked)}
-                />
-                {$t('setup.people.fit', {
-                  units: a.booked,
-                  hpw: num($workspace.settings.hoursPerWeek),
-                })}
-              </label>
+              <!-- Only while something is left to lower: hours here below the weekly hours (#489). -->
+              {#if hoursOf(a) < $workspace.settings.hoursPerWeek}
+                <label class="check fit">
+                  <input
+                    type="checkbox"
+                    checked={!keepOthers[a.key]}
+                    aria-describedby="{uid}-fitted-{i}"
+                    onchange={(e) => (keepOthers[a.key] = !e.currentTarget.checked)}
+                  />
+                  {$t('setup.people.fit', {
+                    units: a.booked,
+                    hpw: num($workspace.settings.hoursPerWeek),
+                  })}
+                </label>
+              {/if}
               <!-- Always present, so screen readers announce the new hours as they change. -->
               <p class="fitted hint" id="{uid}-fitted-{i}" aria-live="polite">
                 {fitted !== '' && !keepOthers[a.key]

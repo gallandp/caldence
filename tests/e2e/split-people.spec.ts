@@ -69,6 +69,11 @@ test('I take part myself: the wizard asks for my hours too, and splits them when
   // 4 h here leave 36 h: Alpha and Beta go from 20 h to 18 h each.
   await hours.fill('4');
   await expect(fit).toHaveAccessibleDescription('Then: Team Alpha 18 h, Team Beta 18 h');
+  // 40 h here take the whole week: nothing to lower, so the tick goes (#489).
+  await hours.fill('40');
+  await expect(fit).toHaveCount(0);
+  await hours.fill('4');
+  await expect(fit).toBeChecked();
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await openTeamView(page);
@@ -171,6 +176,10 @@ test('the Team view splits a fully booked person evenly and lowers their other t
   // The preview follows a number typed in the field.
   await team.getByLabel('Hrs/week in team').fill('20');
   await expect(team.getByText('Then: Team Gamma 16 h, Team Delta 4 h')).toBeVisible();
+  // 40 h here take the whole week: nothing to lower, so the tick goes (#489).
+  await team.getByLabel('Hrs/week in team').fill('40');
+  await expect(fit).toHaveCount(0);
+  await expect(team.getByText(/^Then:/)).toHaveCount(0);
   await team.getByLabel('Hrs/week in team').fill('');
   await team.getByRole('button', { name: 'Add member' }).click();
   await expect(team.getByLabel('Weekly hours of Robin in Team Alpha')).toHaveValue('13');
