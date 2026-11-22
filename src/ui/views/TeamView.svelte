@@ -536,18 +536,21 @@
                 })}
               </p>
               {#if elsewhere.left === 0 && elsewhere.booked !== ''}
-                <label class="fit" data-no-present>
-                  <input
-                    type="checkbox"
-                    checked={keepFor !== elsewhere.id}
-                    aria-describedby="{uid}-fitted"
-                    onchange={(e) => (keepFor = e.currentTarget.checked ? null : elsewhere.id)}
-                  />
-                  {$t('setup.people.fit', {
-                    units: elsewhere.booked,
-                    hpw: hours(defaultHours),
-                  })}
-                </label>
+                <!-- Only while something is left to lower: hours here below the weekly hours (#489). -->
+                {#if formHours === null || formHours < defaultHours}
+                  <label class="fit" data-no-present>
+                    <input
+                      type="checkbox"
+                      checked={keepFor !== elsewhere.id}
+                      aria-describedby="{uid}-fitted"
+                      onchange={(e) => (keepFor = e.currentTarget.checked ? null : elsewhere.id)}
+                    />
+                    {$t('setup.people.fit', {
+                      units: elsewhere.booked,
+                      hpw: hours(defaultHours),
+                    })}
+                  </label>
+                {/if}
                 <!-- Always present, so screen readers announce the new hours as they change. -->
                 <p class="fitted hint" id="{uid}-fitted" aria-live="polite" data-no-present>
                   {fitted !== '' ? $t('setup.people.fitted', { hours: fitted }) : ''}
