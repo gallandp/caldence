@@ -130,6 +130,49 @@ test('a meeting what-if changes duration and rhythm; Reset brings the plan back'
   await expect(whatIfBar(page)).toContainText('While presenting, you can change');
 });
 
+test('the what-if bar names every change; "+1 more" opens the rest, print shows all (#506)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await present(page);
+  await openMeetings(page);
+  const panel = page.locator('#panel-meetings');
+  await panel.getByRole('button', { name: 'What if: Weekly Sync', exact: true }).click();
+  let sheet = page.getByRole('dialog', { name: 'Weekly Sync' });
+  await sheet.getByLabel('Duration (minutes)').fill('30');
+  await sheet.getByLabel('Weekday').selectOption({ label: 'Wednesday' });
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  await panel.getByRole('button', { name: 'What if: Backlog Refinement', exact: true }).click();
+  sheet = page.getByRole('dialog', { name: 'Backlog Refinement' });
+  await sheet.getByLabel('Duration (minutes)').fill('45');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  await panel.locator('.cadence').getByRole('button', { name: 'What if …' }).click();
+  sheet = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await sheet.getByLabel('Length (weeks)').fill('3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+
+  const changes = whatIfBar(page).locator('[data-whatif-changes] > span');
+  await expect(whatIfBar(page)).toContainText('What if · 3 changes');
+  // A cadence change first, then the meetings; duration and rhythm of one meeting are one change.
+  await expect(changes.nth(0)).toHaveText('Team Alpha: sprint 2 → 3 weeks');
+  await expect(changes.nth(1)).toHaveText(
+    /^Team Alpha · Weekly Sync: 15 → 30 min; .*Tue.* → .*Wed.*$/,
+  );
+  await expect(changes.nth(2)).toBeHidden();
+  // Printed, every change shows.
+  await page.emulateMedia({ media: 'print' });
+  await expect(changes.nth(2)).toHaveText('Team Alpha · Backlog Refinement: 60 → 45 min');
+  await page.emulateMedia({ media: 'screen' });
+  const more = whatIfBar(page).getByRole('button', { name: '+1 more' });
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(changes.nth(2)).toBeVisible();
+  await expect(more).toHaveCount(0);
+});
+
 test('a what-if in a team of an area shows the team first, then the area (#340)', async ({
   page,
 }) => {
@@ -201,6 +244,11 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   // On paper the what-if bar stays, and one line says where the figures come from.
   await page.emulateMedia({ media: 'print' });
   await expect(whatIfBar(page)).toContainText('What if · 1 change');
+  // The note why the period figure is not weekly × 52 stays on paper as well (#512).
+  await expect(whatIfBar(page).locator('[data-whatif-horizon-note]')).toBeVisible();
+  await expect(whatIfBar(page).locator('[data-whatif-horizon-note]')).toContainText(
+    /\(Ø \+€[\d,]+ \/ week over 52 weeks, without holidays\)/,
+  );
   const meta = page.locator('[data-print-meta]');
   await expect(meta).toBeVisible();
   expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(

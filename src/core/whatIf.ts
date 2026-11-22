@@ -1,8 +1,16 @@
 import { areaCosts, unitRow } from './areaCosts';
 import { shiftedDays } from './edit';
-import { compareCadences } from './areaOverview';
+import { compareCadences, type StepReason } from './areaOverview';
 import { capacity } from './load';
-import { areaOf, findArea, ORG_UNIT, units, type Workspace } from './model';
+import {
+  areaOf,
+  findArea,
+  ORG_UNIT,
+  units,
+  type Cadence,
+  type Rule,
+  type Workspace,
+} from './model';
 import type { HolidayIndex } from './regions';
 
 /**
@@ -17,8 +25,20 @@ export interface Effect {
   share: number;
   cost?: { perWeek: number; horizon: number };
   /** Only for an area with a reference cadence. */
-  inStep?: { n: number; of: number };
+  inStep?: { n: number; of: number; off: { teamId: string; reasons: StepReason[] }[] };
 }
+
+/** One what-if change, for the bar to name (#506). */
+export type Change =
+  | { kind: 'cadence'; unitId: string; from: Cadence; to: Cadence }
+  | {
+      kind: 'meeting';
+      unitId: string;
+      eventId: string;
+      name: string;
+      from: { duration: number; rule: Rule };
+      to: { duration: number; rule: Rule };
+    };
 
 /**
  * The scope a what-if is measured in: the unit's area, or the team without one. The organisation
@@ -48,7 +68,13 @@ export function whatIfEffect(
     if (area.id === ORG_UNIT) return out;
     const cmp = compareCadences(ws, area, ws.settings.horizon.from, 1, base);
     if (cmp.reference && cmp.rows.length > 0)
-      out.inStep = { n: cmp.rows.filter((r) => r.inStep).length, of: cmp.rows.length };
+      out.inStep = {
+        n: cmp.rows.filter((r) => r.inStep).length,
+        of: cmp.rows.length,
+        off: cmp.rows
+          .filter((r) => !r.inStep)
+          .map((r) => ({ teamId: r.teamId, reasons: r.reasons })),
+      };
     return out;
   }
   const team = ws.teams.find((t) => t.id === scopeId);
@@ -66,12 +92,18 @@ export function whatIfEffect(
  * rhythm changed, and each team or area whose cadence changed (with the meetings it moved).
  */
 export function countChanges(base: Workspace, ws: Workspace): number {
+  return listChanges(base, ws).length;
+}
+
+/** The changes `countChanges` counts, in unit order. */
+export function listChanges(base: Workspace, ws: Workspace): Change[] {
   const before = new Map(units(base).map((u) => [u.id, u] as const));
-  let n = 0;
+  const out: Change[] = [];
   for (const unit of units(ws)) {
     const old = before.get(unit.id);
     if (!old) continue;
-    if (JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence)) n++;
+    if (JSON.stringify(old.cadence) !== JSON.stringify(unit.cadence))
+      out.push({ kind: 'cadence', unitId: unit.id, from: old.cadence, to: unit.cadence });
     const events = new Map(old.events.map((e) => [e.id, e] as const));
     // A meeting that moved with a new cadence length is part of that one change.
     const moved = shiftedDays(old.events, old.cadence.lengthWeeks, unit.cadence.lengthWeeks);
@@ -80,10 +112,18 @@ export function countChanges(base: Workspace, ws: Workspace): number {
       if (!o) continue;
       const shifted = e.rule.type === 'cadence-day' && moved.get(e.id) === e.rule.day;
       if (shifted && o.duration === e.duration) continue;
-      if (o.duration !== e.duration || JSON.stringify(o.rule) !== JSON.stringify(e.rule)) n++;
+      if (o.duration !== e.duration || JSON.stringify(o.rule) !== JSON.stringify(e.rule))
+        out.push({
+          kind: 'meeting',
+          unitId: unit.id,
+          eventId: e.id,
+          name: e.name,
+          from: { duration: o.duration, rule: o.rule },
+          to: { duration: e.duration, rule: e.rule },
+        });
     }
   }
-  return n;
+  return out;
 }
 
 /**

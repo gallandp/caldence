@@ -196,3 +196,83 @@ test("the organisation's own meetings close the cost table, in no area's group (
   await expect(org.locator('th[scope="rowgroup"]')).toHaveCount(0);
   await expect(costs.locator('tbody').last()).toHaveText(/Portfolio Sync/);
 });
+
+test('a name over the limit opens Meeting load at that person, also with hidden names (#483)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  const limit = page.getByLabel('Limit: share of weekly hours in meetings');
+  await limit.fill('5');
+  await limit.press('Enter');
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const tag = page.locator('[data-area-overview] [data-kpi="load"] .tag');
+  const first = tag.getByRole('button').first();
+  const name = (await first.textContent())!;
+  await expect(first).toHaveAccessibleName(`Show ${name} in Meeting load`);
+  await first.click();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Organisation');
+  const who = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${name}$`),
+  });
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toBeFocused();
+  await expect(who).toBeInViewport();
+
+  // Presenting with hidden names: the link keeps the hidden name and still opens the row.
+  await showView(page, 'Organisation');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  const hidden = tag.getByRole('button').first();
+  await expect(hidden).toHaveText(/^Person \d+$/);
+  await expect(hidden).toHaveAccessibleName(/^Show Person \d+ in Meeting load$/);
+  const pseudonym = (await hidden.textContent())!;
+  await hidden.click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${pseudonym}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
+  await expect(row).toBeInViewport();
+});
+
+test('presenting, a what-if on the reference team says "before the what-ifs" (#484)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const summary = page.locator('[data-area-overview]');
+  const lead = summary.locator('.lead');
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  // Team Beta, the reference, gets a longer cadence in Meetings & cadence.
+  await summary.getByRole('button', { name: 'Open Team Beta in Meetings & cadence' }).click();
+  await page.locator('#panel-meetings .cadence').getByRole('button', { name: 'What if …' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Beta' });
+  await sheet.getByLabel('Length (weeks)').fill('3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.locator('#panel-meetings .cadence')).toContainText('Flow · 3 weeks');
+  await pickOrg(page);
+  await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
+  await showView(page, 'Organisation');
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta before the what-ifs',
+  );
+  // Reset brings back the unchanged wording.
+  await page
+    .getByRole('region', { name: 'What if' })
+    .getByRole('button', { name: 'Reset' })
+    .click();
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
+});

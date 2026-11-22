@@ -42,6 +42,11 @@ export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | '
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(utc);
 }
 
+/** The weeks of the planning horizon, at least one: what the period cost spreads over (#512). */
+export function horizonWeeks(horizon: { from: ISODate; to: ISODate }): number {
+  return Math.max(1, Math.round((diffDays(horizon.to, horizon.from) + 1) / 7));
+}
+
 /**
  * The planning horizon as cost labels name it: "2027, 52 Wo." for a full calendar year,
  * otherwise "01.03.2027–30.05.2027, 13 Wo.".
@@ -53,7 +58,7 @@ export function formatHorizon(locale: Locale, horizon: { from: ISODate; to: ISOD
     from === `${year}-01-01` && to === `${year}-12-31`
       ? year
       : `${formatDisplayDate(locale, from, 'short')}–${formatDisplayDate(locale, to, 'short')}`;
-  const n = Math.max(1, Math.round((diffDays(to, from) + 1) / 7));
+  const n = horizonWeeks(horizon);
   return t(locale, n === 1 ? 'horizon.label.one' : 'horizon.label.other', { period, n });
 }
 
@@ -88,6 +93,8 @@ export const locale = writable<Locale>(detectLocale());
 export const levels = writable<LevelWords>(levelWords(undefined, detectLocale()));
 /** The workspace's planning horizon as `formatHorizon` names it; App keeps it in step. */
 export const horizonLabel = writable('');
+/** The weeks of the planning horizon (`horizonWeeks`); App keeps it in step (#512). */
+export const horizonWeekCount = writable(52);
 /**
  * Store of a translate function; import as `translate as t` in components and use `$t(key)`.
  * Every text can use the level names as `{levelTeam}`, `{levelTeamsLc}` and so on, and the
