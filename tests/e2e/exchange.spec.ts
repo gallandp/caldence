@@ -103,6 +103,23 @@ test('one file per person comes as a ZIP with a calendar for each person', async
   await expect(panel(page).getByRole('status')).toContainText('caldence-people.zip saved with');
 });
 
+test('team files in the ZIP hold the area meetings their people are invited to (#507)', async ({
+  page,
+}) => {
+  await openExchange(page);
+  const download = page.waitForEvent('download');
+  await panel(page).getByRole('button', { name: 'One file per team (ZIP)…' }).click();
+  const text = readFileSync((await (await download).path())!).toString('latin1');
+  const gamma = text.slice(text.indexOf('caldence-team-gamma.ics'));
+  const gammaFile = gamma.slice(0, gamma.indexOf('END:VCALENDAR'));
+  expect(gammaFile).toContain('UID:ev-po-forum.area-commerce.');
+  const alpha = text.slice(text.indexOf('caldence-team-alpha.ics'));
+  expect(alpha.slice(0, alpha.indexOf('END:VCALENDAR'))).not.toContain('UID:ev-po-forum.');
+  await expect(panel(page).getByRole('status')).toContainText(
+    'Each team file also holds the meetings in the area its people are invited to',
+  );
+});
+
 test('an inverted period shows an error and an empty period says so on export', async ({
   page,
 }) => {
