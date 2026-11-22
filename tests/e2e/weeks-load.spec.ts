@@ -335,7 +335,7 @@ test('the person filter limits the person table and the warnings to that person'
     `${fmt('en', ALEX.average)} of ${fmt('en', 32)} h`,
     pct('en', ALEX.fte),
     `${fmt('en', 0.6 * 32 - ALEX.average)} h`,
-    `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h)`,
+    `W${ALEX.peakWeek} (${fmt('en', ALEX.peakHours)} h) (below spike threshold)`,
   ]);
   const items = panel
     .getByRole('region', { name: 'Warnings', exact: true })
@@ -683,12 +683,12 @@ test('with a person chosen, each role tile measures against the hours in that ro
   page,
 }) => {
   const panel = await openView(page, 'load');
-  // Robin: 32 h Scrum Master in Gamma, 8 h Developer in Delta; not 40 h for each role.
+  // Robin: 5 h Scrum Master in Gamma, 2 h Developer in Delta (#511); not 40 h for each role.
   await page.getByLabel('Person', { exact: true }).selectOption({ label: 'Robin' });
   const tiles = panel.getByRole('list', { name: 'Summary' });
   for (const [role, base] of [
-    ['role-sm', 32],
-    ['role-dev', 8],
+    ['role-sm', 5],
+    ['role-dev', 2],
   ] as const) {
     const tile = tiles.locator(`[data-role="${role}"]`);
     await expect(tile.locator('.sub')).toHaveText(new RegExp(`^\\d+% of ${base} h$`));

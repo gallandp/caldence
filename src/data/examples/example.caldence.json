@@ -376,7 +376,7 @@
       ],
       "memberHours": {
         "person-kim": 32,
-        "person-robin": 32
+        "person-robin": 5
       },
       "assumptions": {},
       "cycles": [],
@@ -469,7 +469,7 @@
       ],
       "memberHours": {
         "person-lee": 32,
-        "person-robin": 8
+        "person-robin": 2
       },
       "assumptions": {},
       "cycles": [],
