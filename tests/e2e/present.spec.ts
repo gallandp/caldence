@@ -201,6 +201,11 @@ test('the what-if bar names the cost in the planning horizon; Print works while 
   // On paper the what-if bar stays, and one line says where the figures come from.
   await page.emulateMedia({ media: 'print' });
   await expect(whatIfBar(page)).toContainText('What if · 1 change');
+  // The note why the period figure is not weekly × 52 stays on paper as well (#512).
+  await expect(whatIfBar(page).locator('[data-whatif-horizon-note]')).toBeVisible();
+  await expect(whatIfBar(page).locator('[data-whatif-horizon-note]')).toContainText(
+    /\(Ø \+€[\d,]+ \/ week over 52 weeks, without holidays\)/,
+  );
   const meta = page.locator('[data-print-meta]');
   await expect(meta).toBeVisible();
   expect(await meta.evaluate((el) => getComputedStyle(el, '::before').content)).toMatch(

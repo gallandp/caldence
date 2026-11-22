@@ -2,7 +2,7 @@
   import { workspaceIndex } from '../../core/views';
   import { countChanges, effectScope, whatIfEffect, type Effect } from '../../core/whatIf';
   import { unitName } from '../../core/model';
-  import { formatEuro, levels, locale, translate as t } from '../../i18n';
+  import { formatEuro, horizonWeekCount, levels, locale, translate as t } from '../../i18n';
   import { resetWhatIf } from '../state/present';
   import { activeTeamId, index, workspace } from '../state/workspace';
   import { loadValue } from './WhatIfEffect.svelte';
@@ -70,6 +70,12 @@
             value: signedEuro(after.cost.perWeek - before.cost.perWeek),
             horizonValue: signedEuro(after.cost.horizon - before.cost.horizon),
           })}
+          <span class="muted" data-whatif-horizon-note>
+            ({$t('cost.horizon.avg', {
+              amount: signedEuro((after.cost.horizon - before.cost.horizon) / $horizonWeekCount),
+              n: $horizonWeekCount,
+            })})
+          </span>
         </span>
       {/if}
       {#if before.inStep && after.inStep}

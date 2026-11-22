@@ -37,6 +37,10 @@ test('costs appear only while an hourly rate is set', async ({ page }) => {
   await expect(page.locator('[data-costs] [data-cost-horizon]')).toContainText(
     'in the planning horizon (2027, 52\u00a0wks)',
   );
+  // Why weekly × 52 differs from the year figure (#512).
+  await expect(page.locator('[data-costs] [data-cost-horizon-note]')).toContainText(
+    / \/ week over 52 weeks, without holidays/,
+  );
 
   await setRate(page, '');
   await tab(page, 'Meetings & cadence');
