@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import {
   openExample,
+  openWorkspaceFile,
   openPeoplePool,
   openTeamView,
   pickUnit,
@@ -16,6 +18,16 @@ test.beforeEach(async ({ page }) => {
 });
 
 const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Team' });
+
+/** The example with Robin fully booked again: 32 h in Gamma and 8 h in Delta (the example has 5 h and 2 h, #511). */
+async function openExampleRobinFull(page: Page) {
+  const ws = JSON.parse(readFileSync('src/data/examples/example.caldence.json', 'utf8'));
+  ws.settings.locale = 'en';
+  ws.teams.find((t: { id: string }) => t.id === 'team-gamma').memberHours['person-robin'] = 32;
+  ws.teams.find((t: { id: string }) => t.id === 'team-delta').memberHours['person-robin'] = 8;
+  await page.goto('/');
+  await openWorkspaceFile(page, ws);
+}
 
 test('the setup wizard asks for the hours of a person already in another team', async ({
   page,
@@ -109,7 +121,7 @@ test('without the tick the other teams keep their hours', async ({ page }) => {
 test('reusing a person in the wizard splits their hours and the area table follows (#446)', async ({
   page,
 }) => {
-  await openExample(page);
+  await openExampleRobinFull(page);
   await pickUnit(page, 'Commerce');
   await page.getByRole('tab', { name: 'Area', exact: true }).click();
   await showAreaPage(page, 'Overview');
@@ -163,7 +175,8 @@ test('reusing a person in the wizard splits their hours and the area table follo
 test('the Team view splits a fully booked person evenly and lowers their other teams (#465)', async ({
   page,
 }) => {
-  await openExample(page);
+  await openExampleRobinFull(page);
+  await pickUnit(page, 'Team Alpha');
   await openTeamView(page);
   const team = panel(page);
   // Robin has 32 h in Gamma and 8 h in Delta: an even split over three teams is 13 h.
