@@ -223,4 +223,12 @@ test('presenting, a what-if on the reference team says "before the what-ifs" (#4
   await expect(lead).toHaveText(
     'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta before the what-ifs',
   );
+  // Reset brings back the unchanged wording.
+  await page
+    .getByRole('region', { name: 'What if' })
+    .getByRole('button', { name: 'Reset' })
+    .click();
+  await expect(lead).toHaveText(
+    'Teams whose area has a cadence of its own are compared with it, all others with the cadence of Team Beta, which most teams share',
+  );
 });
