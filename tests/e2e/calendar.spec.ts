@@ -361,13 +361,13 @@ for (const lang of ['de', 'en'] as const) {
 }
 
 test('meetings appear as chips in their category colour and today is marked', async ({ page }) => {
-  // Tall enough for the roomy rows that show every meeting of 7 January.
   await page.setViewportSize({ width: 1280, height: 1100 });
   await openCalendar(page, '2027-01-15');
-  const planning = example.teams[0]!.events.find((e) => e.name === 'Sprint Planning')!;
-  const colour = example.categories.find((c) => c.id === planning.categoryId)!.colour;
-  const chip = cellOf(page, '2027-01-07').locator('.chip', { hasText: 'Sprint Planning' });
-  await expect(chip).toBeVisible();
+  // The rarest meeting leads the day (#504): the monthly update before the sprint's planning.
+  const update = example.teams[0]!.events.find((e) => e.name === 'Stakeholder Update')!;
+  const colour = example.categories.find((c) => c.id === update.categoryId)!.colour;
+  const chip = cellOf(page, '2027-01-07').locator('.chip').first();
+  await expect(chip).toContainText('Stakeholder Update');
   expect(await chip.evaluate((el) => el.style.getPropertyValue('--c'))).toBe(colour);
   await expect(cellOf(page, '2027-01-15')).toHaveClass(/\btoday\b/);
   await expect(cellOf(page, '2027-01-14')).not.toHaveClass(/\btoday\b/);

@@ -638,3 +638,31 @@ export function nextDates(
   }
   return next;
 }
+
+/**
+ * A day's meetings for the month grid: the rarer ones first (fewer occurrences in the horizon),
+ * then the longer ones, then by start; so planning and review show before the dailies (#504).
+ */
+export function rareFirst<
+  T extends { teamId: string; eventId: string; start: string; duration: number },
+>(list: readonly T[], count: Readonly<Record<string, number>>): T[] {
+  const n = (o: T) => count[`${o.teamId}/${o.eventId}`] ?? 0;
+  return [...list].sort(
+    (a, b) =>
+      n(a) - n(b) ||
+      b.duration - a.duration ||
+      a.start.localeCompare(b.start) ||
+      a.teamId.localeCompare(b.teamId),
+  );
+}
+
+/** Short team tags: each name without the words all names share ("Team Alpha" → "Alpha"). */
+export function teamTags(names: readonly string[]): Record<string, string> {
+  const words = names.map((name) => name.split(/\s+/).filter(Boolean));
+  const shared = new Set(words[0]?.filter((w) => words.every((ws) => ws.includes(w))));
+  const tags: Record<string, string> = {};
+  names.forEach((name, i) => {
+    tags[name] = words[i]!.filter((w) => !shared.has(w)).join(' ') || name;
+  });
+  return tags;
+}

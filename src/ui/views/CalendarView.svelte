@@ -21,7 +21,10 @@
     conflicts,
     dayLoad,
     filteredOccurrences,
+    rareFirst,
+    scopeTeams,
     scopeUnits,
+    teamTags,
     type FilteredOccurrence,
   } from '../../core/views';
   import {
@@ -154,6 +157,24 @@
   });
 
   const severalTeams = $derived($workspace.teams.length > 1);
+
+  /** How often each meeting takes place in the horizon, by `teamId/eventId`: rarer ones lead a day. */
+  const frequency = $derived.by(() => {
+    const map: Record<string, number> = {};
+    for (const list of Object.values(byDate))
+      for (const o of list)
+        map[`${o.teamId}/${o.eventId}`] = (map[`${o.teamId}/${o.eventId}`] ?? 0) + 1;
+    return map;
+  });
+  /** A short tag per team when the scope covers several teams (area, organisation), by team id. */
+  const tagOf = $derived.by(() => {
+    const teams = scopeTeams($workspace, $filter);
+    const map: Record<string, string> = {};
+    if (teams.length < 2) return map;
+    const tags = teamTags(teams.map((x) => x.name));
+    for (const x of teams) map[x.id] = tags[x.name] ?? x.name;
+    return map;
+  });
 
   /** Team or area, meeting and category of every meeting, by `teamId/eventId`. */
   const lookup = $derived.by(() => {
@@ -294,19 +315,21 @@
     const meetings = $t(count === 1 ? 'cal.meetings.one' : 'cal.meetings.other', {
       n: formatNumber($locale, count, 0),
     });
-    const chips = occs
-      .filter((o) => !o.skippedHoliday)
-      .map((o) => {
-        const info = infoOf(o);
-        const colour = info?.category?.colour ?? '#64748b';
-        return {
-          key: `${o.teamId}/${o.eventId}`,
-          start: o.start,
-          name: info?.event.name ?? '',
-          colour,
-          area: info?.area === true,
-        };
-      });
+    const chips = rareFirst(
+      occs.filter((o) => !o.skippedHoliday),
+      frequency,
+    ).map((o) => {
+      const info = infoOf(o);
+      const colour = info?.category?.colour ?? '#64748b';
+      return {
+        key: `${o.teamId}/${o.eventId}`,
+        start: o.start,
+        name: info?.event.name ?? '',
+        colour,
+        area: info?.area === true,
+        team: tagOf[o.teamId],
+      };
+    });
     const today = date === localToday();
     const overlap = inside && date in overlapsByDate;
     const nonWork = inside && !$workspace.settings.workdays.includes(weekday(date));
@@ -518,6 +541,7 @@
     let text = dayWidth - 0.9 * r - 3 - 1;
     if (chip.area) text -= 0.8 * r + 0.25 * r;
     ctx.font = chipFont;
+    if (chip.team) text -= ctx.measureText(chip.team).width * 0.85 + 0.6 * r;
     return ctx.measureText(chip.name).width > text;
   }
   /**
@@ -536,7 +560,7 @@
     const tags = tagCount(c);
     // A roomy row has the default height (see td in the styles).
     const room = (rowPx ?? 8.4 * r + 1) - 1 - (2.75 + 1.45 * tags) * r;
-    const heights = c.chips.slice(0, 3).map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
+    const heights = c.chips.map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
     const used = (n: number) => heights.slice(0, n).reduce((a, b) => a + b, 0);
     let n = heights.length;
     while (n > 0 && used(n) + (all > n ? 1.2 * r : 0) > room) n--;
@@ -712,6 +736,8 @@
                         <span class="chip" style:--c={chip.colour}>
                           <span class="t">{chip.start}</span>{#if chip.area}<span class="area">
                               <AreaIcon />
+                            </span>{/if}{#if chip.team}<span class="team">
+                              {chip.team}
                             </span>{/if}{chip.name}
                         </span>
                       {/each}
@@ -1053,6 +1079,15 @@
   .chip .area {
     color: var(--area);
     margin-right: 0.25rem;
+  }
+  .chip .team {
+    margin-right: 0.3rem;
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.85em;
+    font-weight: 700;
   }
   .chip .t {
     display: none;
