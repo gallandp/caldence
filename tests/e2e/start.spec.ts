@@ -58,6 +58,7 @@ for (const template of ['Scrum', 'Kanban', 'SAFe']) {
     await dialog.getByLabel('Your name').fill('Kim');
     await dialog.getByRole('button', { name: 'Next' }).click();
     await expect(dialog.getByText('Step 4 of 4')).toBeVisible();
+    await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
     await dialog.getByRole('button', { name: 'Create team' }).click();
     await expect(dialog).toBeHidden();
     await expect(calendar(page).getByRole('grid')).toBeVisible();
@@ -79,6 +80,7 @@ test('"I take part myself" makes the export start with my own calendar', async (
   await dialog.getByLabel('Your name').fill('Kim');
   await dialog.getByLabel('Your role').selectOption({ label: 'Product Owner' });
   await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await calendar(page).getByRole('button', { name: 'Share calendars' }).click();
   const exchange = page.getByRole('tabpanel', { name: 'Import / Export' });
@@ -110,6 +112,7 @@ test('the wizard says when Scrum moves a picked date to the next Monday', async 
   await dialog.getByRole('button', { name: 'Next' }).click();
   await expect(field).toHaveValue(TODAY);
   for (let i = 0; i < 2; i++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(dialog).toBeHidden();
   await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
@@ -135,6 +138,7 @@ test('the wizard without a template creates an empty team', async ({ page }) => 
   await dialog.getByLabel('Team name').fill('Solo');
   await dialog.getByRole('button', { name: 'Next' }).click();
   await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(currentUnit(page)).toHaveText('Solo');
 });
@@ -166,8 +170,18 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await expect(
     dialog.getByRole('heading', { name: 'Time zone, holidays and horizon' }),
   ).toBeFocused();
-  // The region is preset, not chosen: the wizard asks to check it (#341).
-  await expect(dialog.getByLabel('Region (holidays)')).toHaveAccessibleDescription(/Please check/);
+  // Nothing is preset (#508): "Create team" asks for a region, or "No public holidays".
+  const region = dialog.getByLabel('Region (holidays)');
+  await expect(region).toHaveValue('');
+  await expect(region).toHaveAccessibleDescription(/Please check/);
+  await dialog.getByRole('button', { name: 'Create team' }).click();
+  await expect(region).toBeFocused();
+  await expect(region).toHaveAttribute('aria-invalid', 'true');
+  await expect(region).toHaveAccessibleDescription(
+    /Please choose a region, or “No public holidays”/,
+  );
+  await expect(dialog).toBeVisible();
+  await region.selectOption({ label: 'No public holidays' });
   await dialog.getByLabel('Time zone').selectOption('Europe/Vienna');
   await dialog.getByLabel('Horizon to').fill('2027-03-01');
   await dialog.getByRole('button', { name: 'Create team' }).click();
@@ -178,6 +192,9 @@ test('the frame step sets time zone and horizon for the workspace', async ({ pag
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('Time zone')).toHaveValue('Europe/Vienna');
   await expect(page.getByLabel('Horizon to')).toHaveValue('2027-12-31');
+  await expect(page.getByLabel('Region (holidays)').locator('option:checked')).toHaveText(
+    'No public holidays',
+  );
 });
 
 test('after the wizard a card offers the next steps once', async ({ page }) => {
@@ -185,6 +202,7 @@ test('after the wizard a card offers the next steps once', async ({ page }) => {
   await calendar(page).getByRole('button', { name: 'Plan new', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   for (let i = 0; i < 3; i++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   const card = calendar(page).getByRole('region', { name: 'Your team is ready' });
   await expect(card).toBeVisible();
@@ -265,6 +283,7 @@ test('the views that need a team offer the same way in', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Plan new' });
   await expect(dialog.getByText('Step 1 of 4')).toBeVisible();
   for (let step = 0; step < 3; step++) await dialog.getByRole('button', { name: 'Next' }).click();
+  await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
   await dialog.getByRole('button', { name: 'Create team' }).click();
   await expect(page.getByRole('tab', { name: 'Calendar', exact: true })).toHaveAttribute(
     'aria-selected',

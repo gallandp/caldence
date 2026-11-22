@@ -7,7 +7,7 @@
   import { areaRoleIds, templateStart, type Template } from '../../core/template';
   import { BUILTIN_TEMPLATES, builtinTemplate, type BuiltinTemplateId } from '../../data/templates';
   import { formatDisplayDate, levels, locale, translate as t } from '../../i18n';
-  import { resolveRegion } from '../../core/regions';
+  import { NO_HOLIDAYS, resolveRegion } from '../../core/regions';
   import { regionIds } from '../../data/regions';
   import { saveExportChoice } from '../state/exportScope';
   import { activeTeamId, localToday, workspace } from '../state/workspace';
@@ -41,6 +41,8 @@
   /** The first team also confirms the workspace frame: time zone, region and horizon. */
   let withFrame = $state(true);
   let nameError = $state(false);
+  let regionError = $state(false);
+  let regionSelect: HTMLSelectElement | undefined = $state();
   let problem = $state<{ key: string; path?: string } | null>(null);
   /** Hours typed for people already in another team, by name (trimmed, lower case). */
   let hoursHere = $state<Record<string, string>>({});
@@ -137,10 +139,14 @@
     zones && timezone !== '' && !zones.includes(timezone) ? [timezone, ...zones] : zones,
   );
   const regionOptions = $derived([
+    NO_HOLIDAYS,
     ...regionIds(),
     ...$workspace.customRegions.map((r) => r.id).filter((id) => !regionIds().includes(id)),
   ]);
-  const regionName = (id: string): string => resolveRegion($workspace, id)?.name[$locale] ?? id;
+  const regionName = (id: string): string =>
+    id === NO_HOLIDAYS
+      ? $t('settings.region.none')
+      : (resolveRegion($workspace, id)?.name[$locale] ?? id);
 
   /** Opens the wizard at its first step. */
   export function show() {
@@ -160,7 +166,9 @@
     const settings = get(workspace).settings;
     withFrame = get(workspace).teams.length === 0;
     timezone = browserZone() ?? settings.timezone;
-    region = settings.region;
+    // A new workspace has no region chosen: the person picks one, nothing is preset (#508).
+    region = settings.region === NO_HOLIDAYS ? '' : settings.region;
+    regionError = false;
     from = settings.horizon.from;
     to = settings.horizon.to;
     nameError = false;
@@ -207,6 +215,11 @@
     event.preventDefault();
     if (step < steps) {
       void go(step + 1);
+      return;
+    }
+    if (withFrame && region === '') {
+      regionError = true;
+      regionSelect?.focus();
       return;
     }
     const trimmed = name.trim();
@@ -454,12 +467,25 @@
       </div>
       <div class="field">
         <label for="{uid}-region">{$t('settings.region')}</label>
-        <select id="{uid}-region" bind:value={region} aria-describedby="{uid}-region-check">
+        <select
+          id="{uid}-region"
+          bind:this={regionSelect}
+          bind:value={region}
+          aria-invalid={regionError ? 'true' : undefined}
+          aria-describedby={regionError
+            ? `${uid}-region-err ${uid}-region-check`
+            : `${uid}-region-check`}
+          onchange={() => (regionError = false)}
+        >
+          <option value="" disabled>{$t('settings.region.choose')}</option>
           {#each regionOptions as id (id)}
             <option value={id}>{regionName(id)}</option>
           {/each}
         </select>
-        <!-- Preset, not chosen: say so (#341). -->
+        {#if regionError}
+          <p class="field-error" id="{uid}-region-err">{$t('setup.region.required')}</p>
+        {/if}
+        <!-- The region decides which meetings drop out (#341, #508). -->
         <p class="hint" id="{uid}-region-check">{$t('settings.region.check')}</p>
       </div>
       <div class="row">
