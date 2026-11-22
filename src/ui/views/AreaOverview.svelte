@@ -146,7 +146,14 @@
   });
   let root: HTMLElement | undefined = $state();
   /** A name in "Differ: …" goes to the team's row in the table, where its reason is (#478). */
+  let flashId = $state('');
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => () => clearTimeout(flashTimer));
   function showTeam(teamId: string) {
+    clearTimeout(flashTimer);
+    flashId = teamId;
+    // The row lights up for a moment: after a click the browser shows no focus ring (#494).
+    flashTimer = setTimeout(() => (flashId = ''), 1500);
     const row = root?.querySelector<HTMLElement>(`[data-cost-row="${CSS.escape(teamId)}"]`);
     row?.scrollIntoView({ block: 'center' });
     row?.querySelector<HTMLElement>('th button')?.focus({ preventScroll: true });
@@ -716,7 +723,7 @@
               {@const zero = zeroNote(r.unitId)}
               {@const step = stepRow.get(r.unitId)}
               {@const differs = !!step && !step.inStep}
-              <tr data-cost-row={r.unitId}>
+              <tr data-cost-row={r.unitId} class:flash={flashId === r.unitId}>
                 <th scope="row">
                   {#if onOpenUnit}
                     <button
@@ -1645,6 +1652,17 @@
   }
   .area-name.org {
     color: var(--org);
+  }
+  /* The row a "Differ:" name jumps to, for about 1.5 s; no animation (#494). */
+  [data-area-costs] tr.flash {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+  }
+  :global(#app) [data-area-costs] tr.flash {
+    background: var(--accent-soft);
+  }
+  :global(#app) [data-area-costs] tr.flash > :is(th, td) {
+    background: transparent;
   }
   /* The row names keep to one line, so the column takes their width (#450). */
   [data-area-costs] th .area-name {
