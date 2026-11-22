@@ -644,7 +644,7 @@
                 p.person.name,
                 p.peak.monday,
                 weekLabel(p.peak.monday),
-              )}{after}{#if p.recurring}{' '}{$t('load.recurring')}{/if}
+              )}{after}{#if p.recurring}{` ${$t('load.recurring')}`}{/if}
             {:else}
               {$t('load.none')}
             {/if}
@@ -776,7 +776,7 @@
         <span class="sub">
           {$t('load.kpi.peak.hours', {
             hours: hours(peak.total),
-          })}{#if !warned.has(peak.monday)}{' '}{$t('load.recurring')}{/if}
+          })}{#if !warned.has(peak.monday)}{` ${$t('load.recurring')}`}{/if}
         </span>
       {:else}
         <span class="value">–</span>
