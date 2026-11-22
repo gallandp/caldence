@@ -851,7 +851,22 @@
         period: nextWeeks($t, $locale, overlapWindow.weeks),
       })}
     </p>
-    {#if warningItems.length === 0}
+    {#if warningItems.length === 0 && overlaps.length > 0}
+      <!-- No false all-clear while overlaps exist (#505). -->
+      <p class="note">
+        {$t('load.warnings.noneLoad')} ·
+        <button
+          type="button"
+          class="week-link"
+          data-overlaps-link
+          onclick={() => overlapsBox?.scrollIntoView({ block: 'start' })}
+        >
+          {$t(overlaps.length === 1 ? 'overlaps.pairs.one' : 'overlaps.pairs.other', {
+            n: overlaps.length,
+          })}
+        </button>
+      </p>
+    {:else if warningItems.length === 0}
       <p class="note">{$t('load.warnings.none')}</p>
     {/if}
     {#if warningItems.length > 0}

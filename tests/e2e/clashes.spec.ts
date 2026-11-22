@@ -176,12 +176,18 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await pickUnit(page, 'Commerce');
       await expect(warnings.locator('li[data-clash]')).toHaveCount(COMMERCE_PAIRS);
       await expect(badge).toHaveCount(0);
-      await expect(warnings.getByText('No warnings')).toBeVisible();
+      // No false all-clear while overlaps exist (#505).
+      await expect(warnings.getByText('No warnings', { exact: true })).toHaveCount(0);
+      await expect(warnings.getByText('No load warnings')).toBeVisible();
+      await warnings
+        .getByRole('button', { name: `${COMMERCE_PAIRS} overlapping meeting pairs` })
+        .click();
+      await expect(warnings.locator('[data-clashes]')).toBeInViewport();
       await expect(overlapBadge).toHaveText(String(COMMERCE_PAIRS));
       // Team Gamma: the same rule at the team level.
       await pickUnit(page, 'Team Gamma');
       await expect(badge).toHaveCount(0);
-      await expect(warnings.getByText('No warnings')).toBeVisible();
+      await expect(warnings.getByText('No load warnings')).toBeVisible();
       await expect(overlapBadge).toHaveText(
         String(await warnings.locator('li[data-clash]').count()),
       );
@@ -195,7 +201,9 @@ test.describe('the Warnings badge counts people, the overlaps have their own (#4
       await setLanguage(page, 'de');
       await pickUnit(page, 'Commerce');
       await expect(
-        page.getByRole('region', { name: 'Warnungen', exact: true }).getByText('Keine Warnungen'),
+        page
+          .getByRole('region', { name: 'Warnungen', exact: true })
+          .getByText('Keine Lastwarnungen'),
       ).toBeVisible();
     });
 });
