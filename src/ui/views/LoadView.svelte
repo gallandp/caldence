@@ -15,7 +15,7 @@
     overMax,
     personLoad,
     personMeetings,
-    recurringPeak,
+    peakKind,
     roomBeforeLimit,
     warnings,
     type PersonMeeting,
@@ -131,7 +131,7 @@
         units: unitsOf(person.id),
         peak,
         /** The peak comes back with the cadence and has no warning (#510). */
-        recurring: recurringPeak(
+        peakKind: peakKind(
           weeks.map((w) => ({ monday: w.monday, hours: w.byPerson[person.id] ?? 0 })),
           (monday) => allWarnings.some((w) => w.personId === person.id && w.monday === monday),
         ),
@@ -411,8 +411,18 @@
     ),
   );
   const warned = $derived(warnedWeeks($workspace, allWarnings, $filter));
-  const peakRecurring = $derived(
-    recurringPeak(
+  const PEAK_KEY = {
+    warned: 'load.peak',
+    recurring: 'load.peak.recurring',
+    below: 'load.peak.below',
+  } as const;
+  const PEAK_TILE_KEY = {
+    warned: 'load.kpi.peak.hours',
+    recurring: 'load.kpi.peak.hours.recurring',
+    below: 'load.kpi.peak.hours.below',
+  } as const;
+  const peakTileKind = $derived(
+    peakKind(
       rows.map((r) => ({ monday: r.monday, hours: r.total })),
       (monday) => warned.has(monday),
     ),
@@ -647,7 +657,7 @@
           </td>
           <td role="cell" class="num nowrap peak" data-cap={$t('load.col.peak')}>
             {#if p.peak}
-              {@const [before, after] = $t(p.recurring ? 'load.peak.recurring' : 'load.peak', {
+              {@const [before, after] = $t(PEAK_KEY[p.peakKind ?? 'warned'], {
                 week: '\uE000',
                 hours: hours(p.peak.hours),
               }).split('\uE000')}
@@ -786,7 +796,7 @@
       {#if peak}
         <span class="value">{weekLabel(peak.monday)}</span>
         <span class="sub">
-          {$t(peakRecurring ? 'load.kpi.peak.hours.recurring' : 'load.kpi.peak.hours', {
+          {$t(PEAK_TILE_KEY[peakTileKind ?? 'warned'], {
             hours: hours(peak.total),
           })}
         </span>
@@ -1343,7 +1353,8 @@
       grid-template-areas:
         'who share'
         'units hours'
-        'free peak'
+        'free free'
+        'peak peak'
         'here here';
       column-gap: 0.75rem;
       row-gap: 0.15rem;
@@ -1382,6 +1393,8 @@
     .people .peak {
       grid-area: peak;
       margin-top: 0.35rem;
+      text-align: left;
+      white-space: normal;
     }
     .people .here {
       grid-area: here;
@@ -1394,7 +1407,6 @@
       color: var(--text-muted);
       font-size: 0.75rem;
       font-weight: 600;
-      white-space: normal;
     }
     .people .share .bar {
       width: 3.5rem;

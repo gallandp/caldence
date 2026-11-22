@@ -23,12 +23,18 @@ test.describe('Meeting load basis', () => {
     await expect(
       panel.getByRole('columnheader', { name: 'Ø hours/week in the planning horizon' }),
     ).toBeVisible();
-    await expect(panel.getByText(/Tall bars without a warning are recurring peaks/)).toBeVisible();
-    // Jordan's peak comes back every sprint; Alex's W25 is a one-off peak.
+    await expect(
+      panel.getByText(/Tall bars without a warning are either recurring peaks/),
+    ).toBeVisible();
+    // Jordan's peak comes back every sprint; Alex's W25 is a one-off peak below the spike threshold.
     await expect(panel.locator('tr[data-person="person-jordan"] td.peak')).toHaveText(
       'W1 (1.1 h) (recurring)',
     );
-    await expect(panel.locator('tr[data-person="person-alex"] td.peak')).toHaveText('W25 (7.5 h)');
-    await expect(panel.locator('[data-peak] .sub')).toHaveText('28.9 h in that week');
+    await expect(panel.locator('tr[data-person="person-alex"] td.peak')).toHaveText(
+      'W25 (7.5 h) (below spike threshold)',
+    );
+    await expect(panel.locator('[data-peak] .sub')).toHaveText(
+      '28.9 h in that week (below spike threshold)',
+    );
   });
 });

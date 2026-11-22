@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { recurringPeak } from '../../src/core/load';
+import { peakKind } from '../../src/core/load';
 
 const w = (hours: number[]) => hours.map((h, i) => ({ monday: `2027-01-${10 + i}`, hours: h }));
 const none = () => false;
 
-describe('recurringPeak (#510)', () => {
+describe('peakKind (#510)', () => {
   it('is recurring when another week reaches 95 % of the peak', () => {
-    expect(recurringPeak(w([2, 10, 3, 9.5]), none)).toBe(true);
+    expect(peakKind(w([2, 10, 3, 9.5]), none)).toBe('recurring');
   });
   it('is not recurring for a one-off peak', () => {
-    expect(recurringPeak(w([2, 10, 3, 9]), none)).toBe(false);
+    expect(peakKind(w([2, 10, 3, 9]), none)).toBe('below');
   });
   it('is not recurring when the peak week has any warning', () => {
-    expect(recurringPeak(w([10, 10]), (m) => m === '2027-01-10')).toBe(false);
+    expect(peakKind(w([10, 10]), (m) => m === '2027-01-10')).toBe('warned');
   });
   it('is not recurring without meetings', () => {
-    expect(recurringPeak(w([0, 0]), none)).toBe(false);
+    expect(peakKind(w([0, 0]), none)).toBeUndefined();
   });
 });
 
@@ -25,5 +25,6 @@ describe('German load basis texts (#510)', async () => {
     expect(de['load.col.hours']).toBe('Ø Stunden/Woche im Planungszeitraum');
     expect(de['load.peak.recurring']).toBe('{week} ({hours} h) (wiederkehrend)');
     expect(de['load.chart.hint']).toContain('Hohe Balken ohne Warnung');
+    expect(de['load.peak.below']).toBe('{week} ({hours} h) (unter der Spitzengrenze)');
   });
 });
