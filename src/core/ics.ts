@@ -3,6 +3,7 @@ import { addDays, diffDays, toMinutes, weekday, type ISODate, type Time } from '
 import {
   areaAsTeam,
   areasInScope,
+  areaUnits,
   findArea,
   eventAttendees,
   type CalEvent,
@@ -237,7 +238,20 @@ function eventsInScope(ws: Workspace, team: Team, scope: Filter): CalEvent[] {
       e.participants.some((p) => invitesRole(ws, team.id, p, roleId)),
     );
   }
+  const guests = teamGuests(ws, team, scope);
+  if (guests)
+    return team.events.filter((e) => eventAttendees(ws, team.id, e).some((id) => guests.has(id)));
   return team.events;
+}
+
+/**
+ * For a single team's file, the people of that team when `unit` is an area: the area's meetings
+ * that invite them come along (#507). Undefined for any other unit or scope.
+ */
+function teamGuests(ws: Workspace, unit: Team, scope: Filter): Set<string> | undefined {
+  if (scope.personId || scope.roleId || !scope.teamId || unit.id === scope.teamId) return undefined;
+  const team = ws.teams.find((t) => t.id === scope.teamId);
+  return team ? new Set(team.members.map((m) => m.personId)) : undefined;
 }
 
 /**
@@ -245,18 +259,23 @@ function eventsInScope(ws: Workspace, team: Team, scope: Filter): CalEvent[] {
  * enabling an export button; the exported file may still be empty for a given period.
  */
 export function scopeHasEvents(ws: Workspace, scope: Filter): boolean {
-  return exportUnits(ws, scope).some((team) => eventsInScope(ws, team, scope).length > 0);
+  return exportUnits(ws, scope, true).some((team) => eventsInScope(ws, team, scope).length > 0);
 }
 
 /**
  * Teams and areas whose meetings a scope exports. An area on its own gives its own meetings
  * only: its teams have calendars of their own, so a ZIP of all calendars holds nothing twice.
  */
-function exportUnits(ws: Workspace, scope: Filter): Team[] {
+function exportUnits(ws: Workspace, scope: Filter, areaMeetings = false): Team[] {
   // The organisation's calendar, like an area's, holds its own meetings (#328).
   const area = findArea(ws, scope.teamId);
   if (area) return [areaAsTeam(area)];
-  return [...scopeTeams(ws, scope), ...areasInScope(ws, scope)];
+  const teams = scopeTeams(ws, scope);
+  // A single team's file also holds the area meetings its people are invited to, under the
+  // area's UID, so importing the area file too adds nothing twice (#507).
+  if (areaMeetings && teams.length === 1 && !scope.personId && !scope.roleId)
+    return [...teams, ...areaUnits(ws).map(areaAsTeam)];
+  return [...teams, ...areasInScope(ws, scope)];
 }
 
 /**
@@ -271,7 +290,7 @@ function* scopedMeetings(
   to: ISODate,
 ): Generator<{ team: Team; event: CalEvent; occs: Occurrence[] }> {
   const settings = { ...ws.settings, horizon: { from, to } };
-  for (const team of exportUnits(ws, scope)) {
+  for (const team of exportUnits(ws, scope, true)) {
     const byEvent = new Map<string, Occurrence[]>();
     for (const occ of occurrences(team, settings, index)) {
       const list = byEvent.get(occ.eventId);

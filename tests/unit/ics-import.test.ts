@@ -654,6 +654,26 @@ describe('reviewImport: area meetings (#253)', () => {
     const review = reviewImport(events, { ws: gone, teamId, today: TODAY });
     expect(review.candidates.every((c) => c.duplicateOf === null && c.selected)).toBe(true);
   });
+  it("recognises the area meetings a team's own file holds (#507)", () => {
+    const ws = exampleWorkspace();
+    const index = workspaceIndex(ws);
+    const { from, to } = ws.settings.horizon;
+    const teamId = ws.areas[0]!.teamIds[0]!;
+    const text = exportIcs(ws, index, {
+      scope: { teamId },
+      from,
+      to,
+      reminderMinutes: null,
+      allDay: { holidays: false, schoolHolidays: false, milestones: false },
+      now: new Date(Date.UTC(2026, 10, 7)),
+      locale: 'en',
+    });
+    const review = reviewImport(ok(parseIcs(text)), { ws, teamId, today: TODAY });
+    expect(review.candidates.length).toBeGreaterThan(0);
+    const areaIds = new Set(ws.areas[0]!.events.map((e) => e.id));
+    expect(review.candidates.some((c) => areaIds.has(c.duplicateOf ?? ''))).toBe(true);
+    expect(review.candidates.every((c) => c.duplicateOf !== null && !c.selected)).toBe(true);
+  });
 });
 
 describe('importEvents', () => {
