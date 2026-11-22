@@ -656,13 +656,24 @@ export function rareFirst<
   );
 }
 
-/** Short team tags: each name without the words all names share ("Team Alpha" → "Alpha"). */
-export function teamTags(names: readonly string[]): Record<string, string> {
-  const words = names.map((name) => name.split(/\s+/).filter(Boolean));
+/** Short team tags by team id: each name without the words all names share ("Team Alpha" → "Alpha"). */
+export function teamTags(teams: readonly { id: string; name: string }[]): Record<string, string> {
+  const words = teams.map((t) => t.name.split(/\s+/).filter(Boolean));
   const shared = new Set(words[0]?.filter((w) => words.every((ws) => ws.includes(w))));
   const tags: Record<string, string> = {};
-  names.forEach((name, i) => {
-    tags[name] = words[i]!.filter((w) => !shared.has(w)).join(' ') || name;
+  teams.forEach((t, i) => {
+    tags[t.id] = words[i]!.filter((w) => !shared.has(w)).join(' ') || t.name;
   });
   return tags;
+}
+
+/**
+ * How often each meeting takes place in the horizon, by `teamId/eventId`, whatever the filter:
+ * a role or person filter does not change the order of a day (#504).
+ */
+export function meetingFrequency(ws: Workspace, index: HolidayIndex): Record<string, number> {
+  const count: Record<string, number> = {};
+  for (const o of filteredOccurrences(ws, index, {}))
+    count[`${o.teamId}/${o.eventId}`] = (count[`${o.teamId}/${o.eventId}`] ?? 0) + 1;
+  return count;
 }

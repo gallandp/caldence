@@ -21,6 +21,7 @@
     conflicts,
     dayLoad,
     filteredOccurrences,
+    meetingFrequency,
     rareFirst,
     scopeTeams,
     scopeUnits,
@@ -159,21 +160,12 @@
   const severalTeams = $derived($workspace.teams.length > 1);
 
   /** How often each meeting takes place in the horizon, by `teamId/eventId`: rarer ones lead a day. */
-  const frequency = $derived.by(() => {
-    const map: Record<string, number> = {};
-    for (const list of Object.values(byDate))
-      for (const o of list)
-        map[`${o.teamId}/${o.eventId}`] = (map[`${o.teamId}/${o.eventId}`] ?? 0) + 1;
-    return map;
-  });
+  const frequency = $derived(meetingFrequency($workspace, $index));
   /** A short tag per team when the scope covers several teams (area, organisation), by team id. */
   const tagOf = $derived.by(() => {
     const teams = scopeTeams($workspace, $filter);
-    const map: Record<string, string> = {};
-    if (teams.length < 2) return map;
-    const tags = teamTags(teams.map((x) => x.name));
-    for (const x of teams) map[x.id] = tags[x.name] ?? x.name;
-    return map;
+    if (teams.length < 2) return {} as Record<string, string>;
+    return teamTags(teams);
   });
 
   /** Team or area, meeting and category of every meeting, by `teamId/eventId`. */
@@ -531,6 +523,25 @@
     dayWidth = td.getBoundingClientRect().width - r - 1;
   });
   let ctx: CanvasRenderingContext2D | null = null;
+  /** The team tag's box, as in the styles (rem): font size, side padding, gap after, widest. */
+  const TAG_FONT = 0.68;
+  const TAG_PAD = 0.25;
+  const TAG_GAP = 0.3;
+  const TAG_MAX = 4.5;
+  /** Widths of the team tags in px, measured once per tag and font. */
+  let tagWidths: Record<string, number> = {};
+  let tagFont = '';
+  function tagWidth(tag: string): number {
+    const font = chipFont.replace(/^550 [\d.]+px/, `700 ${TAG_FONT * r}px`);
+    if (font !== tagFont) [tagWidths, tagFont] = [{}, font];
+    let width = tagWidths[tag];
+    if (width === undefined) {
+      ctx!.font = font;
+      width = Math.min(ctx!.measureText(tag).width + 2 * TAG_PAD * r, TAG_MAX * r);
+      tagWidths[tag] = width;
+    }
+    return width;
+  }
   /** Whether a meeting name needs a second line in its chip (it wraps to two, then ends in "…"). */
   function wraps(chip: ReturnType<typeof cell>['chips'][number]): boolean {
     if (dayWidth === 0) return false;
@@ -540,8 +551,8 @@
     // never matches, because table cells cannot be size containers.
     let text = dayWidth - 0.9 * r - 3 - 1;
     if (chip.area) text -= 0.8 * r + 0.25 * r;
+    if (chip.team) text -= tagWidth(chip.team) + TAG_GAP * r;
     ctx.font = chipFont;
-    if (chip.team) text -= ctx.measureText(chip.team).width * 0.85 + 0.6 * r;
     return ctx.measureText(chip.name).width > text;
   }
   /**
@@ -560,11 +571,16 @@
     const tags = tagCount(c);
     // A roomy row has the default height (see td in the styles).
     const room = (rowPx ?? 8.4 * r + 1) - 1 - (2.75 + 1.45 * tags) * r;
-    const heights = c.chips.map((chip) => (wraps(chip) ? 2.65 : 1.6) * r);
-    const used = (n: number) => heights.slice(0, n).reduce((a, b) => a + b, 0);
-    let n = heights.length;
-    while (n > 0 && used(n) + (all > n ? 1.2 * r : 0) > room) n--;
-    return { shown: n, more: all > n && used(n) + 1.2 * r <= room };
+    // Running heights, measured only until the room is full.
+    const used = [0];
+    for (const chip of c.chips) {
+      const next = used[used.length - 1]! + (wraps(chip) ? 2.65 : 1.6) * r;
+      if (next > room) break;
+      used.push(next);
+    }
+    let n = used.length - 1;
+    while (n > 0 && n < all && used[n]! + 1.2 * r > room) n--;
+    return { shown: n, more: all > n && used[n]! + 1.2 * r <= room };
   }
 
   /** A click outside the details and the grid closes them, as with any popover. */
@@ -1080,14 +1096,22 @@
     color: var(--area);
     margin-right: 0.25rem;
   }
+  /* Sizes as in tagWidth (TAG_*): 0.68rem, padding 0.25rem, gap 0.3rem, at most 4.5rem. */
   .chip .team {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: 4.5rem;
     margin-right: 0.3rem;
     padding: 0 0.25rem;
+    overflow: hidden;
+    vertical-align: bottom;
     border-radius: 0.25rem;
     background: var(--surface);
-    color: var(--text-muted);
-    font-size: 0.85em;
+    color: var(--text);
+    font-size: 0.68rem;
     font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chip .t {
     display: none;
