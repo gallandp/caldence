@@ -781,6 +781,7 @@
                 <OrgView
                   onOpen={(unit) => activeTeamId.set(unit)}
                   onOpenUnit={(unit) => drillIn(unit, 'meetings')}
+                  onOpenPerson={(personId) => openPersonLoad(ORG_UNIT, personId)}
                 />
               {/if}
             {:else if id === 'team' && activeArea}

@@ -6,6 +6,7 @@ import type { HolidayIndex } from '../../src/core/regions';
 import {
   countChanges,
   effectScope,
+  listChanges,
   whatIfEffect,
   withNames,
   withoutNames,
@@ -75,14 +76,17 @@ describe('what-if effect', () => {
     delete saved.areas[0]!.cadence;
     // No two teams share a cadence: the first, Alpha's 2-week sprints, is the reference.
     const before = whatIfEffect(saved, noIndex(), 'area-payments', undefined, saved)!;
-    expect(before.inStep).toEqual({ n: 1, of: 4 });
+    expect(before.inStep).toMatchObject({ n: 1, of: 4 });
     const next = setCadenceLength(saved, 'team-alpha', 4);
     expect(next.ok).toBe(true);
     if (!next.ok) return;
     // Alone, Alpha's new 4 weeks would be the reference and Alpha would stay aligned.
-    expect(whatIfEffect(next.value, noIndex(), 'area-payments')!.inStep).toEqual({ n: 1, of: 4 });
+    expect(whatIfEffect(next.value, noIndex(), 'area-payments')!.inStep).toMatchObject({
+      n: 1,
+      of: 4,
+    });
     const after = whatIfEffect(next.value, noIndex(), 'area-payments', undefined, saved)!;
-    expect(after.inStep).toEqual({ n: 0, of: 4 });
+    expect(after.inStep).toMatchObject({ n: 0, of: 4 });
   });
 });
 
@@ -125,6 +129,56 @@ describe('countChanges', () => {
     const r = setCadenceLength(weekly, team.id, team.cadence.lengthWeeks + 1);
     if (!r.ok) throw new Error(JSON.stringify(r.errors));
     expect(countChanges(base, r.value)).toBe(2);
+  });
+});
+
+describe('listChanges (#506)', () => {
+  it('names a cadence change once and a meeting change with its old and new values', () => {
+    const base = ws();
+    const team = base.teams.find((t) => t.events.some((e) => e.rule.type === 'cadence-day'))!;
+    const r = setCadenceLength(base, team.id, team.cadence.lengthWeeks + 1);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    const weekly = team.events.find((e) => e.rule.type === 'weekly')!;
+    const next = upsertEvent(r.value, team.id, { ...weekly, duration: weekly.duration + 15 })[0];
+    expect(listChanges(base, next)).toEqual([
+      {
+        kind: 'cadence',
+        unitId: team.id,
+        from: team.cadence,
+        to: next.teams.find((t) => t.id === team.id)!.cadence,
+      },
+      {
+        kind: 'meeting',
+        unitId: team.id,
+        eventId: weekly.id,
+        name: weekly.name,
+        from: { duration: weekly.duration, rule: weekly.rule },
+        to: { duration: weekly.duration + 15, rule: weekly.rule },
+      },
+    ]);
+  });
+});
+
+describe('teams that fall out of step (#506)', () => {
+  it('lists the teams not aligned, with the reason', () => {
+    const saved = ws();
+    const area = saved.areas[0]!;
+    const before = whatIfEffect(saved, noIndex(), area.id, undefined, saved)!;
+    if (!before.inStep) throw new Error('the fixture area needs a reference cadence');
+    const inStep = area.teamIds.find((id) => !before.inStep!.off.some((o) => o.teamId === id))!;
+    const len = saved.teams.find((t) => t.id === inStep)!.cadence.lengthWeeks;
+    const r = setCadenceLength(saved, inStep, len + 1);
+    if (!r.ok) throw new Error('length');
+    const after = whatIfEffect(r.value, noIndex(), area.id, undefined, saved)!;
+    expect(before.inStep.off.map((o) => o.teamId)).not.toContain(inStep);
+    expect(after.inStep!.off.map((o) => o.teamId)).toEqual(
+      [...before.inStep.off.map((o) => o.teamId), inStep].sort(
+        (a, b) => area.teamIds.indexOf(a) - area.teamIds.indexOf(b),
+      ),
+    );
+    const lost = after.inStep!.off.find((o) => o.teamId === inStep)!;
+    expect(lost.reasons.some((x) => x.kind === 'length')).toBe(true);
+    expect(after.inStep!.n).toBe(before.inStep.n - 1);
   });
 });
 

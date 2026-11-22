@@ -22,10 +22,13 @@
   let {
     onOpen,
     onOpenUnit,
+    onOpenPerson,
   }: {
     onOpen: (unitId: string) => void;
     /** Opens Meetings & cadence of a team, an area or the organisation. */
     onOpenUnit?: (unitId: string) => void;
+    /** Opens the organisation's Meeting load at a person over the limit (#483). */
+    onOpenPerson?: (personId: string) => void;
   } = $props();
 
   const ws = $derived($workspace);
@@ -143,7 +146,7 @@
 
 <div class="org-view structure">
   <p class="subtitle">{$t('org.subtitle')}</p>
-  <AreaOverview area={org} summary {onOpenUnit}>
+  <AreaOverview area={org} summary {onOpenUnit} {onOpenPerson}>
     <ul class="tree" aria-label={$t('org.tree.label', { name })}>
       <li class="root-item">
         <section class="node root" aria-labelledby="org-root-name">

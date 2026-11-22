@@ -410,7 +410,13 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(kpi.locator('.tag')).toHaveText('All aligned');
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText('aligned');
   await expect(overview.locator('[data-cost-row="team-delta"] [data-step-reason]')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'What if' })).toContainText('What if · 1 change');
+  const whatIf = page.getByRole('region', { name: 'What if' });
+  await expect(whatIf).toContainText('What if · 1 change');
+  // The bar names the change (#506).
+  await expect(whatIf.locator('[data-whatif-changes]')).toHaveText(
+    'Team Delta: flow period start 01/06/2027 → 01/04/2027',
+  );
+  await expect(whatIf.locator('[data-whatif-lost]')).toHaveCount(0);
 
   // The area row has its what-if too; ending the presentation discards the change.
   await expect(overview.getByRole('button', { name: 'What if: Payments' })).toBeVisible();
@@ -420,6 +426,46 @@ test('presenting, a cadence row opens its what-if; a new start aligns the team (
   await expect(overview.locator('[data-team-row="team-delta"]')).toContainText(
     'starts on Wednesday',
   );
+});
+
+test('presenting, the what-if bar names a team that falls out of step, in warning colour (#506)', async ({
+  page,
+}) => {
+  const overview = await openOverview(page, undefined, (ws) => {
+    (ws.areas[0] as { teamIds: string[] }).teamIds = ['team-alpha', 'team-beta', 'team-delta'];
+  });
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await overview.getByRole('button', { name: 'What if: Team Alpha', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Cadence · Team Alpha' });
+  await sheet.getByLabel('Length (weeks)').fill('3');
+  await sheet.getByRole('button', { name: 'Apply' }).click();
+  const whatIf = page.getByRole('region', { name: 'What if' });
+  await expect(whatIf.locator('[data-whatif-changes]')).toHaveText(
+    'Team Alpha: sprint 2 → 3 weeks',
+  );
+  const lost = whatIf.locator('[data-whatif-lost]');
+  await expect(lost).toHaveText(/^Team Alpha no longer aligned: .+/);
+  const colour = (sel: string) =>
+    page.evaluate((s) => getComputedStyle(document.querySelector(s)!).color, sel);
+  const warn = await page.evaluate(() => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--warn)';
+    document.body.append(probe);
+    const c = getComputedStyle(probe).color;
+    probe.remove();
+    return c;
+  });
+  expect(await colour('[data-whatif-lost]')).toBe(warn);
+  // Print keeps the same text.
+  await page.emulateMedia({ media: 'print' });
+  await expect(lost).toBeVisible();
+  await expect(whatIf.locator('[data-whatif-changes]')).toHaveText(
+    'Team Alpha: sprint 2 → 3 weeks',
+  );
+  // On a phone the bar wraps; the page does not scroll sideways.
+  await page.emulateMedia({ media: 'screen' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });
 
 test('presenting, "Align with …" fits a team to the area cadence in one tap (#463)', async ({
