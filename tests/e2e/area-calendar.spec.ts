@@ -131,5 +131,5 @@ test('tagged chips fit their day; a person in two teams sees the tags (#504)', a
     .getByRole('region', { name: 'Show for' })
     .getByLabel('Person')
     .selectOption({ label: 'Alex' });
-  await expect(grid.locator('.chip .team', { hasText: 'A' }).first()).toBeVisible();
+  await expect(grid.locator('.chip .team', { hasText: /^A$/ }).first()).toBeVisible();
 });

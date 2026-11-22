@@ -76,8 +76,10 @@ describe('meetingFrequency (#504)', () => {
     ) as Workspace;
     const count = meetingFrequency(ws, workspaceIndex(ws));
     const alpha = ws.teams[0]!;
-    const daily = alpha.events.find((e) => e.name === 'Weekly Sync')!;
+    const weekly = alpha.events.find((e) => e.name === 'Weekly Sync')!;
     const planning = alpha.events.find((e) => e.name === 'Sprint Planning')!;
-    expect(count[`${alpha.id}/${daily.id}`]!).toBeGreaterThan(count[`${alpha.id}/${planning.id}`]!);
+    expect(count[`${alpha.id}/${weekly.id}`]!).toBeGreaterThan(
+      count[`${alpha.id}/${planning.id}`]!,
+    );
   });
 });
