@@ -71,7 +71,6 @@ export function holidayIndex(region: Region, from: ISODate, to: ISODate): Holida
   return index;
 }
 
-
 export function isBuiltinRegion(id: string): boolean {
   return id === NO_HOLIDAYS || Object.prototype.hasOwnProperty.call(REGIONS, id);
 }
