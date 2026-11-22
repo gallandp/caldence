@@ -1,6 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openExample, pickUnit, setLanguage, showView } from './helpers';
+import {
+  openExample,
+  openWorkspaceFile,
+  pickUnit,
+  setLanguage,
+  showView,
+  useFileFallback,
+} from './helpers';
+import example from '../../src/data/examples/example.caldence.json' with { type: 'json' };
 
 test.use({ locale: 'en-US' });
 
@@ -221,4 +229,22 @@ test('an on-site meeting adds its travel time to cost and load (#309)', async ({
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(sync.locator('[data-place]')).toHaveCount(0);
   await expect(sync.locator('[data-cost]')).toContainText('Ø €50 / week');
+});
+
+test('a 13-week planning horizon spreads the period cost over 13 weeks (#512)', async ({
+  page,
+}) => {
+  await useFileFallback(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const ws = structuredClone(example) as typeof example & { settings: { hourlyRate?: number } };
+  ws.settings.locale = 'en';
+  ws.settings.hourlyRate = 100;
+  ws.settings.horizon = { ...ws.settings.horizon, from: '2027-03-01', to: '2027-05-30' };
+  await openWorkspaceFile(page, ws, 'plan.caldence.json');
+  await pickUnit(page, 'Team Alpha');
+  await tab(page, 'Meeting load');
+  await expect(page.locator('[data-costs] [data-cost-horizon-note]')).toContainText(
+    / \/ week over 13 weeks, without holidays/,
+  );
 });

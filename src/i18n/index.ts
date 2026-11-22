@@ -42,15 +42,15 @@ export function formatDisplayDate(locale: Locale, d: ISODate, style: 'short' | '
   return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(utc);
 }
 
-/**
- * The planning horizon as cost labels name it: "2027, 52 Wo." for a full calendar year,
- * otherwise "01.03.2027–30.05.2027, 13 Wo.".
- */
 /** The weeks of the planning horizon, at least one: what the period cost spreads over (#512). */
 export function horizonWeeks(horizon: { from: ISODate; to: ISODate }): number {
   return Math.max(1, Math.round((diffDays(horizon.to, horizon.from) + 1) / 7));
 }
 
+/**
+ * The planning horizon as cost labels name it: "2027, 52 Wo." for a full calendar year,
+ * otherwise "01.03.2027–30.05.2027, 13 Wo.".
+ */
 export function formatHorizon(locale: Locale, horizon: { from: ISODate; to: ISODate }): string {
   const { from, to } = horizon;
   const year = from.slice(0, 4);

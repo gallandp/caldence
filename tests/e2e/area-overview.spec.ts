@@ -657,6 +657,10 @@ test('with a rate the overview shows cost per team and the most expensive meetin
   await expect(overview.locator('[data-kpi="cost"]')).toContainText(
     'in the planning horizon (2027, 52\u00a0wks)',
   );
+  // Why weekly × 52 differs from the year figure (#512).
+  await expect(overview.locator('[data-kpi="cost"] [data-cost-horizon-note]')).toContainText(
+    / \/ week over 52 weeks, without holidays/,
+  );
   await table.getByRole('button', { name: 'in the planning horizon (2027, 52\u00a0wks)' }).click();
   await expect(
     table.getByRole('columnheader', { name: 'Cost in the planning horizon (2027, 52\u00a0wks)' }),

@@ -70,7 +70,7 @@
             value: signedEuro(after.cost.perWeek - before.cost.perWeek),
             horizonValue: signedEuro(after.cost.horizon - before.cost.horizon),
           })}
-          <span class="muted" data-whatif-horizon-note>
+          <span class="muted why" data-whatif-horizon-note>
             ({$t('cost.horizon.avg', {
               amount: signedEuro((after.cost.horizon - before.cost.horizon) / $horizonWeekCount),
               n: $horizonWeekCount,
@@ -96,6 +96,11 @@
 </section>
 
 <style>
+  @media (max-width: 40rem) {
+    .why {
+      display: block;
+    }
+  }
   .whatif-bar {
     display: flex;
     flex-wrap: wrap;
