@@ -498,6 +498,9 @@
         name: sharedAll.name,
         n: sharedAll.files,
       })}
+      {#if kind === 'team' && ws.areas.length > 0}
+        {$t('exchange.zip.done.areas')}
+      {/if}
     {:else if workbook}
       {$t('exchange.xlsx.done', { name: workbook })}
     {/if}
