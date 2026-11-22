@@ -71,15 +71,18 @@
   }
 
   /**
-   * Where the calendar opens: before the plan starts, its first week (the earliest team cadence
-   * start inside the horizon, #503); otherwise as Today.
+   * Where the calendar opens: before the plan starts, its first week (the earliest cadence start
+   * of the teams and areas in scope, not before the horizon start, #503); otherwise as Today.
    */
   function openingDay(): ISODate {
-    const { teams, settings } = get(workspace);
-    const { from, to } = settings.horizon;
-    const starts = teams.map((team) => team.cadence.start).filter((d) => d <= to);
-    const first = starts.length ? starts.reduce((a, b) => (b < a ? b : a)) : from;
-    const start = first > from ? first : from;
+    const ws = get(workspace);
+    const { from, to } = ws.settings.horizon;
+    // An area without a cadence of its own never starts a period (lengthWeeks 0).
+    const first = scopeUnits(ws, get(filter))
+      .filter((unit) => unit.cadence.lengthWeeks > 0 && unit.cadence.start <= to)
+      .map((unit) => unit.cadence.start)
+      .sort()[0];
+    const start = first && first > from ? first : from;
     return localToday() < start ? start : clampToHorizon();
   }
 

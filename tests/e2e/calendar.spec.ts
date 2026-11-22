@@ -565,7 +565,9 @@ test('a plan that starts in the future opens on its first week; Today still goes
   // A fresh plan on a Sunday: the horizon starts today, the cadence the next Monday (#503).
   const ws = structuredClone(example);
   ws.settings.horizon = { from: '2027-02-28', to: '2027-12-31' };
-  for (const team of ws.teams) team.cadence.start = '2027-03-01';
+  for (const unit of [...ws.teams, ...(ws.areas ?? [])]) unit.cadence!.start = '2027-03-01';
+  // A team that starts later does not move the plan's first week.
+  ws.teams[1]!.cadence.start = '2027-04-05';
   await page.clock.setFixedTime(new Date('2027-02-28T12:00:00'));
   await page.goto('/');
   await openWorkspaceFile(page, ws);
@@ -580,4 +582,12 @@ test('a plan that starts in the future opens on its first week; Today still goes
   await expect(label).toContainText('Week 8');
   await panel(page).getByRole('button', { name: 'Month', exact: true }).click();
   await expect(label).toHaveText('February 2027');
+  // Presenting shows the same calendar.
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await expect(label).toHaveText('February 2027');
+});
+
+test('a plan that has started opens on today as before (#503)', async ({ page }) => {
+  await openCalendar(page, '2027-05-10');
+  await expect(panel(page).locator('[aria-live="polite"]')).toHaveText('May 2027');
 });
