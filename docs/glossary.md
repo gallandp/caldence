@@ -16,6 +16,7 @@ column and bar uses it and shows its value ("über 60 %").
 - The second rule (`warnFactor`, default 1.5 × the person's usual load) is a **Lastspitze** /
   **load spike**. It is never called "Überlast" or "Grenze".
 - "Spitzenwoche" / "Peak week" stays: the week with the most hours.
+- "(wiederkehrend)" / "(recurring)" marks a peak week without a load spike: it comes back with the cadence (#510).
 
 ## Terms
 

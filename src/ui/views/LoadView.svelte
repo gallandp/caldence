@@ -129,6 +129,12 @@
         free: roomBeforeLimit({ hours: average, base: cap }, maxFte),
         units: unitsOf(person.id),
         peak,
+        /** No load spike that week: the peak comes back with the cadence (#510). */
+        recurring:
+          !!peak &&
+          !allWarnings.some(
+            (w) => w.personId === person.id && w.monday === peak.monday && w.kind === 'above-usual',
+          ),
       };
     }),
   );
@@ -638,7 +644,7 @@
                 p.person.name,
                 p.peak.monday,
                 weekLabel(p.peak.monday),
-              )}{after}
+              )}{after}{#if p.recurring}{' '}{$t('load.recurring')}{/if}
             {:else}
               {$t('load.none')}
             {/if}
@@ -767,7 +773,11 @@
       <span class="label">{$t('load.kpi.peak')}</span>
       {#if peak}
         <span class="value">{weekLabel(peak.monday)}</span>
-        <span class="sub">{$t('load.kpi.peak.hours', { hours: hours(peak.total) })}</span>
+        <span class="sub">
+          {$t('load.kpi.peak.hours', {
+            hours: hours(peak.total),
+          })}{#if !warned.has(peak.monday)}{' '}{$t('load.recurring')}{/if}
+        </span>
       {:else}
         <span class="value">–</span>
         <span class="sub">{$t('load.kpi.peak.none')}</span>
