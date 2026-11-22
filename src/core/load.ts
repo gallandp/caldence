@@ -483,3 +483,19 @@ export function personMeetings(
   }
   return out;
 }
+
+/**
+ * What the highest week is (#510): 'warned' when it has a warning, 'recurring' when another week
+ * reaches at least 95 % of it (it comes back with the cadence), else 'below' (below the spike
+ * threshold). Undefined without meetings.
+ */
+export function peakKind(
+  weeks: readonly { monday: string; hours: number }[],
+  warned: (monday: string) => boolean,
+): 'warned' | 'recurring' | 'below' | undefined {
+  let peak: { monday: string; hours: number } | undefined;
+  for (const w of weeks) if (w.hours > 0 && (!peak || w.hours > peak.hours)) peak = w;
+  if (!peak) return undefined;
+  if (warned(peak.monday)) return 'warned';
+  return weeks.some((w) => w !== peak && w.hours >= 0.95 * peak.hours) ? 'recurring' : 'below';
+}
