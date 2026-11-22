@@ -72,6 +72,7 @@ test('I take part myself: the wizard asks for my hours too, and splits them when
   // 40 h here take the whole week: nothing to lower, so the tick goes (#489).
   await hours.fill('40');
   await expect(fit).toHaveCount(0);
+  await expect(dialog.getByText(/^Then:/)).toHaveCount(0);
   await hours.fill('4');
   await expect(fit).toBeChecked();
   await dialog.getByRole('button', { name: 'Create team' }).click();
