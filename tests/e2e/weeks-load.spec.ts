@@ -502,7 +502,8 @@ test('without warnings the list says so', async ({ page }) => {
   await page.getByLabel('Load spike from (× usual load)').fill('10');
   await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
   const section = panel.getByRole('region', { name: 'Warnings', exact: true });
-  await expect(section.getByText('No warnings')).toBeVisible();
+  // Neither load warnings nor overlaps: exactly "No warnings" (#505).
+  await expect(section.locator('[data-warnings-empty]')).toHaveText('No warnings');
   await expect(section.getByRole('listitem')).toHaveCount(0);
 });
 
@@ -555,6 +556,7 @@ for (const lang of ['de', 'en'] as const) {
       await dialog.getByLabel('I take part myself').check();
       await dialog.getByLabel('Your name').fill('Kim');
       await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
       await dialog.getByRole('button', { name: 'Create team' }).click();
       await expect(dialog).toBeHidden();
       await setLanguage(page, lang);
