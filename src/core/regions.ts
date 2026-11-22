@@ -69,12 +69,16 @@ export function holidayIndex(region: Region, from: ISODate, to: ISODate): Holida
   return index;
 }
 
+/** The region "No public holidays" (#508): reserved, so no imported region takes its id. */
+export const NO_HOLIDAYS = 'none';
+
 export function isBuiltinRegion(id: string): boolean {
-  return Object.prototype.hasOwnProperty.call(REGIONS, id);
+  return id === NO_HOLIDAYS || Object.prototype.hasOwnProperty.call(REGIONS, id);
 }
 
 /** Built-in regions first, then the workspace's imported ones; null when the id is unknown. */
 export function resolveRegion(ws: Workspace, id: string): Region | null {
+  if (id === NO_HOLIDAYS) return null;
   if (isBuiltinRegion(id)) return REGIONS[id]!;
   return ws.customRegions.find((r) => r.id === id) ?? null;
 }

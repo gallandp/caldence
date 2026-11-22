@@ -555,6 +555,7 @@ for (const lang of ['de', 'en'] as const) {
       await dialog.getByLabel('I take part myself').check();
       await dialog.getByLabel('Your name').fill('Kim');
       await dialog.getByRole('button', { name: 'Next' }).click();
+      await dialog.getByLabel('Region (holidays)').selectOption('de-sn');
       await dialog.getByRole('button', { name: 'Create team' }).click();
       await expect(dialog).toBeHidden();
       await setLanguage(page, lang);

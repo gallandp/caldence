@@ -1,7 +1,7 @@
 import { randomId } from './id';
 import { addDays, type ISODate, type Time } from './date';
 import type { LevelNames } from './levels';
-import type { Region } from './regions';
+import { NO_HOLIDAYS, type Region } from './regions';
 
 export const CURRENT_SCHEMA = 10;
 /**
@@ -265,7 +265,8 @@ export function emptyWorkspace(today: ISODate): Workspace {
     id: randomId(),
     settings: {
       locale: 'en',
-      region: 'de-sn',
+      // Not chosen yet: no meetings drop on holidays, and the setup wizard asks (#508).
+      region: NO_HOLIDAYS,
       timezone: 'Europe/Berlin',
       workdays: [1, 2, 3, 4, 5],
       hoursPerWeek: 40,

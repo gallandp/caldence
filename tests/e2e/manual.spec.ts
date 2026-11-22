@@ -85,6 +85,15 @@ for (const locale of ['de', 'en'] as const) {
               await p.getByRole('dialog').getByLabel('Product Owner', { exact: true }).fill('Kim');
             },
           },
+          6: {
+            labels: ['settings.region', 'settings.region.none'],
+            run: async (p, cat) => {
+              await p
+                .getByRole('dialog')
+                .getByLabel(cat['settings.region']!)
+                .selectOption({ label: cat['settings.region.none']! });
+            },
+          },
         },
         c,
       );
