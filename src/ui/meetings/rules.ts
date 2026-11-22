@@ -1,3 +1,4 @@
+import type { StepReason } from '../../core/areaOverview';
 import { mondayOf } from '../../core/date';
 import type { CalEvent, Rule, Team } from '../../core/model';
 // Core's runs keep every neighbour together; the local `weekdayRuns` below splits short runs.
@@ -272,4 +273,25 @@ export function movedText(
     t('team.cadence.movedPart', { names: m.names.join(', '), from: m.from, to: m.to }),
   );
   return parts.length > 0 ? t('team.cadence.moved', { moves: parts.join('; ') }) : '';
+}
+
+/** Why a team is not aligned ("3 instead of 2 weeks"), in the cadence overview and the what-if bar (#478, #506). */
+export function stepReasonText(
+  r: StepReason,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  loc: Locale,
+): string {
+  switch (r.kind) {
+    case 'weekday':
+      return t('overview.reason.weekday', { weekday: weekdayName(loc, r.weekday) });
+    case 'length':
+      return t(r.fromArea ? 'overview.reason.length.area' : 'overview.reason.length.peer', {
+        n: formatNumber(loc, r.weeks, 0),
+        m: formatNumber(loc, r.reference, 0),
+      });
+    case 'offset':
+      return t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
+        n: formatNumber(loc, r.weeks, 0),
+      });
+  }
 }
