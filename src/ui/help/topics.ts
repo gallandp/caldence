@@ -90,7 +90,7 @@ const START: ManualStep[] = [
   {
     text: 'help.first.step.frame',
     control: { role: 'button', name: 'setup.next' },
-    labels: { heading: 'setup.frame' },
+    labels: { heading: 'setup.frame', region: 'settings.region', none: 'settings.region.none' },
   },
   {
     text: 'help.first.step.create',

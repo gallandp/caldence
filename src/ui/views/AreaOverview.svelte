@@ -368,19 +368,14 @@
     if (!c || c.rows.length < 2) return '';
     const team = c.reference?.teamId ? teamName(c.reference.teamId) : '';
     const most = c.sharing > 1;
+    // The reference team changed in a what-if: it is compared with as it was before (#484).
+    const suffix = c.reference?.changed ? '.saved' : most ? '' : '.first';
     return [
       c.byArea > 0 ? $translate('overview.lead.org.areas') : '',
       c.others > 0 && team
-        ? $translate(
-            c.byArea > 0
-              ? most
-                ? 'overview.lead.org.others'
-                : 'overview.lead.org.others.first'
-              : most
-                ? 'overview.lead.org'
-                : 'overview.lead.org.first',
-            { team },
-          )
+        ? $translate((c.byArea > 0 ? 'overview.lead.org.others' : 'overview.lead.org') + suffix, {
+            team,
+          })
         : '',
     ]
       .filter(Boolean)
