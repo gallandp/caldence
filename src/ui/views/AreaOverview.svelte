@@ -48,7 +48,7 @@
   import OverlapList from '../components/OverlapList.svelte';
   import RateInvite from '../components/RateInvite.svelte';
   import WhatIfSheet from '../components/WhatIfSheet.svelte';
-  import { ruleShort, weekdayName, weekdayShort } from '../meetings/rules';
+  import { ruleShort, stepReasonText, weekdayShort } from '../meetings/rules';
   import { index, localToday, workspace } from '../state/workspace';
   import { presenting } from '../state/present';
 
@@ -381,21 +381,7 @@
       .join(', ');
   });
 
-  function reasonText(r: StepReason): string {
-    switch (r.kind) {
-      case 'weekday':
-        return $t('overview.reason.weekday', { weekday: weekdayName($locale, r.weekday) });
-      case 'length':
-        return $t(r.fromArea ? 'overview.reason.length.area' : 'overview.reason.length.peer', {
-          n: formatNumber($locale, r.weeks, 0),
-          m: formatNumber($locale, r.reference, 0),
-        });
-      case 'offset':
-        return $t(r.weeks === 1 ? 'overview.reason.offset.one' : 'overview.reason.offset.other', {
-          n: formatNumber($locale, r.weeks, 0),
-        });
-    }
-  }
+  const reasonText = (r: StepReason) => stepReasonText(r, $t, $locale);
 
   function segLabel(c: Cadence, s: Segment, first = false): string {
     const label = $t('overview.seg.' + c.kind, { n: formatNumber($locale, s.number, 0) });
