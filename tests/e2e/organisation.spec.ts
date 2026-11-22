@@ -196,3 +196,46 @@ test("the organisation's own meetings close the cost table, in no area's group (
   await expect(org.locator('th[scope="rowgroup"]')).toHaveCount(0);
   await expect(costs.locator('tbody').last()).toHaveText(/Portfolio Sync/);
 });
+
+test('a name over the limit opens Meeting load at that person, also with hidden names (#483)', async ({
+  page,
+}) => {
+  await openExample(page);
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  const limit = page.getByLabel('Limit: share of weekly hours in meetings');
+  await limit.fill('5');
+  await limit.press('Enter');
+  await pickOrg(page);
+  await showView(page, 'Organisation');
+  const tag = page.locator('[data-area-overview] [data-kpi="load"] .tag');
+  const first = tag.getByRole('button').first();
+  const name = (await first.textContent())!;
+  await expect(first).toHaveAccessibleName(`Show ${name} in Meeting load`);
+  await first.click();
+  await expect(page.getByRole('tab', { name: 'Meeting load' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(currentUnit(page)).toHaveText('Organisation');
+  const who = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${name}$`),
+  });
+  await expect(who).toHaveAttribute('aria-expanded', 'true');
+  await expect(who).toBeFocused();
+  await expect(who).toBeInViewport();
+
+  // Presenting with hidden names: the link keeps the hidden name and still opens the row.
+  await showView(page, 'Organisation');
+  await page.getByRole('button', { name: 'Present', exact: true }).click();
+  await page.getByRole('banner').getByLabel('Hide names').check();
+  const hidden = tag.getByRole('button').first();
+  await expect(hidden).toHaveText(/^Person \d+$/);
+  await expect(hidden).toHaveAccessibleName(/^Show Person \d+ in Meeting load$/);
+  const pseudonym = (await hidden.textContent())!;
+  await hidden.click();
+  const row = page.locator('#panel-load tr[data-person] button.who', {
+    hasText: new RegExp(`^${pseudonym}$`),
+  });
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+  await expect(row).toBeFocused();
+});
