@@ -238,4 +238,5 @@ test('a name over the limit opens Meeting load at that person, also with hidden 
   });
   await expect(row).toHaveAttribute('aria-expanded', 'true');
   await expect(row).toBeFocused();
+  await expect(row).toBeInViewport();
 });
