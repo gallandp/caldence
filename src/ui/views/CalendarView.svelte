@@ -211,6 +211,7 @@
         area: area === true,
         hours: o.hours,
         preparation: event?.preparation ?? 0,
+        travel: event?.onSite?.travel ?? 0,
         skipped: o.skippedHoliday !== undefined,
       };
     });

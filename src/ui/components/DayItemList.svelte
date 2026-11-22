@@ -18,6 +18,8 @@
     hours: number;
     /** The meeting's preparation, a share of its time (0.5 = 50 %); 0 for none. */
     preparation: number;
+    /** Travel minutes of an on-site meeting, there and back (#496); 0 for none. */
+    travel: number;
     skipped: boolean;
   }
 </script>
@@ -50,6 +52,8 @@
           to: item.end,
         })}{#if item.preparation > 0}<span class="prep">
             {` · ${$t('meet.cost.prep', { percent: formatPercent($locale, item.preparation, 2) })}`}
+          </span>{/if}{#if item.travel > 0}<span class="prep">
+            {` · ${$t('meet.cost.travel', { n: item.travel })}`}
           </span>{/if}
       </span>
       <span class="meta">{item.about}</span>

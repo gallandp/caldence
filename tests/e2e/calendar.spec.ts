@@ -550,3 +550,52 @@ test('meeting cards say when their hours include preparation (#474)', async ({ p
     panel(page).getByRole('listitem').filter({ hasText: 'Sprint Planning' }).first(),
   ).toContainText('inkl. 25 % Vorbereitung');
 });
+
+test('meeting cards and the drill-in say when their hours include travel (#496)', async ({
+  page,
+}) => {
+  await openCalendar(page, ALEX_OVERLAP_DAY);
+  await page.getByRole('tab', { name: 'Meetings & cadence', exact: true }).click();
+  const meetings = page.getByRole('tabpanel', { name: 'Meetings & cadence' });
+  await meetings.getByRole('button', { name: 'Edit Sprint Planning' }).first().click();
+  const form = meetings.getByRole('region', { name: /Sprint Planning/ });
+  await form
+    .getByRole('group', { name: 'Format' })
+    .getByRole('button', { name: 'On site' })
+    .click();
+  await form.getByLabel('Travel (minutes)').fill('60');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(form).toBeHidden();
+
+  await page.getByRole('tab', { name: 'Calendar', exact: true }).click();
+  await panel(page).getByRole('button', { name: 'Week', exact: true }).click();
+  await page.getByLabel('Person').selectOption({ label: 'Alex' });
+  const thursday = panel(page).locator('section', {
+    has: page.getByRole('heading', { name: 'Thursday, January 7, 2027' }),
+  });
+  await expect(thursday.getByRole('listitem').filter({ hasText: 'Sprint Planning' })).toContainText(
+    '10:00–12:00 · incl. 25% preparation · incl. 60 min travel',
+  );
+  // A remote meeting keeps its plain time line.
+  await expect(
+    thursday.getByRole('listitem').filter({ hasText: 'Replenishment' }),
+  ).not.toContainText('travel');
+  await setLanguage(page, 'de');
+  await expect(
+    panel(page).getByRole('listitem').filter({ hasText: 'Sprint Planning' }).first(),
+  ).toContainText('inkl. 60 Min. Anreise');
+  await setLanguage(page, 'en');
+
+  await page.getByRole('tab', { name: 'Meeting load', exact: true }).click();
+  const load = page.getByRole('tabpanel', { name: 'Meeting load' });
+  const alex = load.getByRole('table', { name: 'People' }).getByRole('button', {
+    name: 'Alex',
+    exact: true,
+  });
+  await alex.click();
+  const detail = page.locator(`#${await alex.getAttribute('aria-controls')}`);
+  for (const summary of await detail.locator('summary').all()) await summary.click();
+  await expect(
+    detail.getByRole('listitem').filter({ hasText: 'Sprint Planning' }).first(),
+  ).toContainText('incl. 25% preparation · incl. 60 min travel');
+});

@@ -236,7 +236,11 @@
           event.preparation > 0
             ? $t('meet.cost.prep', { percent: formatPercent($locale, event.preparation, 2) })
             : '';
-        return { ...m, name: event.name, rule: prep ? `${rule} · ${prep}` : rule };
+        // Travel to an on-site meeting too, as on the cost rows (#496).
+        const travel = event.onSite?.travel
+          ? $t('meet.cost.travel', { n: event.onSite.travel })
+          : '';
+        return { ...m, name: event.name, rule: [rule, prep, travel].filter(Boolean).join(' · ') };
       });
     }
     return out;
