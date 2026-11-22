@@ -7,6 +7,7 @@ import {
   detectLocale,
   formatDisplayDate,
   formatHorizon,
+  horizonWeeks,
   formatNumber,
   formatPercent,
   nextWeeks,
@@ -167,5 +168,13 @@ describe('nextWeeks', () => {
     expect(t('de', 'overview.kpi.warn.sub', { period: nextWeeks(de_, 'de', 3) })).toBe(
       'in den nächsten 3 Wochen',
     );
+  });
+});
+
+describe('horizonWeeks (#512)', () => {
+  it('counts the weeks the period cost is spread over', () => {
+    expect(horizonWeeks({ from: '2027-01-01', to: '2027-12-31' })).toBe(52);
+    expect(horizonWeeks({ from: '2027-03-01', to: '2027-05-30' })).toBe(13);
+    expect(horizonWeeks({ from: '2027-03-01', to: '2027-03-02' })).toBe(1);
   });
 });

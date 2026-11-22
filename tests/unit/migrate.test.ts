@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { MIGRATIONS, migrate } from '../../src/core/migrate';
 import { CURRENT_SCHEMA, emptyWorkspace } from '../../src/core/model';
 import { loadWorkspace } from '../../src/core/validate';
+import { workspaceIndex } from '../../src/core/views';
 
 describe('migrate', () => {
   afterEach(() => {
@@ -151,6 +152,15 @@ describe('imported regions with an id that is now bundled (#23)', () => {
     expect(r.value.customRegions.map((x) => x.id)).toEqual(['de-by-imported-2', 'de-by-imported']);
     expect(r.value.settings.region).toBe('de-by-imported-2');
     expect(r.value.customRegions[0]!.schoolHolidays).toHaveLength(1);
+  });
+  it('an imported region with the now reserved id "none" keeps its holidays (#508)', () => {
+    const ws = { ...emptyWorkspace('2026-11-17'), customRegions: [region('none', 'Mine')] };
+    ws.settings.region = 'none';
+    const r = loadWorkspace(JSON.stringify(ws));
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(r.value.customRegions.map((x) => x.id)).toEqual(['none-imported']);
+    expect(r.value.settings.region).toBe('none-imported');
+    expect(workspaceIndex(r.value).schoolHolidays.has('2027-02-15')).toBe(true);
   });
   it('leave other imported regions alone', () => {
     const ws = { ...emptyWorkspace('2026-11-17'), customRegions: [region('at-9', 'Vienna')] };

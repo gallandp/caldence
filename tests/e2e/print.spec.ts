@@ -136,6 +136,7 @@ test('a what-if prints as a note, without its Reset button', async ({ page }) =>
   await page.emulateMedia({ media: 'print' });
   const note = page.getByRole('region', { name: 'What if' });
   await expect(note).toContainText('What if · 1 change');
+  await expect(note).toContainText('Team Alpha: sprint 2 → 3 weeks');
   await expect(note.getByRole('button', { name: 'Reset' })).toBeHidden();
   await expect(cadence.getByRole('button', { name: 'What if …' })).toBeHidden();
 });
