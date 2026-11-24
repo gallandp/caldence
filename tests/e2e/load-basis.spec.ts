@@ -33,8 +33,7 @@ test.describe('Meeting load basis', () => {
     await expect(panel.locator('tr[data-person="person-alex"] td.peak')).toHaveText(
       'W25 (7.5 h) (below spike threshold)',
     );
-    await expect(panel.locator('[data-peak] .sub')).toHaveText(
-      '28.9 h in that week (below spike threshold)',
-    );
+    // Robin is over the limit in W25 (#529), so the org peak week has a warning: no mark.
+    await expect(panel.locator('[data-peak] .sub')).toHaveText('28.9 h in that week');
   });
 });
