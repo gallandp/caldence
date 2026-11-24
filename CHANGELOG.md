@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 1.52.0 – 2026-11-24
+
+### Added
+
+- Calendar cards and a person's meetings in Meeting load say when their hours include travel to an on-site meeting (#496) (#519)
+- "Add to calendar…" says "changed – export again" after you change a meeting you already exported in this browser (#509) (#521)
+- On the Organisation page, a name over the limit in the Meeting load key figure opens Meeting load at that person (#483) (#525)
+
+### Changed
+
+- A team's calendar file also holds the area meetings its people are invited to, without duplicates when the area file is imported too (#507) (#513)
+- Month view shows rare meetings such as planning and review first, fills each day before "+N more", and tags each meeting with its team in area and organisation scope (#504) (#520)
+- While presenting, the what-if bar names each change and, in warning colour, each team that is no longer aligned, with the reason (#506) (#523)
+- Meeting load names the basis of its figures and marks peak weeks that recur with the cadence as "(recurring)" (#510) (#526)
+- The period cost now says why it differs from cost per week × 52: "Ø … / week over … weeks, without holidays", in cost cards, the overview, the what-if bar and on paper (#512) (#527)
+- The example file shows one person over the limit: Robin, in two teams with 7 h a week (#511) (#529)
+
+### Fixed
+
+- Meeting load no longer says "No warnings" while meetings overlap; it says "No load warnings" with the number of overlapping meeting pairs, which leads to them (#505) (#514)
+- Before a plan starts, the Calendar opens on its first week instead of empty weeks (#503) (#515)
+- The setup wizard no longer presets Saxony as the holiday region: you choose your state or "No public holidays" before you create the first team (#508) (#516)
+- While presenting, the Organisation lead says "before the what-ifs" when the reference team's cadence was changed in a what-if (#484) (#518)
+- The tick to lower a person's other teams shows only when the hours here leave something to lower (#489) (#524)
+- The team row a "Differ:" name jumps to on the area Overview is highlighted for a moment (#494) (#528)
+
 ## 1.51.0 – 2026-11-21
 
 ### Added
